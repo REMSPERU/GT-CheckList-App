@@ -15,6 +15,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarInactiveTintColor: Colors[colorScheme ?? 'light'].tabIconDefault,
         headerShown: false,
       }}>
       <Tabs.Screen
@@ -28,21 +29,21 @@ export default function TabLayout() {
       name='checklist'
         options={{
           title: 'Check Lists',
-          tabBarIcon: ({ color }) => <Octicons name="checklist" size={24} color="black" />,
+          tabBarIcon: ({ color }) => <Octicons name="checklist" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="maintenance"
         options={{
           title: 'Mantenimiento',
-          tabBarIcon: ({ color }) => <MaterialIcons name="home-repair-service" size={24} color="black" />,
+          tabBarIcon: ({ color }) => <MaterialIcons name="home-repair-service" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="reports"
         options={{
           title: 'Reportes',
-          tabBarIcon: ({ color }) => <Ionicons name="stats-chart" size={24} color="black" />,
+          tabBarIcon: ({ color }) => <Ionicons name="stats-chart" size={24} color={color} />,
         }}
       />
     </Tabs>

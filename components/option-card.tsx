@@ -11,7 +11,7 @@ type Props = {
 
 export default function OptionCard({ icon, title, description, link }: Props) {
   return (
-    <View className="flex-row items-start col-span-2 bg-white rounded-lg shadow-md p-4 mb-4 w-11/12">
+    <View className="flex-row items-start col-span-2 bg-white dark:bg-white/90 rounded-lg shadow-md p-4 mb-4 w-11/12">
       <View className="flex-1 pr-4">
         <View className="flex-row items-center mb-2">
           {icon}

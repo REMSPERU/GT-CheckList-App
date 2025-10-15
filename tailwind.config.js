@@ -3,15 +3,14 @@ module.exports = {
   // NOTE: Update this to include the paths to all files that contain Nativewind classes.
   content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}"],
   presets: [require("nativewind/preset")],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        // Colores personalizados basados en tu paleta de tema
+        // Colores personalizados que cambian automáticamente con el tema
         primary: {
           light: '#0a7ea4',
-          dark: '#fff',
-          DEFAULT: '#0a7ea4', // Para modo claro por defecto
+          dark: '#60a5fa',
+          DEFAULT: '#0a7ea4',
         },
         secondary: {
           light: '#11181C',
@@ -24,9 +23,9 @@ module.exports = {
           DEFAULT: '#fff',
         },
         text: {
-          light: '#ECEDEE',
-          dark: '#11181C',
-          DEFAULT: '#ECEDEE',
+          light: '#11181C',
+          dark: '#fff',
+          DEFAULT: '#11181C',
         },
         icon: {
           light: '#687076',
@@ -41,7 +40,7 @@ module.exports = {
           },
           selected: {
             light: '#0a7ea4',
-            dark: '#fff',
+            dark: '#60a5fa',
             DEFAULT: '#0a7ea4',
           },
         },
