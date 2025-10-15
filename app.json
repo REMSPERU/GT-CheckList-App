@@ -8,7 +8,11 @@
     "scheme": "gtchecklistapp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para escanear códigos QR.",
+        "NSMicrophoneUsageDescription": "Esta aplicación necesita acceso al micrófono."
+      }
     },
     "android": {
       "package": "pe.rems.gtchecklistapp",
@@ -44,7 +48,13 @@
           }
         }
       ],
-      "expo-barcode-scanner"
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "Esta aplicación necesita acceso a la cámara para escanear códigos QR.",
+          "enableCodeScanner": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
