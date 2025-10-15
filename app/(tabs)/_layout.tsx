@@ -26,7 +26,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-      name='checklist'
+        name='checklist'
         options={{
           title: 'Check Lists',
           tabBarIcon: ({ color }) => <Octicons name="checklist" size={24} color={color} />,
@@ -44,13 +44,6 @@ export default function TabLayout() {
         options={{
           title: 'Reportes',
           tabBarIcon: ({ color }) => <Ionicons name="stats-chart" size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="qr"
-        options={{
-          title: 'QR',
-          tabBarIcon: ({ color }) => <Ionicons name="qr-code" size={24} color={color} />,
         }}
       />
     </Tabs>
