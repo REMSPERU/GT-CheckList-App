@@ -46,6 +46,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Ionicons name="stats-chart" size={24} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="qr"
+        options={{
+          title: 'QR',
+          tabBarIcon: ({ color }) => <Ionicons name="qr-code" size={24} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

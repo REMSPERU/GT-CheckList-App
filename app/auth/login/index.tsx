@@ -1,8 +1,11 @@
 import { Image } from 'expo-image';
-import { Text, TextInput, View } from "react-native";
+import { useRouter } from 'expo-router';
+import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
+    const router = useRouter();
+
     return (
         <SafeAreaView className="flex-1 bg-background">
             <View className="flex-1 px-6 py-4">
@@ -36,13 +39,13 @@ export default function LoginScreen() {
                     />
                     <Text className="text-primary text-right mb-6 text-sm">¿Olvidaste tu contraseña?</Text>
 
-                    <View className="bg-primary rounded-lg p-4 mb-4 items-center">
+                    <TouchableOpacity className="bg-primary rounded-lg p-4 mb-4 items-center" onPress={() => router.replace('/(tabs)')}>
                         <Text className="text-white text-lg font-bold">Iniciar Sesión</Text>
-                    </View>
+                    </TouchableOpacity>
 
-                    <View className="bg-secondary border-primary border-2 rounded-lg p-4 items-center">
+                    <TouchableOpacity className="bg-secondary border-primary border-2 rounded-lg p-4 items-center">
                         <Text className="text-text text-lg font-bold">Registrar</Text>
-                    </View>
+                    </TouchableOpacity>
                 </View>
             </View>
         </SafeAreaView>
