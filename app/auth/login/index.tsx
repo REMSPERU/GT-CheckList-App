@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
@@ -7,44 +8,97 @@ export default function LoginScreen() {
     const router = useRouter();
 
     return (
-        <SafeAreaView className="flex-1 bg-background">
-            <View className="flex-1 px-6 py-4">
+        <SafeAreaView className="flex-1 bg-gray-100">
+            <View className="flex-1 px-6 py-8">
                 {/* Header */}
-                <View className="items-center justify-center mb-6">
-                    <Text className="text-primary text-3xl font-bold">Bienvenido a</Text>
+                <View className="items-center justify-center pt-2 pb-6">
+                    <Text className="text-black text-xl font-normal">Bienvenido a</Text>
                 </View>
 
-                {/* Imagen */}
-                <View className="flex-1 justify-center items-center mb-6">
+                {/* Logo */}
+                <View className="items-center justify-center mb-8 h-56">
                     <Image
-                        className="w-full h-4/5 rounded-lg"
-                        source={require('../../../assets/operation.png')}
-                        contentFit="fill"
+                        style={{ width: 283, height: 100, paddingLeft:19, paddingRight:19 }}
+                        source={require('../../../assets/logo/image.png')}
+                        contentFit="contain"
                         transition={1000}
                     />
                 </View>
 
                 {/* Formulario */}
-                <View className="flex-1 justify-center">
-                    <TextInput
-                        className="border-2 border-gray-300 rounded-lg p-4 mb-4 text-base bg-white"
-                        placeholder="Usuario"
-                        placeholderTextColor="#9CA3AF"
-                    />
-                    <TextInput
-                        className="border-2 border-gray-300 rounded-lg p-4 mb-2 text-base bg-white"
-                        placeholder="Contraseña"
-                        secureTextEntry
-                        placeholderTextColor="text-primary"
-                    />
-                    <Text className="text-primary text-right mb-6 text-sm">¿Olvidaste tu contraseña?</Text>
+                <View className="flex-1">
+                    {/* Input Correo electrónico */}
+                    <View className="mb-4 relative">
+                        <Ionicons 
+                            name="mail-outline" 
+                            size={16} 
+                            color="#565D6D" 
+                            style={{ position: 'absolute', left: 12, top: 18, zIndex: 10 }} 
+                        />
+                        <TextInput
+                            style={{
+                                height: 52,
+                                paddingLeft: 34,
+                                paddingRight: 12,
+                                fontSize: 16,
+                                lineHeight: 26,
+                                fontWeight: '400',
+                                backgroundColor: '#FFFFFF',
+                                borderRadius: 10,
+                                borderWidth: 0,
+                                color: '#565D6D'
+                            }}
+                            placeholder="Correo electrónico"
+                            placeholderTextColor="#9CA3AF"
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                        />
+                    </View>
 
-                    <TouchableOpacity className="bg-primary rounded-lg p-4 mb-4 items-center" onPress={() => router.replace('/(tabs)')}>
-                        <Text className="text-white text-lg font-bold">Iniciar Sesión</Text>
+                    {/* Input Contraseña */}
+                    <View className="mb-3 relative">
+                        <Ionicons 
+                            name="lock-closed-outline" 
+                            size={16} 
+                            color="#565D6D" 
+                            style={{ position: 'absolute', left: 12, top: 18, zIndex: 10 }} 
+                        />
+                        <TextInput
+                            style={{
+                                height: 52,
+                                paddingLeft: 34,
+                                paddingRight: 12,
+                                fontSize: 16,
+                                lineHeight: 26,
+                                fontWeight: '400',
+                                backgroundColor: '#FFFFFF',
+                                borderRadius: 10,
+                                borderWidth: 0,
+                                color: '#565D6D'
+                            }}
+                            placeholder="Contraseña"
+                            secureTextEntry
+                            placeholderTextColor="#9CA3AF"
+                            autoCapitalize="none"
+                        />
+                    </View>
+
+                    {/* Olvidaste tu contraseña */}
+                    <TouchableOpacity style={{ marginBottom: 116 }}>
+                        <Text className="text-cyan-500 text-right text-sm">¿Olvidaste tu contraseña?</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity className="bg-secondary border-primary border-2 rounded-lg p-4 items-center">
-                        <Text className="text-text text-lg font-bold">Registrar</Text>
+                    {/* Botón Iniciar sesión */}
+                    <TouchableOpacity 
+                        className="bg-cyan-500 rounded-xl p-4 mb-4 items-center shadow-sm" 
+                        onPress={() => router.replace('/(tabs)')}
+                    >
+                        <Text className="text-white text-base font-semibold">Iniciar sesión</Text>
+                    </TouchableOpacity>
+
+                    {/* Botón Crear cuenta */}
+                    <TouchableOpacity className="bg-white border-2 border-cyan-500 rounded-xl p-4 items-center shadow-sm">
+                        <Text className="text-cyan-500 text-base font-semibold">Crear cuenta</Text>
                     </TouchableOpacity>
                 </View>
             </View>
