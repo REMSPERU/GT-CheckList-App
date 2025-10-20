@@ -16,16 +16,16 @@
     },
     "android": {
       "package": "pe.rems.gtchecklistapp",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "permissions": [
-        "INTERNET",
-        "CAMERA"
-      ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
@@ -49,10 +49,11 @@
         }
       ],
       [
-        "react-native-vision-camera",
+        "expo-camera",
         {
-          "cameraPermissionText": "$(PRODUCT_NAME) necesita acceso a la cámara para escanear códigos QR.",
-          "enableCodeScanner": true
+          "cameraPermission": "$(PRODUCT_NAME) necesita acceso a la cámara para escanear códigos QR.",
+          "microphonePermission": "$(PRODUCT_NAME) necesita acceso al micrófono.",
+          "recordAudioAndroid": false
         }
       ]
     ],

@@ -1,8 +1,8 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useState } from 'react';
+import { BarcodeScanningResult, CameraView, useCameraPermissions } from 'expo-camera';
+import { useState } from 'react';
 import { Alert, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Camera, useCameraDevice, useCameraPermission, useCodeScanner } from 'react-native-vision-camera';
 
 export default function QRScannerScreen() {
   const [isActive, setIsActive] = useState(true);
@@ -12,44 +12,39 @@ export default function QRScannerScreen() {
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
   
-  const device = useCameraDevice('back');
-  const { hasPermission, requestPermission: requestCameraPermission } = useCameraPermission();
+  const [permission, requestPermission] = useCameraPermissions();
 
-  const codeScanner = useCodeScanner({
-    codeTypes: ['qr', 'ean-13', 'ean-8', 'code-128', 'code-39', 'code-93'],
-    onCodeScanned: (codes) => {
-      if (codes.length > 0 && isActive) {
-        const code = codes[0];
-        setIsActive(false);
-        setScannedData(code.value || 'Código sin valor');
-        
-        Alert.alert(
-          'Código Escaneado',
-          `Tipo: ${code.type}\nValor: ${code.value}`,
-          [
-            {
-              text: 'Copiar',
-              onPress: () => {
-                // Aquí puedes implementar la lógica para copiar al portapapeles
-                console.log('Copiado:', code.value);
-              }
-            },
-            {
-              text: 'Escanear otro',
-              onPress: () => {
-                setScannedData(null);
-                setIsActive(true);
-              }
+  const handleBarcodeScanned = (result: BarcodeScanningResult) => {
+    if (isActive) {
+      setIsActive(false);
+      setScannedData(result.data || 'Código sin valor');
+      
+      Alert.alert(
+        'Código Escaneado',
+        `Tipo: ${result.type}\nValor: ${result.data}`,
+        [
+          {
+            text: 'Copiar',
+            onPress: () => {
+              // Aquí puedes implementar la lógica para copiar al portapapeles
+              console.log('Copiado:', result.data);
             }
-          ]
-        );
-      }
+          },
+          {
+            text: 'Escanear otro',
+            onPress: () => {
+              setScannedData(null);
+              setIsActive(true);
+            }
+          }
+        ]
+      );
     }
-  });
+  };
 
   const handleRequestPermission = async () => {
-    const permission = await requestCameraPermission();
-    if (!permission) {
+    const result = await requestPermission();
+    if (!result.granted) {
       Alert.alert(
         'Permiso Denegado',
         'La aplicación necesita acceso a la cámara para escanear códigos QR. Por favor, habilita los permisos en la configuración.',
@@ -61,7 +56,12 @@ export default function QRScannerScreen() {
     }
   };
 
-  if (!hasPermission) {
+  if (!permission) {
+    // Los permisos aún están cargando
+    return <View />;
+  }
+
+  if (!permission.granted) {
     return (
       <View style={[styles.container, { backgroundColor }]}>
         <MaterialIcons name="qr-code-scanner" size={80} color={tintColor} />
@@ -78,23 +78,15 @@ export default function QRScannerScreen() {
     );
   }
 
-  if (!device) {
-    return (
-      <View style={[styles.container, { backgroundColor }]}>
-        <Text style={[styles.errorText, { color: textColor }]}>
-          No se encontró ninguna cámara
-        </Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <Camera
+      <CameraView
         style={StyleSheet.absoluteFill}
-        device={device}
-        isActive={isActive}
-        codeScanner={codeScanner}
+        facing="back"
+        barcodeScannerSettings={{
+          barcodeTypes: ['qr', 'ean13', 'ean8', 'code128', 'code39', 'code93'],
+        }}
+        onBarcodeScanned={handleBarcodeScanned}
       />
       
       {/* Overlay con marco de escaneo */}

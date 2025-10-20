@@ -1,12 +1,11 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
-import React from 'react';
+import { BarcodeScanningResult, BarcodeType, CameraView } from 'expo-camera';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { Camera, Code, useCameraDevice, useCodeScanner } from 'react-native-vision-camera';
 
 interface QRScannerComponentProps {
   isActive: boolean;
-  onCodeScanned: (code: Code) => void;
-  codeTypes?: ('qr' | 'ean-13' | 'ean-8' | 'code-128' | 'code-39' | 'code-93' | 'aztec' | 'data-matrix' | 'pdf-417')[];
+  onCodeScanned: (code: BarcodeScanningResult) => void;
+  codeTypes?: BarcodeType[];
   overlayStyle?: ViewStyle;
   showFrame?: boolean;
 }
@@ -14,37 +13,27 @@ interface QRScannerComponentProps {
 export default function QRScannerComponent({
   isActive,
   onCodeScanned,
-  codeTypes = ['qr', 'ean-13'],
+  codeTypes = ['qr', 'ean13'],
   overlayStyle,
   showFrame = true
 }: QRScannerComponentProps) {
-  const device = useCameraDevice('back');
   const tintColor = useThemeColor({}, 'tint');
 
-  const codeScanner = useCodeScanner({
-    codeTypes,
-    onCodeScanned: (codes) => {
-      if (codes.length > 0 && isActive) {
-        onCodeScanned(codes[0]);
-      }
+  const handleBarcodeScanned = (result: BarcodeScanningResult) => {
+    if (isActive) {
+      onCodeScanned(result);
     }
-  });
-
-  if (!device) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Cámara no disponible</Text>
-      </View>
-    );
-  }
+  };
 
   return (
     <View style={styles.container}>
-      <Camera
+      <CameraView
         style={StyleSheet.absoluteFill}
-        device={device}
-        isActive={isActive}
-        codeScanner={codeScanner}
+        facing="back"
+        barcodeScannerSettings={{
+          barcodeTypes: codeTypes,
+        }}
+        onBarcodeScanned={handleBarcodeScanned}
       />
       
       {showFrame && (
