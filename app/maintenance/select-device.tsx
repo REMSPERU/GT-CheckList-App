@@ -20,7 +20,16 @@ export default function SelectDeviceScreen() {
 
   const handleOptionPress = (type: string, title: string) => {
     console.log('Selected maintenance type:', title);
-      console.log('Building:', building);
+    console.log('Building:', building);
+    
+    if (type === 'tableros-electricos') {
+      router.push({
+        pathname: '/maintenance/electrical-panels',
+        params: {
+          building: JSON.stringify(building)
+        }
+      });
+    }
   };
 
   return (
