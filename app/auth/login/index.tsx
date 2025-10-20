@@ -90,7 +90,11 @@ export default function LoginScreen() {
                             {isLoading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Iniciar sesión</Text>}
                         </TouchableOpacity>
 
-                        <TouchableOpacity disabled={isLoading} style={styles.secondaryButton}>
+                        <TouchableOpacity 
+                            disabled={isLoading} 
+                            style={styles.secondaryButton}
+                            onPress={() => router.push('/auth/register')}
+                        >
                             <Text style={styles.secondaryButtonText}>Crear cuenta</Text>
                         </TouchableOpacity>
                     </View>
