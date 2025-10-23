@@ -70,3 +70,64 @@ export interface ApiResponse<T> {
   error?: ErrorResponse;
   status: number;
 }
+
+// Property types
+export interface PropertyResponse {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  address: string;
+  city: string;
+  state?: string | null;
+  country: string;
+  postal_code?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  property_type: string;
+  total_area_sqm?: number | null;
+  floors?: number | null;
+  construction_year?: number | null;
+  manager_name?: string | null;
+  manager_email?: string | null;
+  manager_phone?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+  is_active: boolean;
+  maintenance_priority: string;
+  created_at: string;
+  updated_at?: string | null;
+  device_count?: number | null;
+  active_device_count?: number | null;
+  assigned_users_count?: number | null;
+}
+
+export interface PropertyCreateRequest {
+  code: string;
+  name: string;
+  description?: string | null;
+  address: string;
+  city: string;
+  state?: string | null;
+  country?: string;
+  postal_code?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  property_type?: string;
+  total_area_sqm?: number | null;
+  floors?: number | null;
+  construction_year?: number | null;
+  manager_name?: string | null;
+  manager_email?: string | null;
+  manager_phone?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+  maintenance_priority?: string;
+}
+
+export interface PropertyListResponse {
+  items: PropertyResponse[];
+  total: number;
+  skip: number;
+  limit: number;
+}
