@@ -1,9 +1,25 @@
-import { useRouter, useSegments } from 'expo-router';
-import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { AuthLoadingScreen } from '../components/auth-loading-screen';
-import { useCurrentUser, useLogin, useLogout, useRegister } from '../hooks/use-auth-query';
-import { TokenService } from '../services/token.service';
-import type { ErrorResponse, LoginRequest, RegisterRequest, User } from '../types/api';
+import { useRouter, useSegments } from "expo-router";
+import React, {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { AuthLoadingScreen } from "../components/auth-loading-screen";
+import {
+  useCurrentUser,
+  useLogin,
+  useLogout,
+  useRegister,
+} from "../hooks/use-auth-query";
+import { TokenService } from "../services/token.service";
+import type {
+  ErrorResponse,
+  LoginRequest,
+  RegisterRequest,
+  User,
+} from "../types/api";
 
 interface AuthContextType {
   user: User | null;
@@ -34,9 +50,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loginMutation = useLogin();
   const registerMutation = useRegister();
   const logoutMutation = useLogout();
-  const { data: user, isLoading: isLoadingUser, refetch: refetchUser } = useCurrentUser(hasTokens);
+  const {
+    data: user,
+    isLoading: isLoadingUser,
+    refetch: refetchUser,
+  } = useCurrentUser(hasTokens);
 
-  const isLoading = !isInitialized || isLoadingUser || loginMutation.isPending || logoutMutation.isPending || registerMutation.isPending;
+  const isLoading =
+    !isInitialized ||
+    isLoadingUser ||
+    loginMutation.isPending ||
+    logoutMutation.isPending ||
+    registerMutation.isPending;
   const isAuthenticated = !!user && hasTokens;
 
   // Initialize auth state on mount
@@ -48,14 +73,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     if (!isInitialized) return;
 
-    const inAuthGroup = segments[0] === 'auth';
+    const inAuthGroup = segments[0] === "auth";
 
     if (!isAuthenticated && !inAuthGroup) {
       // Redirect to login if not authenticated and trying to access protected routes
-      setTimeout(() => router.replace('/auth/login'), 100);
+      setTimeout(() => router.replace("/auth/login"), 100);
     } else if (isAuthenticated && inAuthGroup) {
       // Redirect to main app if authenticated and on auth pages
-      setTimeout(() => router.replace('/(tabs)'), 100);
+      setTimeout(() => router.replace("/(tabs)"), 100);
     }
   }, [isAuthenticated, segments, isInitialized]);
 
@@ -66,13 +91,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const tokensExist = await TokenService.hasTokens();
       setHasTokens(tokensExist);
-      
+
       if (tokensExist) {
         // React Query will automatically fetch user data
         await refetchUser();
       }
     } catch (err) {
-      console.error('Failed to initialize auth:', err);
+      console.error("Failed to initialize auth:", err);
       // Clear invalid tokens
       await TokenService.clearTokens();
       setHasTokens(false);
@@ -87,17 +112,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (credentials: LoginRequest) => {
     try {
       setError(null);
-      
+
       const response = await loginMutation.mutateAsync(credentials);
       setHasTokens(true);
-      
+
       // User data is automatically updated by React Query
     } catch (err) {
       const errorResponse = err as ErrorResponse;
-      const errorMessage = typeof errorResponse.detail === 'string' 
-        ? errorResponse.detail 
-        : 'Error al iniciar sesión. Verifica tus credenciales.';
-      
+      const errorMessage =
+        typeof errorResponse.detail === "string"
+          ? errorResponse.detail
+          : "Error al iniciar sesión. Verifica tus credenciales.";
+
       setError(errorMessage);
       throw err;
     }
@@ -112,9 +138,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await registerMutation.mutateAsync(credentials);
     } catch (err) {
       const errorResponse = err as ErrorResponse;
-      const errorMessage = typeof errorResponse.detail === 'string' 
-        ? errorResponse.detail 
-        : 'Error al registrar el usuario. Verifica tus datos.'; 
+      const errorMessage =
+        typeof errorResponse.detail === "string"
+          ? errorResponse.detail
+          : "Error al registrar el usuario. Verifica tus datos.";
       setError(errorMessage);
       throw err;
     }
@@ -127,10 +154,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await logoutMutation.mutateAsync();
       setHasTokens(false);
-      
+
       // Navigation will be handled by the useEffect hook
     } catch (err) {
-      console.error('Logout error:', err);
+      console.error("Logout error:", err);
       // Clear tokens anyway
       setHasTokens(false);
       await TokenService.clearTokens();
@@ -144,7 +171,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await refetchUser();
     } catch (err) {
-      console.error('Failed to refresh user:', err);
+      console.error("Failed to refresh user:", err);
       // If refresh fails, user might be logged out
       setHasTokens(false);
       await TokenService.clearTokens();
@@ -184,7 +211,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
@@ -196,7 +223,7 @@ export function useAuth(): AuthContextType {
 export function useRequireAuth(): User {
   const { user, isAuthenticated } = useAuth();
   if (!isAuthenticated || !user) {
-    throw new Error('Authentication required');
+    throw new Error("Authentication required");
   }
   return user;
 }
