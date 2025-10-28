@@ -3,6 +3,6 @@ import { Text } from 'react-native';
 
 export default function HomeScreen() {
   return (
-    <Text className='text-lg font-bold'>Welcome to the Checklist App!</Text>
+    <Text>Welcome to the Checklist App!</Text>
   );
 }

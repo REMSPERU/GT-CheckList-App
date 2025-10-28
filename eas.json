@@ -22,9 +22,6 @@
       "android": {
         "buildType": "apk"
       }
-    },
-    "playstore": {
-      "autoIncrement": true
     }
   },
   "submit": {

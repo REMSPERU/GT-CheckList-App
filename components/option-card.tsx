@@ -1,6 +1,6 @@
 import Feather from "@expo/vector-icons/Feather";
 import { JSX } from "react";
-import { Linking, Text, TouchableOpacity, View } from "react-native";
+import { Linking, Text, TouchableOpacity, View, StyleSheet } from "react-native";
 
 type Props = {
   icon: JSX.Element;
@@ -11,21 +11,32 @@ type Props = {
 
 export default function OptionCard({ icon, title, description, link }: Props) {
   return (
-    <View className="flex-row items-start col-span-2 bg-white dark:bg-white/90 rounded-lg shadow-md p-4 mb-4 w-11/12">
-      <View className="flex-1 pr-4">
-        <View className="flex-row items-center mb-2">
+    <View>
+      <View style={styles.content}
+      >
+        <View style={styles.row}>
           {icon}
-          <Text className="text-lg font-bold ml-2">{title}</Text>
+          <Text style={styles.title}>{title}</Text>
         </View>
-        <Text className="text-gray-600">{description}</Text>
-        <TouchableOpacity onPress={() => Linking.openURL(link)} className="mt-2">
-          <Text className="text-blue-500">Learn more</Text>
+        <Text style={styles.description}>{description}</Text>
+        <TouchableOpacity onPress={() => Linking.openURL(link)} style={styles.learnMoreWrap}>
+          <Text style={styles.learnMore}>Learn more</Text>
         </TouchableOpacity>
       </View>
 
-      <View className="justify-center items-center">
+      <View style={styles.chevronWrap}>
         <Feather name="chevron-right" size={24} color="black" />
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  content: { flex: 1, paddingRight: 16 },
+  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  title: { fontSize: 18, fontWeight: 'bold', marginLeft: 8 },
+  description: { color: '#4B5563' },
+  learnMoreWrap: { marginTop: 8 },
+  learnMore: { color: '#3B82F6' },
+  chevronWrap: { justifyContent: 'center', alignItems: 'center' },
+});

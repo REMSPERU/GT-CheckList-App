@@ -1,107 +1,206 @@
+import { Colors } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
     const router = useRouter();
+    const { login, isLoading, error, clearError } = useAuth();
+
+    const [emailOrUsername, setEmailOrUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+
+    const handleLogin = async () => {
+        clearError();
+
+        if (!emailOrUsername.trim() || !password.trim()) {
+            Alert.alert('Error', 'Por favor, completa todos los campos');
+            return;
+        }
+
+        try {
+            await login({ email_or_username: emailOrUsername.trim(), password });
+        } catch (err) {
+            Alert.alert('Error de inicio de sesión', error || 'No se pudo iniciar sesión. Verifica tus credenciales.');
+        }
+    };
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-100">
-            <View className="flex-1 px-6 py-8">
-                {/* Header */}
-                <View className="items-center justify-center pt-2 pb-6">
-                    <Text className="text-black text-xl font-normal">Bienvenido a</Text>
+        <SafeAreaView style={styles.page}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
+                <View style={styles.header}>
+                    <Text style={styles.headerText}>Bienvenido</Text>
                 </View>
 
-                {/* Logo */}
-                <View className="items-center justify-center mb-8 h-56">
-                    <Image
-                        style={{ width: 283, height: 100, paddingLeft:19, paddingRight:19 }}
-                        source={require('../../../assets/logo/image.png')}
-                        contentFit="contain"
-                        transition={1000}
-                    />
-                </View>
+                <View style={styles.content}>
+                    <Image source={require('../../../assets/logo/image.png')} style={styles.logo} contentFit="contain" transition={1000} />
 
-                {/* Formulario */}
-                <View className="flex-1">
-                    {/* Input Correo electrónico */}
-                    <View className="mb-4 relative">
-                        <Ionicons 
-                            name="mail-outline" 
-                            size={16} 
-                            color="#565D6D" 
-                            style={{ position: 'absolute', left: 12, top: 18, zIndex: 10 }} 
-                        />
-                        <TextInput
-                            style={{
-                                height: 52,
-                                paddingLeft: 34,
-                                paddingRight: 12,
-                                fontSize: 16,
-                                lineHeight: 26,
-                                fontWeight: '400',
-                                backgroundColor: '#FFFFFF',
-                                borderRadius: 10,
-                                borderWidth: 0,
-                                color: '#565D6D'
-                            }}
-                            placeholder="Correo electrónico"
-                            placeholderTextColor="#9CA3AF"
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                        />
+                    <View style={styles.form}>
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="mail-outline" size={20} color={Colors.light.icon} style={styles.icon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Correo electrónico"
+                                placeholderTextColor="#9CA3AF"
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                value={emailOrUsername}
+                                onChangeText={setEmailOrUsername}
+                                editable={!isLoading}
+                            />
+                        </View>
+
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="lock-closed-outline" size={20} color={Colors.light.icon} style={styles.icon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Contraseña"
+                                placeholderTextColor="#9CA3AF"
+                                secureTextEntry={!showPassword}
+                                autoCapitalize="none"
+                                value={password}
+                                onChangeText={setPassword}
+                                editable={!isLoading}
+                            />
+                            <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)} disabled={isLoading}>
+                                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.light.icon} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity style={styles.forgotWrapper} disabled={isLoading}>
+                            <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity onPress={handleLogin} disabled={isLoading} style={[styles.button, isLoading && styles.buttonDisabled]}>
+                            {isLoading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Iniciar sesión</Text>}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            disabled={isLoading} 
+                            style={styles.secondaryButton}
+                            onPress={() => router.push('/auth/register')}
+                        >
+                            <Text style={styles.secondaryButtonText}>Crear cuenta</Text>
+                        </TouchableOpacity>
                     </View>
-
-                    {/* Input Contraseña */}
-                    <View className="mb-3 relative">
-                        <Ionicons 
-                            name="lock-closed-outline" 
-                            size={16} 
-                            color="#565D6D" 
-                            style={{ position: 'absolute', left: 12, top: 18, zIndex: 10 }} 
-                        />
-                        <TextInput
-                            style={{
-                                height: 52,
-                                paddingLeft: 34,
-                                paddingRight: 12,
-                                fontSize: 16,
-                                lineHeight: 26,
-                                fontWeight: '400',
-                                backgroundColor: '#FFFFFF',
-                                borderRadius: 10,
-                                borderWidth: 0,
-                                color: '#565D6D'
-                            }}
-                            placeholder="Contraseña"
-                            secureTextEntry
-                            placeholderTextColor="#9CA3AF"
-                            autoCapitalize="none"
-                        />
-                    </View>
-
-                    {/* Olvidaste tu contraseña */}
-                    <TouchableOpacity style={{ marginBottom: 116 }}>
-                        <Text className="text-cyan-500 text-right text-sm">¿Olvidaste tu contraseña?</Text>
-                    </TouchableOpacity>
-
-                    {/* Botón Iniciar sesión */}
-                    <TouchableOpacity 
-                        className="bg-cyan-500 rounded-xl p-4 mb-4 items-center shadow-sm" 
-                        onPress={() => router.replace('/(tabs)')}
-                    >
-                        <Text className="text-white text-base font-semibold">Iniciar sesión</Text>
-                    </TouchableOpacity>
-
-                    {/* Botón Crear cuenta */}
-                    <TouchableOpacity className="bg-white border-2 border-cyan-500 rounded-xl p-4 items-center shadow-sm">
-                        <Text className="text-cyan-500 text-base font-semibold">Crear cuenta</Text>
-                    </TouchableOpacity>
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
+
+const styles = StyleSheet.create({
+    flex: { flex: 1 },
+    page: {
+        flex: 1,
+        backgroundColor: '#E8E9E9',
+    },
+    header: {
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+    },
+    headerText: {
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    content: {
+        flex: 1,
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingTop: 16,
+    },
+    logo: {
+        width: 260,
+        height: 120,
+        marginBottom: 32,
+    },
+    form: {
+        width: '100%',
+        alignItems: 'center',
+    },
+    inputWrapper: {
+        width: '100%',
+        marginBottom: 12,
+        position: 'relative',
+    },
+    input: {
+        height: 52,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 10,
+        paddingLeft: 44,
+        paddingRight: 44,
+        fontSize: 16,
+        lineHeight: 26,
+        color: '#565D6D',
+        borderWidth: 1,
+        borderColor: '#F3F4F6',
+    },
+    icon: {
+        position: 'absolute',
+        left: 12,
+        top: 16,
+        zIndex: 10,
+    },
+    eyeIcon: {
+        position: 'absolute',
+        right: 12,
+        top: 16,
+        zIndex: 10,
+    },
+    forgotWrapper: {
+        width: '100%',
+        alignItems: 'flex-end',
+        marginBottom: 24,
+    },
+    forgotText: {
+        color: Colors.light.tint,
+    },
+    button: {
+        width: '100%',
+        backgroundColor: Colors.light.tint,
+        paddingVertical: 14,
+        borderRadius: 10,
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    buttonDisabled: {
+        opacity: 0.6,
+    },
+    buttonText: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+    },
+    secondaryButton: {
+        width: '100%',
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: Colors.light.tint,
+        paddingVertical: 12,
+        borderRadius: 10,
+        alignItems: 'center',
+        marginTop: 12,
+    },
+    secondaryButtonText: {
+        color: Colors.light.tint,
+        fontWeight: '600',
+    },
+});

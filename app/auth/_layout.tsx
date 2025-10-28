@@ -1,4 +1,3 @@
-// filepath: c:\PROYECTOS\REMS\PROGRAMACION\GT-CheckList-app\app\auth\_layout.tsx
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -10,7 +9,6 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-import '../../global.css';
 
 export default function AuthLayout() {
   const colorScheme = useColorScheme();

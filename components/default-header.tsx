@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View, StyleSheet } from 'react-native';
 
 interface DefaultHeaderProps {
     title: string;
@@ -9,24 +9,24 @@ interface DefaultHeaderProps {
 
 export default function DefaultHeader({ title, searchPlaceholder }: DefaultHeaderProps) {
     return (
-        <View style={{ backgroundColor: '#FFFFFF', height: 147, paddingHorizontal: 24 }}>
+        <View style={styles.container}>
             {/* Logo - posición top: 6px, left: 4px (relativo al padding) */}
-            <View style={{ marginTop: 6, marginLeft: 4 }}>
+            <View style={styles.logoWrapper}>
                 <Image
-                    style={{ width: 93, height: 27 }}
+                    style={styles.logo}
                     source={require('../assets/logo/image.png')}
                     contentFit="contain"
                 />
             </View>
 
             {/* Título */}
-            <View className="items-center" style={{ marginTop: 10 }}>
-                <Text className="text-xl font-semibold text-gray-900">{title}</Text>
+            <View style={styles.titleWrapper}>
+                <Text style={styles.title}>{title}</Text>
             </View>
 
             {/* Barra de búsqueda - top: 88px desde el container */}
-            <View style={{ position: 'absolute', top: 88, left: 24, right: 24 }}>
-                <View className="relative">
+            <View style={styles.searchWrapper}> 
+                <View style={styles.searchInner}>
                     <Ionicons
                         name="search-outline"
                         size={16}
@@ -35,17 +35,7 @@ export default function DefaultHeader({ title, searchPlaceholder }: DefaultHeade
                     />
                     <TextInput
                         style={{
-                            height: 42,
-                            paddingLeft: 34,
-                            paddingRight: 12,
-                            fontSize: 16,
-                            lineHeight: 26,
-                            fontWeight: '400',
-                            backgroundColor: '#FFFFFF',
-                            borderRadius: 6,
-                            borderWidth: 1,
-                            borderColor: '#3892B0',
-                            color: '#BDC1CA'
+                            ...styles.searchInput
                         }}
                         placeholder={searchPlaceholder}
                         placeholderTextColor="#BDC1CA"
@@ -55,3 +45,26 @@ export default function DefaultHeader({ title, searchPlaceholder }: DefaultHeade
         </View>
     );
 }
+
+const styles = StyleSheet.create({
+  container: { backgroundColor: '#FFFFFF', height: 147, paddingHorizontal: 24 },
+  logoWrapper: { marginTop: 6, marginLeft: 4 },
+  logo: { width: 93, height: 27 },
+  titleWrapper: { marginTop: 10 },
+  title: { fontSize: 20, fontWeight: '600', color: '#1F2937' },
+  searchWrapper: { position: 'absolute', top: 88, left: 24, right: 24 },
+  searchInner: { position: 'relative' },
+  searchInput: {
+    height: 42,
+    paddingLeft: 34,
+    paddingRight: 12,
+    fontSize: 16,
+    lineHeight: 26,
+    fontWeight: '400',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#3892B0',
+    color: '#BDC1CA'
+  }
+});
