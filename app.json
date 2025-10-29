@@ -2,7 +2,7 @@
   "expo": {
     "name": "alexperto-checklist-app",
     "slug": "alexperto-checklist-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "alexpertochecklistapp",
@@ -19,7 +19,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.drcistaf.alexpertochecklistapp",
       "usesCleartextTraffic": true,
-      "permissions": ["INTERNET"]
+      "permissions": ["android.permission.INTERNET"]
     },
     "ios": {
       "supportsTablet": true,
