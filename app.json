@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "alexperto-checklist-app",
-    "slug": "alexperto-checklist-app",
+    "name": "Alexperto Checklist",
+    "slug": "alexperto-checklist",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -17,12 +17,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "pe.rems.alexpertochecklistapp",
-      "usesCleartextTraffic": true,
-      "permissions": ["android.permission.INTERNET"],
-      "compileSdkVersion": 35,
-      "targetSdkVersion": 35,
-      "minSdkVersion": 23
+      "package": "pe.rems.alexpertochecklistapp"
     },
     "ios": {
       "supportsTablet": true,
@@ -50,7 +45,17 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
