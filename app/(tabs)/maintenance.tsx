@@ -2,7 +2,6 @@ import BuildingCard from '@/components/building-card';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Router } from 'expo-router';
 import DefaultHeader from '@/components/default-header';
 
 const buildings = [

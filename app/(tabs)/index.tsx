@@ -1,13 +1,10 @@
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-import OptionCard from "@/components/option-card";
 import { useAuth } from "@/contexts/AuthContext";
-import { useThemeColor } from "@/hooks/use-theme-color";
 import { Ionicons } from '@expo/vector-icons';
 import Feather from "@expo/vector-icons/Feather";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Octicons from '@expo/vector-icons/Octicons';
-import { useRouter } from "expo-router";
 
 const styles = StyleSheet.create({
   container: {
@@ -89,8 +86,6 @@ const styles = StyleSheet.create({
 });
 
 function HomeScreen() {
-  const iconColor = useThemeColor({}, 'icon');
-  const router = useRouter();
   const { user, logout } = useAuth();
 
   const handleLogout = async () => {
@@ -112,22 +107,6 @@ function HomeScreen() {
       ]
     );
   };
-
-  const options = [{
-    icon: <Octicons name="checklist" size={24} color={iconColor} />,
-    title: 'Check Lists',
-  }, {
-    icon: <MaterialIcons name="home-repair-service" size={24} color={iconColor} />,
-    title: 'Mantenimiento Preventivo',
-  },
-  {
-    icon: <MaterialIcons name="home-repair-service" size={24} color={iconColor} />,
-    title: 'Mantenimiento Correctivo',
-  },
-  {
-    icon: <Feather name="file-text" size={24} color={iconColor} />,
-    title: 'Ficha Técnica',
-  }];
 
   return (
     <View style={styles.container}>

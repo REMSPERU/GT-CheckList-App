@@ -22,6 +22,15 @@ export const API_CONFIG = {
       ME: "/auth/me",
       VERIFY: "/auth/verify",
     },
+    // Property
+    PROPERTY: {
+      CREATE: "/property/create",
+      ALL: "/property/all",
+      BY_ID: "/property",
+      DEACTIVATE: "/property",
+      ACTIVATE: "/property",
+      UPDATE: "/property",
+    },
   },
 } as const;
 
