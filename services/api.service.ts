@@ -1,14 +1,19 @@
-import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import { API_CONFIG } from '../config/api';
+import axios, {
+  AxiosError,
+  AxiosInstance,
+  InternalAxiosRequestConfig,
+} from "axios";
+import { API_CONFIG } from "../config/api";
+import { authEvents } from "./auth-events.service";
+import { TokenService } from "./token.service";
 import type {
-    ErrorResponse,
-    LoginRequest,
-    RefreshTokenRequest,
-    RegisterRequest,
-    TokenResponse,
-    UserResponse
-} from '../types/api';
-import { TokenService } from './token.service';
+  ErrorResponse,
+  LoginRequest,
+  RefreshTokenRequest,
+  RegisterRequest,
+  TokenResponse,
+  UserResponse,
+} from "../types/api";
 
 /**
  * API Client service for making authenticated requests
@@ -26,7 +31,7 @@ class ApiClient {
       baseURL: `${API_CONFIG.BASE_URL}${API_CONFIG.API_PREFIX}`,
       timeout: API_CONFIG.TIMEOUT,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
@@ -48,14 +53,16 @@ class ApiClient {
       },
       (error) => {
         return Promise.reject(error);
-      }
+      },
     );
 
     // Response interceptor - handle token refresh
     this.axiosInstance.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+        const originalRequest = error.config as InternalAxiosRequestConfig & {
+          _retry?: boolean;
+        };
 
         // If error is 401 and we haven't tried to refresh yet
         if (error.response?.status === 401 && !originalRequest._retry) {
@@ -78,12 +85,12 @@ class ApiClient {
           try {
             const refreshToken = await TokenService.getRefreshToken();
             if (!refreshToken) {
-              throw new Error('No refresh token available');
+              throw new Error("No refresh token available");
             }
 
             const response = await this.axiosInstance.post<TokenResponse>(
               API_CONFIG.ENDPOINTS.AUTH.REFRESH,
-              { refresh_token: refreshToken }
+              { refresh_token: refreshToken },
             );
 
             const { access_token, refresh_token } = response.data;
@@ -99,6 +106,10 @@ class ApiClient {
             this.failedQueue.forEach((prom) => prom.reject(refreshError));
             this.failedQueue = [];
             await TokenService.clearTokens();
+
+            // Emit auth failure event to notify the app
+            authEvents.emitAuthFailure();
+
             return Promise.reject(refreshError);
           } finally {
             this.isRefreshing = false;
@@ -106,7 +117,7 @@ class ApiClient {
         }
 
         return Promise.reject(error);
-      }
+      },
     );
   }
 
@@ -120,11 +131,11 @@ class ApiClient {
         return axiosError.response.data;
       }
       return {
-        detail: axiosError.message || 'An unexpected error occurred',
+        detail: axiosError.message || "An unexpected error occurred",
       };
     }
     return {
-      detail: 'An unexpected error occurred',
+      detail: "An unexpected error occurred",
     };
   }
 
@@ -137,13 +148,13 @@ class ApiClient {
     try {
       const response = await this.axiosInstance.post<TokenResponse>(
         API_CONFIG.ENDPOINTS.AUTH.LOGIN,
-        credentials
+        credentials,
       );
-      
+
       // Save tokens
       const { access_token, refresh_token } = response.data;
       await TokenService.saveTokens(access_token, refresh_token);
-      
+
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -157,7 +168,7 @@ class ApiClient {
     try {
       const response = await this.axiosInstance.post<UserResponse>(
         API_CONFIG.ENDPOINTS.AUTH.REGISTER,
-        data
+        data,
       );
       return response.data;
     } catch (error) {
@@ -173,7 +184,7 @@ class ApiClient {
       await this.axiosInstance.post(API_CONFIG.ENDPOINTS.AUTH.LOGOUT);
     } catch (error) {
       // Continue with logout even if API call fails
-      console.error('Logout API error:', error);
+      console.error("Logout API error:", error);
     } finally {
       await TokenService.clearTokens();
     }
@@ -185,7 +196,7 @@ class ApiClient {
   async getCurrentUser(): Promise<UserResponse> {
     try {
       const response = await this.axiosInstance.get<UserResponse>(
-        API_CONFIG.ENDPOINTS.AUTH.ME
+        API_CONFIG.ENDPOINTS.AUTH.ME,
       );
       return response.data;
     } catch (error) {
@@ -212,12 +223,12 @@ class ApiClient {
     try {
       const response = await this.axiosInstance.post<TokenResponse>(
         API_CONFIG.ENDPOINTS.AUTH.REFRESH,
-        { refresh_token: refreshToken } as RefreshTokenRequest
+        { refresh_token: refreshToken } as RefreshTokenRequest,
       );
-      
+
       const { access_token, refresh_token } = response.data;
       await TokenService.saveTokens(access_token, refresh_token);
-      
+
       return response.data;
     } catch (error) {
       throw this.handleError(error);

@@ -13,6 +13,7 @@ import {
   useLogout,
   useRegister,
 } from "../hooks/use-auth-query";
+import { authEvents } from "../services/auth-events.service";
 import { TokenService } from "../services/token.service";
 import type {
   ErrorResponse,
@@ -67,6 +68,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Initialize auth state on mount
   useEffect(() => {
     initializeAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Listen for auth failures (e.g., refresh token rejected)
+  useEffect(() => {
+    const unsubscribe = authEvents.subscribe(() => {
+      console.log("Auth failure detected, clearing session...");
+      handleAuthFailure();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle route protection
@@ -82,7 +97,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Redirect to main app if authenticated and on auth pages
       setTimeout(() => router.replace("/(tabs)"), 100);
     }
-  }, [isAuthenticated, segments, isInitialized]);
+  }, [isAuthenticated, segments, isInitialized, router]);
 
   /**
    * Initialize authentication state
@@ -107,13 +122,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   /**
+   * Handle authentication failure
+   */
+  const handleAuthFailure = async () => {
+    try {
+      // Clear local state
+      setHasTokens(false);
+      setError(null);
+
+      // Clear tokens from storage
+      await TokenService.clearTokens();
+
+      // Mark as initialized to allow navigation
+      setIsInitialized(true);
+
+      // Navigate to login
+      router.replace("/auth/login");
+    } catch (err) {
+      console.error("Error handling auth failure:", err);
+    }
+  };
+
+  /**
    * Login user
    */
   const login = async (credentials: LoginRequest) => {
     try {
       setError(null);
 
-      const response = await loginMutation.mutateAsync(credentials);
+      await loginMutation.mutateAsync(credentials);
       setHasTokens(true);
 
       // User data is automatically updated by React Query
@@ -172,9 +209,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await refetchUser();
     } catch (err) {
       console.error("Failed to refresh user:", err);
-      // If refresh fails, user might be logged out
-      setHasTokens(false);
-      await TokenService.clearTokens();
+      // If refresh fails, handle auth failure
+      await handleAuthFailure();
     }
   };
 

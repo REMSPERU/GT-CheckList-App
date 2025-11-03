@@ -5,7 +5,10 @@ import {
   type UseMutationResult,
   type UseQueryResult,
 } from "@tanstack/react-query";
+import { AxiosError } from "axios";
 import { authApi } from "../services/auth.api";
+import { authEvents } from "../services/auth-events.service";
+import { TokenService } from "../services/token.service";
 import type {
   ErrorResponse,
   LoginRequest,
@@ -29,9 +32,29 @@ export function useCurrentUser(
 ): UseQueryResult<UserResponse, ErrorResponse> {
   return useQuery({
     queryKey: authKeys.currentUser(),
-    queryFn: authApi.getCurrentUser,
+    queryFn: async () => {
+      try {
+        return await authApi.getCurrentUser();
+      } catch (error) {
+        // If we get a 401, it means the token refresh failed
+        const axiosError = error as AxiosError;
+        if (axiosError?.response?.status === 401) {
+          await TokenService.clearTokens();
+          authEvents.emitAuthFailure();
+        }
+        throw error;
+      }
+    },
     enabled,
-    retry: 1,
+    retry: (failureCount: number, error: Error) => {
+      // Don't retry on 401 errors
+      const axiosError = error as AxiosError;
+      if (axiosError?.response?.status === 401) {
+        return false;
+      }
+      // Retry once for other errors
+      return failureCount < 1;
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
@@ -63,7 +86,7 @@ export function useLogin(): UseMutationResult<
 
   return useMutation({
     mutationFn: authApi.login,
-    onSuccess: (data) => {
+    onSuccess: (data: TokenResponse) => {
       // Invalidate and refetch user data
       queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
       // Set user data in cache
@@ -115,6 +138,10 @@ export function useRefreshToken(): UseMutationResult<
     onSuccess: () => {
       // Invalidate current user query
       queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
+    },
+    onError: () => {
+      // Clear all queries on error
+      queryClient.clear();
     },
   });
 }

@@ -1,7 +1,12 @@
-import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import { API_CONFIG } from '../config/api';
-import { TokenService } from '../services/token.service';
-import type { ErrorResponse, TokenResponse } from '../types/api';
+import axios, {
+  AxiosError,
+  AxiosInstance,
+  InternalAxiosRequestConfig,
+} from "axios";
+import { API_CONFIG } from "../config/api";
+import { authEvents } from "../services/auth-events.service";
+import { TokenService } from "../services/token.service";
+import type { ErrorResponse, TokenResponse } from "../types/api";
 
 /**
  * HTTP Client for making API requests
@@ -21,7 +26,7 @@ class HttpClient {
       baseURL: `${API_CONFIG.BASE_URL}${API_CONFIG.API_PREFIX}`,
       timeout: API_CONFIG.TIMEOUT,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
@@ -43,14 +48,16 @@ class HttpClient {
       },
       (error) => {
         return Promise.reject(error);
-      }
+      },
     );
 
     // Response interceptor - handle token refresh
     this.axiosInstance.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+        const originalRequest = error.config as InternalAxiosRequestConfig & {
+          _retry?: boolean;
+        };
 
         // If error is 401 and we haven't tried to refresh yet
         if (error.response?.status === 401 && !originalRequest._retry) {
@@ -73,12 +80,12 @@ class HttpClient {
           try {
             const refreshToken = await TokenService.getRefreshToken();
             if (!refreshToken) {
-              throw new Error('No refresh token available');
+              throw new Error("No refresh token available");
             }
 
             const response = await this.axiosInstance.post<TokenResponse>(
               API_CONFIG.ENDPOINTS.AUTH.REFRESH,
-              { refresh_token: refreshToken }
+              { refresh_token: refreshToken },
             );
 
             const { access_token, refresh_token } = response.data;
@@ -94,6 +101,10 @@ class HttpClient {
             this.failedQueue.forEach((prom) => prom.reject(refreshError));
             this.failedQueue = [];
             await TokenService.clearTokens();
+
+            // Emit auth failure event to notify the app
+            authEvents.emitAuthFailure();
+
             return Promise.reject(refreshError);
           } finally {
             this.isRefreshing = false;
@@ -101,7 +112,7 @@ class HttpClient {
         }
 
         return Promise.reject(error);
-      }
+      },
     );
   }
 
@@ -115,11 +126,11 @@ class HttpClient {
         return axiosError.response.data;
       }
       return {
-        detail: axiosError.message || 'An unexpected error occurred',
+        detail: axiosError.message || "An unexpected error occurred",
       };
     }
     return {
-      detail: 'An unexpected error occurred',
+      detail: "An unexpected error occurred",
     };
   }
 
@@ -134,7 +145,11 @@ class HttpClient {
   /**
    * POST request
    */
-  async post<T>(url: string, data?: unknown, config?: InternalAxiosRequestConfig): Promise<T> {
+  async post<T>(
+    url: string,
+    data?: unknown,
+    config?: InternalAxiosRequestConfig,
+  ): Promise<T> {
     const response = await this.axiosInstance.post<T>(url, data, config);
     return response.data;
   }
@@ -142,7 +157,11 @@ class HttpClient {
   /**
    * PUT request
    */
-  async put<T>(url: string, data?: unknown, config?: InternalAxiosRequestConfig): Promise<T> {
+  async put<T>(
+    url: string,
+    data?: unknown,
+    config?: InternalAxiosRequestConfig,
+  ): Promise<T> {
     const response = await this.axiosInstance.put<T>(url, data, config);
     return response.data;
   }
@@ -150,7 +169,11 @@ class HttpClient {
   /**
    * PATCH request
    */
-  async patch<T>(url: string, data?: unknown, config?: InternalAxiosRequestConfig): Promise<T> {
+  async patch<T>(
+    url: string,
+    data?: unknown,
+    config?: InternalAxiosRequestConfig,
+  ): Promise<T> {
     const response = await this.axiosInstance.patch<T>(url, data, config);
     return response.data;
   }
@@ -158,7 +181,10 @@ class HttpClient {
   /**
    * DELETE request
    */
-  async delete<T>(url: string, config?: InternalAxiosRequestConfig): Promise<T> {
+  async delete<T>(
+    url: string,
+    config?: InternalAxiosRequestConfig,
+  ): Promise<T> {
     const response = await this.axiosInstance.delete<T>(url, config);
     return response.data;
   }
