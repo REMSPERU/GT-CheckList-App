@@ -55,7 +55,8 @@
             "minSdkVersion": 24
           }
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
