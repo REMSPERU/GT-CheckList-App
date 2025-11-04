@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
@@ -15,6 +15,7 @@ interface ElectricalPanel {
 }
 
 export default function ElectricalPanelsScreen() {
+  const router = useRouter();
   const params = useLocalSearchParams();
   const [building, setBuilding] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'autosoportado' | 'distribucion'>('autosoportado');
@@ -65,16 +66,19 @@ export default function ElectricalPanelsScreen() {
 
   const handlePanelPress = (panel: ElectricalPanel) => {
     if (!panel.isConfigured) {
-      Alert.alert(
-        'Equipo no configurado',
-        'Este equipo aún no está configurado.',
-        [{ text: 'OK' }]
-      );
+      // Navegar al flujo de configuración por pasos
+      router.push({
+        pathname: '/maintenance/panel-configuration' as any,
+        params: {
+          panel: JSON.stringify(panel),
+          building: building ? JSON.stringify(building) : '',
+        },
+      });
       return;
     }
-    
+
     console.log('Panel seleccionado:', panel);
-    // Aquí puedes navegar a la siguiente pantalla
+    // Aquí puedes navegar a la siguiente pantalla para equipos configurados
   };
 
   const filteredPanels = panels.filter(panel => {
@@ -92,7 +96,7 @@ export default function ElectricalPanelsScreen() {
         !panel.isConfigured && styles.panelCardDisabled
       ]}
       onPress={() => handlePanelPress(panel)}
-      disabled={!panel.isConfigured}
+      disabled={false}
     >
       <View style={styles.panelHeader}>
         <Text style={styles.panelName}>{panel.name}</Text>
