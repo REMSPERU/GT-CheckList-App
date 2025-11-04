@@ -116,7 +116,7 @@ export default function RegisterScreen() {
                     }
                 ]
             );
-        } catch (err) {
+        } catch {
             // Error is already set in context
             Alert.alert(
                 'Error de registro',

@@ -92,6 +92,9 @@ export function useLogin(): UseMutationResult<
       // Set user data in cache
       queryClient.setQueryData(authKeys.currentUser(), data.user);
     },
+    onError: (error: ErrorResponse) => {
+      queryClient.removeQueries({ queryKey: authKeys.currentUser() });
+    }
   });
 }
 

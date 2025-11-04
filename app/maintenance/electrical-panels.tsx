@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { ScrollView, View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
@@ -15,7 +15,6 @@ interface ElectricalPanel {
 }
 
 export default function ElectricalPanelsScreen() {
-  const router = useRouter();
   const params = useLocalSearchParams();
   const [building, setBuilding] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'autosoportado' | 'distribucion'>('autosoportado');

@@ -1,7 +1,7 @@
 // API Configuration
 
 export const API_CONFIG = {
-  BASE_URL: "http://ec2-18-191-140-131.us-east-2.compute.amazonaws.com",
+  BASE_URL: "https://rems-gt-alexperto-checklist-backend.vercel.app",
   API_PREFIX: "/api",
   TIMEOUT: 30000, // 30 seconds
 
@@ -21,6 +21,15 @@ export const API_CONFIG = {
       REFRESH: "/auth/refresh",
       ME: "/auth/me",
       VERIFY: "/auth/verify",
+    },
+    // Property
+    PROPERTY: {
+      CREATE: "/property/create",
+      ALL: "/property/all",
+      BY_ID: "/property",
+      DEACTIVATE: "/property",
+      ACTIVATE: "/property",
+      UPDATE: "/property",
     },
   },
 } as const;

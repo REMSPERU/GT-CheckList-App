@@ -16,7 +16,7 @@ export const propertyApi = {
    */
   create: async (data: PropertyCreateRequest): Promise<PropertyResponse> => {
     try {
-      return await httpClient.post<PropertyResponse>('/property/create', data);
+      return await httpClient.post<PropertyResponse>(API_CONFIG.ENDPOINTS.PROPERTY.CREATE, data);
     } catch (error) {
       throw httpClient.handleError(error);
     }
@@ -27,7 +27,7 @@ export const propertyApi = {
    */
   getById: async (propertyId: string): Promise<PropertyResponse> => {
     try {
-      return await httpClient.get<PropertyResponse>(`/property/${propertyId}`);
+      return await httpClient.get<PropertyResponse>(`${API_CONFIG.ENDPOINTS.PROPERTY.BY_ID}/${propertyId}`);
     } catch (error) {
       throw httpClient.handleError(error);
     }
@@ -57,9 +57,53 @@ export const propertyApi = {
       if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
 
       const queryString = queryParams.toString();
-      const url = queryString ? `/property/?${queryString}` : '/property/';
+      const url = queryString ? `${API_CONFIG.ENDPOINTS.PROPERTY.ALL}?${queryString}` : API_CONFIG.ENDPOINTS.PROPERTY.ALL;
 
       return await httpClient.get<PropertyListResponse>(url);
+    } catch (error) {
+      throw httpClient.handleError(error);
+    }
+  },
+
+  /**
+   * Delete property by ID
+   */
+  delete: async (propertyId: string): Promise<PropertyResponse> => {
+    try {
+      return await httpClient.delete<PropertyResponse>(`${API_CONFIG.ENDPOINTS.PROPERTY.BY_ID}/${propertyId}`);
+    } catch (error) {
+      throw httpClient.handleError(error);
+    }
+  },
+
+  /**
+   * Deactivate property by ID
+   */
+  deactivate: async (propertyId: string): Promise<PropertyResponse> => {
+    try {
+      return await httpClient.put<PropertyResponse>(`${API_CONFIG.ENDPOINTS.PROPERTY.DEACTIVATE}/${propertyId}/deactivate`);
+    } catch (error) {
+      throw httpClient.handleError(error);
+    }
+  },
+
+  /**
+   * Activate property by ID
+   */
+  activate: async (propertyId: string): Promise<PropertyResponse> => {
+    try {
+      return await httpClient.put<PropertyResponse>(`${API_CONFIG.ENDPOINTS.PROPERTY.ACTIVATE}/${propertyId}/activate`);
+    } catch (error) {
+      throw httpClient.handleError(error);
+    }
+  },
+
+  /**
+   * Update property by ID
+   */
+  update: async (propertyId: string, data: PropertyCreateRequest): Promise<PropertyResponse> => {
+    try {
+      return await httpClient.put<PropertyResponse>(`${API_CONFIG.ENDPOINTS.PROPERTY.UPDATE}/${propertyId}/update`, data);
     } catch (error) {
       throw httpClient.handleError(error);
     }

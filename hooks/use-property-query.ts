@@ -83,3 +83,87 @@ export function useCreateProperty(
     ...options,
   });
 }
+
+/**
+ * Hook para actualizar una propiedad
+ */
+export function useUpdateProperty(
+  options?: UseMutationOptions<PropertyResponse, ErrorResponse, { id: string; data: PropertyCreateRequest }>
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }) => propertyApi.update(id, data),
+    onSuccess: (updatedProperty) => {
+      // Invalida todas las listas de propiedades
+      queryClient.invalidateQueries({ queryKey: propertyKeys.lists() });
+      
+      // Actualiza la propiedad en el cache
+      queryClient.setQueryData(propertyKeys.detail(updatedProperty.id), updatedProperty);
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook para eliminar una propiedad
+ */
+export function useDeleteProperty(
+  options?: UseMutationOptions<PropertyResponse, ErrorResponse, string>
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: propertyApi.delete,
+    onSuccess: (deletedProperty) => {
+      // Invalida todas las listas de propiedades
+      queryClient.invalidateQueries({ queryKey: propertyKeys.lists() });
+      
+      // Remueve la propiedad del cache
+      queryClient.removeQueries({ queryKey: propertyKeys.detail(deletedProperty.id) });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook para desactivar una propiedad
+ */
+export function useDeactivateProperty(
+  options?: UseMutationOptions<PropertyResponse, ErrorResponse, string>
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: propertyApi.deactivate,
+    onSuccess: (deactivatedProperty) => {
+      // Invalida todas las listas de propiedades
+      queryClient.invalidateQueries({ queryKey: propertyKeys.lists() });
+      
+      // Actualiza la propiedad en el cache
+      queryClient.setQueryData(propertyKeys.detail(deactivatedProperty.id), deactivatedProperty);
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook para activar una propiedad
+ */
+export function useActivateProperty(
+  options?: UseMutationOptions<PropertyResponse, ErrorResponse, string>
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: propertyApi.activate,
+    onSuccess: (activatedProperty) => {
+      // Invalida todas las listas de propiedades
+      queryClient.invalidateQueries({ queryKey: propertyKeys.lists() });
+      
+      // Actualiza la propiedad en el cache
+      queryClient.setQueryData(propertyKeys.detail(activatedProperty.id), activatedProperty);
+    },
+    ...options,
+  });
+}
