@@ -1,8 +1,9 @@
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { API_CONFIG } from '../config/api';
 
 /**
- * Secure token storage service using expo-secure-store
+ * Secure token storage service using expo-secure-store for native and localStorage for web.
  */
 export class TokenService {
   /**
@@ -10,7 +11,11 @@ export class TokenService {
    */
   static async saveAccessToken(token: string): Promise<void> {
     try {
-      await SecureStore.setItemAsync(API_CONFIG.TOKEN_KEYS.ACCESS_TOKEN, token);
+      if (Platform.OS === 'web') {
+        localStorage.setItem(API_CONFIG.TOKEN_KEYS.ACCESS_TOKEN, token);
+      } else {
+        await SecureStore.setItemAsync(API_CONFIG.TOKEN_KEYS.ACCESS_TOKEN, token);
+      }
     } catch (error) {
       console.error('Error saving access token:', error);
       throw error;
@@ -22,7 +27,11 @@ export class TokenService {
    */
   static async getAccessToken(): Promise<string | null> {
     try {
-      return await SecureStore.getItemAsync(API_CONFIG.TOKEN_KEYS.ACCESS_TOKEN);
+      if (Platform.OS === 'web') {
+        return localStorage.getItem(API_CONFIG.TOKEN_KEYS.ACCESS_TOKEN);
+      } else {
+        return await SecureStore.getItemAsync(API_CONFIG.TOKEN_KEYS.ACCESS_TOKEN);
+      }
     } catch (error) {
       console.error('Error getting access token:', error);
       return null;
@@ -34,7 +43,11 @@ export class TokenService {
    */
   static async saveRefreshToken(token: string): Promise<void> {
     try {
-      await SecureStore.setItemAsync(API_CONFIG.TOKEN_KEYS.REFRESH_TOKEN, token);
+      if (Platform.OS === 'web') {
+        localStorage.setItem(API_CONFIG.TOKEN_KEYS.REFRESH_TOKEN, token);
+      } else {
+        await SecureStore.setItemAsync(API_CONFIG.TOKEN_KEYS.REFRESH_TOKEN, token);
+      }
     } catch (error) {
       console.error('Error saving refresh token:', error);
       throw error;
@@ -46,7 +59,11 @@ export class TokenService {
    */
   static async getRefreshToken(): Promise<string | null> {
     try {
-      return await SecureStore.getItemAsync(API_CONFIG.TOKEN_KEYS.REFRESH_TOKEN);
+      if (Platform.OS === 'web') {
+        return localStorage.getItem(API_CONFIG.TOKEN_KEYS.REFRESH_TOKEN);
+      } else {
+        return await SecureStore.getItemAsync(API_CONFIG.TOKEN_KEYS.REFRESH_TOKEN);
+      }
     } catch (error) {
       console.error('Error getting refresh token:', error);
       return null;
@@ -68,10 +85,15 @@ export class TokenService {
    */
   static async clearTokens(): Promise<void> {
     try {
-      await Promise.all([
-        SecureStore.deleteItemAsync(API_CONFIG.TOKEN_KEYS.ACCESS_TOKEN),
-        SecureStore.deleteItemAsync(API_CONFIG.TOKEN_KEYS.REFRESH_TOKEN),
-      ]);
+      if (Platform.OS === 'web') {
+        localStorage.removeItem(API_CONFIG.TOKEN_KEYS.ACCESS_TOKEN);
+        localStorage.removeItem(API_CONFIG.TOKEN_KEYS.REFRESH_TOKEN);
+      } else {
+        await Promise.all([
+          SecureStore.deleteItemAsync(API_CONFIG.TOKEN_KEYS.ACCESS_TOKEN),
+          SecureStore.deleteItemAsync(API_CONFIG.TOKEN_KEYS.REFRESH_TOKEN),
+        ]);
+      }
     } catch (error) {
       console.error('Error clearing tokens:', error);
       throw error;

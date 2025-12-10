@@ -1,7 +1,7 @@
 // API Configuration
 
 export const API_CONFIG = {
-  BASE_URL: "https://rems-gt-alexperto-checklist-backend.vercel.app",
+  BASE_URL: "https://gt-check-list-backend-jdm0ccutb-rodrigos-projects-76539a27.vercel.app",
   API_PREFIX: "/api",
   TIMEOUT: 30000, // 30 seconds
 
