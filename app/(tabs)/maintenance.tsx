@@ -1,15 +1,10 @@
 import BuildingCard from '@/components/building-card';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, View, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DefaultHeader from '@/components/default-header';
-
-const buildings = [
-        { id: '1', initial: 'C', name: 'Centro Empresarial Leuro' },
-        { id: '2', initial: 'E', name: 'Edificio Larco' },
-        { id: '3', initial: 'E', name: 'Edificio Aliaga 360' },
-        { id: '4', initial: 'T', name: 'Torre América' },
-];
+import { useProperties } from '@/hooks/use-property-query';
+import type { PropertyResponse as Property } from '@/types/api';
 
 const styles = StyleSheet.create({
         container: {
@@ -28,6 +23,11 @@ const styles = StyleSheet.create({
         cardMargin: {
                 marginBottom: 12,
         },
+        centered: {
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+        },
 });
 
 
@@ -36,8 +36,9 @@ export default function MaintenanceScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const maintenanceType = params.type as string;
+    const { data, isLoading, isError, error } = useProperties();
 
-    function handleBuildingSelect({building, maintenanceType} : {building: typeof buildings[0], maintenanceType: string}) {
+    function handleBuildingSelect({building, maintenanceType} : {building: Property, maintenanceType: string}) {
         console.log('Selected:', building.name);
         router.push({
             pathname: '/maintenance/select-device',
@@ -47,6 +48,32 @@ export default function MaintenanceScreen() {
                 buildingId: building.id
             }
         });
+    }
+
+    if (isLoading) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.centered}>
+                    <ActivityIndicator size="large" />
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (isError) {
+        const errorMessage = error?.detail
+            ? Array.isArray(error.detail)
+                ? error.detail.map(d => d.msg).join(', ')
+                : String(error.detail)
+            : 'Ocurrió un error inesperado';
+
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.centered}>
+                    <Text>Error al cargar los inmuebles: {errorMessage}</Text>
+                </View>
+            </SafeAreaView>
+        );
     }
     
     return (
@@ -63,10 +90,10 @@ export default function MaintenanceScreen() {
 
                 {/* Lista de inmuebles */}
                 <View style={styles.listWrapper}>
-                    {buildings.map((building) => (
+                    {data?.items.map((building) => (
                         <View key={building.id} style={styles.cardMargin}>
                             <BuildingCard
-                                initial={building.initial}
+                                initial={building.name.charAt(0).toUpperCase()}
                                 name={building.name}
                                 onPress={() => handleBuildingSelect({building, maintenanceType})}
                             />

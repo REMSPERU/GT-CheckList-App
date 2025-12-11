@@ -1,9 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, View, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet, ActivityIndicator, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import DefaultHeader from '@/components/default-header';
 import MaintenanceCard from '@/components/maintenance-card';
+import type { EquipamentoResponse } from '@/types/api';
+import { useEquipamentosByPropertyQuery } from '@/hooks/use-equipments-by-property-query';
 
 export default function SelectDeviceScreen() {
   const router = useRouter();
@@ -14,22 +16,41 @@ export default function SelectDeviceScreen() {
     if (params.building) {
       try {
         setBuilding(JSON.parse(params.building as string));
-      } catch {}
+      } catch { }
     }
   }, [params.building]);
 
-  const handleOptionPress = (type: string, title: string) => {
-    console.log('Selected maintenance type:', title);
+  const { data, isLoading, isError, error } = useEquipamentosByPropertyQuery(building?.id);
+
+  const equipamentos = data?.items || [];
+
+  const handleEquipamentoPress = (equipamento: EquipamentoResponse) => {
+    console.log('Selected equipamento:', equipamento);
     console.log('Building:', building);
-    
-    if (type === 'tableros-electricos') {
+
+    // Navigate based on equipamento type
+    // You can customize this logic based on your needs
+    if (equipamento.abreviatura === 'TE' || equipamento.nombre.toLowerCase().includes('tablero')) {
       router.push({
         pathname: '/maintenance/electrical-panels',
         params: {
-          building: JSON.stringify(building)
+          building: JSON.stringify(building),
+          equipamento: JSON.stringify(equipamento)
         }
       });
     }
+    // Add more navigation logic for other equipment types as needed
+  };
+
+  const getIconForEquipamento = (abreviatura: string) => {
+    // Map equipment abbreviations to icons
+    const iconMap: Record<string, any> = {
+      'TE': 'stats-chart-outline',
+      'PT': 'construct-outline',
+      'LE': 'bulb-outline',
+      'ASC': 'arrow-up-outline',
+    };
+    return iconMap[abreviatura] || 'cube-outline';
   };
 
   return (
@@ -41,28 +62,31 @@ export default function SelectDeviceScreen() {
           searchPlaceholder="Buscar equipos"
         />
 
-        {/* Lista de opciones - margen top: 16px, padding horizontal: 24px */}
+        {/* Content */}
         <View style={styles.listWrapper}>
-          <MaintenanceCard
-            icon="construct-outline"
-            title="Pozo a tierra"
-            onPress={() => handleOptionPress('pozo-tierra', 'Pozo a tierra')}
-          />
-          <MaintenanceCard
-            icon="home-outline"
-            title="Luces de emergencia"
-            onPress={() => handleOptionPress('luces-emergencia', 'Luces de emergencia')}
-          />
-          <MaintenanceCard
-            icon="clipboard-outline"
-            title="Ascensores"
-            onPress={() => handleOptionPress('ascensores', 'Ascensores')}
-          />
-          <MaintenanceCard
-            icon="stats-chart-outline"
-            title="Tableros electricos"
-            onPress={() => handleOptionPress('tableros-electricos', 'Tableros electricos')}
-          />
+          {isLoading ? (
+            <View style={styles.centerContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>Cargando equipamientos...</Text>
+            </View>
+          ) : isError ? (
+            <View style={styles.centerContainer}>
+              <Text style={styles.errorText}>{error?.message || 'Error al cargar los equipamientos'}</Text>
+            </View>
+          ) : equipamentos.length === 0 ? (
+            <View style={styles.centerContainer}>
+              <Text style={styles.emptyText}>No hay equipamientos disponibles para este inmueble</Text>
+            </View>
+          ) : (
+            equipamentos.map((equipamento) => (
+              <MaintenanceCard
+                key={equipamento.id}
+                icon={getIconForEquipamento(equipamento.abreviatura)}
+                title={equipamento.nombre}
+                onPress={() => handleEquipamentoPress(equipamento)}
+              />
+            ))
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -78,5 +102,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 24,
+  },
+  centerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
   },
 });

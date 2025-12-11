@@ -31,6 +31,10 @@ export const API_CONFIG = {
       ACTIVATE: "/property",
       UPDATE: "/property",
     },
+    // Equipamento
+    EQUIPAMENTO: {
+      BY_PROPERTY: "/property",
+    },
   },
 } as const;
 
