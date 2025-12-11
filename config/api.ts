@@ -1,7 +1,7 @@
 // API Configuration
 
 export const API_CONFIG = {
-  BASE_URL: "http://localhost:8000",
+  BASE_URL: "https://gt-check-list-backend.vercel.app",
   API_PREFIX: "/api",
   TIMEOUT: 30000, // 30 seconds
 

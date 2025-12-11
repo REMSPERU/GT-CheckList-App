@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
+import { ScrollView, View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,7 +60,7 @@ export default function ElectricalPanelsScreen() {
     if (params.building) {
       try {
         setBuilding(JSON.parse(params.building as string));
-      } catch {}
+      } catch { }
     }
   }, [params.building]);
 
@@ -106,14 +106,14 @@ export default function ElectricalPanelsScreen() {
           </View>
         )}
       </View>
-      
+
       <Text style={styles.panelFloor}>{panel.floor}</Text>
-      
+
       <View style={styles.panelDetails}>
         <Text style={styles.detailLabel}>Rótulo:</Text>
         <Text style={styles.detailValue}>{panel.label}</Text>
       </View>
-      
+
       <View style={styles.panelDetails}>
         <Text style={styles.detailLabel}>Referencia:</Text>
         <Text style={styles.detailValue}>{panel.reference}</Text>
@@ -162,7 +162,7 @@ export default function ElectricalPanelsScreen() {
               Autosoportado
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[
               styles.tab,
