@@ -7,27 +7,27 @@ import { useProperties } from '@/hooks/use-property-query';
 import type { PropertyResponse as Property } from '@/types/api';
 
 const styles = StyleSheet.create({
-        container: {
-                flex: 1,
-                backgroundColor: '#F3F4F6',
-        },
-        headerWrapper: {
-                backgroundColor: '#fff',
-                paddingBottom: 0,
-        },
-        listWrapper: {
-                paddingHorizontal: 24,
-                paddingTop: 24,
-                paddingBottom: 24,
-        },
-        cardMargin: {
-                marginBottom: 12,
-        },
-        centered: {
-                flex: 1,
-                justifyContent: 'center',
-                alignItems: 'center',
-        },
+    container: {
+        flex: 1,
+        backgroundColor: '#F3F4F6',
+    },
+    headerWrapper: {
+        backgroundColor: '#fff',
+        paddingBottom: 0,
+    },
+    listWrapper: {
+        paddingHorizontal: 24,
+        paddingTop: 24,
+        paddingBottom: 24,
+    },
+    cardMargin: {
+        marginBottom: 12,
+    },
+    centered: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
 });
 
 
@@ -38,14 +38,13 @@ export default function MaintenanceScreen() {
     const maintenanceType = params.type as string;
     const { data, isLoading, isError, error } = useProperties();
 
-    function handleBuildingSelect({building, maintenanceType} : {building: Property, maintenanceType: string}) {
+    function handleBuildingSelect({ building, maintenanceType }: { building: Property, maintenanceType: string }) {
         console.log('Selected:', building.name);
         router.push({
             pathname: '/maintenance/select-device',
             params: {
                 type: maintenanceType,
-                building: building.name,
-                buildingId: building.id
+                building: JSON.stringify(building)
             }
         });
     }
@@ -75,7 +74,7 @@ export default function MaintenanceScreen() {
             </SafeAreaView>
         );
     }
-    
+
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView>
@@ -95,7 +94,7 @@ export default function MaintenanceScreen() {
                             <BuildingCard
                                 initial={building.name.charAt(0).toUpperCase()}
                                 name={building.name}
-                                onPress={() => handleBuildingSelect({building, maintenanceType})}
+                                onPress={() => handleBuildingSelect({ building, maintenanceType })}
                             />
                         </View>
                     ))}

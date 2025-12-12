@@ -13,16 +13,28 @@ export default function SelectDeviceScreen() {
   const [building, setBuilding] = useState<any>(null);
 
   useEffect(() => {
+    console.log('params.building:', params.building);
     if (params.building) {
       try {
-        setBuilding(JSON.parse(params.building as string));
-      } catch { }
+        const parsedBuilding = JSON.parse(params.building as string);
+        setBuilding(parsedBuilding);
+        console.log('Parsed building:', parsedBuilding);
+        console.log('Building ID:', parsedBuilding.id);
+      } catch (e) {
+        console.error('Error parsing building param:', e);
+      }
     }
   }, [params.building]);
 
   const { data, isLoading, isError, error } = useEquipamentosByPropertyQuery(building?.id);
 
-  const equipamentos = data?.items || [];
+  console.log('Query Status:');
+  console.log('  isLoading:', isLoading);
+  console.log('  isError:', isError);
+  console.log('  error:', error);
+  console.log('  data:', data);
+
+  const equipamentos = data || [];
 
   const handleEquipamentoPress = (equipamento: EquipamentoResponse) => {
     console.log('Selected equipamento:', equipamento);
