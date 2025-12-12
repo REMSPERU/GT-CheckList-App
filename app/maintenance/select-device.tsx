@@ -26,36 +26,34 @@ export default function SelectDeviceScreen() {
     }
   }, [params.building]);
 
-  const { data, isLoading, isError, error } = useEquipamentosByPropertyQuery(building?.id);
+  const {
+    data: equipamentosData,
+    isLoading,
+    isError,
+    error,
+  } = useEquipamentosByPropertyQuery(building?.id);
 
-  console.log('Query Status:');
-  console.log('  isLoading:', isLoading);
-  console.log('  isError:', isError);
-  console.log('  error:', error);
-  console.log('  data:', data);
-
-  const equipamentos = data || [];
+  const equipamentos = equipamentosData || [];
 
   const handleEquipamentoPress = (equipamento: EquipamentoResponse) => {
     console.log('Selected equipamento:', equipamento);
     console.log('Building:', building);
 
-    // Navigate based on equipamento type
-    // You can customize this logic based on your needs
+    // Navegar a la pantalla de tableros eléctricos si el equipo es un tablero
     if (equipamento.abreviatura === 'TE' || equipamento.nombre.toLowerCase().includes('tablero')) {
       router.push({
         pathname: '/maintenance/electrical-panels',
         params: {
           building: JSON.stringify(building),
-          equipamento: JSON.stringify(equipamento)
+          equipamento: JSON.stringify(equipamento) // Pasar el equipamento seleccionado
         }
       });
     }
-    // Add more navigation logic for other equipment types as needed
+    // Añadir más lógica de navegación para otros tipos de equipos si es necesario
   };
 
   const getIconForEquipamento = (abreviatura: string) => {
-    // Map equipment abbreviations to icons
+    // Mapear abreviaturas de equipos a iconos
     const iconMap: Record<string, any> = {
       'TE': 'stats-chart-outline',
       'PT': 'construct-outline',

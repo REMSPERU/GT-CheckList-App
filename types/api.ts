@@ -143,3 +143,14 @@ export interface EquipamentoListResponse {
   items: EquipamentoResponse[];
   total: number;
 }
+
+// TableroElectrico types
+export interface TableroElectricoResponse {
+  id: string;
+  id_property: string;
+  tipo: string;
+  ubicacion: string;
+  rotulo: string;
+  codigo: string;
+  is_configured?: boolean; // Añadido para indicar si el tablero tiene detalles de configuración
+}

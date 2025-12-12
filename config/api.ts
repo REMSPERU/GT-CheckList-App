@@ -3,7 +3,7 @@
 export const API_CONFIG = {
   BASE_URL: "http://127.0.0.1:8000",
   API_PREFIX: "/api",
-  TIMEOUT: 30000, // 30 seconds
+  TIMEOUT: 60000, // 60 seconds
 
   // Token configuration
   TOKEN_KEYS: {
@@ -33,6 +33,10 @@ export const API_CONFIG = {
     },
     // Equipamento
     EQUIPAMENTO: {
+      BY_PROPERTY: "/property",
+    },
+    // Electrical Panel
+    ELECTRICAL_PANEL: {
       BY_PROPERTY: "/property",
     },
   },

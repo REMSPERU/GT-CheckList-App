@@ -1,74 +1,55 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { ScrollView, View, StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import DefaultHeader from '@/components/default-header';
-
-interface ElectricalPanel {
-  id: string;
-  name: string;
-  floor: string;
-  label?: string;
-  reference?: string;
-  isConfigured: boolean;
-}
+import { useElectricalPanelsByPropertyQuery } from '@/hooks/use-electrical-panels-by-property-query';
+import type { TableroElectricoResponse, EquipamentoResponse } from '@/types/api';
 
 export default function ElectricalPanelsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [building, setBuilding] = useState<any>(null);
+  const [equipamento, setEquipamento] = useState<EquipamentoResponse | null>(null);
   const [activeTab, setActiveTab] = useState<'autosoportado' | 'distribucion'>('autosoportado');
-
-  // Datos de ejemplo basados en la imagen
-  const [panels] = useState<ElectricalPanel[]>([
-    {
-      id: 'LEU-TBELEC-001',
-      name: 'LEU-TBELEC-001',
-      floor: 'Piso 2',
-      label: '',
-      reference: '',
-      isConfigured: true
-    },
-    {
-      id: 'LEU-TBELEC-002',
-      name: 'LEU-TBELEC-002',
-      floor: 'Piso 5',
-      label: '',
-      reference: '',
-      isConfigured: false
-    },
-    {
-      id: 'FP-003',
-      name: 'FP-003',
-      floor: 'Piso 2',
-      label: '',
-      reference: '',
-      isConfigured: true
-    },
-    {
-      id: 'FP-004',
-      name: 'FP-004',
-      floor: 'Piso 5',
-      label: '',
-      reference: '',
-      isConfigured: false
-    }
-  ]);
 
   useEffect(() => {
     if (params.building) {
       try {
         setBuilding(JSON.parse(params.building as string));
-      } catch { }
+      } catch (e) {
+        console.error('Error parsing building param:', e);
+      }
     }
-  }, [params.building]);
+    if (params.equipamento) {
+      try {
+        setEquipamento(JSON.parse(params.equipamento as string));
+      } catch (e) {
+        console.error('Error parsing equipamento param:', e);
+      }
+    }
+  }, [params.building, params.equipamento]);
 
-  const handlePanelPress = (panel: ElectricalPanel) => {
-    if (!panel.isConfigured) {
-      // Navegar al flujo de configuración por pasos
+  const panelTypeToSend = activeTab === 'autosoportado' ? 'Autosoportado' : 'Distribucion';
+  console.log('Frontend: Sending panelType to hook:', panelTypeToSend);
+
+  const {
+    data: panelsData,
+    isLoading,
+    isError,
+    error,
+  } = useElectricalPanelsByPropertyQuery(
+    building?.id,
+    panelTypeToSend // Pasar el tipo de panel como filtro
+  );
+
+  const panels = panelsData || [];
+
+  const handlePanelPress = (panel: TableroElectricoResponse) => {
+    if (!panel.is_configured) {
       router.push({
-        pathname: '/maintenance/panel-configuration' as any,
+        pathname: '/maintenance/panel-configuration',
         params: {
           panel: JSON.stringify(panel),
           building: building ? JSON.stringify(building) : '',
@@ -77,49 +58,50 @@ export default function ElectricalPanelsScreen() {
       return;
     }
 
-    console.log('Panel seleccionado:', panel);
-    // Aquí puedes navegar a la siguiente pantalla para equipos configurados
+    console.log('Panel seleccionado:', JSON.stringify(panel, null, 2));
+    router.push({
+        pathname: '/maintenance/_panel-configuration/index', // Ruta al panel configurado
+        params: {
+            panel: JSON.stringify(panel),
+            building: building ? JSON.stringify(building) : '',
+        },
+    });
   };
 
-  const filteredPanels = panels.filter(panel => {
-    if (activeTab === 'autosoportado') {
-      return panel.id.includes('LEU-TBELEC') || panel.id.includes('FP');
-    }
-    return false; // Por ahora solo mostramos en autosoportado
-  });
+  const filteredPanels = panels; // El filtro ya se aplica en el hook de React Query
 
-  const renderPanel = (panel: ElectricalPanel) => (
+  const renderPanel = (panel: TableroElectricoResponse) => (
     <TouchableOpacity
       key={panel.id}
       style={[
         styles.panelCard,
-        !panel.isConfigured && styles.panelCardDisabled
+        !panel.is_configured && styles.panelCardDisabled
       ]}
       onPress={() => handlePanelPress(panel)}
-      disabled={false}
+      disabled={false} // Siempre habilitado, la lógica de navegación maneja el estado
     >
       <View style={styles.panelHeader}>
-        <Text style={styles.panelName}>{panel.name}</Text>
-        {!panel.isConfigured && (
+        <Text style={styles.panelName}>{panel.rotulo || panel.tipo}</Text>
+        {!panel.is_configured && (
           <View style={styles.warningContainer}>
             <Ionicons name="warning" size={16} color="#EF4444" />
           </View>
         )}
       </View>
 
-      <Text style={styles.panelFloor}>{panel.floor}</Text>
+      <Text style={styles.panelFloor}>{panel.ubicacion}</Text>
 
       <View style={styles.panelDetails}>
-        <Text style={styles.detailLabel}>Rótulo:</Text>
-        <Text style={styles.detailValue}>{panel.label}</Text>
+        <Text style={styles.detailLabel}>Código:</Text>
+        <Text style={styles.detailValue}>{panel.codigo}</Text>
       </View>
 
       <View style={styles.panelDetails}>
-        <Text style={styles.detailLabel}>Referencia:</Text>
-        <Text style={styles.detailValue}>{panel.reference}</Text>
+        <Text style={styles.detailLabel}>Tipo:</Text>
+        <Text style={styles.detailValue}>{panel.tipo}</Text>
       </View>
 
-      {!panel.isConfigured && (
+      {!panel.is_configured && (
         <View style={styles.notConfiguredBanner}>
           <Ionicons name="warning" size={14} color="#EF4444" />
           <Text style={styles.notConfiguredText}>
@@ -182,7 +164,22 @@ export default function ElectricalPanelsScreen() {
         {/* Panels Grid */}
         <View style={styles.panelsContainer}>
           <View style={styles.panelsGrid}>
-            {filteredPanels.map(renderPanel)}
+            {isLoading ? (
+              <View style={styles.centerContainer}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Cargando tableros eléctricos...</Text>
+              </View>
+            ) : isError ? (
+              <View style={styles.centerContainer}>
+                <Text style={styles.errorText}>{error?.message || 'Error al cargar los tableros eléctricos'}</Text>
+              </View>
+            ) : panels.length === 0 ? (
+              <View style={styles.centerContainer}>
+                <Text style={styles.emptyText}>No hay tableros eléctricos disponibles con este filtro.</Text>
+              </View>
+            ) : (
+              panels.map(renderPanel)
+            )}
           </View>
         </View>
       </ScrollView>
