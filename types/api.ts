@@ -131,3 +131,15 @@ export interface PropertyListResponse {
   skip: number;
   limit: number;
 }
+
+// Equipamento types
+export interface EquipamentoResponse {
+  id: string;
+  nombre: string;
+  abreviatura: string;
+}
+
+export interface EquipamentoListResponse {
+  items: EquipamentoResponse[];
+  total: number;
+}
