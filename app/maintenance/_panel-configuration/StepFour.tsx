@@ -7,6 +7,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { StepFourProps, ExtraComponentType } from "./_types";
+import { useState } from "react";
 
 const COMPONENT_OPTIONS: {
   key: ExtraComponentType;
@@ -28,6 +29,10 @@ export default function StepFour({
   extraComponents,
   setExtraComponents,
 }: StepFourProps) {
+  const [expandedComponents, setExpandedComponents] = useState<
+    ExtraComponentType[]
+  >([]);
+
   const toggleComponent = (key: ExtraComponentType) => {
     if (enabledComponents.includes(key)) {
       // Desactivar: borramos del array de enabled y limpiamos sus datos
@@ -36,42 +41,60 @@ export default function StepFour({
         ...prev,
         [key]: [],
       }));
+      // También quitamos de expandidos
+      setExpandedComponents((prev) => prev.filter((k) => k !== key));
     } else {
       // Activar: agregamos a enabled y agregamos 1 item por defecto
       setEnabledComponents((prev) => [...prev, key]);
-      const newId = `${key.substring(0, 3).toUpperCase()}-1`;
+      const newId = `${key.substring(0, 2).toUpperCase()}-1`;
       setExtraComponents((prev) => ({
         ...prev,
         [key]: [{ id: newId, description: "" }],
       }));
+      // Expandimos automáticamente
+      setExpandedComponents((prev) => [...prev, key]);
     }
   };
 
-  const addComponent = (type: ExtraComponentType) => {
-    const newId = `${type.substring(0, 3).toUpperCase()}-${
-      extraComponents[type].length + 1
-    }`;
-    setExtraComponents((prev) => ({
-      ...prev,
-      [type]: [...prev[type], { id: newId, description: "" }],
-    }));
+  const toggleExpand = (key: ExtraComponentType) => {
+    if (expandedComponents.includes(key)) {
+      setExpandedComponents((prev) => prev.filter((k) => k !== key));
+    } else {
+      setExpandedComponents((prev) => [...prev, key]);
+    }
   };
 
-  const removeComponent = (type: ExtraComponentType, index: number) => {
-    setExtraComponents((prev) => ({
-      ...prev,
-      [type]: prev[type].filter((_, i) => i !== index),
-    }));
+  const updateQuantity = (key: ExtraComponentType, value: string) => {
+    const num = parseInt(value || "0", 10);
+    const quantity = isNaN(num) ? 0 : Math.max(0, num);
+
+    setExtraComponents((prev) => {
+      const current = prev[key];
+      const prefix = key.substring(0, 2).toUpperCase();
+
+      if (quantity > current.length) {
+        // Agregar items
+        const newItems = [];
+        for (let i = current.length; i < quantity; i++) {
+          newItems.push({ id: `${prefix}-${i + 1}`, description: "" });
+        }
+        return { ...prev, [key]: [...current, ...newItems] };
+      } else if (quantity < current.length) {
+        // Remover items
+        return { ...prev, [key]: current.slice(0, quantity) };
+      }
+      return prev;
+    });
   };
 
   const updateComponentDescription = (
-    type: ExtraComponentType,
+    key: ExtraComponentType,
     index: number,
     description: string
   ) => {
     setExtraComponents((prev) => ({
       ...prev,
-      [type]: prev[type].map((item, i) =>
+      [key]: prev[key].map((item, i) =>
         i === index ? { ...item, description } : item
       ),
     }));
@@ -94,10 +117,12 @@ export default function StepFour({
       <View style={styles.componentContainer}>
         {COMPONENT_OPTIONS.map(({ key, label, icon }) => {
           const isEnabled = enabledComponents.includes(key);
+          const isExpanded = expandedComponents.includes(key);
+          const components = extraComponents[key];
 
           return (
             <View key={key}>
-              {/* Toggle */}
+              {/* Toggle Header */}
               <TouchableOpacity
                 style={[
                   styles.componentToggle,
@@ -135,63 +160,60 @@ export default function StepFour({
                 </View>
               </TouchableOpacity>
 
-              {/* Component Section - appears right below the toggle */}
+              {/* Component Section */}
               {isEnabled && (
-                <View style={styles.componentSection}>
-                  <View style={styles.componentSectionHeader}>
-                    <View style={styles.sectionIconRow}>
-                      <Text style={styles.componentSectionSubtitle}>
-                        items: {extraComponents[key].length}
-                      </Text>
+                <View style={styles.componentSectionContainer}>
+                  {/* Quantity Header */}
+                  <View style={styles.quantityHeader}>
+                    <Text style={styles.quantityLabel}>
+                      Seleccione la cantidad
+                    </Text>
+                    <View style={styles.quantityControls}>
+                      <TextInput
+                        style={styles.quantityInputNumber}
+                        value={components.length.toString()}
+                        onChangeText={(text) => updateQuantity(key, text)}
+                        keyboardType="numeric"
+                      />
+
+                      <TouchableOpacity
+                        style={styles.collapseButton}
+                        onPress={() => toggleExpand(key)}
+                      >
+                        <Ionicons
+                          name={isExpanded ? "chevron-up" : "chevron-down"}
+                          size={18}
+                          color="#6B7280"
+                        />
+                      </TouchableOpacity>
                     </View>
-                    {/* Botón Agregar Más Visible */}
-                    <TouchableOpacity
-                      style={styles.addButtonVisible}
-                      onPress={() => addComponent(key)}
-                    >
-                      <Ionicons name="add-circle" size={20} color="#FFFFFF" />
-                      <Text style={styles.addButtonText}>Agregar</Text>
-                    </TouchableOpacity>
                   </View>
 
-                  {extraComponents[key].map((component, index) => (
-                    <View key={`${key}-${index}`} style={styles.componentCard}>
-                      <View style={styles.componentCardHeader}>
-                        <Text style={styles.componentCardTitle}>
-                          {component.id}
-                        </Text>
-                        <TouchableOpacity
-                          onPress={() => removeComponent(key, index)}
+                  {/* Component List */}
+                  {isExpanded && components.length > 0 && (
+                    <View style={styles.componentList}>
+                      {components.map((component, index) => (
+                        <View
+                          key={`${key}-${index}`}
+                          style={styles.componentItemRow}
                         >
-                          <Ionicons
-                            name="close-circle"
-                            size={20}
-                            color="#EF4444"
+                          <View style={styles.componentIdBadge}>
+                            <Ionicons name={icon} size={14} color="#0891B2" />
+                            <Text style={styles.componentIdText}>
+                              {component.id}
+                            </Text>
+                          </View>
+                          <TextInput
+                            style={styles.componentInputRight}
+                            value={component.description}
+                            onChangeText={(text) =>
+                              updateComponentDescription(key, index, text)
+                            }
+                            placeholder="Descripción"
+                            placeholderTextColor="#9CA3AF"
                           />
-                        </TouchableOpacity>
-                      </View>
-                      <TextInput
-                        style={styles.itgInput}
-                        value={component.description}
-                        onChangeText={(text) =>
-                          updateComponentDescription(key, index, text)
-                        }
-                        placeholder={`Descripción del ${label.toLowerCase()}`}
-                        placeholderTextColor="#9CA3AF"
-                      />
-                    </View>
-                  ))}
-
-                  {extraComponents[key].length === 0 && (
-                    <View style={styles.emptyState}>
-                      <Ionicons
-                        name="add-circle-outline"
-                        size={32}
-                        color="#9CA3AF"
-                      />
-                      <Text style={styles.emptyStateText}>
-                        Presione + para agregar {label.toLowerCase()}
-                      </Text>
+                        </View>
+                      ))}
                     </View>
                   )}
                 </View>
@@ -240,22 +262,23 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   componentContainer: {
-    gap: 12,
+    gap: 16,
   },
   componentToggle: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFFFFF", // Light blue background for toggle
     borderWidth: 1,
     borderColor: "#E5E7EB",
     borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 16,
+    zIndex: 1,
   },
   componentToggleActive: {
+    backgroundColor: "#E0F2FE",
     borderColor: "#0891B2",
-    backgroundColor: "#F0F9FF",
   },
   toggleIconRow: {
     flexDirection: "row",
@@ -263,19 +286,19 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   componentToggleText: {
-    color: "#11181C",
-    fontSize: 15,
-    fontWeight: "500",
+    color: "#0891B2",
+    fontSize: 16,
+    fontWeight: "600",
   },
   componentToggleTextActive: {
     color: "#0891B2",
-    fontWeight: "600",
+    fontWeight: "700",
   },
   toggleSwitch: {
     width: 48,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: "#FFFFFF",
     padding: 2,
     justifyContent: "center",
   },
@@ -286,83 +309,104 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#E5E7EB",
     alignSelf: "flex-start",
   },
   toggleThumbActive: {
+    backgroundColor: "#FFFFFF",
     alignSelf: "flex-end",
   },
-  componentSection: {
-    marginTop: 12,
-    // marginBottom: 12,
-    backgroundColor: "#F9FAFB",
-    borderRadius: 12,
+  componentSectionContainer: {
+    marginTop: -4, // Overlap slightly or connect visually
+    backgroundColor: "#F3F4F6", // Gray background for the body
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
     padding: 16,
+    paddingTop: 24, // Compensation for top connection
     borderWidth: 1,
+    borderTopWidth: 0,
     borderColor: "#E5E7EB",
   },
-  componentSectionHeader: {
+  quantityHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  sectionIconRow: {
+  quantityLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#0891B2",
+  },
+  quantityControls: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  componentSectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#11181C",
-  },
-  componentSectionSubtitle: {
-    fontSize: 13,
-    color: "#6B7280",
-    marginBottom: 12,
-  },
-  addButton: {
-    padding: 4,
-  },
-  componentCard: {
+  quantityInputNumber: {
     backgroundColor: "#FFFFFF",
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-  },
-  componentCardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  componentCardTitle: {
+    width: 50,
+    height: 36,
+    textAlign: "center",
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "600",
     color: "#11181C",
   },
-  itgInput: {
-    height: 40,
+  controlButton: {
+    width: 36,
+    height: 36,
     backgroundColor: "#FFFFFF",
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "#7DD3FC",
-    paddingHorizontal: 12,
-    color: "#11181C",
-  },
-  emptyState: {
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 24,
   },
-  emptyStateText: {
-    color: "#9CA3AF",
+  collapseButton: {
+    marginLeft: 4,
+  },
+  componentList: {
+    gap: 12,
+  },
+  componentItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    gap: 12,
+  },
+  componentIdBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#E0F2FE",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    minWidth: 80,
+    justifyContent: "center",
+  },
+  componentIdText: {
     fontSize: 13,
-    textAlign: "center",
-    marginTop: 4,
+    fontWeight: "700",
+    color: "#0891B2",
+  },
+  componentInputRight: {
+    flex: 1,
+    height: 42,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 12,
+    color: "#11181C",
+    fontSize: 14,
   },
   emptyStateMain: {
     alignItems: "center",
@@ -376,18 +420,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 8,
   },
-  addButtonVisible: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#0891B2",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    gap: 6,
-  },
-  addButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-    fontSize: 14,
+  emptyStateText: {
+    color: "#9CA3AF",
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 4,
   },
 });

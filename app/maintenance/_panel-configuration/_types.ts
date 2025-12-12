@@ -1,70 +1,81 @@
-export type PanelType = 'adosado' | 'empotrado';
-export type PhaseType = 'mono_2w' | 'tri_3w' | 'tri_4w';
+export type PanelType = "adosado" | "empotrado";
+export type PhaseType = "mono_2w" | "tri_3w" | "tri_4w";
 
 export interface CircuitConfig {
-    phaseITM: PhaseType;
-    amperajeITM: string;
-    phaseID: PhaseType;
-    amperajeID: string;
-    supply: string;
+  phaseITM: PhaseType;
+  amperajeITM: string;
+  hasID: boolean;
+  phaseID?: PhaseType;
+  amperajeID?: string;
+  supply: string;
 }
 
 export interface PanelData {
-    name?: string;
-    id?: string;
+  name?: string;
+  id?: string;
 }
 
 export interface StepOneProps {
-    panel: PanelData | null;
-    panelType: PanelType;
-    setPanelType: (type: PanelType) => void;
-    voltage: string;
-    setVoltage: (voltage: string) => void;
-    phase: PhaseType;
-    setPhase: (phase: PhaseType) => void;
+  panel: PanelData | null;
+  panelType: PanelType;
+  setPanelType: (type: PanelType) => void;
+  voltage: string;
+  setVoltage: (voltage: string) => void;
+  phase: PhaseType;
+  setPhase: (phase: PhaseType) => void;
 }
 
 export interface StepTwoProps {
-    panel: PanelData | null;
-    itgCount: string;
-    setItgCount: (count: string) => void;
-    itgDescriptions: string[];
-    setItgDescriptions: React.Dispatch<React.SetStateAction<string[]>>;
+  panel: PanelData | null;
+  itgCount: string;
+  setItgCount: (count: string) => void;
+  itgDescriptions: string[];
+  setItgDescriptions: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 export interface StepThreeProps {
-    panel: PanelData | null;
-    cnPrefix: string;
-    setCnPrefix: (prefix: string) => void;
-    circuitsCount: string;
-    setCircuitsCount: (count: string) => void;
-    circuits: CircuitConfig[];
-    setCircuits: React.Dispatch<React.SetStateAction<CircuitConfig[]>>;
+  panel: PanelData | null;
+  cnPrefix: string;
+  setCnPrefix: (prefix: string) => void;
+  circuitsCount: string;
+  setCircuitsCount: (count: string) => void;
+  circuits: CircuitConfig[];
+  setCircuits: React.Dispatch<React.SetStateAction<CircuitConfig[]>>;
 }
 
-export type ExtraComponentType = 'contactores' | 'relays' | 'ventiladores' | 'termostato' | 'medidores' | 'timers';
+export type ExtraComponentType =
+  | "contactores"
+  | "relays"
+  | "ventiladores"
+  | "termostato"
+  | "medidores"
+  | "timers";
 
 export interface ExtraComponent {
-    id: string;
-    description: string;
+  id: string;
+  description: string;
 }
 
 export interface StepFourProps {
-    panel: PanelData | null;
-    enabledComponents: ExtraComponentType[];
-    setEnabledComponents: React.Dispatch<React.SetStateAction<ExtraComponentType[]>>;
-    extraComponents: Record<ExtraComponentType, ExtraComponent[]>;
-    setExtraComponents: React.Dispatch<React.SetStateAction<Record<ExtraComponentType, ExtraComponent[]>>>;
+  panel: PanelData | null;
+  enabledComponents: ExtraComponentType[];
+  setEnabledComponents: React.Dispatch<
+    React.SetStateAction<ExtraComponentType[]>
+  >;
+  extraComponents: Record<ExtraComponentType, ExtraComponent[]>;
+  setExtraComponents: React.Dispatch<
+    React.SetStateAction<Record<ExtraComponentType, ExtraComponent[]>>
+  >;
 }
 
 export interface StepFiveProps {
-    panel: PanelData | null;
-    panelType: PanelType;
-    voltage: string;
-    phase: PhaseType;
-    itgDescriptions: string[];
-    cnPrefix: string;
-    circuits: CircuitConfig[];
-    enabledComponents: ExtraComponentType[];
-    extraComponents: Record<ExtraComponentType, ExtraComponent[]>;
+  panel: PanelData | null;
+  panelType: PanelType;
+  voltage: string;
+  phase: PhaseType;
+  itgDescriptions: string[];
+  cnPrefix: string;
+  circuits: CircuitConfig[];
+  enabledComponents: ExtraComponentType[];
+  extraComponents: Record<ExtraComponentType, ExtraComponent[]>;
 }
