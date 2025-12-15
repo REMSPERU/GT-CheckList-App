@@ -1,9 +1,12 @@
 export type PanelType = "adosado" | "empotrado";
 export type PhaseType = "mono_2w" | "tri_3w" | "tri_4w";
+export type CableType = "libre_halogeno" | "no_libre_halogeno";
 
 export interface CircuitConfig {
   phaseITM: PhaseType;
   amperajeITM: string;
+  diameter?: string;
+  cableType?: CableType;
   hasID: boolean;
   phaseID?: PhaseType;
   amperajeID?: string;

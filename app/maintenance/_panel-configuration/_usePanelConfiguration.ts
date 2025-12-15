@@ -13,6 +13,8 @@ import {
 const DEFAULT_CIRCUIT: CircuitConfig = {
   phaseITM: "mono_2w",
   amperajeITM: "",
+  diameter: "",
+  cableType: undefined,
   hasID: false,
   supply: "",
 };
@@ -34,7 +36,7 @@ export function usePanelConfiguration(initialPanel: PanelData | null) {
 
   // Step 3 fields - Circuitos de IT-G1
   const [cnPrefix, setCnPrefix] = useState<string>("CN");
-  const [circuitsCount, setCircuitsCount] = useState<string>("5");
+  const [circuitsCount, setCircuitsCount] = useState<string>("1");
   const [circuits, setCircuits] = useState<CircuitConfig[]>(
     Array(5)
       .fill(null)

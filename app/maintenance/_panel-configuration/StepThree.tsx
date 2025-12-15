@@ -5,14 +5,50 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
+import RNPickerSelect from "react-native-picker-select";
 import { Ionicons } from "@expo/vector-icons";
-import { StepThreeProps, PhaseType } from "./_types";
+import { StepThreeProps, PhaseType, CableType } from "./_types";
 import { useState, useEffect } from "react";
+
+const pickerSelectStyles = StyleSheet.create({
+  inputIOS: {
+    fontSize: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    color: "#11181C",
+    backgroundColor: "#FFFFFF",
+    paddingRight: 30, // to ensure the text is never behind the icon
+    height: 48,
+  },
+  inputAndroid: {
+    fontSize: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    color: "#11181C",
+    backgroundColor: "#FFFFFF",
+    paddingRight: 30, // to ensure the text is never behind the icon
+    height: 48,
+  },
+  placeholder: {
+    color: "#9CA3AF",
+  },
+});
 
 const PHASE_OPTIONS: { key: PhaseType; label: string }[] = [
   { key: "mono_2w", label: "Monofásico 2 hilos" },
   { key: "tri_3w", label: "Trifásico 3 hilos" },
   { key: "tri_4w", label: "Trifásico 4 hilos" },
+];
+
+const CABLE_TYPE_OPTIONS: { key: CableType; label: string }[] = [
+  { key: "libre_halogeno", label: "Libre de Halógeno" },
+  { key: "no_libre_halogeno", label: "No libre de Halógeno" },
 ];
 
 export default function StepThree({
@@ -166,6 +202,61 @@ export default function StepThree({
                   <Text style={styles.unitText}>A</Text>
                 </View>
 
+                {/* Diámetro */}
+                <Text style={styles.cnLabel}>DIÁMETRO:</Text>
+                <TextInput
+                  style={styles.itgInput}
+                  value={circuit.diameter || ""}
+                  onChangeText={(text) => {
+                    setCircuits((prev) => {
+                      const next = [...prev];
+                      next[idx] = { ...next[idx], diameter: text };
+                      return next;
+                    });
+                  }}
+                  placeholder="Ingrese diámetro"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                />
+
+                {/* Tipo de Cable */}
+                <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
+                <RNPickerSelect
+                  onValueChange={(value) => {
+                    setCircuits((prev) => {
+                      const next = [...prev];
+                      next[idx] = {
+                        ...next[idx],
+                        cableType: value || undefined,
+                      };
+                      return next;
+                    });
+                  }}
+                  items={CABLE_TYPE_OPTIONS.map((opt) => ({
+                    label: opt.label,
+                    value: opt.key,
+                  }))}
+                  placeholder={{
+                    label: "Seleccione una opción",
+                    value: null,
+                    color: "#9CA3AF",
+                  }}
+                  value={circuit.cableType}
+                  style={{
+                    ...pickerSelectStyles,
+                    iconContainer: {
+                      top: 12,
+                      right: 12,
+                    },
+                  }}
+                  useNativeAndroidPickerStyle={false}
+                  Icon={() => {
+                    return (
+                      <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                    );
+                  }}
+                />
+
                 {/* ID - Optional Section */}
                 <View style={{ marginTop: 12 }}>
                   <TouchableOpacity
@@ -250,7 +341,7 @@ export default function StepThree({
                               style={[
                                 styles.chipText,
                                 circuit.phaseID === key &&
-                                  styles.chipTextActive,
+                                styles.chipTextActive,
                               ]}
                             >
                               {label}
