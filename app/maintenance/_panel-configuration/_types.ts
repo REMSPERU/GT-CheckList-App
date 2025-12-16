@@ -10,6 +10,8 @@ export interface CircuitConfig {
   hasID: boolean;
   phaseID?: PhaseType;
   amperajeID?: string;
+  diameterID?: string;
+  cableTypeID?: CableType;
   supply: string;
 }
 

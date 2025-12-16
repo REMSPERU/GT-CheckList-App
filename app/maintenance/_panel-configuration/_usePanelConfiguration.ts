@@ -16,6 +16,8 @@ const DEFAULT_CIRCUIT: CircuitConfig = {
   diameter: "",
   cableType: undefined,
   hasID: false,
+  diameterID: "",
+  cableTypeID: undefined,
   supply: "",
 };
 

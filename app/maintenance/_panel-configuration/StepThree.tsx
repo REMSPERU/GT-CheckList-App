@@ -156,33 +156,38 @@ export default function StepThree({
                   Interruptor termomagnetico (ITM)
                 </Text>
                 <Text style={styles.cnLabel}>FASES</Text>
-                <View style={styles.chipGroup}>
-                  {PHASE_OPTIONS.map(({ key, label }) => (
-                    <TouchableOpacity
-                      key={`itm-${idx}-${key}`}
-                      style={[
-                        styles.chip,
-                        circuit.phaseITM === key && styles.chipActive,
-                      ]}
-                      onPress={() => {
-                        setCircuits((prev) => {
-                          const next = [...prev];
-                          next[idx] = { ...next[idx], phaseITM: key };
-                          return next;
-                        });
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          circuit.phaseITM === key && styles.chipTextActive,
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <RNPickerSelect
+                  onValueChange={(value) => {
+                    setCircuits((prev) => {
+                      const next = [...prev];
+                      next[idx] = { ...next[idx], phaseITM: value };
+                      return next;
+                    });
+                  }}
+                  items={PHASE_OPTIONS.map((opt) => ({
+                    label: opt.label,
+                    value: opt.key,
+                  }))}
+                  placeholder={{
+                    label: "Seleccione tipo de fase",
+                    value: null,
+                    color: "#9CA3AF",
+                  }}
+                  value={circuit.phaseITM}
+                  style={{
+                    ...pickerSelectStyles,
+                    iconContainer: {
+                      top: 12,
+                      right: 12,
+                    },
+                  }}
+                  useNativeAndroidPickerStyle={false}
+                  Icon={() => {
+                    return (
+                      <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                    );
+                  }}
+                />
                 <Text style={styles.cnLabel}>AMPARAJE:</Text>
                 <View style={styles.inputWithUnitWrapper}>
                   <TextInput
@@ -204,20 +209,23 @@ export default function StepThree({
 
                 {/* Diámetro */}
                 <Text style={styles.cnLabel}>DIÁMETRO:</Text>
-                <TextInput
-                  style={styles.itgInput}
-                  value={circuit.diameter || ""}
-                  onChangeText={(text) => {
-                    setCircuits((prev) => {
-                      const next = [...prev];
-                      next[idx] = { ...next[idx], diameter: text };
-                      return next;
-                    });
-                  }}
-                  placeholder="Ingrese diámetro"
-                  placeholderTextColor="#9CA3AF"
-                  keyboardType="numeric"
-                />
+                <View style={styles.inputWithUnitWrapper}>
+                  <TextInput
+                    style={styles.itgInputWithUnit}
+                    value={circuit.diameter || ""}
+                    onChangeText={(text) => {
+                      setCircuits((prev) => {
+                        const next = [...prev];
+                        next[idx] = { ...next[idx], diameter: text };
+                        return next;
+                      });
+                    }}
+                    placeholder="Ingrese diámetro"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                  />
+                  <Text style={styles.unitText}>mm²</Text>
+                </View>
 
                 {/* Tipo de Cable */}
                 <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
@@ -321,34 +329,38 @@ export default function StepThree({
                   {circuit.hasID && (
                     <View style={{ marginTop: 12 }}>
                       <Text style={styles.cnLabel}>FASES</Text>
-                      <View style={styles.chipGroup}>
-                        {PHASE_OPTIONS.map(({ key, label }) => (
-                          <TouchableOpacity
-                            key={`id-${idx}-${key}`}
-                            style={[
-                              styles.chip,
-                              circuit.phaseID === key && styles.chipActive,
-                            ]}
-                            onPress={() => {
-                              setCircuits((prev) => {
-                                const next = [...prev];
-                                next[idx] = { ...next[idx], phaseID: key };
-                                return next;
-                              });
-                            }}
-                          >
-                            <Text
-                              style={[
-                                styles.chipText,
-                                circuit.phaseID === key &&
-                                styles.chipTextActive,
-                              ]}
-                            >
-                              {label}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
+                      <RNPickerSelect
+                        onValueChange={(value) => {
+                          setCircuits((prev) => {
+                            const next = [...prev];
+                            next[idx] = { ...next[idx], phaseID: value };
+                            return next;
+                          });
+                        }}
+                        items={PHASE_OPTIONS.map((opt) => ({
+                          label: opt.label,
+                          value: opt.key,
+                        }))}
+                        placeholder={{
+                          label: "Seleccione tipo de fase",
+                          value: null,
+                          color: "#9CA3AF",
+                        }}
+                        value={circuit.phaseID}
+                        style={{
+                          ...pickerSelectStyles,
+                          iconContainer: {
+                            top: 12,
+                            right: 12,
+                          },
+                        }}
+                        useNativeAndroidPickerStyle={false}
+                        Icon={() => {
+                          return (
+                            <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                          );
+                        }}
+                      />
                       <Text style={styles.cnLabel}>AMPARAJE:</Text>
                       <View style={styles.inputWithUnitWrapper}>
                         <TextInput
@@ -367,6 +379,64 @@ export default function StepThree({
                         />
                         <Text style={styles.unitText}>A</Text>
                       </View>
+
+                      {/* Diámetro ID */}
+                      <Text style={styles.cnLabel}>DIÁMETRO:</Text>
+                      <View style={styles.inputWithUnitWrapper}>
+                        <TextInput
+                          style={styles.itgInputWithUnit}
+                          value={circuit.diameterID || ""}
+                          onChangeText={(text) => {
+                            setCircuits((prev) => {
+                              const next = [...prev];
+                              next[idx] = { ...next[idx], diameterID: text };
+                              return next;
+                            });
+                          }}
+                          placeholder="Ingrese diámetro"
+                          placeholderTextColor="#9CA3AF"
+                          keyboardType="numeric"
+                        />
+                        <Text style={styles.unitText}>mm²</Text>
+                      </View>
+
+                      {/* Tipo de Cable ID */}
+                      <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
+                      <RNPickerSelect
+                        onValueChange={(value) => {
+                          setCircuits((prev) => {
+                            const next = [...prev];
+                            next[idx] = {
+                              ...next[idx],
+                              cableTypeID: value || undefined,
+                            };
+                            return next;
+                          });
+                        }}
+                        items={CABLE_TYPE_OPTIONS.map((opt) => ({
+                          label: opt.label,
+                          value: opt.key,
+                        }))}
+                        placeholder={{
+                          label: "Seleccione una opción",
+                          value: null,
+                          color: "#9CA3AF",
+                        }}
+                        value={circuit.cableTypeID}
+                        style={{
+                          ...pickerSelectStyles,
+                          iconContainer: {
+                            top: 12,
+                            right: 12,
+                          },
+                        }}
+                        useNativeAndroidPickerStyle={false}
+                        Icon={() => {
+                          return (
+                            <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                          );
+                        }}
+                      />
                     </View>
                   )}
                 </View>
@@ -428,7 +498,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: '#7DD3FC',
     paddingHorizontal: 12,
     color: "#11181C",
   },
@@ -444,7 +514,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: '#7DD3FC',
     paddingHorizontal: 12,
     color: "#11181C",
   },
@@ -515,8 +585,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    paddingHorizontal: 12,
+    borderColor: '#7DD3FC',
     color: "#11181C",
   },
   // New styles for input with unit
@@ -536,6 +605,7 @@ const styles = StyleSheet.create({
     height: "100%",
     paddingHorizontal: 12,
     color: "#11181C",
+    borderColor: '#7DD3FC',
   },
   unitText: {
     color: "#6B7280",
