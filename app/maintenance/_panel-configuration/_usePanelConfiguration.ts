@@ -8,7 +8,9 @@ import {
   PanelData,
   ExtraComponentType,
   ExtraComponent,
+  ExtraConditions,
 } from "./_types";
+import { STEP_IDS, STEP_ORDER, StepId, getStepIndex, isLastStep } from "./_stepConfig";
 
 const DEFAULT_CIRCUIT: CircuitConfig = {
   phaseITM: "mono_2w",
@@ -23,7 +25,7 @@ const DEFAULT_CIRCUIT: CircuitConfig = {
 
 export function usePanelConfiguration(initialPanel: PanelData | null) {
   const router = useRouter();
-  const [step, setStep] = useState<number>(1);
+  const [currentStepId, setCurrentStepId] = useState<StepId>(STEP_ORDER[0]);
 
   // Step 1 fields
   const [panelType, setPanelType] = useState<PanelType>("adosado");
@@ -58,6 +60,16 @@ export function usePanelConfiguration(initialPanel: PanelData | null) {
     termostato: [],
     medidores: [],
     timers: [],
+  });
+
+  // Step 5 fields - Extra conditions
+  const [extraConditions, setExtraConditions] = useState<ExtraConditions>({
+    mandilProteccion: false,
+    puertaMandilAterrados: false,
+    barraTierra: false,
+    terminalesElectricos: false,
+    mangasTermoContraibles: false,
+    diagramaUnifilarDirectorio: false,
   });
 
   // Keep IT-G descriptions in sync with count
@@ -118,46 +130,52 @@ export function usePanelConfiguration(initialPanel: PanelData | null) {
     return true;
   };
 
+  const validateCurrentStep = (): boolean => {
+    switch (currentStepId) {
+      case STEP_IDS.BASIC_INFO:
+        return validateStepOne();
+      case STEP_IDS.ITG_CONFIG:
+        return validateStepTwo();
+      case STEP_IDS.CIRCUITS:
+        return validateStepThree();
+      default:
+        return true;
+    }
+  };
+
   const goNext = () => {
-    if (step === 1) {
-      if (!validateStepOne()) return;
-      setStep(2);
-      return;
-    }
-    if (step === 2) {
-      if (!validateStepTwo()) return;
-      setStep(3);
-      return;
-    }
-    if (step === 3) {
-      if (!validateStepThree()) return;
-      setStep(4);
-      return;
-    }
-    if (step === 4) {
-      setStep(5);
-      return;
-    }
-    if (step === 5) {
-      // Simulate save and go back
+    // Validate current step before proceeding
+    if (!validateCurrentStep()) return;
+
+    const currentIndex = getStepIndex(currentStepId);
+
+    // If last step, save and exit
+    if (isLastStep(currentStepId)) {
       Alert.alert(
         "Configuración guardada",
         "El equipo ha sido configurado correctamente.",
         [{ text: "OK", onPress: () => router.back() }]
       );
+      return;
+    }
+
+    // Move to next step
+    if (currentIndex < STEP_ORDER.length - 1) {
+      setCurrentStepId(STEP_ORDER[currentIndex + 1]);
     }
   };
 
   const goBack = () => {
-    if (step > 1) {
-      setStep((s) => s - 1);
+    const currentIndex = getStepIndex(currentStepId);
+    if (currentIndex > 0) {
+      setCurrentStepId(STEP_ORDER[currentIndex - 1]);
     } else {
       router.back();
     }
   };
 
   return {
-    step,
+    currentStepId,
     panelType,
     setPanelType,
     voltage,
@@ -178,7 +196,10 @@ export function usePanelConfiguration(initialPanel: PanelData | null) {
     setEnabledComponents,
     extraComponents,
     setExtraComponents,
+    extraConditions,
+    setExtraConditions,
     goNext,
     goBack,
   };
 }
+

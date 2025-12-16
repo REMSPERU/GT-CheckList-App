@@ -1,8 +1,8 @@
 import { View, Text, TouchableOpacity, TextInput } from 'react-native';
-import { StepOneProps } from './_types';
+import { BasicInfoStepProps } from './_types';
 import { styles } from './_styles';
 
-export default function StepOne({
+export default function BasicInfoStep({
     panel,
     panelType,
     setPanelType,
@@ -10,7 +10,7 @@ export default function StepOne({
     setVoltage,
     phase,
     setPhase,
-}: StepOneProps) {
+}: BasicInfoStepProps) {
     return (
         <View style={styles.contentWrapper}>
             {/* Equipo */}

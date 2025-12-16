@@ -20,7 +20,7 @@ export interface PanelData {
   id?: string;
 }
 
-export interface StepOneProps {
+export interface BasicInfoStepProps {
   panel: PanelData | null;
   panelType: PanelType;
   setPanelType: (type: PanelType) => void;
@@ -30,7 +30,7 @@ export interface StepOneProps {
   setPhase: (phase: PhaseType) => void;
 }
 
-export interface StepTwoProps {
+export interface ITGConfigStepProps {
   panel: PanelData | null;
   itgCount: string;
   setItgCount: (count: string) => void;
@@ -38,7 +38,7 @@ export interface StepTwoProps {
   setItgDescriptions: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
-export interface StepThreeProps {
+export interface CircuitsConfigStepProps {
   panel: PanelData | null;
   cnPrefix: string;
   setCnPrefix: (prefix: string) => void;
@@ -61,7 +61,7 @@ export interface ExtraComponent {
   description: string;
 }
 
-export interface StepFourProps {
+export interface ExtraComponentsStepProps {
   panel: PanelData | null;
   enabledComponents: ExtraComponentType[];
   setEnabledComponents: React.Dispatch<
@@ -73,7 +73,22 @@ export interface StepFourProps {
   >;
 }
 
-export interface StepFiveProps {
+export interface ExtraConditions {
+  mandilProteccion: boolean;
+  puertaMandilAterrados: boolean;
+  barraTierra: boolean;
+  terminalesElectricos: boolean;
+  mangasTermoContraibles: boolean;
+  diagramaUnifilarDirectorio: boolean;
+}
+
+export interface ExtraConditionsStepProps {
+  panel: PanelData | null;
+  extraConditions: ExtraConditions;
+  setExtraConditions: React.Dispatch<React.SetStateAction<ExtraConditions>>;
+}
+
+export interface ReviewStepProps {
   panel: PanelData | null;
   panelType: PanelType;
   voltage: string;

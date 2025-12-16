@@ -6,11 +6,14 @@ import DefaultHeader from '@/components/default-header';
 import { usePanelConfiguration } from './_panel-configuration/_usePanelConfiguration';
 import { PanelData } from './_panel-configuration/_types';
 import { styles } from './_panel-configuration/_styles';
-import StepOne from './_panel-configuration/StepOne';
-import StepTwo from './_panel-configuration/StepTwo';
-import StepThree from './_panel-configuration/StepThree';
-import StepFour from './_panel-configuration/StepFour';
-import StepFive from './_panel-configuration/StepFive';
+import { STEP_IDS, isLastStep, isFirstStep } from './_panel-configuration/_stepConfig';
+import BasicInfoStep from './_panel-configuration/BasicInfoStep';
+import ITGConfigStep from './_panel-configuration/ITGConfigStep';
+import CircuitsConfigStep from './_panel-configuration/CircuitsConfigStep';
+import ExtraComponentsStep from './_panel-configuration/ExtraComponentsStep';
+import ExtraConditionsStep from './_panel-configuration/ExtraConditionsStep';
+import ReviewStep from './_panel-configuration/ReviewStep';
+
 
 export default function PanelConfigurationScreen() {
   const params = useLocalSearchParams();
@@ -27,7 +30,7 @@ export default function PanelConfigurationScreen() {
   }, [params.panel]);
 
   const {
-    step,
+    currentStepId,
     panelType,
     setPanelType,
     voltage,
@@ -48,15 +51,17 @@ export default function PanelConfigurationScreen() {
     setEnabledComponents,
     extraComponents,
     setExtraComponents,
+    extraConditions,
+    setExtraConditions,
     goNext,
     goBack,
   } = usePanelConfiguration(panel);
 
   const renderStep = () => {
-    switch (step) {
-      case 1:
+    switch (currentStepId) {
+      case STEP_IDS.BASIC_INFO:
         return (
-          <StepOne
+          <BasicInfoStep
             panel={panel}
             panelType={panelType}
             setPanelType={setPanelType}
@@ -66,9 +71,9 @@ export default function PanelConfigurationScreen() {
             setPhase={setPhase}
           />
         );
-      case 2:
+      case STEP_IDS.ITG_CONFIG:
         return (
-          <StepTwo
+          <ITGConfigStep
             panel={panel}
             itgCount={itgCount}
             setItgCount={setItgCount}
@@ -76,9 +81,9 @@ export default function PanelConfigurationScreen() {
             setItgDescriptions={setItgDescriptions}
           />
         );
-      case 3:
+      case STEP_IDS.CIRCUITS:
         return (
-          <StepThree
+          <CircuitsConfigStep
             panel={panel}
             cnPrefix={cnPrefix}
             setCnPrefix={setCnPrefix}
@@ -88,9 +93,9 @@ export default function PanelConfigurationScreen() {
             setCircuits={setCircuits}
           />
         );
-      case 4:
+      case STEP_IDS.EXTRA_COMPONENTS:
         return (
-          <StepFour
+          <ExtraComponentsStep
             panel={panel}
             enabledComponents={enabledComponents}
             setEnabledComponents={setEnabledComponents}
@@ -98,9 +103,17 @@ export default function PanelConfigurationScreen() {
             setExtraComponents={setExtraComponents}
           />
         );
-      case 5:
+      case STEP_IDS.EXTRA_CONDITIONS:
         return (
-          <StepFive
+          <ExtraConditionsStep
+            panel={panel}
+            extraConditions={extraConditions}
+            setExtraConditions={setExtraConditions}
+          />
+        );
+      case STEP_IDS.REVIEW:
+        return (
+          <ReviewStep
             panel={panel}
             panelType={panelType}
             voltage={voltage}
@@ -128,10 +141,10 @@ export default function PanelConfigurationScreen() {
         {/* Footer Buttons */}
         <View style={styles.footer}>
           <TouchableOpacity style={styles.primaryBtn} onPress={goNext}>
-            <Text style={styles.primaryBtnText}>{step === 5 ? 'Guardar' : 'Siguiente'}</Text>
+            <Text style={styles.primaryBtnText}>{isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryBtn} onPress={goBack}>
-            <Text style={styles.secondaryBtnText}>{step === 1 ? 'Cancel' : 'Atrás'}</Text>
+            <Text style={styles.secondaryBtnText}>{isFirstStep(currentStepId) ? 'Cancel' : 'Atrás'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

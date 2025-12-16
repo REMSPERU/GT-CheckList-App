@@ -1,14 +1,14 @@
 import { View, Text, TextInput } from 'react-native';
-import { StepTwoProps } from './_types';
+import { ITGConfigStepProps } from './_types';
 import { styles } from './_styles';
 
-export default function StepTwo({
+export default function ITGConfigStep({
     panel,
     itgCount,
     setItgCount,
     itgDescriptions,
     setItgDescriptions,
-}: StepTwoProps) {
+}: ITGConfigStepProps) {
     return (
         <View style={styles.contentWrapper}>
             {/* Equipo */}
