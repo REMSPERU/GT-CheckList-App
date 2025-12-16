@@ -1,5 +1,5 @@
 import { View, Text, TextInput } from 'react-native';
-import { ITGConfigStepProps } from './_types';
+import { ITGConfigStepProps } from '@/types/panel-configuration';
 import { styles } from './_styles';
 
 export default function ITGConfigStep({

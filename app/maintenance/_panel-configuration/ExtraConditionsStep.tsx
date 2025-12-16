@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { ExtraConditionsStepProps } from "./_types";
+import { ExtraConditionsStepProps } from "@/types/panel-configuration";
 
 type ConditionKey =
     | "mandilProteccion"

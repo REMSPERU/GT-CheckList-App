@@ -6,7 +6,7 @@ import {
     StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { ExtraComponentsStepProps, ExtraComponentType } from "./_types";
+import { ExtraComponentsStepProps, ExtraComponentType } from "@/types/panel-configuration";
 import { useState } from "react";
 
 const COMPONENT_OPTIONS: {

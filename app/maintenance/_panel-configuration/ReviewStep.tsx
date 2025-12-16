@@ -1,5 +1,5 @@
 import { View, Text } from "react-native";
-import { ReviewStepProps, ExtraComponentType } from "./_types";
+import { ReviewStepProps, ExtraComponentType } from "@/types/panel-configuration";
 import { styles } from "./_styles";
 
 const getPhaseLabel = (phase: string): string => {

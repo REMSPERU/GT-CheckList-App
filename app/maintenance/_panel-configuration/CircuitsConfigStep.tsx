@@ -12,7 +12,7 @@ import {
   PhaseType,
   CableType,
   CircuitConfig,
-} from "./_types";
+} from "@/types/panel-configuration";
 import { useState, useEffect, useRef, useCallback } from "react";
 import ProgressTabs from "@/components/progress-tabs";
 
