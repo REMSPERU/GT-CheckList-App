@@ -7,12 +7,14 @@ import {
 } from "react-native";
 import RNPickerSelect from "react-native-picker-select";
 import { Ionicons } from "@expo/vector-icons";
+import { useFormContext, Controller } from "react-hook-form";
 import {
   CircuitsConfigStepProps,
   PhaseType,
   CableType,
   CircuitConfig,
 } from "@/types/panel-configuration";
+import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 import { useState, useEffect, useRef, useCallback } from "react";
 import ProgressTabs from "@/components/progress-tabs";
 
@@ -70,11 +72,12 @@ const DEFAULT_CIRCUIT: CircuitConfig = {
 
 export default function CircuitsConfigStep({
   panel,
-  itgDescriptions,
-  itgCircuits,
-  setItgCircuits,
   navigationHandlers,
 }: CircuitsConfigStepProps) {
+  const { control, watch, setValue, getValues } = useFormContext<PanelConfigurationFormValues>();
+  const itgCircuits = watch("itgCircuits");
+  const itgDescriptions = watch("itgDescriptions");
+
   const [selectedItgIndex, setSelectedItgIndex] = useState(0);
 
   // Navigation handlers - parent will call these instead of goNext/goBack
@@ -148,17 +151,10 @@ export default function CircuitsConfigStep({
     );
   };
 
-  const updateCurrentItg = (updates: Partial<typeof currentItg>) => {
-    setItgCircuits((prev) => {
-      const next = [...prev];
-      next[selectedItgIndex] = { ...next[selectedItgIndex], ...updates };
-      return next;
-    });
-  };
-
   const updateCircuitsCount = (value: string) => {
     const n = Math.max(0, parseInt(value || "0", 10));
-    const newCircuits = [...circuits];
+    const currentCircuits = getValues(`itgCircuits.${selectedItgIndex}.circuits`);
+    const newCircuits = [...currentCircuits];
 
     if (n > newCircuits.length) {
       for (let i = newCircuits.length; i < n; i++) {
@@ -168,13 +164,8 @@ export default function CircuitsConfigStep({
       newCircuits.length = n;
     }
 
-    updateCurrentItg({ circuitsCount: value, circuits: newCircuits });
-  };
-
-  const updateCircuitAtIndex = (index: number, updates: Partial<CircuitConfig>) => {
-    const newCircuits = [...circuits];
-    newCircuits[index] = { ...newCircuits[index], ...updates };
-    updateCurrentItg({ circuits: newCircuits });
+    setValue(`itgCircuits.${selectedItgIndex}.circuitsCount`, value);
+    setValue(`itgCircuits.${selectedItgIndex}.circuits`, newCircuits);
   };
 
   return (
@@ -209,12 +200,19 @@ export default function CircuitsConfigStep({
             color="#6B7280"
           />
         </View>
-        <TextInput
-          style={styles.input}
-          value={cnPrefix}
-          onChangeText={(text) => updateCurrentItg({ cnPrefix: text })}
-          placeholder="CN, SA"
-          placeholderTextColor="#9CA3AF"
+        <Controller
+          control={control}
+          name={`itgCircuits.${selectedItgIndex}.cnPrefix`}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <TextInput
+              style={styles.input}
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder="CN, SA"
+              placeholderTextColor="#9CA3AF"
+            />
+          )}
         />
       </View>
 
@@ -259,41 +257,55 @@ export default function CircuitsConfigStep({
                   Interruptor termomagnetico (ITM)
                 </Text>
                 <Text style={styles.cnLabel}>FASES</Text>
-                <RNPickerSelect
-                  onValueChange={(value) => updateCircuitAtIndex(idx, { phaseITM: value })}
-                  items={PHASE_OPTIONS.map((opt) => ({
-                    label: opt.label,
-                    value: opt.key,
-                  }))}
-                  placeholder={{
-                    label: "Seleccione tipo de fase",
-                    value: null,
-                    color: "#9CA3AF",
-                  }}
-                  value={circuit.phaseITM}
-                  style={{
-                    ...pickerSelectStyles,
-                    iconContainer: {
-                      top: 12,
-                      right: 12,
-                    },
-                  }}
-                  useNativeAndroidPickerStyle={false}
-                  Icon={() => {
-                    return (
-                      <Ionicons name="chevron-down" size={20} color="#6B7280" />
-                    );
-                  }}
+                <Controller
+                  control={control}
+                  name={`itgCircuits.${selectedItgIndex}.circuits.${idx}.phaseITM`}
+                  render={({ field: { onChange, value } }) => (
+                    <RNPickerSelect
+                      onValueChange={onChange}
+                      items={PHASE_OPTIONS.map((opt) => ({
+                        label: opt.label,
+                        value: opt.key,
+                      }))}
+                      placeholder={{
+                        label: "Seleccione tipo de fase",
+                        value: null,
+                        color: "#9CA3AF",
+                      }}
+                      value={value}
+                      style={{
+                        ...pickerSelectStyles,
+                        iconContainer: {
+                          top: 12,
+                          right: 12,
+                        },
+                      }}
+                      useNativeAndroidPickerStyle={false}
+                      Icon={() => {
+                        return (
+                          <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                        );
+                      }}
+                    />
+                  )}
                 />
+
                 <Text style={styles.cnLabel}>AMPARAJE:</Text>
                 <View style={styles.inputWithUnitWrapper}>
-                  <TextInput
-                    style={styles.itgInputWithUnit}
-                    value={circuit.amperajeITM}
-                    onChangeText={(text) => updateCircuitAtIndex(idx, { amperajeITM: text })}
-                    placeholder="Ingrese amperaje"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="numeric"
+                  <Controller
+                    control={control}
+                    name={`itgCircuits.${selectedItgIndex}.circuits.${idx}.amperajeITM`}
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <TextInput
+                        style={styles.itgInputWithUnit}
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        placeholder="Ingrese amperaje"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="numeric"
+                      />
+                    )}
                   />
                   <Text style={styles.unitText}>A</Text>
                 </View>
@@ -301,129 +313,171 @@ export default function CircuitsConfigStep({
                 {/* Diámetro */}
                 <Text style={styles.cnLabel}>DIÁMETRO:</Text>
                 <View style={styles.inputWithUnitWrapper}>
-                  <TextInput
-                    style={styles.itgInputWithUnit}
-                    value={circuit.diameter || ""}
-                    onChangeText={(text) => updateCircuitAtIndex(idx, { diameter: text })}
-                    placeholder="Ingrese diámetro"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="numeric"
+                  <Controller
+                    control={control}
+                    name={`itgCircuits.${selectedItgIndex}.circuits.${idx}.diameter`}
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <TextInput
+                        style={styles.itgInputWithUnit}
+                        value={value || ""}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        placeholder="Ingrese diámetro"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="numeric"
+                      />
+                    )}
                   />
                   <Text style={styles.unitText}>mm²</Text>
                 </View>
 
                 {/* Tipo de Cable */}
                 <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
-                <RNPickerSelect
-                  onValueChange={(value) => updateCircuitAtIndex(idx, { cableType: value || undefined })}
-                  items={CABLE_TYPE_OPTIONS.map((opt) => ({
-                    label: opt.label,
-                    value: opt.key,
-                  }))}
-                  placeholder={{
-                    label: "Seleccione una opción",
-                    value: null,
-                    color: "#9CA3AF",
-                  }}
-                  value={circuit.cableType}
-                  style={{
-                    ...pickerSelectStyles,
-                    iconContainer: {
-                      top: 12,
-                      right: 12,
-                    },
-                  }}
-                  useNativeAndroidPickerStyle={false}
-                  Icon={() => {
-                    return (
-                      <Ionicons name="chevron-down" size={20} color="#6B7280" />
-                    );
-                  }}
+                <Controller
+                  control={control}
+                  name={`itgCircuits.${selectedItgIndex}.circuits.${idx}.cableType`}
+                  render={({ field: { onChange, value } }) => (
+                    <RNPickerSelect
+                      onValueChange={onChange}
+                      items={CABLE_TYPE_OPTIONS.map((opt) => ({
+                        label: opt.label,
+                        value: opt.key,
+                      }))}
+                      placeholder={{
+                        label: "Seleccione una opción",
+                        value: null,
+                        color: "#9CA3AF",
+                      }}
+                      value={value}
+                      style={{
+                        ...pickerSelectStyles,
+                        iconContainer: {
+                          top: 12,
+                          right: 12,
+                        },
+                      }}
+                      useNativeAndroidPickerStyle={false}
+                      Icon={() => {
+                        return (
+                          <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                        );
+                      }}
+                    />
+                  )}
                 />
 
                 {/* ID - Optional Section */}
                 <View style={{ marginTop: 12 }}>
-                  <TouchableOpacity
-                    style={[
-                      styles.toggleRow,
-                      circuit.hasID && styles.toggleRowActive,
-                    ]}
-                    onPress={() => {
-                      updateCircuitAtIndex(idx, {
-                        hasID: !circuit.hasID,
-                        phaseID: !circuit.hasID ? "mono_2w" : undefined,
-                        amperajeID: !circuit.hasID ? "" : undefined,
-                      });
-                    }}
-                  >
-                    <View style={styles.toggleIconRow}>
-                      <Ionicons
-                        name="shield-checkmark-outline"
-                        size={20}
-                        color={circuit.hasID ? "#0891B2" : "#6B7280"}
-                      />
-                      <Text
+                  <Controller
+                    control={control}
+                    name={`itgCircuits.${selectedItgIndex}.circuits.${idx}.hasID`}
+                    render={({ field: { onChange, value: hasID } }) => (
+                      <TouchableOpacity
                         style={[
-                          styles.toggleLabel,
-                          circuit.hasID && styles.toggleLabelActive,
+                          styles.toggleRow,
+                          hasID && styles.toggleRowActive,
                         ]}
+                        onPress={() => {
+                          const newValue = !hasID;
+                          onChange(newValue);
+                          if (!newValue) {
+                            // Reset ID fields if disabled
+                            // Note: we're using setValue from context, not the onChange from Controller
+                            // But we can trigger side effects here.
+                            // Actually, better to just use setValue for side effects
+                            setValue(`itgCircuits.${selectedItgIndex}.circuits.${idx}.phaseID`, undefined);
+                            setValue(`itgCircuits.${selectedItgIndex}.circuits.${idx}.amperajeID`, undefined);
+                            setValue(`itgCircuits.${selectedItgIndex}.circuits.${idx}.diameterID`, undefined); // Also reset diameter
+                            setValue(`itgCircuits.${selectedItgIndex}.circuits.${idx}.cableTypeID`, undefined); // Also reset cableType
+                          } else {
+                            setValue(`itgCircuits.${selectedItgIndex}.circuits.${idx}.phaseID`, "mono_2w");
+                            setValue(`itgCircuits.${selectedItgIndex}.circuits.${idx}.amperajeID`, "");
+                          }
+                        }}
                       >
-                        Interruptor diferencial (ID)
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.toggleSwitch,
-                        circuit.hasID && styles.toggleSwitchActive,
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.toggleThumb,
-                          circuit.hasID && styles.toggleThumbActive,
-                        ]}
-                      />
-                    </View>
-                  </TouchableOpacity>
+                        <View style={styles.toggleIconRow}>
+                          <Ionicons
+                            name="shield-checkmark-outline"
+                            size={20}
+                            color={hasID ? "#0891B2" : "#6B7280"}
+                          />
+                          <Text
+                            style={[
+                              styles.toggleLabel,
+                              hasID && styles.toggleLabelActive,
+                            ]}
+                          >
+                            Interruptor diferencial (ID)
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.toggleSwitch,
+                            hasID && styles.toggleSwitchActive,
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.toggleThumb,
+                              hasID && styles.toggleThumbActive,
+                            ]}
+                          />
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  />
 
                   {circuit.hasID && (
                     <View style={{ marginTop: 12 }}>
                       <Text style={styles.cnLabel}>FASES</Text>
-                      <RNPickerSelect
-                        onValueChange={(value) => updateCircuitAtIndex(idx, { phaseID: value })}
-                        items={PHASE_OPTIONS.map((opt) => ({
-                          label: opt.label,
-                          value: opt.key,
-                        }))}
-                        placeholder={{
-                          label: "Seleccione tipo de fase",
-                          value: null,
-                          color: "#9CA3AF",
-                        }}
-                        value={circuit.phaseID}
-                        style={{
-                          ...pickerSelectStyles,
-                          iconContainer: {
-                            top: 12,
-                            right: 12,
-                          },
-                        }}
-                        useNativeAndroidPickerStyle={false}
-                        Icon={() => {
-                          return (
-                            <Ionicons name="chevron-down" size={20} color="#6B7280" />
-                          );
-                        }}
+                      <Controller
+                        control={control}
+                        name={`itgCircuits.${selectedItgIndex}.circuits.${idx}.phaseID`}
+                        render={({ field: { onChange, value } }) => (
+                          <RNPickerSelect
+                            onValueChange={onChange}
+                            items={PHASE_OPTIONS.map((opt) => ({
+                              label: opt.label,
+                              value: opt.key,
+                            }))}
+                            placeholder={{
+                              label: "Seleccione tipo de fase",
+                              value: null,
+                              color: "#9CA3AF",
+                            }}
+                            value={value}
+                            style={{
+                              ...pickerSelectStyles,
+                              iconContainer: {
+                                top: 12,
+                                right: 12,
+                              },
+                            }}
+                            useNativeAndroidPickerStyle={false}
+                            Icon={() => {
+                              return (
+                                <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                              );
+                            }}
+                          />
+                        )}
                       />
                       <Text style={styles.cnLabel}>AMPARAJE:</Text>
                       <View style={styles.inputWithUnitWrapper}>
-                        <TextInput
-                          style={styles.itgInputWithUnit}
-                          value={circuit.amperajeID || ""}
-                          onChangeText={(text) => updateCircuitAtIndex(idx, { amperajeID: text })}
-                          placeholder="Ingrese amperaje"
-                          placeholderTextColor="#9CA3AF"
-                          keyboardType="numeric"
+                        <Controller
+                          control={control}
+                          name={`itgCircuits.${selectedItgIndex}.circuits.${idx}.amperajeID`}
+                          render={({ field: { onChange, onBlur, value } }) => (
+                            <TextInput
+                              style={styles.itgInputWithUnit}
+                              value={value || ""}
+                              onChangeText={onChange}
+                              onBlur={onBlur}
+                              placeholder="Ingrese amperaje"
+                              placeholderTextColor="#9CA3AF"
+                              keyboardType="numeric"
+                            />
+                          )}
                         />
                         <Text style={styles.unitText}>A</Text>
                       </View>
@@ -431,44 +485,57 @@ export default function CircuitsConfigStep({
                       {/* Diámetro ID */}
                       <Text style={styles.cnLabel}>DIÁMETRO:</Text>
                       <View style={styles.inputWithUnitWrapper}>
-                        <TextInput
-                          style={styles.itgInputWithUnit}
-                          value={circuit.diameterID || ""}
-                          onChangeText={(text) => updateCircuitAtIndex(idx, { diameterID: text })}
-                          placeholder="Ingrese diámetro"
-                          placeholderTextColor="#9CA3AF"
-                          keyboardType="numeric"
+                        <Controller
+                          control={control}
+                          name={`itgCircuits.${selectedItgIndex}.circuits.${idx}.diameterID`}
+                          render={({ field: { onChange, onBlur, value } }) => (
+                            <TextInput
+                              style={styles.itgInputWithUnit}
+                              value={value || ""}
+                              onChangeText={onChange}
+                              onBlur={onBlur}
+                              placeholder="Ingrese diámetro"
+                              placeholderTextColor="#9CA3AF"
+                              keyboardType="numeric"
+                            />
+                          )}
                         />
                         <Text style={styles.unitText}>mm²</Text>
                       </View>
 
                       {/* Tipo de Cable ID */}
                       <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
-                      <RNPickerSelect
-                        onValueChange={(value) => updateCircuitAtIndex(idx, { cableTypeID: value || undefined })}
-                        items={CABLE_TYPE_OPTIONS.map((opt) => ({
-                          label: opt.label,
-                          value: opt.key,
-                        }))}
-                        placeholder={{
-                          label: "Seleccione una opción",
-                          value: null,
-                          color: "#9CA3AF",
-                        }}
-                        value={circuit.cableTypeID}
-                        style={{
-                          ...pickerSelectStyles,
-                          iconContainer: {
-                            top: 12,
-                            right: 12,
-                          },
-                        }}
-                        useNativeAndroidPickerStyle={false}
-                        Icon={() => {
-                          return (
-                            <Ionicons name="chevron-down" size={20} color="#6B7280" />
-                          );
-                        }}
+                      <Controller
+                        control={control}
+                        name={`itgCircuits.${selectedItgIndex}.circuits.${idx}.cableTypeID`}
+                        render={({ field: { onChange, value } }) => (
+                          <RNPickerSelect
+                            onValueChange={onChange}
+                            items={CABLE_TYPE_OPTIONS.map((opt) => ({
+                              label: opt.label,
+                              value: opt.key,
+                            }))}
+                            placeholder={{
+                              label: "Seleccione una opción",
+                              value: null,
+                              color: "#9CA3AF",
+                            }}
+                            value={value}
+                            style={{
+                              ...pickerSelectStyles,
+                              iconContainer: {
+                                top: 12,
+                                right: 12,
+                              },
+                            }}
+                            useNativeAndroidPickerStyle={false}
+                            Icon={() => {
+                              return (
+                                <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                              );
+                            }}
+                          />
+                        )}
                       />
                     </View>
                   )}
@@ -479,13 +546,21 @@ export default function CircuitsConfigStep({
                   ¿Qué suministra eléctricamente el Circuito {cnPrefix}-
                   {idx + 1}?
                 </Text>
-                <TextInput
-                  style={styles.itgInput}
-                  value={circuit.supply}
-                  onChangeText={(text) => updateCircuitAtIndex(idx, { supply: text })}
-                  placeholder="Ingrese texto"
-                  placeholderTextColor="#9CA3AF"
+                <Controller
+                  control={control}
+                  name={`itgCircuits.${selectedItgIndex}.circuits.${idx}.supply`}
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      style={styles.itgInput}
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="Ingrese texto"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
                 />
+
               </View>
             )}
           </View>

@@ -22,20 +22,10 @@ export interface PanelData {
 
 export interface BasicInfoStepProps {
     panel: PanelData | null;
-    panelType: PanelType;
-    setPanelType: (type: PanelType) => void;
-    voltage: string;
-    setVoltage: (voltage: string) => void;
-    phase: PhaseType;
-    setPhase: (phase: PhaseType) => void;
 }
 
 export interface ITGConfigStepProps {
     panel: PanelData | null;
-    itgCount: string;
-    setItgCount: (count: string) => void;
-    itgDescriptions: string[];
-    setItgDescriptions: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 export interface ITGCircuitData {
@@ -46,12 +36,9 @@ export interface ITGCircuitData {
 
 export interface CircuitsConfigStepProps {
     panel: PanelData | null;
-    itgDescriptions: string[];
-    itgCircuits: ITGCircuitData[];
-    setItgCircuits: React.Dispatch<React.SetStateAction<ITGCircuitData[]>>;
     navigationHandlers?: React.MutableRefObject<{
-        handleNext: () => void;
-        handleBack: () => void;
+        handleNext: () => boolean;
+        handleBack: () => boolean;
     } | null>;
 }
 
@@ -70,14 +57,6 @@ export interface ExtraComponent {
 
 export interface ExtraComponentsStepProps {
     panel: PanelData | null;
-    enabledComponents: ExtraComponentType[];
-    setEnabledComponents: React.Dispatch<
-        React.SetStateAction<ExtraComponentType[]>
-    >;
-    extraComponents: Record<ExtraComponentType, ExtraComponent[]>;
-    setExtraComponents: React.Dispatch<
-        React.SetStateAction<Record<ExtraComponentType, ExtraComponent[]>>
-    >;
 }
 
 export interface ExtraConditions {
@@ -91,18 +70,8 @@ export interface ExtraConditions {
 
 export interface ExtraConditionsStepProps {
     panel: PanelData | null;
-    extraConditions: ExtraConditions;
-    setExtraConditions: React.Dispatch<React.SetStateAction<ExtraConditions>>;
 }
 
 export interface ReviewStepProps {
     panel: PanelData | null;
-    panelType: PanelType;
-    voltage: string;
-    phase: PhaseType;
-    itgDescriptions: string[];
-    itgCircuits: ITGCircuitData[];
-    enabledComponents: ExtraComponentType[];
-    extraComponents: Record<ExtraComponentType, ExtraComponent[]>;
-    extraConditions: ExtraConditions;
 }

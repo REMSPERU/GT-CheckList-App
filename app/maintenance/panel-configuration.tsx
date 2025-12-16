@@ -2,6 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView, View, TouchableOpacity, Text } from 'react-native';
 import { useEffect, useState, useRef } from 'react';
+import { FormProvider } from 'react-hook-form';
 import DefaultHeader from '@/components/default-header';
 import { usePanelConfiguration, STEP_IDS, isLastStep, isFirstStep } from '@/hooks/use-electrical-panel-configuration';
 import { PanelData } from '@/types/panel-configuration';
@@ -36,31 +37,17 @@ export default function PanelConfigurationScreen() {
 
   const {
     currentStepId,
-    panelType,
-    setPanelType,
-    voltage,
-    setVoltage,
-    phase,
-    setPhase,
-    itgCount,
-    setItgCount,
-    itgDescriptions,
-    setItgDescriptions,
-    itgCircuits,
-    setItgCircuits,
-    enabledComponents,
-    setEnabledComponents,
-    extraComponents,
-    setExtraComponents,
-    extraConditions,
-    setExtraConditions,
+    form,
     goNext,
     goBack,
   } = usePanelConfiguration(panel);
 
   // Custom navigation for Circuits step
   const handleGoNext = () => {
+    // If we are in Circuits step and have custom handlers
     if (currentStepId === STEP_IDS.CIRCUITS && circuitsNavHandlersRef.current) {
+      // handleNext returns true if we should proceed to next step
+      // returns false if we just switched tabs locally
       const canProceed = circuitsNavHandlersRef.current.handleNext();
       if (canProceed) {
         goNext(); // Actually go to next step
@@ -89,31 +76,18 @@ export default function PanelConfigurationScreen() {
         return (
           <BasicInfoStep
             panel={panel}
-            panelType={panelType}
-            setPanelType={setPanelType}
-            voltage={voltage}
-            setVoltage={setVoltage}
-            phase={phase}
-            setPhase={setPhase}
           />
         );
       case STEP_IDS.ITG_CONFIG:
         return (
           <ITGConfigStep
             panel={panel}
-            itgCount={itgCount}
-            setItgCount={setItgCount}
-            itgDescriptions={itgDescriptions}
-            setItgDescriptions={setItgDescriptions}
           />
         );
       case STEP_IDS.CIRCUITS:
         return (
           <CircuitsConfigStep
             panel={panel}
-            itgDescriptions={itgDescriptions}
-            itgCircuits={itgCircuits}
-            setItgCircuits={setItgCircuits}
             navigationHandlers={circuitsNavHandlersRef}
           />
         );
@@ -121,32 +95,18 @@ export default function PanelConfigurationScreen() {
         return (
           <ExtraComponentsStep
             panel={panel}
-            enabledComponents={enabledComponents}
-            setEnabledComponents={setEnabledComponents}
-            extraComponents={extraComponents}
-            setExtraComponents={setExtraComponents}
           />
         );
       case STEP_IDS.EXTRA_CONDITIONS:
         return (
           <ExtraConditionsStep
             panel={panel}
-            extraConditions={extraConditions}
-            setExtraConditions={setExtraConditions}
           />
         );
       case STEP_IDS.REVIEW:
         return (
           <ReviewStep
             panel={panel}
-            panelType={panelType}
-            voltage={voltage}
-            phase={phase}
-            itgDescriptions={itgDescriptions}
-            itgCircuits={itgCircuits}
-            enabledComponents={enabledComponents}
-            extraComponents={extraComponents}
-            extraConditions={extraConditions}
           />
         );
       default:
@@ -156,22 +116,24 @@ export default function PanelConfigurationScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView>
-        <DefaultHeader title="Configuración del equipo" searchPlaceholder="" />
+      <FormProvider {...form}>
+        <ScrollView>
+          <DefaultHeader title="Configuración del equipo" searchPlaceholder="" />
 
-        {/* Content */}
-        {renderStep()}
+          {/* Content */}
+          {renderStep()}
 
-        {/* Footer Buttons */}
-        <View style={styles.footer}>
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleGoNext}>
-            <Text style={styles.primaryBtnText}>{isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={handleGoBack}>
-            <Text style={styles.secondaryBtnText}>{isFirstStep(currentStepId) ? 'Cancel' : 'Atrás'}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          {/* Footer Buttons */}
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleGoNext}>
+              <Text style={styles.primaryBtnText}>{isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={handleGoBack}>
+              <Text style={styles.secondaryBtnText}>{isFirstStep(currentStepId) ? 'Cancel' : 'Atrás'}</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </FormProvider>
     </SafeAreaView>
   );
 }

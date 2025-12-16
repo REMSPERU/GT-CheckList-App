@@ -1,14 +1,15 @@
 import { View, Text, TextInput } from 'react-native';
+import { useFormContext, Controller } from "react-hook-form";
 import { ITGConfigStepProps } from '@/types/panel-configuration';
+import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 import { styles } from './_styles';
 
 export default function ITGConfigStep({
     panel,
-    itgCount,
-    setItgCount,
-    itgDescriptions,
-    setItgDescriptions,
 }: ITGConfigStepProps) {
+    const { control, watch } = useFormContext<PanelConfigurationFormValues>();
+    const itgDescriptions = watch("itgDescriptions");
+
     return (
         <View style={styles.contentWrapper}>
             {/* Equipo */}
@@ -18,34 +19,42 @@ export default function ITGConfigStep({
             {/* ¿Cuantos IT-G tienes? */}
             <View style={styles.rowBetween}>
                 <Text style={styles.countLabel}>¿Cuantos IT-G tienes?</Text>
-                <TextInput
-                    style={styles.countInput}
-                    value={itgCount}
-                    onChangeText={setItgCount}
-                    keyboardType="numeric"
-                    placeholder="1"
-                    placeholderTextColor="#9CA3AF"
+                <Controller
+                    control={control}
+                    name="itgCount"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                        <TextInput
+                            style={styles.countInput}
+                            value={value}
+                            onChangeText={onChange}
+                            onBlur={onBlur}
+                            keyboardType="numeric"
+                            placeholder="1"
+                            placeholderTextColor="#9CA3AF"
+                        />
+                    )}
                 />
             </View>
 
             {/* Lista IT-G */}
             <View style={{ marginTop: 12 }}>
-                {itgDescriptions.map((desc, idx) => (
+                {itgDescriptions.map((_, idx) => (
                     <View key={`itg-${idx}`} style={styles.itgCard}>
                         <Text style={styles.itgTitle}>IT–G{idx + 1}</Text>
                         <Text style={styles.itgSubtitle}>¿Qué suministra eléctricamente el IT-G?</Text>
-                        <TextInput
-                            style={styles.itgInput}
-                            value={desc}
-                            onChangeText={(text) => {
-                                setItgDescriptions((prev) => {
-                                    const next = [...prev];
-                                    next[idx] = text;
-                                    return next;
-                                });
-                            }}
-                            placeholder="Ingrese texto"
-                            placeholderTextColor="#9CA3AF"
+                        <Controller
+                            control={control}
+                            name={`itgDescriptions.${idx}`}
+                            render={({ field: { onChange, onBlur, value } }) => (
+                                <TextInput
+                                    style={styles.itgInput}
+                                    value={value}
+                                    onChangeText={onChange}
+                                    onBlur={onBlur}
+                                    placeholder="Ingrese texto"
+                                    placeholderTextColor="#9CA3AF"
+                                />
+                            )}
                         />
                     </View>
                 ))}
