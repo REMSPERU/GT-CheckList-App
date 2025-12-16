@@ -9,6 +9,7 @@ import {
   ExtraComponentType,
   ExtraComponent,
   ExtraConditions,
+  ITGCircuitData,
 } from "./_types";
 import { STEP_IDS, STEP_ORDER, StepId, getStepIndex, isLastStep } from "./_stepConfig";
 
@@ -38,14 +39,14 @@ export function usePanelConfiguration(initialPanel: PanelData | null) {
     Array(3).fill("")
   );
 
-  // Step 3 fields - Circuitos de IT-G1
-  const [cnPrefix, setCnPrefix] = useState<string>("CN");
-  const [circuitsCount, setCircuitsCount] = useState<string>("1");
-  const [circuits, setCircuits] = useState<CircuitConfig[]>(
-    Array(5)
-      .fill(null)
-      .map(() => ({ ...DEFAULT_CIRCUIT }))
-  );
+  // Step 3 fields - Circuitos por IT-G
+  const [itgCircuits, setItgCircuits] = useState<ITGCircuitData[]>([
+    {
+      cnPrefix: "CN",
+      circuitsCount: "1",
+      circuits: [{ ...DEFAULT_CIRCUIT }],
+    },
+  ]);
 
   // Step 4 fields - Extra components
   const [enabledComponents, setEnabledComponents] = useState<
@@ -86,19 +87,26 @@ export function usePanelConfiguration(initialPanel: PanelData | null) {
     });
   }, [itgCount]);
 
-  // Keep circuits list in sync with circuitsCount
+  // Keep itgCircuits in sync with itgCount
   useEffect(() => {
-    const n = Math.max(0, parseInt(circuitsCount || "0", 10));
-    setCircuits((prev) => {
+    const n = Math.max(0, parseInt(itgCount || "0", 10));
+    setItgCircuits((prev) => {
       const next = [...prev];
-      if (n > next.length) {
-        for (let i = next.length; i < n; i++) next.push({ ...DEFAULT_CIRCUIT });
-      } else if (n < next.length) {
+      // Add new IT-G circuit configurations
+      while (next.length < n) {
+        next.push({
+          cnPrefix: "CN",
+          circuitsCount: "1",
+          circuits: [{ ...DEFAULT_CIRCUIT }],
+        });
+      }
+      // Remove excess
+      if (next.length > n) {
         next.length = n;
       }
       return next;
     });
-  }, [circuitsCount]);
+  }, [itgCount]);
 
   const validateStepOne = (): boolean => {
     if (!voltage.trim()) {
@@ -118,14 +126,24 @@ export function usePanelConfiguration(initialPanel: PanelData | null) {
   };
 
   const validateStepThree = (): boolean => {
-    const c = parseInt(circuitsCount || "0", 10);
-    if (!cnPrefix.trim()) {
-      Alert.alert("Validación", "Ingrese el prefijo (por ejemplo, CN o SA).");
-      return false;
-    }
-    if (isNaN(c) || c < 1) {
-      Alert.alert("Validación", "Indique al menos 1 circuito.");
-      return false;
+    // Validate all IT-G circuit configurations
+    for (let i = 0; i < itgCircuits.length; i++) {
+      const itg = itgCircuits[i];
+      if (!itg.cnPrefix.trim()) {
+        Alert.alert(
+          "Validación",
+          `Ingrese el prefijo para IT-G${i + 1} (por ejemplo, CN o SA).`
+        );
+        return false;
+      }
+      const c = parseInt(itg.circuitsCount || "0", 10);
+      if (isNaN(c) || c < 1) {
+        Alert.alert(
+          "Validación",
+          `Indique al menos 1 circuito para IT-G${i + 1}.`
+        );
+        return false;
+      }
     }
     return true;
   };
@@ -186,12 +204,8 @@ export function usePanelConfiguration(initialPanel: PanelData | null) {
     setItgCount,
     itgDescriptions,
     setItgDescriptions,
-    cnPrefix,
-    setCnPrefix,
-    circuitsCount,
-    setCircuitsCount,
-    circuits,
-    setCircuits,
+    itgCircuits,
+    setItgCircuits,
     enabledComponents,
     setEnabledComponents,
     extraComponents,

@@ -30,10 +30,10 @@ export default function ReviewStep({
     voltage,
     phase,
     itgDescriptions,
-    cnPrefix,
-    circuits,
+    itgCircuits,
     enabledComponents,
     extraComponents,
+    extraConditions,
 }: ReviewStepProps) {
     return (
         <View style={styles.contentWrapper}>
@@ -66,15 +66,30 @@ export default function ReviewStep({
                 <Text style={styles.summaryValue}>{itgDescriptions.length}</Text>
             </View>
 
-            <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Prefijo circuitos:</Text>
-                <Text style={styles.summaryValue}>{cnPrefix}</Text>
-            </View>
-
-            <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Cantidad circuitos:</Text>
-                <Text style={styles.summaryValue}>{circuits.length}</Text>
-            </View>
+            {/* IT-G Circuits Summary */}
+            <Text
+                style={[styles.sectionTitle, { marginTop: 16, marginBottom: 12 }]}
+            >
+                Circuitos por IT-G
+            </Text>
+            {itgCircuits.map((itgCircuit, index) => (
+                <View key={index} style={{ marginBottom: 12 }}>
+                    <View style={styles.summaryRow}>
+                        <Text style={[styles.summaryLabel, { fontWeight: "700" }]}>
+                            IT-G{index + 1} ({itgCircuit.cnPrefix}):
+                        </Text>
+                        <Text style={styles.summaryValue}>{itgCircuit.circuits.length} circuitos</Text>
+                    </View>
+                    {itgCircuit.circuits.map((c, i) => (
+                        <View key={`${index}-${i}`} style={[styles.summaryRow, { marginLeft: 16 }]}>
+                            <Text style={styles.summaryLabel}>
+                                {itgCircuit.cnPrefix}-{i + 1}:
+                            </Text>
+                            <Text style={styles.summaryValue}>{c.supply || "—"}</Text>
+                        </View>
+                    ))}
+                </View>
+            ))}
 
             {/* Extra Components Summary */}
             {enabledComponents.length > 0 && (
@@ -100,19 +115,35 @@ export default function ReviewStep({
                 </>
             )}
 
-            {/* Circuits Detail */}
-            <View style={{ marginTop: 16 }}>
-                <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>
-                    Detalle de Circuitos
-                </Text>
-                {circuits.map((c, i) => (
-                    <View key={`sum-cn-${i}`} style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>
-                            {cnPrefix}-{i + 1}:
-                        </Text>
-                        <Text style={styles.summaryValue}>{c.supply || "—"}</Text>
-                    </View>
-                ))}
+            {/* Extra Conditions Summary */}
+            <Text
+                style={[styles.sectionTitle, { marginTop: 16, marginBottom: 12 }]}
+            >
+                Condiciones Extras
+            </Text>
+            <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Mandil de protección:</Text>
+                <Text style={styles.summaryValue}>{extraConditions.mandilProteccion ? "Sí" : "No"}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Puerta/Mandil aterrados:</Text>
+                <Text style={styles.summaryValue}>{extraConditions.puertaMandilAterrados ? "Sí" : "No"}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Barra de tierra:</Text>
+                <Text style={styles.summaryValue}>{extraConditions.barraTierra ? "Sí" : "No"}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Terminales eléctricos:</Text>
+                <Text style={styles.summaryValue}>{extraConditions.terminalesElectricos ? "Sí" : "No"}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Mangas Termo contraíbles:</Text>
+                <Text style={styles.summaryValue}>{extraConditions.mangasTermoContraibles ? "Sí" : "No"}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Diagrama unifilar:</Text>
+                <Text style={styles.summaryValue}>{extraConditions.diagramaUnifilarDirectorio ? "Sí" : "No"}</Text>
             </View>
         </View>
     );

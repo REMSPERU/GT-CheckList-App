@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView, View, TouchableOpacity, Text } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import DefaultHeader from '@/components/default-header';
 import { usePanelConfiguration } from './_panel-configuration/_usePanelConfiguration';
 import { PanelData } from './_panel-configuration/_types';
@@ -18,6 +18,12 @@ import ReviewStep from './_panel-configuration/ReviewStep';
 export default function PanelConfigurationScreen() {
   const params = useLocalSearchParams();
   const [panel, setPanel] = useState<PanelData | null>(null);
+
+  // Ref to hold custom navigation handlers from CircuitsConfigStep
+  const circuitsNavHandlersRef = useRef<{
+    handleNext: () => boolean;
+    handleBack: () => boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (params.panel) {
@@ -41,12 +47,8 @@ export default function PanelConfigurationScreen() {
     setItgCount,
     itgDescriptions,
     setItgDescriptions,
-    cnPrefix,
-    setCnPrefix,
-    circuitsCount,
-    setCircuitsCount,
-    circuits,
-    setCircuits,
+    itgCircuits,
+    setItgCircuits,
     enabledComponents,
     setEnabledComponents,
     extraComponents,
@@ -56,6 +58,31 @@ export default function PanelConfigurationScreen() {
     goNext,
     goBack,
   } = usePanelConfiguration(panel);
+
+  // Custom navigation for Circuits step
+  const handleGoNext = () => {
+    if (currentStepId === STEP_IDS.CIRCUITS && circuitsNavHandlersRef.current) {
+      const canProceed = circuitsNavHandlersRef.current.handleNext();
+      if (canProceed) {
+        goNext(); // Actually go to next step
+      }
+      // Otherwise stay on current IT-G tab
+    } else {
+      goNext();
+    }
+  };
+
+  const handleGoBack = () => {
+    if (currentStepId === STEP_IDS.CIRCUITS && circuitsNavHandlersRef.current) {
+      const canGoBack = circuitsNavHandlersRef.current.handleBack();
+      if (canGoBack) {
+        goBack(); // Actually go to previous step
+      }
+      // Otherwise stay on current IT-G tab
+    } else {
+      goBack();
+    }
+  };
 
   const renderStep = () => {
     switch (currentStepId) {
@@ -85,12 +112,10 @@ export default function PanelConfigurationScreen() {
         return (
           <CircuitsConfigStep
             panel={panel}
-            cnPrefix={cnPrefix}
-            setCnPrefix={setCnPrefix}
-            circuitsCount={circuitsCount}
-            setCircuitsCount={setCircuitsCount}
-            circuits={circuits}
-            setCircuits={setCircuits}
+            itgDescriptions={itgDescriptions}
+            itgCircuits={itgCircuits}
+            setItgCircuits={setItgCircuits}
+            navigationHandlers={circuitsNavHandlersRef}
           />
         );
       case STEP_IDS.EXTRA_COMPONENTS:
@@ -119,10 +144,10 @@ export default function PanelConfigurationScreen() {
             voltage={voltage}
             phase={phase}
             itgDescriptions={itgDescriptions}
-            cnPrefix={cnPrefix}
-            circuits={circuits}
+            itgCircuits={itgCircuits}
             enabledComponents={enabledComponents}
             extraComponents={extraComponents}
+            extraConditions={extraConditions}
           />
         );
       default:
@@ -140,10 +165,10 @@ export default function PanelConfigurationScreen() {
 
         {/* Footer Buttons */}
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.primaryBtn} onPress={goNext}>
+          <TouchableOpacity style={styles.primaryBtn} onPress={handleGoNext}>
             <Text style={styles.primaryBtnText}>{isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={goBack}>
+          <TouchableOpacity style={styles.secondaryBtn} onPress={handleGoBack}>
             <Text style={styles.secondaryBtnText}>{isFirstStep(currentStepId) ? 'Cancel' : 'Atrás'}</Text>
           </TouchableOpacity>
         </View>

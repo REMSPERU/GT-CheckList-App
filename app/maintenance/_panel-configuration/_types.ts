@@ -38,14 +38,21 @@ export interface ITGConfigStepProps {
   setItgDescriptions: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
+export interface ITGCircuitData {
+  cnPrefix: string;
+  circuitsCount: string;
+  circuits: CircuitConfig[];
+}
+
 export interface CircuitsConfigStepProps {
   panel: PanelData | null;
-  cnPrefix: string;
-  setCnPrefix: (prefix: string) => void;
-  circuitsCount: string;
-  setCircuitsCount: (count: string) => void;
-  circuits: CircuitConfig[];
-  setCircuits: React.Dispatch<React.SetStateAction<CircuitConfig[]>>;
+  itgDescriptions: string[];
+  itgCircuits: ITGCircuitData[];
+  setItgCircuits: React.Dispatch<React.SetStateAction<ITGCircuitData[]>>;
+  navigationHandlers?: React.MutableRefObject<{
+    handleNext: () => void;
+    handleBack: () => void;
+  } | null>;
 }
 
 export type ExtraComponentType =
@@ -94,8 +101,8 @@ export interface ReviewStepProps {
   voltage: string;
   phase: PhaseType;
   itgDescriptions: string[];
-  cnPrefix: string;
-  circuits: CircuitConfig[];
+  itgCircuits: ITGCircuitData[];
   enabledComponents: ExtraComponentType[];
   extraComponents: Record<ExtraComponentType, ExtraComponent[]>;
+  extraConditions: ExtraConditions;
 }
