@@ -13,7 +13,7 @@ export default function ITGConfigStep({
   return (
     <View style={styles.contentWrapper}>
       {/* Equipo */}
-      <Text style={styles.equipmentLabel}>Equipo {panel?.name || panel?.id || ''}</Text>
+      <Text style={styles.equipmentLabel}>Equipo {panel?.name || panel?.codigo || ''}</Text>
       <Text style={styles.stepTitleStrong}>Interruptor Termomagnetico general (IT-G)</Text>
 
       {/* ¿Cuantos IT-G tienes? */}

@@ -129,7 +129,7 @@ export default function ExtraComponentsStep({
   return (
     <View style={styles.contentWrapper}>
       <Text style={styles.equipmentLabel}>
-        Equipo {panel?.name || panel?.id || ""}
+        Equipo {panel?.name || panel?.codigo || ""}
       </Text>
       <Text style={styles.stepTitleStrong}>Componentes adicionales</Text>
 

@@ -11,7 +11,7 @@ export default function BasicInfoStep({
   return (
     <View style={styles.contentWrapper}>
       {/* Equipo */}
-      <Text style={styles.equipmentLabel}>Equipo {panel?.name || panel?.id || ''}</Text>
+      <Text style={styles.equipmentLabel}>Equipo {panel?.name || panel?.codigo || ''}</Text>
 
       {/* Tipo de tablero */}
       <Text style={styles.sectionTitle}>Seleccione el tipo de tablero</Text>

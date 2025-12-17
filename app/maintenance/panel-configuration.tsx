@@ -30,7 +30,7 @@ export default function PanelConfigurationScreen() {
       try {
         setPanel(JSON.parse(params.panel as string));
       } catch {
-        setPanel({ name: 'Equipo', id: 'N/A' });
+        setPanel({ name: 'Equipo', id: 'N/A', codigo: 'N/A' });
       }
     }
   }, [params.panel]);

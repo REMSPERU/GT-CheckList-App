@@ -23,7 +23,7 @@ export default function ReviewStep({
 
   return (
     <View style={styles.contentWrapper}>
-      <Text style={styles.equipmentLabel}>Equipo {panel?.name || panel?.id || ''}</Text>
+      <Text style={styles.equipmentLabel}>Equipo {panel?.name || panel?.codigo || ''}</Text>
       <Text style={styles.stepTitleStrong}>Resumen</Text>
 
       {/* Basic Info */}
