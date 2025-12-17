@@ -33,7 +33,7 @@ export default function SelectDeviceScreen() {
     error,
   } = useEquipamentosByPropertyQuery(building?.id);
 
-  const equipamentos = equipamentosData || [];
+  const equipamentos = equipamentosData?.items || [];
 
   const handleEquipamentoPress = (equipamento: EquipamentoResponse) => {
     console.log('Selected equipamento:', equipamento);
