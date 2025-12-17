@@ -4,7 +4,7 @@ import {
   Switch,
   TextInput,
 } from "react-native";
-import { useFormContext, Controller } from "react-hook-form";
+import { useFormContext, Controller, useWatch } from "react-hook-form";
 import { Ionicons } from "@expo/vector-icons";
 import {
   ExtraComponentsStepProps,
@@ -53,23 +53,57 @@ const COMPONENT_DEFINITIONS: {
 export default function ExtraComponentsStep({
   panel,
 }: ExtraComponentsStepProps) {
-  const { control, watch, setValue } = useFormContext<PanelConfigurationFormValues>();
-  const enabledComponents = watch("enabledComponents");
-  const extraComponents = watch("extraComponents");
+  const { control, setValue } = useFormContext<PanelConfigurationFormValues>();
+
+  // Use useWatch instead of watch for better reactivity
+  const enabledComponents = useWatch({
+    control,
+    name: "enabledComponents",
+    defaultValue: [],
+  });
+
+  const extraComponents = useWatch({
+    control,
+    name: "extraComponents",
+    defaultValue: {
+      contactores: [],
+      relays: [],
+      ventiladores: [],
+      termostato: [],
+      medidores: [],
+      timers: [],
+    },
+  });
 
   const toggleComponent = (type: ExtraComponentType) => {
     const isEnabled = enabledComponents.includes(type);
+    console.log(`🔄 Toggle ${type}: currently ${isEnabled ? 'enabled' : 'disabled'}`);
+
     if (isEnabled) {
+      const newEnabled = enabledComponents.filter((t) => t !== type);
+      console.log(`  ➡️ Disabling. New enabledComponents:`, newEnabled);
       setValue(
         "enabledComponents",
-        enabledComponents.filter((t) => t !== type)
+        newEnabled,
+        { shouldValidate: true, shouldDirty: true, shouldTouch: true }
       );
     } else {
-      setValue("enabledComponents", [...enabledComponents, type]);
+      const newEnabled = [...enabledComponents, type];
+      console.log(`  ➡️ Enabling. New enabledComponents:`, newEnabled);
+      setValue("enabledComponents", newEnabled, {
+        shouldValidate: true,
+        shouldDirty: true,
+        shouldTouch: true,
+      });
       // Initialize if empty
       const currentList = extraComponents[type] || [];
       if (currentList.length === 0) {
-        setValue(`extraComponents.${type}`, [{ id: "1", description: "" }]);
+        console.log(`  ➡️ Initializing ${type} with 1 item`);
+        setValue(`extraComponents.${type}`, [{ id: "1", description: "" }], {
+          shouldValidate: true,
+          shouldDirty: true,
+          shouldTouch: true,
+        });
       }
     }
   };
@@ -86,7 +120,10 @@ export default function ExtraComponentsStep({
     } else if (qty < newList.length) {
       newList.length = qty;
     }
-    setValue(`extraComponents.${type}`, newList);
+    setValue(`extraComponents.${type}`, newList, {
+      shouldValidate: true,
+      shouldTouch: true
+    });
   };
 
   return (
@@ -102,10 +139,10 @@ export default function ExtraComponentsStep({
 
         return (
           <View key={def.type} style={styles.componentCard}>
-            <View style={styles.componentHeader}>
-              <View style={styles.componentHeaderLeft}>
+            <View style={styles.componentCardHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name={def.icon} size={24} color="#6B7280" style={{ marginRight: 8 }} />
-                <Text style={styles.componentLabel}>{def.label}</Text>
+                <Text style={styles.componentCardTitle}>{def.label}</Text>
               </View>
               <Switch
                 value={isEnabled}
@@ -116,7 +153,7 @@ export default function ExtraComponentsStep({
             </View>
 
             {isEnabled && (
-              <View style={styles.componentBody}>
+              <View>
                 <View style={styles.rowBetween}>
                   <Text style={styles.countLabel}>¿Cuántos tienes?</Text>
                   <TextInput

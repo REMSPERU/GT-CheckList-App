@@ -5,13 +5,12 @@ import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import DefaultHeader from '@/components/default-header';
 import { useElectricalPanelsByPropertyQuery } from '@/hooks/use-electrical-panels-by-property-query';
-import type { TableroElectricoResponse, EquipamentoResponse } from '@/types/api';
+import type { TableroElectricoResponse } from '@/types/api';
 
 export default function ElectricalPanelsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [building, setBuilding] = useState<any>(null);
-  const [equipamento, setEquipamento] = useState<EquipamentoResponse | null>(null);
   const [activeTab, setActiveTab] = useState<'autosoportado' | 'distribucion'>('autosoportado');
 
   useEffect(() => {
@@ -22,13 +21,7 @@ export default function ElectricalPanelsScreen() {
         console.error('Error parsing building param:', e);
       }
     }
-    if (params.equipamento) {
-      try {
-        setEquipamento(JSON.parse(params.equipamento as string));
-      } catch (e) {
-        console.error('Error parsing equipamento param:', e);
-      }
-    }
+
   }, [params.building, params.equipamento]);
 
   const panelTypeToSend = activeTab === 'autosoportado' ? 'Autosoportado' : 'Distribucion';
@@ -60,15 +53,13 @@ export default function ElectricalPanelsScreen() {
 
     console.log('Panel seleccionado:', JSON.stringify(panel, null, 2));
     router.push({
-        pathname: '/maintenance/_panel-configuration/index', // Ruta al panel configurado
-        params: {
-            panel: JSON.stringify(panel),
-            building: building ? JSON.stringify(building) : '',
-        },
+      pathname: '/maintenance/panel-configuration', // Ruta al panel configurado
+      params: {
+        panel: JSON.stringify(panel),
+        building: building ? JSON.stringify(building) : '',
+      },
     });
   };
-
-  const filteredPanels = panels; // El filtro ya se aplica en el hook de React Query
 
   const renderPanel = (panel: TableroElectricoResponse) => (
     <TouchableOpacity
@@ -325,5 +316,26 @@ const styles = StyleSheet.create({
   },
   activeNavText: {
     color: '#0891B2',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#EF4444',
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
   },
 });

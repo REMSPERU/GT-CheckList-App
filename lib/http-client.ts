@@ -16,10 +16,10 @@ import type { ErrorResponse, TokenResponse } from "../types/api";
 class HttpClient {
   private axiosInstance: AxiosInstance;
   private isRefreshing = false;
-  private failedQueue: Array<{
+  private failedQueue: {
     resolve: (value?: unknown) => void;
     reject: (reason?: unknown) => void;
-  }> = [];
+  }[] = [];
 
   constructor() {
     this.axiosInstance = axios.create({
@@ -73,7 +73,7 @@ class HttpClient {
             try {
               await TokenService.clearTokens();
               authEvents.emitAuthFailure();
-            } catch (e) {
+            } catch {
               // no-op
             } finally {
               this.isRefreshing = false;
@@ -140,6 +140,7 @@ class HttpClient {
    * Handle API errors and format them
    */
   handleError(error: unknown): ErrorResponse {
+    // Using axios.isAxiosError for type guard
     if (axios.isAxiosError(error)) {
       const axiosError = error as AxiosError<ErrorResponse>;
       if (axiosError.response?.data) {

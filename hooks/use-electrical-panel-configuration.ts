@@ -147,7 +147,6 @@ export function usePanelConfiguration(initialPanel: PanelData | null): UsePanelC
       }
       setValue("itgCircuits", nextCircuits);
     }
-    console.log("🔁 useEffect itgCount:", itgCount);
 
   }, [itgCount, setValue, getValues]);
 
