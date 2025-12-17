@@ -4,9 +4,8 @@ import axios, {
   InternalAxiosRequestConfig,
 } from "axios";
 import { API_CONFIG } from "../config/api";
-import { authEvents } from "../services/auth-events.service";
-import { TokenService } from "../services/token.service";
-import type { ErrorResponse, TokenResponse } from "../types/api";
+import { supabaseAuthService } from "../services/supabase-auth.service";
+import type { ErrorResponse } from "../types/api";
 
 /**
  * HTTP Client for making API requests
@@ -16,10 +15,6 @@ import type { ErrorResponse, TokenResponse } from "../types/api";
 class HttpClient {
   private axiosInstance: AxiosInstance;
   private isRefreshing = false;
-  private failedQueue: {
-    resolve: (value?: unknown) => void;
-    reject: (reason?: unknown) => void;
-  }[] = [];
 
   constructor() {
     this.axiosInstance = axios.create({
@@ -37,14 +32,11 @@ class HttpClient {
    * Setup request and response interceptors
    */
   private setupInterceptors(): void {
-    // Request interceptor - add auth token, skip for refresh endpoint
+    // Request interceptor - add auth token
     this.axiosInstance.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
-        const isRefreshEndpoint = (config.url ?? "").includes(
-          API_CONFIG.ENDPOINTS.AUTH.REFRESH,
-        );
-        const token = await TokenService.getAccessToken();
-        if (!isRefreshEndpoint && token && config.headers) {
+        const token = await supabaseAuthService.getAccessToken();
+        if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
@@ -54,83 +46,16 @@ class HttpClient {
       },
     );
 
-    // Response interceptor - handle token refresh
+    // Response interceptor - Supabase handles token refresh automatically
     this.axiosInstance.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        const originalRequest = error.config as InternalAxiosRequestConfig & {
-          _retry?: boolean;
-        };
-
-        // If error is 401 and we haven't tried to refresh yet
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          const isRefreshEndpoint = (originalRequest.url ?? "").includes(
-            API_CONFIG.ENDPOINTS.AUTH.REFRESH,
-          );
-
-          // If the failing request is the refresh itself, do NOT retry or queue; clear session and redirect
-          if (isRefreshEndpoint) {
-            try {
-              await TokenService.clearTokens();
-              authEvents.emitAuthFailure();
-            } catch {
-              // no-op
-            } finally {
-              this.isRefreshing = false;
-            }
-            return Promise.reject(error);
-          }
-
-          if (this.isRefreshing) {
-            // Wait for the refresh to complete
-            return new Promise((resolve, reject) => {
-              this.failedQueue.push({ resolve, reject });
-            })
-              .then(() => {
-                return this.axiosInstance(originalRequest);
-              })
-              .catch((err) => {
-                return Promise.reject(err);
-              });
-          }
-
-          originalRequest._retry = true;
-          this.isRefreshing = true;
-
-          try {
-            const refreshToken = await TokenService.getRefreshToken();
-            if (!refreshToken) {
-              throw new Error("No refresh token available");
-            }
-
-            const response = await this.axiosInstance.post<TokenResponse>(
-              API_CONFIG.ENDPOINTS.AUTH.REFRESH,
-              { refresh_token: refreshToken },
-            );
-
-            const { access_token, refresh_token } = response.data;
-            await TokenService.saveTokens(access_token, refresh_token);
-
-            // Retry all failed requests
-            this.failedQueue.forEach((prom) => prom.resolve());
-            this.failedQueue = [];
-
-            return this.axiosInstance(originalRequest);
-          } catch (refreshError) {
-            // Refresh failed, clear tokens and reject all queued requests
-            this.failedQueue.forEach((prom) => prom.reject(refreshError));
-            this.failedQueue = [];
-            await TokenService.clearTokens();
-
-            // Emit auth failure event to notify the app
-            authEvents.emitAuthFailure();
-
-            return Promise.reject(refreshError);
-          } finally {
-            this.isRefreshing = false;
-          }
+        // If we get 401, user needs to re-authenticate
+        if (error.response?.status === 401) {
+          // Supabase will handle session refresh automatically
+          // If we still get 401, the session is truly invalid
+          await supabaseAuthService.signOut();
         }
-
         return Promise.reject(error);
       },
     );

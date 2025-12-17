@@ -13,14 +13,12 @@ import {
   useLogout,
   useRegister,
 } from "../hooks/use-auth-query";
-import { authEvents } from "../services/auth-events.service";
-import { TokenService } from "../services/token.service";
+import { supabaseAuthService } from "../services/supabase-auth.service";
 import type {
-  ErrorResponse,
   LoginRequest,
   RegisterRequest,
-  User,
 } from "../types/api";
+import type { User } from "@supabase/supabase-js";
 
 interface AuthContextType {
   user: User | null;
@@ -42,7 +40,7 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [isInitialized, setIsInitialized] = useState(false);
-  const [hasTokens, setHasTokens] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const segments = useSegments();
@@ -55,7 +53,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     data: user,
     isLoading: isLoadingUser,
     refetch: refetchUser,
-  } = useCurrentUser(hasTokens);
+  } = useCurrentUser(hasSession);
 
   const isLoading =
     !isInitialized ||
@@ -63,7 +61,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loginMutation.isPending ||
     logoutMutation.isPending ||
     registerMutation.isPending;
-  const isAuthenticated = !!user && hasTokens;
+  const isAuthenticated = !!user && hasSession;
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -71,15 +69,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Listen for auth failures (e.g., refresh token rejected)
+  // Listen for Supabase auth state changes
   useEffect(() => {
-    const unsubscribe = authEvents.subscribe(() => {
-      console.log("Auth failure detected, clearing session...");
-      handleAuthFailure();
-    });
+    const { data: { subscription } } = supabaseAuthService.onAuthStateChange(
+      async (event, session) => {
+        console.log("Supabase auth event:", event);
+
+        if (event === "SIGNED_IN" && session) {
+          setHasSession(true);
+          await refetchUser();
+        } else if (event === "SIGNED_OUT") {
+          setHasSession(false);
+        } else if (event === "TOKEN_REFRESHED" && session) {
+          setHasSession(true);
+        }
+      }
+    );
 
     return () => {
-      unsubscribe();
+      subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -104,18 +112,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const initializeAuth = async () => {
     try {
-      const tokensExist = await TokenService.hasTokens();
-      setHasTokens(tokensExist);
+      const session = await supabaseAuthService.getSession();
+      setHasSession(!!session);
 
-      if (tokensExist) {
+      if (session) {
         // React Query will automatically fetch user data
         await refetchUser();
       }
     } catch (err) {
       console.error("Failed to initialize auth:", err);
-      // Clear invalid tokens
-      await TokenService.clearTokens();
-      setHasTokens(false);
+      setHasSession(false);
     } finally {
       setIsInitialized(true);
     }
@@ -127,11 +133,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const handleAuthFailure = async () => {
     try {
       // Clear local state
-      setHasTokens(false);
+      setHasSession(false);
       setError(null);
 
-      // Clear tokens from storage
-      await TokenService.clearTokens();
+      // Sign out from Supabase
+      await supabaseAuthService.signOut();
 
       // Mark as initialized to allow navigation
       setIsInitialized(true);
@@ -151,15 +157,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setError(null);
 
       await loginMutation.mutateAsync(credentials);
-      setHasTokens(true);
+      setHasSession(true);
 
       // User data is automatically updated by React Query
     } catch (err) {
-      const errorResponse = err as ErrorResponse;
-      const errorMessage =
-        typeof errorResponse.detail === "string"
-          ? errorResponse.detail
-          : "Error al iniciar sesión. Verifica tus credenciales.";
+      const error = err as Error;
+      const errorMessage = error.message || "Error al iniciar sesión. Verifica tus credenciales.";
 
       setError(errorMessage);
       throw err;
@@ -174,11 +177,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setError(null);
       await registerMutation.mutateAsync(credentials);
     } catch (err) {
-      const errorResponse = err as ErrorResponse;
-      const errorMessage =
-        typeof errorResponse.detail === "string"
-          ? errorResponse.detail
-          : "Error al registrar el usuario. Verifica tus datos.";
+      const error = err as Error;
+      const errorMessage = error.message || "Error al registrar el usuario. Verifica tus datos.";
       setError(errorMessage);
       throw err;
     }
@@ -190,14 +190,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async () => {
     try {
       await logoutMutation.mutateAsync();
-      setHasTokens(false);
+      setHasSession(false);
 
       // Navigation will be handled by the useEffect hook
     } catch (err) {
       console.error("Logout error:", err);
-      // Clear tokens anyway
-      setHasTokens(false);
-      await TokenService.clearTokens();
+      // Clear session anyway
+      setHasSession(false);
+      await supabaseAuthService.signOut();
     }
   };
 

@@ -3,10 +3,8 @@ export { httpClient } from './http-client';
 
 // Service exports
 export { apiClient } from '../services/api.service'; // Deprecated - use httpClient + React Query hooks
-export { TokenService } from '../services/token.service';
 
 // API Service exports
-export { authApi } from '../services/auth.api';
 export { propertyApi } from '../services/property.api';
 
 // React Query exports
@@ -19,10 +17,10 @@ export { AuthProvider, useAuth, useRequireAuth } from '../contexts/AuthContext';
 
 // Type exports
 export type {
-    ApiResponse, ErrorResponse, LoginRequest,
-    RegisterRequest,
-    TokenResponse, User, UserResponse,
-    PropertyResponse, PropertyCreateRequest, PropertyListResponse
+  ApiResponse, ErrorResponse, LoginRequest,
+  RegisterRequest,
+  UserResponse,
+  PropertyResponse, PropertyCreateRequest, PropertyListResponse
 } from '../types/api';
 
 export { RoleEnum } from '../types/api';

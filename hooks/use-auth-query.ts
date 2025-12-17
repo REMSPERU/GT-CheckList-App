@@ -5,17 +5,12 @@ import {
   type UseMutationResult,
   type UseQueryResult,
 } from "@tanstack/react-query";
-import { AxiosError } from "axios";
-import { authApi } from "../services/auth.api";
-import { authEvents } from "../services/auth-events.service";
-import { TokenService } from "../services/token.service";
+import { supabaseAuthService } from "../services/supabase-auth.service";
 import type {
-  ErrorResponse,
   LoginRequest,
   RegisterRequest,
-  TokenResponse,
-  UserResponse,
 } from "../types/api";
+import type { User } from "@supabase/supabase-js";
 
 // Query Keys
 export const authKeys = {
@@ -29,48 +24,20 @@ export const authKeys = {
  */
 export function useCurrentUser(
   enabled = true,
-): UseQueryResult<UserResponse, ErrorResponse> {
+): UseQueryResult<User | null, Error> {
   return useQuery({
     queryKey: authKeys.currentUser(),
     queryFn: async () => {
       try {
-        return await authApi.getCurrentUser();
+        return await supabaseAuthService.getCurrentUser();
       } catch (error) {
-        // If we get a 401, it means the token refresh failed
-        const axiosError = error as AxiosError;
-        if (axiosError?.response?.status === 401) {
-          await TokenService.clearTokens();
-          authEvents.emitAuthFailure();
-        }
-        throw error;
+        console.error("Error getting current user:", error);
+        return null;
       }
     },
-    enabled,
-    retry: (failureCount: number, error: Error) => {
-      // Don't retry on 401 errors
-      const axiosError = error as AxiosError;
-      if (axiosError?.response?.status === 401) {
-        return false;
-      }
-      // Retry once for other errors
-      return failureCount < 1;
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-}
-
-/**
- * Hook to verify token
- */
-export function useVerifyToken(
-  enabled = true,
-): UseQueryResult<boolean, ErrorResponse> {
-  return useQuery({
-    queryKey: authKeys.verify(),
-    queryFn: authApi.verifyToken,
     enabled,
     retry: false,
-    staleTime: 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
@@ -78,21 +45,27 @@ export function useVerifyToken(
  * Hook to login
  */
 export function useLogin(): UseMutationResult<
-  TokenResponse,
-  ErrorResponse,
+  User,
+  Error,
   LoginRequest
 > {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: authApi.login,
-    onSuccess: (data: TokenResponse) => {
+    mutationFn: async (credentials: LoginRequest) => {
+      const data = await supabaseAuthService.signIn(
+        credentials.email_or_username,
+        credentials.password
+      );
+      return data.user;
+    },
+    onSuccess: (user: User) => {
       // Invalidate and refetch user data
       queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
       // Set user data in cache
-      queryClient.setQueryData(authKeys.currentUser(), data.user);
+      queryClient.setQueryData(authKeys.currentUser(), user);
     },
-    onError: (error: ErrorResponse) => {
+    onError: () => {
       queryClient.removeQueries({ queryKey: authKeys.currentUser() });
     }
   });
@@ -102,23 +75,37 @@ export function useLogin(): UseMutationResult<
  * Hook to register
  */
 export function useRegister(): UseMutationResult<
-  UserResponse,
-  ErrorResponse,
+  User,
+  Error,
   RegisterRequest
 > {
   return useMutation({
-    mutationFn: authApi.register,
+    mutationFn: async (credentials: RegisterRequest) => {
+      const data = await supabaseAuthService.signUp(
+        credentials.email,
+        credentials.password,
+        credentials.username
+      );
+
+      if (!data.user) {
+        throw new Error("Failed to create user");
+      }
+
+      return data.user;
+    },
   });
 }
 
 /**
  * Hook to logout
  */
-export function useLogout(): UseMutationResult<void, ErrorResponse, void> {
+export function useLogout(): UseMutationResult<void, Error, void> {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: authApi.logout,
+    mutationFn: async () => {
+      await supabaseAuthService.signOut();
+    },
     onSuccess: () => {
       // Clear all queries
       queryClient.clear();
@@ -126,25 +113,4 @@ export function useLogout(): UseMutationResult<void, ErrorResponse, void> {
   });
 }
 
-/**
- * Hook to refresh token
- */
-export function useRefreshToken(): UseMutationResult<
-  TokenResponse,
-  ErrorResponse,
-  string
-> {
-  const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: authApi.refreshToken,
-    onSuccess: () => {
-      // Invalidate current user query
-      queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
-    },
-    onError: () => {
-      // Clear all queries on error
-      queryClient.clear();
-    },
-  });
-}
