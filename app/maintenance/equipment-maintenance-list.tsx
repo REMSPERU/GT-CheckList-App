@@ -5,11 +5,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface MaintenanceEquipment {
   id: string;
@@ -105,7 +105,7 @@ export default function EquipmentMaintenanceListScreen() {
                 styles.card,
                 index === 0 && activeTab === 'Preventivo' && styles.highlightedCard
               ]}
-              onPress={() => {/* Navigation to details or checklist */ }}
+              onPress={() => router.push("/maintenance/equipment-details")}
             >
               <View style={styles.cardHeader}>
                 <Text style={styles.cardCode}>{item.code}</Text>
