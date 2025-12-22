@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import MaintenanceHeader from '@/components/maintenance-header';
 
 interface MaintenanceEquipment {
   id: string;
@@ -69,16 +70,10 @@ export default function EquipmentMaintenanceListScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color={Colors.light.text} />
-          </TouchableOpacity>
-          <View style={styles.headerIconContainer}>
-            <MaterialIcons name="home-repair-service" size={20} color="white" />
-          </View>
-          <Text style={styles.headerTitle}>Mantenimiento programado</Text>
-        </View>
+        <MaintenanceHeader
+          title="Mantenimiento programado"
+          iconName="home-repair-service"
+        />
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
@@ -146,30 +141,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
     paddingHorizontal: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 15,
-    backgroundColor: '#fff',
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  backButton: {
-    marginRight: 10,
-  },
-  headerIconContainer: {
-    backgroundColor: '#06B6D4',
-    padding: 6,
-    borderRadius: 8,
-    marginRight: 10,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.light.text,
   },
   tabsContainer: {
     flexDirection: 'row',

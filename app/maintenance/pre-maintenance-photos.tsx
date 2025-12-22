@@ -7,12 +7,10 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import MaintenanceHeader from '@/components/maintenance-header';
 
 export default function PreMaintenancePhotosScreen() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   // Correct mock counts for the UI logic
@@ -54,16 +52,10 @@ export default function PreMaintenancePhotosScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Refined Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={Colors.light.text} />
-        </TouchableOpacity>
-        <View style={styles.headerIconContainer}>
-          <MaterialIcons name="home-repair-service" size={20} color="white" />
-        </View>
-        <Text style={styles.headerTitle}>Mantenimiento preventivo</Text>
-      </View>
+      <MaintenanceHeader
+        title="Mantenimiento preventivo"
+        iconName="home-repair-service"
+      />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <PhotoBoxSection
@@ -100,29 +92,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 15,
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  backButton: {
-    marginRight: 10,
-  },
-  headerIconContainer: {
-    backgroundColor: '#06B6D4',
-    padding: 6,
-    borderRadius: 8,
-    marginRight: 15,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.light.text,
   },
   content: {
     flex: 1,

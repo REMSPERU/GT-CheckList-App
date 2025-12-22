@@ -24,7 +24,7 @@ export default function ElectricalPanelsScreen() {
 
   }, [params.building, params.equipamento]);
 
-  const panelTypeToSend = activeTab === 'autosoportado' ? 'Autosoportado' : 'Distribucion';
+  const panelTypeToSend = activeTab === 'autosoportado' ? 'AUTOSOPORTADO' : 'DISTRIBUCION';
   console.log('Frontend: Sending panelType to hook:', panelTypeToSend);
 
   const {

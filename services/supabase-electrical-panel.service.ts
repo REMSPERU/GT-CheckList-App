@@ -9,21 +9,22 @@ export class SupabaseElectricalPanelService {
    */
   async getByProperty(propertyId: string, tipo?: string): Promise<TableroElectricoResponse[]> {
     let query = supabase
-      .from(this.tableName)
+      .from('equipos')
       .select(`
-        id,
-        id_property,
-        tipo,
-        ubicacion,
-        rotulo,
-        codigo
+        *
       `)
       .eq('id_property', propertyId);
 
-    // Filtro opcional por tipo
+
+    // Filtro opcional por tipo (JSONB)
     if (tipo) {
-      query = query.eq('tipo', tipo);
+      query = query.filter(
+        'equipment_detail->>tipo_tablero',
+        'eq',
+        tipo
+      );
     }
+
 
     const { data, error } = await query;
 
@@ -52,46 +53,6 @@ export class SupabaseElectricalPanelService {
     return data;
   }
 
-  /**
-   * Crear un nuevo tablero eléctrico
-   */
-  async create(tablero: Omit<TableroElectricoResponse, 'id'>): Promise<TableroElectricoResponse> {
-    const { data, error } = await supabase
-      .from(this.tableName)
-      .insert(tablero)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
-
-  /**
-   * Actualizar un tablero eléctrico
-   */
-  async update(id: string, tablero: Partial<Omit<TableroElectricoResponse, 'id'>>): Promise<TableroElectricoResponse> {
-    const { data, error } = await supabase
-      .from(this.tableName)
-      .update(tablero)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
-
-  /**
-   * Eliminar un tablero eléctrico
-   */
-  async delete(id: string): Promise<void> {
-    const { error } = await supabase
-      .from(this.tableName)
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-  }
 }
 
 export const supabaseElectricalPanelService = new SupabaseElectricalPanelService();
