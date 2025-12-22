@@ -11,6 +11,7 @@ import {
   PanelConfigurationSchema,
   PanelConfigurationFormValues,
 } from "@/schemas/panel-configuration";
+import { supabaseElectricalPanelService } from "@/services/supabase-electrical-panel.service";
 
 // ============================================================================
 // STEP CONFIGURATION
@@ -192,10 +193,77 @@ export function usePanelConfiguration(initialPanel: PanelData | null): UsePanelC
 
     const currentIndex = getStepIndex(currentStepId);
     if (isLastStep(currentStepId)) {
-      // Here you would typically submit the form data
-      const validData = getValues();
-      console.log("Submitting form data:", JSON.stringify(validData, null, 2));
-      Alert.alert("Configuración guardada", "El equipo ha sido configurado correctamente.", [{ text: "OK", onPress: () => router.back() }]);
+      try {
+        const values = getValues();
+
+        // Map form values to the requested JSONB structure
+        const equipmentDetail = {
+          version: 3,
+          template: "TABLERO_ELECTRICO",
+          general: {
+            rotulo: initialPanel?.name || initialPanel?.codigo || "Tablero",
+            tipo_tablero: values.panelType.toUpperCase(),
+          },
+          detalle_tecnico: {
+            fases: values.phase,
+            voltaje: Number(values.voltage),
+            tipo_tablero: values.panelType.toUpperCase(),
+          },
+          itg: values.itgCircuits.map((itg, idx) => ({
+            label: `ITG ${idx + 1}`,
+            suministra: values.itgDescriptions[idx] || "N/A",
+            items: {
+              itm: {
+                label: "ITM",
+                type: "array",
+                items: itg.circuits.map(circuit => ({
+                  fases: circuit.phaseITM,
+                  amperaje: Number(circuit.amperajeITM),
+                  interruptor_diferencial: circuit.hasID ? {
+                    label: "Interruptor diferencial",
+                    properties: {
+                      fases: circuit.phaseITM, // Mimicking structure
+                      amperaje: Number(circuit.amperajeID),
+                    }
+                  } : null
+                }))
+              }
+            }
+          })),
+          componentes_tablero: {
+            label: "Equipamiento adicional del tablero",
+            properties: {
+              relays: values.extraComponents.relays.map(r => ({ codigo: r.id, circuito: r.description })),
+              timers: values.extraComponents.timers.map(t => ({ codigo: t.id, circuito: t.description })),
+              medidores: values.extraComponents.medidores.map(m => ({ codigo: m.id, circuito: m.description })),
+              contactores: values.extraComponents.contactores.map(c => ({ codigo: c.id, circuito: c.description })),
+              termostatos: values.extraComponents.termostato.map(t => ({ codigo: t.id, circuito: t.description })),
+              ventiladores: values.extraComponents.ventiladores.map(v => ({ codigo: v.id, circuito: v.description })),
+            }
+          },
+          condiciones_especiales: {
+            label: "Condiciones especiales",
+            properties: {
+              barra_tierra: values.extraConditions.barraTierra,
+              mandil_proteccion: values.extraConditions.mandilProteccion,
+              terminal_electrico: values.extraConditions.terminalesElectricos,
+              puerta_mandil_aterrados: values.extraConditions.puertaMandilAterrados,
+              mangas_termo_contraibles: values.extraConditions.mangasTermoContraibles,
+              diagrama_unifilar_directorio: values.extraConditions.diagramaUnifilarDirectorio,
+            }
+          }
+        };
+
+        if (initialPanel?.id) {
+          await supabaseElectricalPanelService.updateEquipmentDetail(initialPanel.id, equipmentDetail);
+          Alert.alert("Configuración guardada", "El equipo ha sido configurado correctamente.", [{ text: "OK", onPress: () => router.back() }]);
+        } else {
+          throw new Error("ID de panel no encontrado");
+        }
+      } catch (error) {
+        console.error("Error saving panel configuration:", error);
+        Alert.alert("Error", "No se pudo guardar la configuración. Por favor reintente.");
+      }
       return;
     }
     if (currentIndex < STEP_ORDER.length - 1) {

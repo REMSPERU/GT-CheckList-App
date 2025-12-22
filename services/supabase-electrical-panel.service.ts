@@ -7,7 +7,7 @@ export class SupabaseElectricalPanelService {
   /**
    * Obtener tableros eléctricos por property ID
    */
-  async getByProperty(propertyId: string, tipo?: string): Promise<TableroElectricoResponse[]> {
+  async getByProperty(propertyId: string, tipo?: string, search?: string): Promise<TableroElectricoResponse[]> {
     let query = supabase
       .from('equipos')
       .select(`
@@ -23,6 +23,11 @@ export class SupabaseElectricalPanelService {
         'eq',
         tipo
       );
+    }
+
+    // Filtro por búsqueda (código)
+    if (search) {
+      query = query.ilike('codigo', `%${search}%`);
     }
 
 
@@ -51,6 +56,21 @@ export class SupabaseElectricalPanelService {
 
     if (error) throw error;
     return data;
+  }
+
+  /**
+   * Actualizar el detalle de equipamiento (JSONB)
+   */
+  async updateEquipmentDetail(id: string, detail: any): Promise<void> {
+    const { error } = await supabase
+      .from('equipos')
+      .update({
+        equipment_detail: detail,
+        config: true
+      })
+      .eq('id', id);
+
+    if (error) throw error;
   }
 
 }

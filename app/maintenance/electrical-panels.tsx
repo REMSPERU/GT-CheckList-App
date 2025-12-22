@@ -12,6 +12,7 @@ export default function ElectricalPanelsScreen() {
   const params = useLocalSearchParams();
   const [building, setBuilding] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'autosoportado' | 'distribucion'>('autosoportado');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (params.building) {
@@ -34,7 +35,8 @@ export default function ElectricalPanelsScreen() {
     error,
   } = useElectricalPanelsByPropertyQuery(
     building?.id,
-    panelTypeToSend // Pasar el tipo de panel como filtro
+    panelTypeToSend, // Pasar el tipo de panel como filtro
+    searchTerm // Pasar el término de búsqueda
   );
 
   const panels = panelsData || [];
@@ -109,7 +111,8 @@ export default function ElectricalPanelsScreen() {
         {/* Header */}
         <DefaultHeader
           title="Tableros eléctricos"
-          searchPlaceholder="Buscar tableros"
+          searchPlaceholder="Buscar tableros por código"
+          onSearch={setSearchTerm}
         />
 
         {/* Building Info */}

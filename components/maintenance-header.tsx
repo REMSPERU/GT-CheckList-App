@@ -62,7 +62,7 @@ export default function MaintenanceHeader({
       <View style={[styles.headerIconContainer, { backgroundColor }]}>
         {renderIcon()}
       </View>
-      <Text style={styles.headerTitle} numberOfLines={1}>
+      <Text style={styles.headerTitle}>
         {title}
       </Text>
     </View>

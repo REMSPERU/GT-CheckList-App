@@ -9,7 +9,7 @@ export const electricalPanelApi = {
   /**
    * Get electrical panels by property ID
    */
-  getByProperty: async (propertyId: string, panelType?: string): Promise<TableroElectricoResponse[]> => {
-    return await supabaseElectricalPanelService.getByProperty(propertyId, panelType);
+  getByProperty: async (propertyId: string, panelType?: string, search?: string): Promise<TableroElectricoResponse[]> => {
+    return await supabaseElectricalPanelService.getByProperty(propertyId, panelType, search);
   },
 };

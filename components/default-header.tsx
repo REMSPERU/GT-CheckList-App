@@ -7,9 +7,10 @@ interface DefaultHeaderProps {
   title: string;
   searchPlaceholder: string;
   shouldShowBackButton?: boolean;
+  onSearch?: (text: string) => void;
 }
 
-export default function DefaultHeader({ title, searchPlaceholder, shouldShowBackButton = true }: DefaultHeaderProps) {
+export default function DefaultHeader({ title, searchPlaceholder, shouldShowBackButton = true, onSearch }: DefaultHeaderProps) {
   const router = useRouter();
   const { width } = useWindowDimensions();
 
@@ -42,7 +43,7 @@ export default function DefaultHeader({ title, searchPlaceholder, shouldShowBack
               source={require('../assets/logo/logo.png')}
               contentFit="contain"
             />
-            <Text style={[styles.title, { fontSize: titleFontSize }]} numberOfLines={1}>
+            <Text style={[styles.title, { fontSize: titleFontSize }]}>
               {title}
             </Text>
           </View>
@@ -61,6 +62,7 @@ export default function DefaultHeader({ title, searchPlaceholder, shouldShowBack
                 style={styles.searchInput}
                 placeholder={searchPlaceholder}
                 placeholderTextColor="#BDC1CA"
+                onChangeText={onSearch}
               />
             </View>
           </View>
