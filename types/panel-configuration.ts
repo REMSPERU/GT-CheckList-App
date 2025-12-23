@@ -5,7 +5,7 @@ export type CableType = "libre_halogeno" | "no_libre_halogeno";
 export interface CircuitConfig {
   phaseITM: PhaseType;
   amperajeITM: string;
-  diameter?: string;
+  diameter: string;
   cableType?: CableType;
   hasID: boolean;
   phaseID?: PhaseType;

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -80,7 +81,11 @@ export default function PreMaintenancePhotosScreen() {
           onPress={handleContinue}
           disabled={true} // Disabled until requirements are met
         >
-          <Text style={styles.continueBtnText}>Continuar</Text>
+          {isLoading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text style={styles.continueBtnText}>Continuar</Text>
+          )}
         </TouchableOpacity>
         <Text style={styles.footerSubtext}>Complete los requisitos para continuar.</Text>
       </View>

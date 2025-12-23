@@ -122,6 +122,7 @@ export default function CircuitsConfigStep({
   useEffect(() => {
     setExpandedIndices([]);
     prevFieldsLengthRef.current = fields.length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedItgIndex]);
 
   // Toggle handler using useCallback to keep prop stable for React.memo

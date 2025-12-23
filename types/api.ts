@@ -152,5 +152,6 @@ export interface TableroElectricoResponse {
   ubicacion: string;
   rotulo: string;
   codigo: string;
-  is_configured?: boolean; // Añadido para indicar si el tablero tiene detalles de configuración
+  config?: boolean;
+  equipment_detail?: any;
 }

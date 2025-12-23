@@ -42,7 +42,8 @@ export default function ElectricalPanelsScreen() {
   const panels = panelsData || [];
 
   const handlePanelPress = (panel: TableroElectricoResponse) => {
-    if (!panel.is_configured) {
+    // Check 'config' property from DB instead of 'is_configured'
+    if (!panel.config) {
       router.push({
         pathname: '/maintenance/panel-configuration',
         params: {
@@ -53,12 +54,12 @@ export default function ElectricalPanelsScreen() {
       return;
     }
 
-    console.log('Panel seleccionado:', JSON.stringify(panel, null, 2));
+    console.log('Panel configurado seleccionado:', JSON.stringify(panel, null, 2));
+    // Navigate to the detail modal/screen
     router.push({
-      pathname: '/maintenance/panel-configuration', // Ruta al panel configurado
+      pathname: '/maintenance/panel-detail-modal',
       params: {
         panel: JSON.stringify(panel),
-        building: building ? JSON.stringify(building) : '',
       },
     });
   };
@@ -68,14 +69,15 @@ export default function ElectricalPanelsScreen() {
       key={panel.id}
       style={[
         styles.panelCard,
-        !panel.is_configured && styles.panelCardDisabled
+        // Optional: you can visually distinguish configured/not configured if desired
+        // !panel.config && styles.panelCardDisabled 
       ]}
       onPress={() => handlePanelPress(panel)}
-      disabled={false} // Siempre habilitado, la lógica de navegación maneja el estado
+      disabled={false}
     >
       <View style={styles.panelHeader}>
         <Text style={styles.panelName}>{panel.rotulo || panel.tipo}</Text>
-        {!panel.is_configured && (
+        {!panel.config && (
           <View style={styles.warningContainer}>
             <Ionicons name="warning" size={16} color="#EF4444" />
           </View>
@@ -94,7 +96,7 @@ export default function ElectricalPanelsScreen() {
         <Text style={styles.detailValue}>{panel.tipo}</Text>
       </View>
 
-      {!panel.is_configured && (
+      {!panel.config && (
         <View style={styles.notConfiguredBanner}>
           <Ionicons name="warning" size={14} color="#EF4444" />
           <Text style={styles.notConfiguredText}>

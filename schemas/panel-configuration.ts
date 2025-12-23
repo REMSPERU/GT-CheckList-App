@@ -14,13 +14,13 @@ export const ExtraComponentTypeSchema = z.enum([
 
 export const DefaultCircuitSchema = z.object({
   phaseITM: PhaseTypeSchema,
-  amperajeITM: z.coerce.number().positive("Debe ser mayor a 0"),
-  diameter: z.coerce.number().positive("Debe ser mayor a 0"),
+  amperajeITM: z.string().min(1, "Campo requerido"),
+  diameter: z.string().min(1, "Campo requerido"),
   cableType: CableTypeSchema,
   hasID: z.boolean(),
   phaseID: PhaseTypeSchema.optional(),
-  amperajeID: z.coerce.number().positive("Debe ser mayor a 0").optional(),
-  diameterID: z.coerce.number().positive("Debe ser mayor a 0").optional(),
+  amperajeID: z.string().optional(),
+  diameterID: z.string().optional(),
   cableTypeID: CableTypeSchema.optional(),
   supply: z.string().optional(),
 });

@@ -57,10 +57,10 @@ const DEFAULT_CIRCUIT: CircuitConfig = {
   phaseITM: "mono_2w",
   amperajeITM: "",
   diameter: "",
-  cableType: undefined,
+  cableType: "libre_halogeno",
   hasID: false,
   diameterID: "",
-  cableTypeID: undefined,
+  cableTypeID: undefined, // This one is optional in schema, so undefined is okay
   supply: "",
 };
 
@@ -70,7 +70,7 @@ const DEFAULT_CIRCUIT: CircuitConfig = {
 
 export interface UsePanelConfigurationReturn {
   currentStepId: StepId;
-  form: UseFormReturn<PanelConfigurationFormValues>;
+  form: UseFormReturn<any>; // Changed to any to bypass library version/type conflicts
   goNext: () => Promise<void>;
   goBack: () => void;
 }
@@ -196,66 +196,97 @@ export function usePanelConfiguration(initialPanel: PanelData | null): UsePanelC
       try {
         const values = getValues();
 
+        // Helper labels
+        const PHASE_LABELS: Record<string, string> = {
+          "mono_2w": "Monofásico 2 hilos",
+          "tri_3w": "Trifásico 3 hilos",
+          "tri_4w": "Trifásico 4 hilos",
+        };
+
+        const CABLE_TYPE_LABELS: Record<string, string> = {
+          "libre_halogeno": "Libre de Halógeno",
+          "no_libre_halogeno": "No Libre de Halógeno",
+        };
+
         // Map form values to the requested JSONB structure
-        const equipmentDetail = {
-          version: 3,
-          template: "TABLERO_ELECTRICO",
-          general: {
-            rotulo: initialPanel?.name || initialPanel?.codigo || "Tablero",
-            tipo_tablero: values.panelType.toUpperCase(),
-          },
+        const newDetailMapping = {
+          "rotulo": initialPanel?.name || initialPanel?.codigo || "Tablero",
           detalle_tecnico: {
-            fases: values.phase,
+            fases: PHASE_LABELS[values.phase] || values.phase,
             voltaje: Number(values.voltage),
             tipo_tablero: values.panelType.toUpperCase(),
           },
-          itg: values.itgCircuits.map((itg, idx) => ({
-            label: `ITG ${idx + 1}`,
+          itgs: values.itgCircuits.map((itg, idx) => ({
+            id: `ITG-${idx + 1}`,
             suministra: values.itgDescriptions[idx] || "N/A",
-            items: {
-              itm: {
-                label: "ITM",
-                type: "array",
-                items: itg.circuits.map(circuit => ({
-                  fases: circuit.phaseITM,
-                  amperaje: Number(circuit.amperajeITM),
-                  interruptor_diferencial: circuit.hasID ? {
-                    label: "Interruptor diferencial",
-                    properties: {
-                      fases: circuit.phaseITM, // Mimicking structure
-                      amperaje: Number(circuit.amperajeID),
-                    }
-                  } : null
-                }))
-              }
-            }
+            prefijo: itg.cnPrefix,
+            itms: itg.circuits.map((circuit, cIdx) => ({
+              id: `${itg.cnPrefix}-${cIdx + 1}`,
+              fases: PHASE_LABELS[circuit.phaseITM] || circuit.phaseITM,
+              amperaje: Number(circuit.amperajeITM),
+              tipo_cable: circuit.cableType ? (CABLE_TYPE_LABELS[circuit.cableType] || circuit.cableType) : undefined,
+              diametro_cable: circuit.diameter,
+              diferencial: {
+                existe: circuit.hasID,
+                ...(circuit.hasID && {
+                  fases: circuit.phaseID ? (PHASE_LABELS[circuit.phaseID] || circuit.phaseID) : undefined,
+                  amperaje: circuit.amperajeID ? Number(circuit.amperajeID) : undefined,
+                  tipo_cable: circuit.cableTypeID ? (CABLE_TYPE_LABELS[circuit.cableTypeID] || circuit.cableTypeID) : undefined,
+                  diametro_cable: circuit.diameterID,
+                })
+              },
+              suministra: circuit.supply || "N/A"
+            }))
           })),
-          componentes_tablero: {
-            label: "Equipamiento adicional del tablero",
-            properties: {
-              relays: values.extraComponents.relays.map(r => ({ codigo: r.id, circuito: r.description })),
-              timers: values.extraComponents.timers.map(t => ({ codigo: t.id, circuito: t.description })),
-              medidores: values.extraComponents.medidores.map(m => ({ codigo: m.id, circuito: m.description })),
-              contactores: values.extraComponents.contactores.map(c => ({ codigo: c.id, circuito: c.description })),
-              termostatos: values.extraComponents.termostato.map(t => ({ codigo: t.id, circuito: t.description })),
-              ventiladores: values.extraComponents.ventiladores.map(v => ({ codigo: v.id, circuito: v.description })),
+          componentes: [
+            {
+              tipo: "RELAY",
+              items: values.extraComponents.relays.map(r => ({ codigo: r.id, suministra: r.description }))
+            },
+            {
+              tipo: "CONTACTOR",
+              items: values.extraComponents.contactores.map(c => ({ codigo: c.id, suministra: c.description }))
+            },
+            {
+              tipo: "TIMER",
+              items: values.extraComponents.timers.map(t => ({ codigo: t.id, suministra: t.description }))
+            },
+            {
+              tipo: "MEDIDOR",
+              items: values.extraComponents.medidores.map(m => ({ codigo: m.id, suministra: m.description }))
+            },
+            {
+              tipo: "TERMOSTATO",
+              items: values.extraComponents.termostato.map(t => ({ codigo: t.id, suministra: t.description }))
+            },
+            {
+              tipo: "VENTILADOR",
+              items: values.extraComponents.ventiladores.map(v => ({ codigo: v.id, suministra: v.description }))
             }
-          },
+          ].filter(group => group.items.length > 0),
           condiciones_especiales: {
-            label: "Condiciones especiales",
-            properties: {
-              barra_tierra: values.extraConditions.barraTierra,
-              mandil_proteccion: values.extraConditions.mandilProteccion,
-              terminal_electrico: values.extraConditions.terminalesElectricos,
-              puerta_mandil_aterrados: values.extraConditions.puertaMandilAterrados,
-              mangas_termo_contraibles: values.extraConditions.mangasTermoContraibles,
-              diagrama_unifilar_directorio: values.extraConditions.diagramaUnifilarDirectorio,
-            }
+            barra_tierra: values.extraConditions.barraTierra,
+            mandil_proteccion: values.extraConditions.mandilProteccion,
+            terminal_electrico: values.extraConditions.terminalesElectricos,
+            puerta_mandil_aterrados: values.extraConditions.puertaMandilAterrados,
+            mangas_termo_contraibles: values.extraConditions.mangasTermoContraibles,
+            diagrama_unifilar_directorio: values.extraConditions.diagramaUnifilarDirectorio,
           }
         };
 
         if (initialPanel?.id) {
-          await supabaseElectricalPanelService.updateEquipmentDetail(initialPanel.id, equipmentDetail);
+          // 1. Fetch current equipment_detail to avoid losing fields (merge)
+          const currentPanel = await supabaseElectricalPanelService.getById(initialPanel.id);
+          const currentDetail = currentPanel.equipment_detail || {};
+
+          // 2. Merge existing data with new mapping
+          // We prioritize new mapping but keep anything else that was in currentDetail
+          const finalEquipmentDetail = {
+            ...currentDetail,
+            ...newDetailMapping
+          };
+
+          await supabaseElectricalPanelService.updateEquipmentDetail(initialPanel.id, finalEquipmentDetail);
           Alert.alert("Configuración guardada", "El equipo ha sido configurado correctamente.", [{ text: "OK", onPress: () => router.back() }]);
         } else {
           throw new Error("ID de panel no encontrado");

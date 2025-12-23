@@ -2,14 +2,14 @@ import { supabase } from '../lib/supabase';
 import type { TableroElectricoResponse } from '../types/api';
 
 export class SupabaseElectricalPanelService {
-  private tableName = 'tablero_electrico';
+  private tableName = 'equipos';
 
   /**
    * Obtener tableros eléctricos por property ID
    */
   async getByProperty(propertyId: string, tipo?: string, search?: string): Promise<TableroElectricoResponse[]> {
     let query = supabase
-      .from('equipos')
+      .from(this.tableName)
       .select(`
         *
       `)
@@ -43,14 +43,7 @@ export class SupabaseElectricalPanelService {
   async getById(id: string): Promise<TableroElectricoResponse> {
     const { data, error } = await supabase
       .from(this.tableName)
-      .select(`
-        id,
-        id_property,
-        tipo,
-        ubicacion,
-        rotulo,
-        codigo
-      `)
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -63,7 +56,7 @@ export class SupabaseElectricalPanelService {
    */
   async updateEquipmentDetail(id: string, detail: any): Promise<void> {
     const { error } = await supabase
-      .from('equipos')
+      .from(this.tableName)
       .update({
         equipment_detail: detail,
         config: true
