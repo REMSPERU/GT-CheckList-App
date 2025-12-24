@@ -1,35 +1,54 @@
-import { supabase } from '../lib/supabase';
-import type { TableroElectricoResponse } from '../types/api';
+import { supabase } from "../lib/supabase";
+import type { TableroElectricoResponse } from "../types/api";
 
 export class SupabaseElectricalPanelService {
-  private tableName = 'equipos';
+  private tableName = "equipos";
 
   /**
    * Obtener tableros eléctricos por property ID
    */
-  async getByProperty(propertyId: string, tipo?: string, search?: string): Promise<TableroElectricoResponse[]> {
+  async getByProperty(
+    propertyId: string,
+    tipo?: string,
+    search?: string,
+    config?: boolean | null,
+    location?: string
+  ): Promise<TableroElectricoResponse[]> {
     let query = supabase
       .from(this.tableName)
-      .select(`
+      .select(
+        `
         *
-      `)
-      .eq('id_property', propertyId);
-
+      `
+      )
+      .eq("id_property", propertyId);
 
     // Filtro opcional por tipo (JSONB)
     if (tipo) {
-      query = query.filter(
-        'equipment_detail->>tipo_tablero',
-        'eq',
-        tipo
+      query = query.filter("equipment_detail->>tipo_tablero", "eq", tipo);
+    }
+
+    // Filtro por configuración
+    if (config !== undefined && config !== null) {
+      query = query.eq("config", config);
+    }
+
+    // Filtro por ubicación
+    if (location) {
+      query = query.ilike("ubicacion", `%${location}%`);
+    }
+
+    // Filtro por búsqueda (código o rótulo)
+    if (search) {
+      // Usamos .or() para buscar en codigo O en equipment_detail->rotulo
+      // Nota: Para buscar dentro de jsonb con ilike en supabase-js client puede ser complejo directamete con .or()
+      // Una alternativa robusta es usar filtro de texto plano si las columnas lo permiten, pero equipment_detail es JSONB.
+      // La sintaxis de .or() permite referencias a columnas.
+      // `codigo.ilike.%${search}%,equipment_detail->>rotulo.ilike.%${search}%`
+      query = query.or(
+        `codigo.ilike.%${search}%,equipment_detail->>rotulo.ilike.%${search}%`
       );
     }
-
-    // Filtro por búsqueda (código)
-    if (search) {
-      query = query.ilike('codigo', `%${search}%`);
-    }
-
 
     const { data, error } = await query;
 
@@ -43,8 +62,8 @@ export class SupabaseElectricalPanelService {
   async getById(id: string): Promise<TableroElectricoResponse> {
     const { data, error } = await supabase
       .from(this.tableName)
-      .select('*')
-      .eq('id', id)
+      .select("*")
+      .eq("id", id)
       .single();
 
     if (error) throw error;
@@ -59,13 +78,13 @@ export class SupabaseElectricalPanelService {
       .from(this.tableName)
       .update({
         equipment_detail: detail,
-        config: true
+        config: true,
       })
-      .eq('id', id);
+      .eq("id", id);
 
     if (error) throw error;
   }
-
 }
 
-export const supabaseElectricalPanelService = new SupabaseElectricalPanelService();
+export const supabaseElectricalPanelService =
+  new SupabaseElectricalPanelService();

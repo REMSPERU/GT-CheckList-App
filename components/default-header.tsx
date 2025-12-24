@@ -1,16 +1,30 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { Text, TextInput, View, StyleSheet, useWindowDimensions, TouchableOpacity } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import {
+  Text,
+  TextInput,
+  View,
+  StyleSheet,
+  useWindowDimensions,
+  TouchableOpacity,
+} from "react-native";
 
 interface DefaultHeaderProps {
   title: string;
   searchPlaceholder: string;
   shouldShowBackButton?: boolean;
   onSearch?: (text: string) => void;
+  onFilterPress?: () => void;
 }
 
-export default function DefaultHeader({ title, searchPlaceholder, shouldShowBackButton = true, onSearch }: DefaultHeaderProps) {
+export default function DefaultHeader({
+  title,
+  searchPlaceholder,
+  shouldShowBackButton = true,
+  onSearch,
+  onFilterPress,
+}: DefaultHeaderProps) {
   const router = useRouter();
   const { width } = useWindowDimensions();
 
@@ -30,17 +44,13 @@ export default function DefaultHeader({ title, searchPlaceholder, shouldShowBack
               style={styles.backButton}
               accessibilityRole="button"
             >
-              <Ionicons
-                name="chevron-back"
-                size={22}
-                color="#1F2937"
-              />
+              <Ionicons name="chevron-back" size={22} color="#1F2937" />
             </TouchableOpacity>
           )}
           <View style={styles.logoTitleWrapper}>
             <Image
               style={{ width: logoSize, height: logoSize }}
-              source={require('../assets/logo/logo.png')}
+              source={require("../assets/logo/logo.png")}
               contentFit="contain"
             />
             <Text style={[styles.title, { fontSize: titleFontSize }]}>
@@ -51,7 +61,12 @@ export default function DefaultHeader({ title, searchPlaceholder, shouldShowBack
 
         {searchPlaceholder.length > 0 && (
           <View style={styles.searchWrapper}>
-            <View style={styles.searchInner}>
+            <View
+              style={[
+                styles.searchInner,
+                onFilterPress && { flex: 1, marginRight: 10 },
+              ]}
+            >
               <Ionicons
                 name="search-outline"
                 size={16}
@@ -65,6 +80,14 @@ export default function DefaultHeader({ title, searchPlaceholder, shouldShowBack
                 onChangeText={onSearch}
               />
             </View>
+            {onFilterPress && (
+              <TouchableOpacity
+                onPress={onFilterPress}
+                style={styles.filterButton}
+              >
+                <Ionicons name="filter" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
@@ -73,26 +96,40 @@ export default function DefaultHeader({ title, searchPlaceholder, shouldShowBack
 }
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: '#FFFFFF', paddingHorizontal: 20 },
-  inner: { width: '100%', alignSelf: 'center' },
-  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  container: { backgroundColor: "#FFFFFF", paddingHorizontal: 20 },
+  inner: { width: "100%", alignSelf: "center" },
+  headerRow: { flexDirection: "row", alignItems: "center" },
   backButton: { marginRight: 8 },
-  logoTitleWrapper: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  title: { fontWeight: '700', color: '#1F2937' },
-  searchWrapper: { marginTop: 12 },
-  searchInner: { position: 'relative' },
+  logoTitleWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  title: { fontWeight: "700", color: "#1F2937" },
+  searchWrapper: { marginTop: 12, flexDirection: "row", alignItems: "center" },
+  filterButton: {
+    backgroundColor: "#0891B2",
+    height: 42,
+    width: 42,
+    borderRadius: 6,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
+  },
+  searchInner: { position: "relative", flex: 1 },
   searchInput: {
     height: 42,
     paddingLeft: 34,
     paddingRight: 12,
     fontSize: 16,
     lineHeight: 26,
-    fontWeight: '400',
-    backgroundColor: '#FFFFFF',
+    fontWeight: "400",
+    backgroundColor: "#FFFFFF",
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#3892B0',
-    color: '#BDC1CA'
+    borderColor: "#3892B0",
+    color: "#BDC1CA",
   },
-  searchIcon: { position: 'absolute', left: 12, top: 13, zIndex: 10 }
+  searchIcon: { position: "absolute", left: 12, top: 13, zIndex: 10 },
 });

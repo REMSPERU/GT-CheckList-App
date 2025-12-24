@@ -25,7 +25,8 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         }
-      }
+      },
+      "bundleIdentifier": "pe.rems.alexpertochecklistapp"
     },
     "web": {
       "output": "static",

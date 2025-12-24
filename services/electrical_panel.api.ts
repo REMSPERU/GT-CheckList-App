@@ -1,5 +1,5 @@
-import { supabaseElectricalPanelService } from './supabase-electrical-panel.service';
-import type { TableroElectricoResponse } from '../types/api';
+import { supabaseElectricalPanelService } from "./supabase-electrical-panel.service";
+import type { TableroElectricoResponse } from "../types/api";
 
 /**
  * Electrical Panel API Service
@@ -9,7 +9,19 @@ export const electricalPanelApi = {
   /**
    * Get electrical panels by property ID
    */
-  getByProperty: async (propertyId: string, panelType?: string, search?: string): Promise<TableroElectricoResponse[]> => {
-    return await supabaseElectricalPanelService.getByProperty(propertyId, panelType, search);
+  getByProperty: async (
+    propertyId: string,
+    panelType?: string,
+    search?: string,
+    config?: boolean | null,
+    location?: string
+  ): Promise<TableroElectricoResponse[]> => {
+    return await supabaseElectricalPanelService.getByProperty(
+      propertyId,
+      panelType,
+      search,
+      config,
+      location
+    );
   },
 };
