@@ -14,14 +14,14 @@ export const electricalPanelApi = {
     panelType?: string,
     search?: string,
     config?: boolean | null,
-    location?: string
+    locations?: string[]
   ): Promise<TableroElectricoResponse[]> => {
     return await supabaseElectricalPanelService.getByProperty(
       propertyId,
       panelType,
       search,
       config,
-      location
+      locations
     );
   },
 };

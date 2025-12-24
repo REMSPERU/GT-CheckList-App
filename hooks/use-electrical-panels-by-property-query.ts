@@ -7,7 +7,7 @@ export const useElectricalPanelsByPropertyQuery = (
   panelType?: string,
   search?: string,
   config?: boolean | null,
-  location?: string
+  locations?: string[]
 ) => {
   return useQuery<TableroElectricoResponse[], Error>({
     queryKey: [
@@ -17,7 +17,7 @@ export const useElectricalPanelsByPropertyQuery = (
       panelType,
       search,
       config,
-      location,
+      locations,
     ],
     queryFn: () =>
       electricalPanelApi.getByProperty(
@@ -25,7 +25,7 @@ export const useElectricalPanelsByPropertyQuery = (
         panelType,
         search,
         config,
-        location
+        locations
       ),
     enabled: !!propertyId, // Only run the query if propertyId is provided
   });

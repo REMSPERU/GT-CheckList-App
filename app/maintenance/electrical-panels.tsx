@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Modal,
-  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
@@ -26,35 +25,47 @@ export default function ElectricalPanelsScreen() {
   // Advanced Filters State
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterConfig, setFilterConfig] = useState<boolean | null>(null); // null = Todos, true = Configurado, false = No Configurado
-  const [filterLocation, setFilterLocation] = useState("");
+  const [filterLocations, setFilterLocations] = useState<string[]>([]);
 
   // Temp state for modal
   const [tempFilterConfig, setTempFilterConfig] = useState<boolean | null>(
     null
   );
-  const [tempFilterLocation, setTempFilterLocation] = useState("");
+  const [tempFilterLocations, setTempFilterLocations] = useState<string[]>([]);
   const [tempFilterType, setTempFilterType] = useState<string | undefined>(
     undefined
   );
 
   const handleOpenFilter = () => {
     setTempFilterConfig(filterConfig);
-    setTempFilterLocation(filterLocation);
+    setTempFilterLocations(filterLocations);
     setTempFilterType(filterType);
     setShowFilterModal(true);
   };
 
   const handleApplyFilter = () => {
     setFilterConfig(tempFilterConfig);
-    setFilterLocation(tempFilterLocation);
+    setFilterLocations(tempFilterLocations);
     setFilterType(tempFilterType);
     setShowFilterModal(false);
   };
 
   const handleResetFilter = () => {
     setTempFilterConfig(null);
-    setTempFilterLocation("");
+    setTempFilterLocations([]);
     setTempFilterType(undefined);
+  };
+
+  const toggleLocation = (loc: string) => {
+    setTempFilterLocations((prev) => {
+      const newLocs = new Set(prev);
+      if (newLocs.has(loc)) {
+        newLocs.delete(loc);
+      } else {
+        newLocs.add(loc);
+      }
+      return Array.from(newLocs);
+    });
   };
 
   useEffect(() => {
@@ -81,7 +92,7 @@ export default function ElectricalPanelsScreen() {
     panelTypeToSend, // Pasar el tipo de panel como filtro
     searchTerm, // Pasar el término de búsqueda
     filterConfig,
-    filterLocation
+    filterLocations
   );
 
   const panels = panelsData || [];
@@ -176,8 +187,7 @@ export default function ElectricalPanelsScreen() {
         style={[
           styles.panelCard,
           isSelected && styles.panelCardSelected,
-          // Optional: you can visually distinguish configured/not configured if desired
-          // !panel.config && styles.panelCardDisabled
+          !panel.config && styles.notConfiguredBanner ? {} : {}, // Fix logic if needed, but keeping simple for now
         ]}
         onPress={() => handlePanelPress(panel)}
         onLongPress={() => handlePanelLongPress(panel)}
@@ -383,12 +393,157 @@ export default function ElectricalPanelsScreen() {
 
               {/* Location Filter */}
               <Text style={styles.filterLabel}>Ubicación</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ej. Sótano 1"
-                value={tempFilterLocation}
-                onChangeText={setTempFilterLocation}
-              />
+
+              <View style={styles.filterOptions}>
+                {/* Option: Todos */}
+                <TouchableOpacity
+                  style={[
+                    styles.locationCheckboxItem,
+                    tempFilterLocations.length === 0 &&
+                      styles.locationCheckboxSelected,
+                  ]}
+                  onPress={() => setTempFilterLocations([])}
+                >
+                  <Ionicons
+                    name={
+                      tempFilterLocations.length === 0
+                        ? "checkbox"
+                        : "square-outline"
+                    }
+                    size={20}
+                    color={
+                      tempFilterLocations.length === 0 ? "#0891B2" : "#9CA3AF"
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.locationCheckboxText,
+                      tempFilterLocations.length === 0 &&
+                        styles.activeLocationCheckboxText,
+                    ]}
+                  >
+                    Todos
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {building?.basement > 0 && (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={[styles.detailLabel, { marginBottom: 8 }]}>
+                    Sótanos
+                  </Text>
+                  <View style={styles.locationGrid}>
+                    {Array.from(
+                      { length: building.basement },
+                      (_, i) => `Sótano ${i + 1}`
+                    ).map((loc) => {
+                      const isSelected = tempFilterLocations.includes(loc);
+                      return (
+                        <TouchableOpacity
+                          key={loc}
+                          style={[
+                            styles.locationCheckboxItem,
+                            isSelected && styles.locationCheckboxSelected,
+                          ]}
+                          onPress={() => toggleLocation(loc)}
+                        >
+                          <Ionicons
+                            name={isSelected ? "checkbox" : "square-outline"}
+                            size={20}
+                            color={isSelected ? "#0891B2" : "#9CA3AF"}
+                          />
+                          <Text
+                            style={[
+                              styles.locationCheckboxText,
+                              isSelected && styles.activeLocationCheckboxText,
+                            ]}
+                          >
+                            {loc}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              {building?.floor > 0 && (
+                <View style={{ marginBottom: 12 }}>
+                  <Text style={[styles.detailLabel, { marginBottom: 8 }]}>
+                    Pisos
+                  </Text>
+                  <View style={styles.locationGrid}>
+                    {Array.from(
+                      { length: building.floor },
+                      (_, i) => `Piso ${i + 1}`
+                    ).map((loc) => {
+                      const isSelected = tempFilterLocations.includes(loc);
+                      return (
+                        <TouchableOpacity
+                          key={loc}
+                          style={[
+                            styles.locationCheckboxItem,
+                            isSelected && styles.locationCheckboxSelected,
+                          ]}
+                          onPress={() => toggleLocation(loc)}
+                        >
+                          <Ionicons
+                            name={isSelected ? "checkbox" : "square-outline"}
+                            size={20}
+                            color={isSelected ? "#0891B2" : "#9CA3AF"}
+                          />
+                          <Text
+                            style={[
+                              styles.locationCheckboxText,
+                              isSelected && styles.activeLocationCheckboxText,
+                            ]}
+                          >
+                            {loc}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
+              {/* Extras: Azotea */}
+              <View>
+                <Text style={[styles.detailLabel, { marginBottom: 8 }]}>
+                  Otros
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.locationCheckboxItem,
+                    tempFilterLocations.includes("Azotea") &&
+                      styles.locationCheckboxSelected,
+                  ]}
+                  onPress={() => toggleLocation("Azotea")}
+                >
+                  <Ionicons
+                    name={
+                      tempFilterLocations.includes("Azotea")
+                        ? "checkbox"
+                        : "square-outline"
+                    }
+                    size={20}
+                    color={
+                      tempFilterLocations.includes("Azotea")
+                        ? "#0891B2"
+                        : "#9CA3AF"
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.locationCheckboxText,
+                      tempFilterLocations.includes("Azotea") &&
+                        styles.activeLocationCheckboxText,
+                    ]}
+                  >
+                    Azotea
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
 
             <View style={styles.modalFooter}>
@@ -716,5 +871,35 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  locationGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  locationCheckboxItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    minWidth: "45%",
+    marginBottom: 4,
+  },
+  locationCheckboxSelected: {
+    backgroundColor: "#F0FDFA",
+    borderColor: "#0891B2",
+  },
+  locationCheckboxText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: "#4B5563",
+    fontWeight: "500",
+  },
+  activeLocationCheckboxText: {
+    color: "#0891B2",
   },
 });

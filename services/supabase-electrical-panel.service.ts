@@ -12,7 +12,7 @@ export class SupabaseElectricalPanelService {
     tipo?: string,
     search?: string,
     config?: boolean | null,
-    location?: string
+    locations?: string[]
   ): Promise<TableroElectricoResponse[]> {
     let query = supabase
       .from(this.tableName)
@@ -33,9 +33,10 @@ export class SupabaseElectricalPanelService {
       query = query.eq("config", config);
     }
 
-    // Filtro por ubicación
-    if (location) {
-      query = query.ilike("ubicacion", `%${location}%`);
+    // Filtro por ubicación (Multi-select)
+    if (locations && locations.length > 0) {
+      // Use .in() filter for exact matches
+      query = query.in("ubicacion", locations);
     }
 
     // Filtro por búsqueda (código o rótulo)
