@@ -112,6 +112,7 @@ export default function ElectricalPanelsScreen() {
       }
     } else {
       newSelected.add(panelId);
+      setIsSelectionMode(true);
     }
     setSelectedPanelIds(newSelected);
   };
@@ -125,17 +126,11 @@ export default function ElectricalPanelsScreen() {
       // Select all configured
       const allConfiguredIds = panels.filter((p) => p.config).map((p) => p.id);
       setSelectedPanelIds(new Set(allConfiguredIds));
+      setIsSelectionMode(true);
     }
   };
 
   const handlePanelPress = (panel: TableroElectricoResponse) => {
-    if (isSelectionMode) {
-      if (panel.config) {
-        toggleSelection(panel.id);
-      }
-      return;
-    }
-
     // Check 'config' property from DB instead of 'is_configured'
     if (!panel.config) {
       router.push({
@@ -161,75 +156,110 @@ export default function ElectricalPanelsScreen() {
     });
   };
 
-  const handlePanelLongPress = (panel: TableroElectricoResponse) => {
-    if (!panel.config) return; // Ignore long press on unconfigured panels
-
-    if (!isSelectionMode) {
-      setIsSelectionMode(true);
-      setSelectedPanelIds(new Set([panel.id]));
-    } else {
-      toggleSelection(panel.id);
-    }
-  };
-
   const handleScheduleMaintenance = () => {
-    console.log("Programar mantenimiento para:", Array.from(selectedPanelIds));
-    // TODO: Navigate to schedule screen or show modal
-    alert(`Programar mantenimiento para ${selectedPanelIds.size} tableros`);
+    // Navigate to schedule screen
+    router.push({
+      pathname: "/maintenance/schedule-maintenance",
+      params: {
+        count: selectedPanelIds.size,
+        buildingName: building?.name,
+      },
+    });
   };
 
   const renderPanel = (panel: TableroElectricoResponse) => {
     const isSelected = selectedPanelIds.has(panel.id);
+    const isConfigured = panel.config;
 
-    return (
-      <TouchableOpacity
-        key={panel.id}
-        style={[
-          styles.panelCard,
-          isSelected && styles.panelCardSelected,
-          !panel.config && styles.notConfiguredBanner ? {} : {}, // Fix logic if needed, but keeping simple for now
-        ]}
-        onPress={() => handlePanelPress(panel)}
-        onLongPress={() => handlePanelLongPress(panel)}
-        disabled={false}
-        activeOpacity={0.7}
-      >
-        <View style={styles.panelHeader}>
-          <Text style={styles.panelName}>{panel.rotulo || panel.tipo}</Text>
-          {isSelectionMode && panel.config ? (
+    // Common content for both states
+    const PanelContent = () => (
+      <>
+        <View style={styles.panelInfoColumn}>
+          <Text style={styles.panelName}>
+            {panel.codigo || panel.equipment_detail.rotulo}
+          </Text>
+
+          <View style={styles.locationRow}>
             <Ionicons
-              name={isSelected ? "checkbox" : "square-outline"}
-              size={24}
-              color={isSelected ? "#0891B2" : "#9CA3AF"}
+              name="location-outline"
+              size={14}
+              color="#6B7280"
+              style={{ marginRight: 4 }}
             />
-          ) : !panel.config ? (
-            <View style={styles.warningContainer}>
-              <Ionicons name="warning" size={16} color="#EF4444" />
-            </View>
-          ) : null}
+            <Text style={styles.panelFloor}>{panel.ubicacion}</Text>
+          </View>
         </View>
 
-        <Text style={styles.panelFloor}>{panel.ubicacion}</Text>
-
-        <View style={styles.panelDetails}>
-          <Text style={styles.detailLabel}>Código:</Text>
-          <Text style={styles.detailValue}>{panel.codigo}</Text>
-        </View>
-
-        <View style={styles.panelDetails}>
-          <Text style={styles.detailLabel}>Tipo:</Text>
-          <Text style={styles.detailValue}>{panel.tipo}</Text>
-        </View>
-
-        {!panel.config && (
-          <View style={styles.notConfiguredBanner}>
-            <Ionicons name="warning" size={14} color="#EF4444" />
-            <Text style={styles.notConfiguredText}>
-              Este equipo aún no está configurado.
-            </Text>
+        {!isConfigured && (
+          <View style={styles.statusContainer}>
+            <Ionicons
+              name="alert-circle-outline"
+              size={16}
+              color="#D97706"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.notConfiguredLabel}>Sin configurar</Text>
           </View>
         )}
-      </TouchableOpacity>
+
+        {isConfigured && (
+          <View style={styles.actionIconContainer}>
+            <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+          </View>
+        )}
+      </>
+    );
+
+    if (!isConfigured) {
+      return (
+        <TouchableOpacity
+          key={panel.id}
+          style={styles.panelCard}
+          onPress={() => {
+            router.push({
+              pathname: "/maintenance/panel-configuration",
+              params: {
+                panel: JSON.stringify(panel),
+                building: building ? JSON.stringify(building) : "",
+              },
+            });
+          }}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.radioCircle, styles.radioCircleHidden]} />
+          <PanelContent />
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <View
+        key={panel.id}
+        style={[styles.panelCard, isSelected && styles.panelCardSelected]}
+      >
+        {/* Selection Circle (Left) - Only for configured */}
+        <TouchableOpacity
+          style={styles.selectionArea}
+          onPress={() => toggleSelection(panel.id)}
+        >
+          <View
+            style={[
+              styles.radioCircle,
+              isSelected && styles.radioCircleSelected,
+            ]}
+          >
+            {isSelected && <View style={styles.radioInnerCircle} />}
+          </View>
+        </TouchableOpacity>
+
+        {/* Content Area (Rest of card) - Navigates to details */}
+        <TouchableOpacity
+          style={styles.panelContent}
+          onPress={() => handlePanelPress(panel)}
+        >
+          <PanelContent />
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -705,77 +735,111 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   panelsContainer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 100,
   },
   panelsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+    flexDirection: "column",
   },
   panelCard: {
-    width: "48%",
+    width: "100%",
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: "transparent",
   },
-  panelCardDisabled: {
-    opacity: 0.7,
+  panelCardSelected: {
+    borderColor: "#0891B2",
+    backgroundColor: "#F0FDFA",
   },
-  panelHeader: {
+  selectionArea: {
+    paddingRight: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  radioCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  radioCircleHidden: {
+    borderColor: "transparent",
+    backgroundColor: "transparent",
+  },
+  radioCircleSelected: {
+    borderColor: "#0891B2",
+    backgroundColor: "#fff",
+  },
+  radioInnerCircle: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#0891B2",
+  },
+  panelContent: {
+    flex: 1,
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 8,
+  },
+  panelInfoColumn: {
+    flex: 1,
+    justifyContent: "center",
   },
   panelName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1F2937",
-    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 4,
   },
-  warningContainer: {
-    marginLeft: 8,
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   panelFloor: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#6B7280",
-    marginBottom: 12,
+    fontWeight: "500",
+    textTransform: "uppercase",
   },
-  panelDetails: {
-    marginBottom: 8,
+  actionIconContainer: {
+    paddingLeft: 8,
   },
+  statusContainer: {
+    paddingLeft: 8,
+    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  notConfiguredLabel: {
+    fontSize: 12,
+    color: "#D97706",
+    fontWeight: "600",
+    fontStyle: "normal",
+  },
+  // Removed explicit button styles
   detailLabel: {
     fontSize: 12,
     color: "#6B7280",
     marginBottom: 2,
-  },
-  detailValue: {
-    fontSize: 14,
-    color: "#1F2937",
-  },
-  notConfiguredBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FEF2F2",
-    padding: 8,
-    borderRadius: 6,
-    marginTop: 8,
-  },
-  notConfiguredText: {
-    fontSize: 12,
-    color: "#EF4444",
-    marginLeft: 6,
-    flex: 1,
   },
   bottomNav: {
     position: "absolute",
@@ -825,11 +889,7 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
   },
-  panelCardSelected: {
-    borderColor: "#0891B2",
-    borderWidth: 2,
-    backgroundColor: "#F0FDFA",
-  },
+
   buildingInfoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
