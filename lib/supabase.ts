@@ -11,7 +11,7 @@ export const supabase = createClient(
       storage: Platform.OS === 'web' ? undefined : AsyncStorage,
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false,
-      lock: processLock,
+      detectSessionInUrl: Platform.OS === 'web' ? false : true,
+      lock: Platform.OS === 'web' ? undefined : processLock,
     },
   })
