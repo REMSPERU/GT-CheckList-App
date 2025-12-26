@@ -1,11 +1,11 @@
 // API Type Definitions based on OpenAPI spec
 
 export enum RoleEnum {
-  GUEST = 'GUEST',
-  PROVEEDOR = 'PROVEEDOR',
-  TECNICO = 'TECNICO',
-  SUPERVISOR = 'SUPERVISOR',
-  SUPERADMIN = 'SUPERADMIN',
+  GUEST = "GUEST",
+  PROVEEDOR = "PROVEEDOR",
+  TECNICO = "TECNICO",
+  SUPERVISOR = "SUPERVISOR",
+  SUPERADMIN = "SUPERADMIN",
 }
 
 // User types
@@ -155,3 +155,39 @@ export interface TableroElectricoResponse {
   config?: boolean;
   equipment_detail?: any;
 }
+
+// Maintenance types
+export enum MaintenanceStatusEnum {
+  NO_INICIADO = "NO_INICIADO",
+  EN_PROGRESO = "EN_PROGRESO",
+  PENDIENTE = "PENDIENTE",
+  FINALIZADO = "FINALIZADO",
+  CANCELADO = "CANCELADO",
+}
+
+export enum MaintenanceTypeEnum {
+  PREVENTIVO = "Preventivo",
+  CORRECTIVO = "Correctivo",
+}
+
+export interface MaintenanceCreateRequest {
+  id_equipo?: string | null;
+  panel_ids?: string[];
+  dia_programado: string;
+  hora_programada: string;
+  tipo_mantenimiento: MaintenanceTypeEnum;
+  assigned_technicians: string[];
+  observations?: string;
+  id_user_created?: string;
+}
+
+export interface MaintenanceResponse {
+  id: string;
+  created_at: string;
+  estatus: MaintenanceStatusEnum;
+  dia_programado: string | null;
+  tipo_mantenimiento: string | null;
+  id_equipo?: string;
+}
+
+export interface Technician extends User {}

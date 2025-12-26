@@ -5,11 +5,15 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Modal,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
+import { useTechnicians, useCreateMaintenance } from "@/hooks/use-maintenance";
+import { MaintenanceTypeEnum } from "@/types/api";
 
 export default function ScheduleMaintenanceScreen() {
   const router = useRouter();
@@ -19,16 +23,66 @@ export default function ScheduleMaintenanceScreen() {
     ? (params.buildingName as string)
     : "Centro Empresarial";
 
-  const [date] = useState("12/10/2025");
-  const [time] = useState("12:00 PM");
-  const [maintenanceType, setMaintenanceType] = useState<
-    "preventive" | "corrective"
-  >("preventive");
-  const [technicians] = useState([
-    { id: 1, name: "Juan Peréz", company: "Rems" },
-  ]);
+  // State
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [time, setTime] = useState("12:00 PM"); // String for simplicity in custom picker
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
+  const [maintenanceType, setMaintenanceType] = useState<MaintenanceTypeEnum>(
+    MaintenanceTypeEnum.PREVENTIVO
+  );
+  const [selectedTechnicians, setSelectedTechnicians] = useState<string[]>([]);
   const [observations, setObservations] = useState("");
   const [isTechniciansExpanded, setIsTechniciansExpanded] = useState(true);
+  const [showTechModal, setShowTechModal] = useState(false);
+
+  // Queries & Mutations
+  const { data: technicians = [], isLoading: loadingTechs } = useTechnicians();
+  const createMaintenanceMutation = useCreateMaintenance();
+
+  // Date Logic
+  const handleDateConfirm = (selectedDate: Date) => {
+    setDate(selectedDate);
+    setShowDatePicker(false);
+  };
+
+  // Time Logic
+  const times = Array.from({ length: 24 * 2 }).map((_, i) => {
+    const totalMinutes = i * 30;
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    const period = h < 12 ? "AM" : "PM";
+    const displayH = h % 12 || 12;
+    const displayM = m === 0 ? "00" : m;
+    return `${displayH}:${displayM} ${period}`;
+  });
+
+  const handleCreate = async () => {
+    try {
+      await createMaintenanceMutation.mutateAsync({
+        // Mock IDs if not passed
+        panel_ids: ["mock-panel-id-1"],
+        dia_programado: date.toISOString(),
+        hora_programada: time,
+        tipo_mantenimiento: maintenanceType,
+        assigned_technicians: selectedTechnicians,
+        observations,
+      });
+      Alert.alert("Éxito", "Mantenimiento programado correctamente", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    } catch (error) {
+      Alert.alert("Error", "No se pudo programar el mantenimiento");
+      console.error(error);
+    }
+  };
+
+  const toggleTechnician = (id: string) => {
+    setSelectedTechnicians((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -52,10 +106,7 @@ export default function ScheduleMaintenanceScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Banner */}
         <View style={styles.bannerContainer}>
-          {/* Background image placeholder or gradient */}
           <View style={styles.bannerOverlay} />
-          {/* You might want to use a real image here if available */}
-          {/* <Image source={...} style={styles.bannerImage} /> */}
           <Text style={styles.bannerText}>{buildingName}</Text>
         </View>
 
@@ -73,12 +124,17 @@ export default function ScheduleMaintenanceScreen() {
         {/* Maintenance Details */}
         <Text style={styles.sectionTitle}>Detalles del Mantenimiento</Text>
         <View style={styles.row}>
-          <TouchableOpacity style={styles.inputCard}>
+          <TouchableOpacity
+            style={styles.inputCard}
+            onPress={() => setShowDatePicker(true)}
+          >
             <View style={styles.inputLabelRow}>
               <Ionicons name="calendar-outline" size={20} color="#374151" />
               <View style={styles.dateTextContainer}>
                 <Text style={styles.inputLabel}>Fecha Tentativa</Text>
-                <Text style={styles.inputValue}>{date}</Text>
+                <Text style={styles.inputValue}>
+                  {date.toLocaleDateString()}
+                </Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -86,12 +142,14 @@ export default function ScheduleMaintenanceScreen() {
 
           <View style={{ width: 12 }} />
 
-          <TouchableOpacity style={styles.inputCard}>
+          <TouchableOpacity
+            style={styles.inputCard}
+            onPress={() => setShowTimePicker(true)}
+          >
             <View style={styles.inputLabelRow}>
               <Ionicons name="time-outline" size={20} color="#374151" />
               <View style={styles.dateTextContainer}>
                 <Text style={styles.inputLabel}>Hora Tentativa</Text>
-                {/* Typo in original design '12/10/2025' for time, assuming typo */}
                 <Text style={styles.inputValue}>{time}</Text>
               </View>
             </View>
@@ -105,14 +163,16 @@ export default function ScheduleMaintenanceScreen() {
           <TouchableOpacity
             style={[
               styles.typeButton,
-              maintenanceType === "preventive" && styles.typeButtonActive,
+              maintenanceType === MaintenanceTypeEnum.PREVENTIVO &&
+                styles.typeButtonActive,
             ]}
-            onPress={() => setMaintenanceType("preventive")}
+            onPress={() => setMaintenanceType(MaintenanceTypeEnum.PREVENTIVO)}
           >
             <Text
               style={[
                 styles.typeButtonText,
-                maintenanceType === "preventive" && styles.typeButtonTextActive,
+                maintenanceType === MaintenanceTypeEnum.PREVENTIVO &&
+                  styles.typeButtonTextActive,
               ]}
             >
               Preventivo
@@ -122,14 +182,16 @@ export default function ScheduleMaintenanceScreen() {
           <TouchableOpacity
             style={[
               styles.typeButton,
-              maintenanceType === "corrective" && styles.typeButtonActive,
+              maintenanceType === MaintenanceTypeEnum.CORRECTIVO &&
+                styles.typeButtonActive,
             ]}
-            onPress={() => setMaintenanceType("corrective")}
+            onPress={() => setMaintenanceType(MaintenanceTypeEnum.CORRECTIVO)}
           >
             <Text
               style={[
                 styles.typeButtonText,
-                maintenanceType === "corrective" && styles.typeButtonTextActive,
+                maintenanceType === MaintenanceTypeEnum.CORRECTIVO &&
+                  styles.typeButtonTextActive,
               ]}
             >
               Correctivo
@@ -152,22 +214,31 @@ export default function ScheduleMaintenanceScreen() {
 
         {isTechniciansExpanded && (
           <View style={styles.techniciansContainer}>
-            <TouchableOpacity style={styles.addTechnicianButton}>
+            <TouchableOpacity
+              style={styles.addTechnicianButton}
+              onPress={() => setShowTechModal(true)}
+            >
               <Ionicons name="add" size={16} color="#374151" />
               <Text style={styles.addTechnicianText}>Asignar técnicos</Text>
               <View style={{ flex: 1 }} />
               <Ionicons name="chevron-forward" size={20} color="#374151" />
             </TouchableOpacity>
 
-            {technicians.map((tech) => (
-              <View key={tech.id} style={styles.technicianRow}>
-                <View style={styles.techIconContainer}>
-                  <Ionicons name="person-outline" size={20} color="#374151" />
+            {technicians
+              .filter((t) => selectedTechnicians.includes(t.id))
+              .map((tech) => (
+                <View key={tech.id} style={styles.technicianRow}>
+                  <View style={styles.techIconContainer}>
+                    <Ionicons name="person-outline" size={20} color="#374151" />
+                  </View>
+                  <Text style={styles.techName}>{tech.username}</Text>
+                  {/* Assuming 'company' or similar field exists or we simulate it */}
+                  <Text style={styles.techCompany}>Rems</Text>
+                  <TouchableOpacity onPress={() => toggleTechnician(tech.id)}>
+                    <Ionicons name="close-circle" size={20} color="#EF4444" />
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.techName}>{tech.name}</Text>
-                <Text style={styles.techCompany}>{tech.company}</Text>
-              </View>
-            ))}
+              ))}
           </View>
         )}
 
@@ -185,12 +256,204 @@ export default function ScheduleMaintenanceScreen() {
         />
 
         {/* Confirm Button */}
-        <TouchableOpacity style={styles.confirmButton}>
-          <Text style={styles.confirmButtonText}>Confirmar Programación</Text>
+        <TouchableOpacity
+          style={[
+            styles.confirmButton,
+            createMaintenanceMutation.isPending && styles.disabledButton,
+          ]}
+          onPress={handleCreate}
+          disabled={createMaintenanceMutation.isPending}
+        >
+          <Text style={styles.confirmButtonText}>
+            {createMaintenanceMutation.isPending
+              ? "Programando..."
+              : "Confirmar Programación"}
+          </Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Date Picker Modal (Simplified Custom) */}
+      <Modal
+        visible={showDatePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Seleccionar Fecha</Text>
+            {/* Simple list of next 30 days for demo "good UI" without native dep complexity */}
+            <ScrollView style={{ maxHeight: 300 }}>
+              {Array.from({ length: 30 }).map((_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() + i);
+                const isSelected = d.toDateString() === date.toDateString();
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    style={[
+                      styles.modalOption,
+                      isSelected && styles.modalOptionSelected,
+                    ]}
+                    onPress={() => handleDateConfirm(d)}
+                  >
+                    <Text
+                      style={[
+                        styles.modalOptionText,
+                        isSelected && styles.modalOptionTextSelected,
+                      ]}
+                    >
+                      {d.toLocaleDateString(undefined, {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark" size={20} color="#0891B2" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <Text style={styles.modalCloseText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Time Picker Modal */}
+      <Modal
+        visible={showTimePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTimePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Seleccionar Hora</Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              {times.map((t) => (
+                <TouchableOpacity
+                  key={t}
+                  style={[
+                    styles.modalOption,
+                    time === t && styles.modalOptionSelected,
+                  ]}
+                  onPress={() => {
+                    setTime(t);
+                    setShowTimePicker(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      time === t && styles.modalOptionTextSelected,
+                    ]}
+                  >
+                    {t}
+                  </Text>
+                  {time === t && (
+                    <Ionicons name="checkmark" size={20} color="#0891B2" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowTimePicker(false)}
+            >
+              <Text style={styles.modalCloseText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Technician Picker Modal */}
+      <Modal
+        visible={showTechModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTechModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Asignar Técnicos</Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              {loadingTechs ? (
+                <Text style={{ padding: 20, textAlign: "center" }}>
+                  Cargando...
+                </Text>
+              ) : (
+                technicians.map((t) => {
+                  const isSelected = selectedTechnicians.includes(t.id);
+                  return (
+                    <TouchableOpacity
+                      key={t.id}
+                      style={[
+                        styles.modalOption,
+                        isSelected && styles.modalOptionSelected,
+                      ]}
+                      onPress={() => toggleTechnician(t.id)}
+                    >
+                      <View
+                        style={{ flexDirection: "row", alignItems: "center" }}
+                      >
+                        <View
+                          style={[
+                            styles.techIconContainer,
+                            {
+                              borderColor: isSelected ? "#0891B2" : "#374151",
+                              width: 24,
+                              height: 24,
+                              borderWidth: 1,
+                              marginRight: 8,
+                            },
+                          ]}
+                        >
+                          <Ionicons
+                            name="person"
+                            size={14}
+                            color={isSelected ? "#0891B2" : "#374151"}
+                          />
+                        </View>
+                        <Text
+                          style={[
+                            styles.modalOptionText,
+                            isSelected && styles.modalOptionTextSelected,
+                          ]}
+                        >
+                          {t.username}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={20}
+                          color="#0891B2"
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowTechModal(false)}
+            >
+              <Text style={styles.modalCloseText}>Listo</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -419,5 +682,57 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  disabledButton: {
+    backgroundColor: "#9CA3AF",
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+    maxHeight: "60%",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  modalOption: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  modalOptionSelected: {
+    backgroundColor: "#F0FDFA",
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: "#374151",
+  },
+  modalOptionTextSelected: {
+    color: "#0891B2",
+    fontWeight: "500",
+  },
+  modalCloseButton: {
+    marginTop: 16,
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  modalCloseText: {
+    color: "#EF4444",
+    fontSize: 16,
+    fontWeight: "500",
   },
 });
