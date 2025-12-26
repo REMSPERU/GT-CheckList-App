@@ -59,10 +59,16 @@ export default function ScheduleMaintenanceScreen() {
   });
 
   const handleCreate = async () => {
+    if (createMaintenanceMutation.isPending) return;
+
     try {
       await createMaintenanceMutation.mutateAsync({
-        // Mock IDs if not passed
-        panel_ids: ["mock-panel-id-1"],
+        // Parse panel IDs from params
+        panel_ids: params.ids
+          ? typeof params.ids === "string"
+            ? params.ids.split(",")
+            : (params.ids as string[])
+          : [],
         dia_programado: date.toISOString(),
         hora_programada: time,
         tipo_mantenimiento: maintenanceType,

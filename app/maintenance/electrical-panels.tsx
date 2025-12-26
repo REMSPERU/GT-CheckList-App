@@ -162,6 +162,7 @@ export default function ElectricalPanelsScreen() {
       pathname: "/maintenance/schedule-maintenance",
       params: {
         count: selectedPanelIds.size,
+        ids: Array.from(selectedPanelIds).join(","),
         buildingName: building?.name,
       },
     });

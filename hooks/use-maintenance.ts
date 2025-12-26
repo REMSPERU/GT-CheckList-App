@@ -18,8 +18,8 @@ export const useTechnicians = () => {
       // We will try standard select.
       const { data, error } = await supabase
         .from("users") // Check if table is 'users' or 'profiles' in Supabase usually, but SQL said 'users' foreign key.
-        .select("*")
-        .eq("role", RoleEnum.TECNICO);
+        .select("*");
+      // .eq("role", RoleEnum.TECNICO); // TEMPORARY: Fetch all users for testing
 
       if (error) throw error;
       return data as User[];
@@ -40,25 +40,26 @@ export const useCreateMaintenance = () => {
         throw new Error("No panels selected");
       }
 
-      // 1. Create maintenance records
+      // 1. Get current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error("No authenticated user found");
+      }
+
+      // 2. Create maintenance records
       const maintenanceInserts = panel_ids.map((panelId) => ({
         id_equipo: panelId,
         dia_programado: commonData.dia_programado, // Date type in DB
-        // hora_programada is not in the SQL provided for `mantenimientos` table?
-        // SQL: dia_programado date null. No explicit time column or timestamp?
-        // We might need to combine date+time into dia_programado if it was timestamp, but it says DATE.
-        // Or store it in metadata/jsonb?
-        // Let's check SQL again.
-        // `dia_programado date null`
-        // `tipo_mantenimiento text null`
-        // `estatus text null default 'NO INICIADO'`
-        // `id_user uuid` (creator?)
-
-        // Wait, where is the time stored?
-        // Maybe we just store the date for now as requested by schema.
         tipo_mantenimiento: commonData.tipo_mantenimiento,
         estatus: MaintenanceStatusEnum.NO_INICIADO,
+        id_user: user.id, // Creator
+        observations: commonData.observations,
       }));
+
+      console.log("Saving Maintenance:", maintenanceInserts);
 
       const { data: maintenanceData, error: maintenanceError } = await supabase
         .from("mantenimientos")
@@ -78,14 +79,18 @@ export const useCreateMaintenance = () => {
         id_maintenance: string;
       }[] = [];
 
-      maintenanceData.forEach((m) => {
-        assigned_technicians.forEach((techId) => {
-          userMaintenanceInserts.push({
-            id_maintenance: m.id,
-            id_user: techId,
+      if (assigned_technicians && assigned_technicians.length > 0) {
+        maintenanceData.forEach((m) => {
+          assigned_technicians.forEach((techId) => {
+            userMaintenanceInserts.push({
+              id_maintenance: m.id,
+              id_user: techId,
+            });
           });
         });
-      });
+      }
+
+      console.log("Saving User Maintenance:", userMaintenanceInserts);
 
       if (userMaintenanceInserts.length > 0) {
         const { error: assignError } = await supabase
