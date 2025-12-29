@@ -148,3 +148,38 @@ export const useScheduledMaintenances = () => {
     },
   });
 };
+
+// Fetch Maintenances by Property ID
+export const useMaintenanceByProperty = (propertyId: string) => {
+  return useQuery({
+    queryKey: ["maintenance-by-property", propertyId],
+    queryFn: async () => {
+      if (!propertyId) return [];
+      
+      const { data, error } = await supabase
+        .from("mantenimientos")
+        .select(`
+          id,
+          dia_programado,
+          estatus,
+          tipo_mantenimiento,
+          equipos!inner (
+            id,
+            codigo,
+            ubicacion,
+            equipment_detail,
+            id_property,
+            equipamentos (
+              nombre
+            )
+          )
+        `)
+        .eq("equipos.id_property", propertyId)
+        .order("dia_programado", { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!propertyId,
+  });
+};
