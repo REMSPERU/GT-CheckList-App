@@ -1,6 +1,3 @@
-
-
-
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -228,7 +225,7 @@ CREATE TABLE IF NOT EXISTS "public"."mantenimientos" (
     "id_equipo" "uuid" DEFAULT "gen_random_uuid"(),
     "estatus" "text" DEFAULT 'NO INICIADO'::"text",
     "id_user" "uuid" DEFAULT "gen_random_uuid"(),
-    "dia_programado" "date",
+    "dia_programado" "timestamp",
     "tipo_mantenimiento" "text",
     "observations" "text"
 );

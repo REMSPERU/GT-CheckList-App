@@ -7,7 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaintenanceHeader from '@/components/maintenance-header';
@@ -53,7 +53,11 @@ const CORRECTIVE_MOCK: MaintenanceEquipment[] = [
 
 export default function EquipmentMaintenanceListScreen() {
   const router = useRouter();
+  const { propertyId } = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState<'Preventivo' | 'Correctivo'>('Preventivo');
+
+  // TODO: Use endpoint to fetch equipment maintenance data by propertyId
+  console.log("Current Property ID:", propertyId);
 
   // TODO: Use endpoint to fetch equipment maintenance data
   // useEffect(() => {
@@ -100,7 +104,7 @@ export default function EquipmentMaintenanceListScreen() {
                 styles.card,
                 index === 0 && activeTab === 'Preventivo' && styles.highlightedCard
               ]}
-              onPress={() => router.push("/maintenance/equipment-details")}
+              onPress={() => router.push("/maintenance/scheduled_maintenance/equipment-details")}
             >
               <View style={styles.cardHeader}>
                 <Text style={styles.cardCode}>{item.code}</Text>

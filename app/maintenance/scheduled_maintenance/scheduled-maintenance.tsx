@@ -14,7 +14,6 @@ import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useScheduledMaintenances } from '@/hooks/use-maintenance';
-import { MaintenanceStatusEnum } from '@/types/api';
 
 
 export default function ScheduledMaintenanceScreen() {
@@ -102,22 +101,7 @@ export default function ScheduledMaintenanceScreen() {
     return Object.values(groups);
   }, [filteredData]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case MaintenanceStatusEnum.NO_INICIADO:
-        return '#6B7280'; // Gray
-      case MaintenanceStatusEnum.PENDIENTE:
-        return '#F59E0B'; // Amber
-      case MaintenanceStatusEnum.EN_PROGRESO:
-        return '#3B82F6'; // Blue
-      case MaintenanceStatusEnum.FINALIZADO:
-        return '#10B981'; // Green
-      case MaintenanceStatusEnum.CANCELADO:
-        return '#EF4444'; // Red
-      default:
-        return '#6B7280';
-    }
-  };
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -188,10 +172,10 @@ export default function ScheduledMaintenanceScreen() {
                 style={styles.card}
                 onPress={() => {
                    if (group.items.length > 0) {
-                      // Navigate to first item for now, or could change to a property details list
+                      // Navigate to equipment list for this property
                       router.push({
-                          pathname: "/maintenance/scheduled_maintenance/maintenance-selection",
-                          params: { id: group.items[0].id } 
+                          pathname: "/maintenance/scheduled_maintenance/equipment-maintenance-list",
+                          params: { propertyId: group.propertyId } 
                       });
                    }
                 }}
@@ -207,21 +191,8 @@ export default function ScheduledMaintenanceScreen() {
                     {group.propertyAddress}
                   </Text>
                   
-                  {/* List of Equipments */}
-                  <View style={{ marginTop: 8 }}>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: '#4B5563', marginBottom: 4 }}>
-                      Equipos Programados:
-                    </Text>
-                    {group.items.map((m: any, index: number) => (
-                      <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: getStatusColor(m.estatus), marginRight: 6 }} />
-                        <Text style={{ fontSize: 12, color: '#374151' }}>
-                          {m.equipos?.codigo || 'Sin código'} 
-                          {/* Optional: Show status text if needed, e.g. - {m.estatus} */}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
+                  {/* List of Equipments - HIDDEN as per request, only count shown above */}
+                  {/* <View style={{ marginTop: 8 }}>...</View> */}
 
                   <View style={styles.cardFooter}>
                      {/* Footer content if needed, currently empty/redundant if listing all items above */}
