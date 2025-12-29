@@ -19,6 +19,7 @@ export interface PanelData {
   name?: string;
   id?: string;
   codigo?: string;
+  rotulo?: string;
 }
 
 export interface BasicInfoStepProps {

@@ -40,6 +40,7 @@ export const ExtraComponentSchema = z.object({
 
 export const PanelConfigurationSchema = z.object({
   // Step 1
+  panelName: z.string().optional(),
   panelType: PanelTypeSchema,
   voltage: z.string().min(1, "Voltaje es requerido"),
   phase: PhaseTypeSchema,

@@ -48,11 +48,13 @@ export default function PanelDetailModal() {
 
       <ScrollView contentContainerStyle={modalStyles.content}>
         <PanelDetailContent
-          detail={detail}
-          panelInfo={{
+          data={{
             rotulo: panel.rotulo,
-            tipo: panel.tipo,
-            codigo: panel.codigo
+            tipo_tablero: panel.tipo || '',
+            detalle_tecnico: detail.detalle_tecnico || {},
+            itgs: detail.itgs || [],
+            componentes: detail.componentes || [],
+            condiciones_especiales: detail.condiciones_especiales || {}
           }}
         />
       </ScrollView>

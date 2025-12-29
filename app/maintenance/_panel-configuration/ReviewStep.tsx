@@ -13,7 +13,7 @@ export default function ReviewStep({
 
   // Map values to the structure expected by PanelDetailContent
   const mappedDetail = {
-    rotulo: panel?.rotulo || panel?.name || '',
+    rotulo: values.panelName || panel?.rotulo || panel?.name || '',
     tipo_tablero: values.panelType,
     detalle_tecnico: {
       fases: values.phase,
@@ -30,17 +30,22 @@ export default function ReviewStep({
         fases: itm.phaseITM,
         tipo_cable: itm.cableType || 'no_libre_halogeno',
         diametro_cable: itm.diameter,
-        suministra: itm.supply,
+        suministra: itm.supply || '',
         diferencial: {
           existe: itm.hasID,
-          amperaje: itm.amperajeID,
-          fases: itm.phaseID,
+          amperaje: itm.amperajeID || 0,
+          fases: itm.phaseID || '',
+          tipo_cable: itm.cableTypeID || '',
+          diametro_cable: itm.diameterID || ''
         }
       }))
     })),
     componentes: values.enabledComponents.map(type => ({
       tipo: type,
-      items: values.extraComponents[type] || []
+      items: (values.extraComponents[type] || []).map(item => ({
+        codigo: item.id,
+        suministra: item.description
+      }))
     })),
     condiciones_especiales: values.extraConditions
   };
@@ -51,12 +56,7 @@ export default function ReviewStep({
       <Text style={styles.stepTitleStrong}>Resumen Final</Text>
 
       <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 16 }}>
-        <PanelDetailContent
-          detail={mappedDetail}
-          panelInfo={{
-            codigo: panel?.codigo
-          }}
-        />
+        <PanelDetailContent data={mappedDetail} />
       </ScrollView>
     </View>
   );

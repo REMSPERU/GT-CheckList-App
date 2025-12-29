@@ -3,7 +3,6 @@ import { supabase } from "@/lib/supabase";
 import {
   MaintenanceCreateRequest,
   MaintenanceStatusEnum,
-  RoleEnum,
   User,
 } from "@/types/api";
 
@@ -106,5 +105,80 @@ export const useCreateMaintenance = () => {
       // Invalidate queries if needed, e.g. list of maintenances
       queryClient.invalidateQueries({ queryKey: ["maintenances"] });
     },
+    retry: 0,
+  });
+};
+
+
+// Fetch Scheduled Maintenances
+export const useScheduledMaintenances = () => {
+  return useQuery({
+    queryKey: ["scheduled-maintenances"],
+    queryFn: async () => {
+      // Fetch maintenance with equipment, property, and technician count
+      // Note: We need deep joins: mantenimientos -> equipos -> properties
+      const { data, error } = await supabase
+        .from("mantenimientos")
+        .select(`
+          id,
+          dia_programado,
+          estatus,
+          tipo_mantenimiento,
+          observations,
+          id_equipo,
+          equipos (
+            id,
+            codigo,
+            ubicacion,
+            properties (
+              id,
+              name,
+              address
+            )
+          ),
+          user_maintenace (
+            id_user
+          )
+        `)
+        .order("dia_programado", { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+};
+
+// Fetch Maintenances by Property ID
+export const useMaintenanceByProperty = (propertyId: string) => {
+  return useQuery({
+    queryKey: ["maintenance-by-property", propertyId],
+    queryFn: async () => {
+      if (!propertyId) return [];
+      
+      const { data, error } = await supabase
+        .from("mantenimientos")
+        .select(`
+          id,
+          dia_programado,
+          estatus,
+          tipo_mantenimiento,
+          equipos!inner (
+            id,
+            codigo,
+            ubicacion,
+            ubicacion,
+            id_property,
+            equipamentos (
+              nombre
+            )
+          )
+        `)
+        .eq("equipos.id_property", propertyId)
+        .order("dia_programado", { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!propertyId,
   });
 };
