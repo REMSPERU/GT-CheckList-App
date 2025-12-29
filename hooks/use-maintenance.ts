@@ -3,7 +3,6 @@ import { supabase } from "@/lib/supabase";
 import {
   MaintenanceCreateRequest,
   MaintenanceStatusEnum,
-  RoleEnum,
   User,
 } from "@/types/api";
 
@@ -167,7 +166,7 @@ export const useMaintenanceByProperty = (propertyId: string) => {
             id,
             codigo,
             ubicacion,
-            equipment_detail,
+            ubicacion,
             id_property,
             equipamentos (
               nombre

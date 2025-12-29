@@ -56,21 +56,11 @@ export default function EquipmentMaintenanceListScreen() {
       // Database stores 'Preventivo' or 'Correctivo' (case sensitive usually)
       if (item.tipo_mantenimiento !== activeTab) return false;
 
-      // 2. Search Filter (Rotulo / Codigo)
-      // "Rotulo" might be in equipment_detail or just use Code as proxy
+      // 2. Search Filter (Only Code)
       const searchLower = searchQuery.toLowerCase();
       const code = item.equipos?.codigo?.toLowerCase() || '';
-      
-      // Check equipment_detail for "rotulo" or "label" if exists
-      let label = '';
-      if (item.equipos?.equipment_detail) {
-         // Try to find a label field safely
-         const detail = item.equipos.equipment_detail;
-         label = (detail.rotulo || detail.label || '').toLowerCase();
-      }
 
-      const matchesSearch = code.includes(searchLower) || label.includes(searchLower);
-      if (!matchesSearch) return false;
+      if (!code.includes(searchLower)) return false;
 
       // 3. Dynamic Filters
       if (selectedLocation && item.equipos?.ubicacion !== selectedLocation) return false;
@@ -100,6 +90,25 @@ export default function EquipmentMaintenanceListScreen() {
           iconName="home-repair-service"
         />
 
+        {/* Search & Filter Bar */}
+        <View style={styles.searchBarContainer}>
+           <View style={styles.searchContainer}>
+            <Feather name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+            <TextInput
+                style={styles.searchInput}
+                placeholder="Buscar por código"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+            />
+           </View>
+           <TouchableOpacity 
+             style={[styles.filterButton, (selectedLocation || selectedType) && styles.filterButtonActive]}
+             onPress={() => setShowFilters(true)}
+           >
+              <Feather name="filter" size={20} color={selectedLocation || selectedType ? "#fff" : "#4B5563"} />
+           </TouchableOpacity>
+        </View>
+
         {/* Tabs */}
         <View style={styles.tabsContainer}>
           <TouchableOpacity
@@ -114,25 +123,6 @@ export default function EquipmentMaintenanceListScreen() {
           >
             <Text style={[styles.tabText, activeTab === 'Correctivo' && styles.activeTabTextDark]}>Correctivo</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Search & Filter Bar */}
-        <View style={styles.searchBarContainer}>
-           <View style={styles.searchContainer}>
-            <Feather name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
-            <TextInput
-                style={styles.searchInput}
-                placeholder="Buscar por código o rótulo"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-            />
-           </View>
-           <TouchableOpacity 
-             style={[styles.filterButton, (selectedLocation || selectedType) && styles.filterButtonActive]}
-             onPress={() => setShowFilters(true)}
-           >
-              <Feather name="filter" size={20} color={selectedLocation || selectedType ? "#fff" : "#4B5563"} />
-           </TouchableOpacity>
         </View>
 
         {/* Active Filters Display */}
@@ -166,7 +156,7 @@ export default function EquipmentMaintenanceListScreen() {
                 </View>
             ) : filteredData.map((item: any, index: number) => {
                 const equipment = item.equipos || {};
-                const rotulo = equipment.equipment_detail?.rotulo || equipment.equipment_detail?.label || 'Sin rótulo';
+
                 
                 return (
                     <TouchableOpacity
@@ -207,7 +197,6 @@ export default function EquipmentMaintenanceListScreen() {
                         <Text style={styles.infoValue}>{new Date(item.dia_programado).toLocaleDateString()}</Text>
                     </View>
 
-                    <Text style={styles.labelField}>Rótulo: {rotulo}</Text>
                     </TouchableOpacity>
                 )
             })}
