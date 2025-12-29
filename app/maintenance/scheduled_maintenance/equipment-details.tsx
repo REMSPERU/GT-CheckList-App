@@ -10,30 +10,85 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { styles } from '../_panel-configuration/_styles';
+import { PanelDetailContent } from '@/components/maintenance/PanelDetailContent';
 
-// Mock data for the equipment details (reusing the shape expected by ReviewStep logic)
-const MOCK_EQUIPMENT_DETAILS = {
-  codigo: 'LEU-TBELEC-001',
-  name: 'Tablero Eléctrico Principal',
-  values: {
-    panelType: 'Distribución',
-    voltage: '220',
-    phase: 'Trifásico',
-    itgDescriptions: ['Interruptor General 1', 'Interruptor General 2'],
-    itgCircuits: [
-      { cnPrefix: 'C', circuitsCount: 12 },
-      { cnPrefix: 'L', circuitsCount: 8 }
-    ],
-    enabledComponents: ['Diferenciales', 'Supresores'],
-    extraComponents: {
-      Diferenciales: [1, 2, 3],
-      Supresores: [1]
+// Mock data structured to match PanelDetailContent props
+const MOCK_PANEL_DATA = {
+  rotulo: 'Tablero Eléctrico Principal',
+  tipo_tablero: 'Distribución',
+  detalle_tecnico: {
+    fases: 'Trifásico',
+    voltaje: '220',
+    tipo_tablero: 'Distribución'
+  },
+  itgs: [
+    {
+      id: 'IT-G1',
+      suministra: 'Interruptor General 1',
+      prefijo: 'C',
+      itms: [
+        {
+          id: 'C1',
+          amperaje: 20,
+          fases: 'R-S',
+          tipo_cable: 'libre_halogeno',
+          diametro_cable: '4',
+          suministra: 'Iluminación Hall',
+          diferencial: {
+            existe: true,
+            amperaje: 25,
+            fases: 'mono_2w',
+            tipo_cable: 'libre_halogeno',
+            diametro_cable: '4'
+          }
+        },
+        {
+          id: 'C2',
+          amperaje: 16,
+          fases: 'R-T',
+          tipo_cable: 'libre_halogeno',
+          diametro_cable: '2.5',
+          suministra: 'Tomacorrientes Sala',
+        }
+      ]
     },
-    extraConditions: {
-      'Puesta a tierra verificada': true,
-      'Señalización presente': true,
-      'Libre de obstáculos': false
+    {
+      id: 'IT-G2',
+      suministra: 'Interruptor General 2',
+      prefijo: 'L',
+      itms: [
+        {
+          id: 'L1',
+          amperaje: 32,
+          fases: 'R-S-T',
+          tipo_cable: 'no_libre_halogeno',
+          diametro_cable: '6',
+          suministra: 'Aire Acondicionado',
+        }
+      ]
     }
+  ],
+  componentes: [
+    {
+      tipo: 'contactores',
+      items: [
+        { codigo: 'K1', suministra: 'Bomba de Agua 1' },
+      ]
+    },
+    {
+      tipo: 'timers',
+      items: [
+        { codigo: 'T1', suministra: 'Control Luces Externas' }
+      ]
+    }
+  ],
+  condiciones_especiales: {
+    mandil_proteccion: true,
+    puerta_mandil_aterrados: true,
+    barra_tierra: true,
+    terminales_electricos: false,
+    mangas_termo_contraibles: false,
+    diagrama_unifilar_directorio: true
   }
 };
 
@@ -42,16 +97,7 @@ export default function EquipmentDetailsScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   // TODO: Use endpoint to fetch specific equipment details
-  // const { panelId } = useLocalSearchParams();
-  // useEffect(() => {
-  //   const fetchDetails = async () => {
-  //     const data = await supabaseService.getPanelDetails(panelId);
-  //     setEquipment(data);
-  //   };
-  //   fetchDetails();
-  // }, [panelId]);
-
-  const { codigo, name, values } = MOCK_EQUIPMENT_DETAILS;
+  // For now using the mock data above
 
   const handleStartMaintenance = () => {
     setIsLoading(true);
@@ -93,75 +139,11 @@ export default function EquipmentDetailsScreen() {
       </View>
 
       <ScrollView style={styles.contentWrapper} showsVerticalScrollIndicator={false}>
-        <Text style={styles.equipmentLabel}>Equipo {name || codigo}</Text>
+        <Text style={styles.equipmentLabel}>Equipo: {MOCK_PANEL_DATA.rotulo}</Text>
         <Text style={styles.stepTitleStrong}>Resumen del Estado Actual</Text>
 
-        {/* Basic Info */}
-        <View style={styles.componentSection}>
-          <Text style={styles.componentSectionTitle}>Información Básica</Text>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Tipo:</Text>
-            <Text style={styles.summaryValue}>{values.panelType}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Voltaje:</Text>
-            <Text style={styles.summaryValue}>{values.voltage} V</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Fases:</Text>
-            <Text style={styles.summaryValue}>{values.phase}</Text>
-          </View>
-        </View>
-
-        {/* ITG Info */}
-        <View style={styles.componentSection}>
-          <Text style={styles.componentSectionTitle}>Interruptores Generales</Text>
-          {values.itgDescriptions.map((desc, idx) => (
-            <View key={idx} style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>IT-G{idx + 1}:</Text>
-              <Text style={styles.summaryValue}>{desc || 'Sin descripción'}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Circuits Info */}
-        <View style={styles.componentSection}>
-          <Text style={styles.componentSectionTitle}>Circuitos</Text>
-          {values.itgCircuits.map((itg, idx) => (
-            <View key={idx} style={{ marginBottom: 8 }}>
-              <Text style={[styles.cnLabel, { fontWeight: '600', color: Colors.light.text, fontSize: 14 }]}>
-                IT-G{idx + 1} ({itg.cnPrefix} - {itg.circuitsCount} circuitos)
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Extra Components */}
-        <View style={styles.componentSection}>
-          <Text style={styles.componentSectionTitle}>Componentes Adicionales</Text>
-          {values.enabledComponents.length === 0 ? (
-            <Text style={styles.emptyStateText}>Ninguno seleccionado</Text>
-          ) : (
-            values.enabledComponents.map((comp) => (
-              <View key={comp} style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>{comp}:</Text>
-                <Text style={styles.summaryValue}>{values.extraComponents[comp as keyof typeof values.extraComponents]?.length || 0}</Text>
-              </View>
-            ))
-          )}
-        </View>
-
-        {/* Extra Conditions */}
-        <View style={styles.componentSection}>
-          <Text style={styles.componentSectionTitle}>Condiciones Adicionales</Text>
-          {Object.entries(values.extraConditions).map(([key, value]) => (
-            value && (
-              <View key={key} style={styles.summaryRow}>
-                <Text style={styles.summaryValue}>{key}</Text>
-                <Text style={styles.summaryValue}>Sí</Text>
-              </View>
-            )
-          ))}
+        <View style={{ marginTop: 16 }}>
+          <PanelDetailContent data={MOCK_PANEL_DATA} />
         </View>
 
         {/* Action Button */}
