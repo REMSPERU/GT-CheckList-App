@@ -106,5 +106,6 @@ export const useCreateMaintenance = () => {
       // Invalidate queries if needed, e.g. list of maintenances
       queryClient.invalidateQueries({ queryKey: ["maintenances"] });
     },
+    retry: 0,
   });
 };

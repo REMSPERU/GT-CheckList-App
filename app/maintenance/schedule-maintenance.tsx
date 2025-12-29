@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useTechnicians, useCreateMaintenance } from "@/hooks/use-maintenance";
 import { MaintenanceTypeEnum } from "@/types/api";
 
@@ -35,7 +35,11 @@ export default function ScheduleMaintenanceScreen() {
   const [selectedTechnicians, setSelectedTechnicians] = useState<string[]>([]);
   const [observations, setObservations] = useState("");
   const [isTechniciansExpanded, setIsTechniciansExpanded] = useState(true);
+
   const [showTechModal, setShowTechModal] = useState(false);
+
+  // Prevent double submission
+  const isSubmitting = useRef(false);
 
   // Queries & Mutations
   const { data: technicians = [], isLoading: loadingTechs } = useTechnicians();
@@ -59,16 +63,28 @@ export default function ScheduleMaintenanceScreen() {
   });
 
   const handleCreate = async () => {
-    if (createMaintenanceMutation.isPending) return;
+    if (createMaintenanceMutation.isPending || isSubmitting.current) {
+        console.log("🚫 Intento de doble envío bloqueado");
+        return;
+    }
 
     try {
-      await createMaintenanceMutation.mutateAsync({
-        // Parse panel IDs from params
-        panel_ids: params.ids
+      isSubmitting.current = true;
+      console.log("🚀 Iniciando creación de mantenimiento...");
+
+      // Parse panel IDs from params
+      const rawIds = params.ids
           ? typeof params.ids === "string"
             ? params.ids.split(",")
             : (params.ids as string[])
-          : [],
+          : [];
+      
+      // Deduplicate IDs just in case
+      const uniquePanelIds = [...new Set(rawIds)];
+      console.log("📋 Paneles a programar:", uniquePanelIds);
+
+      await createMaintenanceMutation.mutateAsync({
+        panel_ids: uniquePanelIds,
         dia_programado: date.toISOString(),
         hora_programada: time,
         tipo_mantenimiento: maintenanceType,
@@ -79,8 +95,13 @@ export default function ScheduleMaintenanceScreen() {
         { text: "OK", onPress: () => router.back() },
       ]);
     } catch (error) {
+      console.error("❌ Error creando mantenimiento:", error);
       Alert.alert("Error", "No se pudo programar el mantenimiento");
-      console.error(error);
+    } finally {
+        // Add a small delay before unlocking to ensure navigation happens or UI updates
+        setTimeout(() => {
+            isSubmitting.current = false;
+        }, 500);
     }
   };
 
