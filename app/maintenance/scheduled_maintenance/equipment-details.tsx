@@ -7,95 +7,31 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { styles } from '../_panel-configuration/_styles';
 import { PanelDetailContent } from '@/components/maintenance/PanelDetailContent';
+import { TableroElectricoResponse } from '@/types/api';
 
-// Mock data structured to match PanelDetailContent props
-const MOCK_PANEL_DATA = {
-  rotulo: 'Tablero Eléctrico Principal',
-  tipo_tablero: 'Distribución',
-  detalle_tecnico: {
-    fases: 'Trifásico',
-    voltaje: '220',
-    tipo_tablero: 'Distribución'
-  },
-  itgs: [
-    {
-      id: 'IT-G1',
-      suministra: 'Interruptor General 1',
-      prefijo: 'C',
-      itms: [
-        {
-          id: 'C1',
-          amperaje: 20,
-          fases: 'R-S',
-          tipo_cable: 'libre_halogeno',
-          diametro_cable: '4',
-          suministra: 'Iluminación Hall',
-          diferencial: {
-            existe: true,
-            amperaje: 25,
-            fases: 'mono_2w',
-            tipo_cable: 'libre_halogeno',
-            diametro_cable: '4'
-          }
-        },
-        {
-          id: 'C2',
-          amperaje: 16,
-          fases: 'R-T',
-          tipo_cable: 'libre_halogeno',
-          diametro_cable: '2.5',
-          suministra: 'Tomacorrientes Sala',
-        }
-      ]
-    },
-    {
-      id: 'IT-G2',
-      suministra: 'Interruptor General 2',
-      prefijo: 'L',
-      itms: [
-        {
-          id: 'L1',
-          amperaje: 32,
-          fases: 'R-S-T',
-          tipo_cable: 'no_libre_halogeno',
-          diametro_cable: '6',
-          suministra: 'Aire Acondicionado',
-        }
-      ]
-    }
-  ],
-  componentes: [
-    {
-      tipo: 'contactores',
-      items: [
-        { codigo: 'K1', suministra: 'Bomba de Agua 1' },
-      ]
-    },
-    {
-      tipo: 'timers',
-      items: [
-        { codigo: 'T1', suministra: 'Control Luces Externas' }
-      ]
-    }
-  ],
-  condiciones_especiales: {
-    mandil_proteccion: true,
-    puerta_mandil_aterrados: true,
-    barra_tierra: true,
-    terminales_electricos: false,
-    mangas_termo_contraibles: false,
-    diagrama_unifilar_directorio: true
-  }
-};
+
 
 export default function EquipmentDetailsScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  // Retrieve panel data from navigation params inside component
+  const params = useLocalSearchParams();
+  
+  let panel: TableroElectricoResponse | null = null;
+  let detail: any = null;
 
+  try {
+    if (params.panel) {
+      panel = JSON.parse(params.panel as string);
+      detail = panel?.equipment_detail || {};
+    }
+  } catch (e) {
+    console.error('Error parsing panel data', e);
+  }
   // TODO: Use endpoint to fetch specific equipment details
   // For now using the mock data above
 
@@ -139,11 +75,24 @@ export default function EquipmentDetailsScreen() {
       </View>
 
       <ScrollView style={styles.contentWrapper} showsVerticalScrollIndicator={false}>
-        <Text style={styles.equipmentLabel}>Equipo: {MOCK_PANEL_DATA.rotulo}</Text>
+          <Text style={styles.equipmentLabel}>Equipo: {panel?.rotulo ?? ''}</Text>
         <Text style={styles.stepTitleStrong}>Resumen del Estado Actual</Text>
 
         <View style={{ marginTop: 16 }}>
-          <PanelDetailContent data={MOCK_PANEL_DATA} />
+          {panel && detail ? (
+            <PanelDetailContent 
+              data={{
+                rotulo: panel.rotulo,
+                tipo_tablero: panel.tipo || '',
+                detalle_tecnico: detail.detalle_tecnico || {},
+                itgs: detail.itgs || [],
+                componentes: detail.componentes || [],
+                condiciones_especiales: detail.condiciones_especiales || {}
+              }} 
+            />
+          ) : (
+            <Text>No se encontró información del detalle.</Text>
+          )}
         </View>
 
         {/* Action Button */}
