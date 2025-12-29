@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
-import { styles } from './_panel-configuration/_styles';
+import { styles } from '../_panel-configuration/_styles';
 
 // Mock data for the equipment details (reusing the shape expected by ReviewStep logic)
 const MOCK_EQUIPMENT_DETAILS = {
@@ -58,7 +58,7 @@ export default function EquipmentDetailsScreen() {
     // Simulate loading for 1s then navigate
     setTimeout(() => {
       setIsLoading(false);
-      router.push("/maintenance/pre-maintenance-photos");
+      router.push("/maintenance/scheduled_maintenance/pre-maintenance-photos");
     }, 1000);
   };
 

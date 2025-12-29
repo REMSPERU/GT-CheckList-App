@@ -68,7 +68,7 @@ function HomeScreen() {
         </View>
         <TouchableOpacity
           style={styles.optionCardContainer}
-          onPress={() => router.push("/maintenance/scheduled-maintenance")}
+          onPress={() => router.push("/maintenance/scheduled_maintenance/scheduled-maintenance")}
         >
           <MaterialIcons name="home-repair-service" size={32} color="#06B6D4" style={{ marginRight: 16 }} />
           <View style={{ flex: 1 }}>

@@ -109,3 +109,42 @@ export const useCreateMaintenance = () => {
     retry: 0,
   });
 };
+
+
+// Fetch Scheduled Maintenances
+export const useScheduledMaintenances = () => {
+  return useQuery({
+    queryKey: ["scheduled-maintenances"],
+    queryFn: async () => {
+      // Fetch maintenance with equipment, property, and technician count
+      // Note: We need deep joins: mantenimientos -> equipos -> properties
+      const { data, error } = await supabase
+        .from("mantenimientos")
+        .select(`
+          id,
+          dia_programado,
+          estatus,
+          tipo_mantenimiento,
+          observations,
+          id_equipo,
+          equipos (
+            id,
+            codigo,
+            ubicacion,
+            properties (
+              id,
+              name,
+              address
+            )
+          ),
+          user_maintenace (
+            id_user
+          )
+        `)
+        .order("dia_programado", { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+};
