@@ -16,7 +16,10 @@ export const propertyApi = {
    */
   create: async (data: PropertyCreateRequest): Promise<PropertyResponse> => {
     try {
-      return await httpClient.post<PropertyResponse>(API_CONFIG.ENDPOINTS.PROPERTY.CREATE, data);
+      return await httpClient.post<PropertyResponse>(
+        API_CONFIG.ENDPOINTS.PROPERTY.CREATE,
+        data,
+      );
     } catch (error) {
       throw httpClient.handleError(error);
     }
@@ -27,7 +30,9 @@ export const propertyApi = {
    */
   getById: async (propertyId: string): Promise<PropertyResponse> => {
     try {
-      return await httpClient.get<PropertyResponse>(`${API_CONFIG.ENDPOINTS.PROPERTY.BY_ID}/${propertyId}`);
+      return await httpClient.get<PropertyResponse>(
+        `${API_CONFIG.ENDPOINTS.PROPERTY.BY_ID}/${propertyId}`,
+      );
     } catch (error) {
       throw httpClient.handleError(error);
     }
@@ -47,17 +52,24 @@ export const propertyApi = {
   }): Promise<PropertyListResponse> => {
     try {
       const queryParams = new URLSearchParams();
-      
+
       if (params?.search) queryParams.append('search', params.search);
       if (params?.city) queryParams.append('city', params.city);
-      if (params?.property_type) queryParams.append('property_type', params.property_type);
-      if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
-      if (params?.maintenance_priority) queryParams.append('maintenance_priority', params.maintenance_priority);
-      if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString());
-      if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
+      if (params?.property_type)
+        queryParams.append('property_type', params.property_type);
+      if (params?.is_active !== undefined)
+        queryParams.append('is_active', params.is_active.toString());
+      if (params?.maintenance_priority)
+        queryParams.append('maintenance_priority', params.maintenance_priority);
+      if (params?.skip !== undefined)
+        queryParams.append('skip', params.skip.toString());
+      if (params?.limit !== undefined)
+        queryParams.append('limit', params.limit.toString());
 
       const queryString = queryParams.toString();
-      const url = queryString ? `${API_CONFIG.ENDPOINTS.PROPERTY.ALL}?${queryString}` : API_CONFIG.ENDPOINTS.PROPERTY.ALL;
+      const url = queryString
+        ? `${API_CONFIG.ENDPOINTS.PROPERTY.ALL}?${queryString}`
+        : API_CONFIG.ENDPOINTS.PROPERTY.ALL;
 
       return await httpClient.get<PropertyListResponse>(url);
     } catch (error) {
@@ -70,7 +82,9 @@ export const propertyApi = {
    */
   delete: async (propertyId: string): Promise<PropertyResponse> => {
     try {
-      return await httpClient.delete<PropertyResponse>(`${API_CONFIG.ENDPOINTS.PROPERTY.BY_ID}/${propertyId}`);
+      return await httpClient.delete<PropertyResponse>(
+        `${API_CONFIG.ENDPOINTS.PROPERTY.BY_ID}/${propertyId}`,
+      );
     } catch (error) {
       throw httpClient.handleError(error);
     }
@@ -81,7 +95,9 @@ export const propertyApi = {
    */
   deactivate: async (propertyId: string): Promise<PropertyResponse> => {
     try {
-      return await httpClient.put<PropertyResponse>(`${API_CONFIG.ENDPOINTS.PROPERTY.DEACTIVATE}/${propertyId}/deactivate`);
+      return await httpClient.put<PropertyResponse>(
+        `${API_CONFIG.ENDPOINTS.PROPERTY.DEACTIVATE}/${propertyId}/deactivate`,
+      );
     } catch (error) {
       throw httpClient.handleError(error);
     }
@@ -92,7 +108,9 @@ export const propertyApi = {
    */
   activate: async (propertyId: string): Promise<PropertyResponse> => {
     try {
-      return await httpClient.put<PropertyResponse>(`${API_CONFIG.ENDPOINTS.PROPERTY.ACTIVATE}/${propertyId}/activate`);
+      return await httpClient.put<PropertyResponse>(
+        `${API_CONFIG.ENDPOINTS.PROPERTY.ACTIVATE}/${propertyId}/activate`,
+      );
     } catch (error) {
       throw httpClient.handleError(error);
     }
@@ -101,9 +119,15 @@ export const propertyApi = {
   /**
    * Update property by ID
    */
-  update: async (propertyId: string, data: PropertyCreateRequest): Promise<PropertyResponse> => {
+  update: async (
+    propertyId: string,
+    data: PropertyCreateRequest,
+  ): Promise<PropertyResponse> => {
     try {
-      return await httpClient.put<PropertyResponse>(`${API_CONFIG.ENDPOINTS.PROPERTY.UPDATE}/${propertyId}/update`, data);
+      return await httpClient.put<PropertyResponse>(
+        `${API_CONFIG.ENDPOINTS.PROPERTY.UPDATE}/${propertyId}/update`,
+        data,
+      );
     } catch (error) {
       throw httpClient.handleError(error);
     }

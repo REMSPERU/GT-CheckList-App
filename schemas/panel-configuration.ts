@@ -1,21 +1,21 @@
-﻿import { z } from "zod";
+﻿import { z } from 'zod';
 
-export const PanelTypeSchema = z.enum(["adosado", "empotrado"]);
-export const PhaseTypeSchema = z.enum(["mono_2w", "tri_3w", "tri_4w"]);
-export const CableTypeSchema = z.enum(["libre_halogeno", "no_libre_halogeno"]);
+export const PanelTypeSchema = z.enum(['adosado', 'empotrado']);
+export const PhaseTypeSchema = z.enum(['mono_2w', 'tri_3w', 'tri_4w']);
+export const CableTypeSchema = z.enum(['libre_halogeno', 'no_libre_halogeno']);
 export const ExtraComponentTypeSchema = z.enum([
-  "contactores",
-  "relays",
-  "ventiladores",
-  "termostato",
-  "medidores",
-  "timers",
+  'contactores',
+  'relays',
+  'ventiladores',
+  'termostato',
+  'medidores',
+  'timers',
 ]);
 
 export const DefaultCircuitSchema = z.object({
   phaseITM: PhaseTypeSchema,
-  amperajeITM: z.string().min(1, "Campo requerido"),
-  diameter: z.string().min(1, "Campo requerido"),
+  amperajeITM: z.string().min(1, 'Campo requerido'),
+  diameter: z.string().min(1, 'Campo requerido'),
   cableType: CableTypeSchema,
   hasID: z.boolean(),
   phaseID: PhaseTypeSchema.optional(),
@@ -26,10 +26,12 @@ export const DefaultCircuitSchema = z.object({
 });
 
 export const ITGCircuitDataSchema = z.object({
-  cnPrefix: z.string().min(1, "Prefijo requerido"),
-  circuitsCount: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
-    message: "Debe ser mayor a 0",
-  }),
+  cnPrefix: z.string().min(1, 'Prefijo requerido'),
+  circuitsCount: z
+    .string()
+    .refine(val => !isNaN(Number(val)) && Number(val) > 0, {
+      message: 'Debe ser mayor a 0',
+    }),
   circuits: z.array(DefaultCircuitSchema),
 });
 
@@ -42,12 +44,12 @@ export const PanelConfigurationSchema = z.object({
   // Step 1
   panelName: z.string().optional(),
   panelType: PanelTypeSchema,
-  voltage: z.string().min(1, "Voltaje es requerido"),
+  voltage: z.string().min(1, 'Voltaje es requerido'),
   phase: PhaseTypeSchema,
 
   // Step 2
-  itgCount: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
-    message: "Debe haber al menos 1 IT-G",
+  itgCount: z.string().refine(val => !isNaN(Number(val)) && Number(val) > 0, {
+    message: 'Debe haber al menos 1 IT-G',
   }),
   itgDescriptions: z.array(z.string()),
 
@@ -76,4 +78,6 @@ export const PanelConfigurationSchema = z.object({
   }),
 });
 
-export type PanelConfigurationFormValues = z.infer<typeof PanelConfigurationSchema>;
+export type PanelConfigurationFormValues = z.infer<
+  typeof PanelConfigurationSchema
+>;

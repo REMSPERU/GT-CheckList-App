@@ -1,5 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, View, StyleSheet, ActivityIndicator, Text } from 'react-native';
+import {
+  ScrollView,
+  View,
+  StyleSheet,
+  ActivityIndicator,
+  Text,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import DefaultHeader from '@/components/default-header';
@@ -40,13 +46,16 @@ export default function SelectDeviceScreen() {
     console.log('Building:', building);
 
     // Navegar a la pantalla de tableros eléctricos si el equipo es un tablero
-    if (equipamento.abreviatura === 'TE' || equipamento.nombre.toLowerCase().includes('tablero')) {
+    if (
+      equipamento.abreviatura === 'TE' ||
+      equipamento.nombre.toLowerCase().includes('tablero')
+    ) {
       router.push({
         pathname: '/maintenance/electrical-panels',
         params: {
           building: JSON.stringify(building),
-          equipamento: JSON.stringify(equipamento) // Pasar el equipamento seleccionado
-        }
+          equipamento: JSON.stringify(equipamento), // Pasar el equipamento seleccionado
+        },
       });
     }
     // Añadir más lógica de navegación para otros tipos de equipos si es necesario
@@ -55,10 +64,10 @@ export default function SelectDeviceScreen() {
   const getIconForEquipamento = (abreviatura: string) => {
     // Mapear abreviaturas de equipos a iconos
     const iconMap: Record<string, any> = {
-      'TE': 'stats-chart-outline',
-      'PT': 'construct-outline',
-      'LE': 'bulb-outline',
-      'ASC': 'arrow-up-outline',
+      TE: 'stats-chart-outline',
+      PT: 'construct-outline',
+      LE: 'bulb-outline',
+      ASC: 'arrow-up-outline',
     };
     return iconMap[abreviatura] || 'cube-outline';
   };
@@ -68,7 +77,9 @@ export default function SelectDeviceScreen() {
       <ScrollView>
         {/* Header */}
         <DefaultHeader
-          title={building ? `Mantenimiento - ${building.name}` : 'Mantenimiento'}
+          title={
+            building ? `Mantenimiento - ${building.name}` : 'Mantenimiento'
+          }
           searchPlaceholder="Buscar equipos"
         />
 
@@ -81,14 +92,18 @@ export default function SelectDeviceScreen() {
             </View>
           ) : isError ? (
             <View style={styles.centerContainer}>
-              <Text style={styles.errorText}>{error?.message || 'Error al cargar los equipamientos'}</Text>
+              <Text style={styles.errorText}>
+                {error?.message || 'Error al cargar los equipamientos'}
+              </Text>
             </View>
           ) : equipamentos.length === 0 ? (
             <View style={styles.centerContainer}>
-              <Text style={styles.emptyText}>No hay equipamientos disponibles para este inmueble</Text>
+              <Text style={styles.emptyText}>
+                No hay equipamientos disponibles para este inmueble
+              </Text>
             </View>
           ) : (
-            equipamentos.map((equipamento) => (
+            equipamentos.map(equipamento => (
               <MaintenanceCard
                 key={equipamento.id}
                 icon={getIconForEquipamento(equipamento.abreviatura)}

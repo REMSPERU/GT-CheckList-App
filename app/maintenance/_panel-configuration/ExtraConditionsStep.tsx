@@ -1,9 +1,9 @@
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useFormContext, Controller } from "react-hook-form";
+import { useFormContext, Controller } from 'react-hook-form';
 import { ExtraConditionsStepProps } from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 import { styles } from './_styles';
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from '@expo/vector-icons';
 
 // Key must match schema keys in PanelConfigurationSchema / ExtraConditions
 const CONDITIONS: {
@@ -11,13 +11,33 @@ const CONDITIONS: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
 }[] = [
-    { key: 'mandilProteccion', label: 'Mandil de protección', icon: 'shield-outline' },
-    { key: 'puertaMandilAterrados', label: 'Puerta y mandil aterrados', icon: 'log-in-outline' },
-    { key: 'barraTierra', label: 'Barra de tierra', icon: 'git-commit-outline' },
-    { key: 'terminalesElectricos', label: 'Cuenta con todos sus terminales eléctricos', icon: 'flash-outline' },
-    { key: 'mangasTermoContraibles', label: 'Mangas Termo contraíbles', icon: 'color-wand-outline' },
-    { key: 'diagramaUnifilarDirectorio', label: 'Diagrama unifilar y directorio de circuitos', icon: 'document-text-outline' },
-  ];
+  {
+    key: 'mandilProteccion',
+    label: 'Mandil de protección',
+    icon: 'shield-outline',
+  },
+  {
+    key: 'puertaMandilAterrados',
+    label: 'Puerta y mandil aterrados',
+    icon: 'log-in-outline',
+  },
+  { key: 'barraTierra', label: 'Barra de tierra', icon: 'git-commit-outline' },
+  {
+    key: 'terminalesElectricos',
+    label: 'Cuenta con todos sus terminales eléctricos',
+    icon: 'flash-outline',
+  },
+  {
+    key: 'mangasTermoContraibles',
+    label: 'Mangas Termo contraíbles',
+    icon: 'color-wand-outline',
+  },
+  {
+    key: 'diagramaUnifilarDirectorio',
+    label: 'Diagrama unifilar y directorio de circuitos',
+    icon: 'document-text-outline',
+  },
+];
 
 export default function ExtraConditionsStep({
   panel,
@@ -26,11 +46,13 @@ export default function ExtraConditionsStep({
 
   return (
     <View style={styles.contentWrapper}>
-      <Text style={styles.equipmentLabel}>Equipo {panel?.name || panel?.codigo || ''}</Text>
+      <Text style={styles.equipmentLabel}>
+        Equipo {panel?.name || panel?.codigo || ''}
+      </Text>
       <Text style={styles.stepTitleStrong}>Condiciones adicionales</Text>
 
       <View style={styles.componentContainer}>
-        {CONDITIONS.map((item) => (
+        {CONDITIONS.map(item => (
           <Controller
             key={item.key}
             control={control}
@@ -41,20 +63,18 @@ export default function ExtraConditionsStep({
                   styles.componentToggle,
                   value && styles.componentToggleActive,
                 ]}
-                onPress={() => onChange(!value)}
-              >
+                onPress={() => onChange(!value)}>
                 <View style={styles.toggleIconRow}>
                   <Ionicons
                     name={item.icon}
                     size={24}
-                    color={value ? "#0891B2" : "#6B7280"}
+                    color={value ? '#0891B2' : '#6B7280'}
                   />
                   <Text
                     style={[
                       styles.componentToggleText,
                       value && styles.componentToggleTextActive,
-                    ]}
-                  >
+                    ]}>
                     {item.label}
                   </Text>
                 </View>
@@ -62,8 +82,7 @@ export default function ExtraConditionsStep({
                   style={[
                     styles.toggleSwitch,
                     value && styles.toggleSwitchActive,
-                  ]}
-                >
+                  ]}>
                   <View
                     style={[
                       styles.toggleThumb,

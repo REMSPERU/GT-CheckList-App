@@ -4,7 +4,12 @@ import { ScrollView, View, TouchableOpacity, Text } from 'react-native';
 import { useEffect, useState, useRef } from 'react';
 import { FormProvider } from 'react-hook-form';
 import DefaultHeader from '@/components/default-header';
-import { usePanelConfiguration, STEP_IDS, isLastStep, isFirstStep } from '@/hooks/use-electrical-panel-configuration';
+import {
+  usePanelConfiguration,
+  STEP_IDS,
+  isLastStep,
+  isFirstStep,
+} from '@/hooks/use-electrical-panel-configuration';
 import { PanelData } from '@/types/panel-configuration';
 import { styles } from './_panel-configuration/_styles';
 import BasicInfoStep from './_panel-configuration/BasicInfoStep';
@@ -13,7 +18,6 @@ import CircuitsConfigStep from './_panel-configuration/CircuitsConfigStep';
 import ExtraComponentsStep from './_panel-configuration/ExtraComponentsStep';
 import ExtraConditionsStep from './_panel-configuration/ExtraConditionsStep';
 import ReviewStep from './_panel-configuration/ReviewStep';
-
 
 export default function PanelConfigurationScreen() {
   const params = useLocalSearchParams();
@@ -35,12 +39,7 @@ export default function PanelConfigurationScreen() {
     }
   }, [params.panel]);
 
-  const {
-    currentStepId,
-    form,
-    goNext,
-    goBack,
-  } = usePanelConfiguration(panel);
+  const { currentStepId, form, goNext, goBack } = usePanelConfiguration(panel);
 
   // Custom navigation for Circuits step
   const handleGoNext = () => {
@@ -73,17 +72,9 @@ export default function PanelConfigurationScreen() {
   const renderStep = () => {
     switch (currentStepId) {
       case STEP_IDS.BASIC_INFO:
-        return (
-          <BasicInfoStep
-            panel={panel}
-          />
-        );
+        return <BasicInfoStep panel={panel} />;
       case STEP_IDS.ITG_CONFIG:
-        return (
-          <ITGConfigStep
-            panel={panel}
-          />
-        );
+        return <ITGConfigStep panel={panel} />;
       case STEP_IDS.CIRCUITS:
         return (
           <CircuitsConfigStep
@@ -92,23 +83,11 @@ export default function PanelConfigurationScreen() {
           />
         );
       case STEP_IDS.EXTRA_COMPONENTS:
-        return (
-          <ExtraComponentsStep
-            panel={panel}
-          />
-        );
+        return <ExtraComponentsStep panel={panel} />;
       case STEP_IDS.EXTRA_CONDITIONS:
-        return (
-          <ExtraConditionsStep
-            panel={panel}
-          />
-        );
+        return <ExtraConditionsStep panel={panel} />;
       case STEP_IDS.REVIEW:
-        return (
-          <ReviewStep
-            panel={panel}
-          />
-        );
+        return <ReviewStep panel={panel} />;
       default:
         return null;
     }
@@ -118,7 +97,10 @@ export default function PanelConfigurationScreen() {
     <SafeAreaView style={styles.container}>
       <FormProvider {...form}>
         <ScrollView>
-          <DefaultHeader title="Configuración del equipo" searchPlaceholder="" />
+          <DefaultHeader
+            title="Configuración del equipo"
+            searchPlaceholder=""
+          />
 
           {/* Content */}
           {renderStep()}
@@ -126,10 +108,16 @@ export default function PanelConfigurationScreen() {
           {/* Footer Buttons */}
           <View style={styles.footer}>
             <TouchableOpacity style={styles.primaryBtn} onPress={handleGoNext}>
-              <Text style={styles.primaryBtnText}>{isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}</Text>
+              <Text style={styles.primaryBtnText}>
+                {isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={handleGoBack}>
-              <Text style={styles.secondaryBtnText}>{isFirstStep(currentStepId) ? 'Cancel' : 'Atrás'}</Text>
+            <TouchableOpacity
+              style={styles.secondaryBtn}
+              onPress={handleGoBack}>
+              <Text style={styles.secondaryBtnText}>
+                {isFirstStep(currentStepId) ? 'Cancel' : 'Atrás'}
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

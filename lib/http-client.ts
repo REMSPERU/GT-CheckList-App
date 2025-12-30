@@ -2,10 +2,10 @@ import axios, {
   AxiosError,
   AxiosInstance,
   InternalAxiosRequestConfig,
-} from "axios";
-import { API_CONFIG } from "../config/api";
-import { supabaseAuthService } from "../services/supabase-auth.service";
-import type { ErrorResponse } from "../types/api";
+} from 'axios';
+import { API_CONFIG } from '../config/api';
+import { supabaseAuthService } from '../services/supabase-auth.service';
+import type { ErrorResponse } from '../types/api';
 
 /**
  * HTTP Client for making API requests
@@ -21,7 +21,7 @@ class HttpClient {
       baseURL: `${API_CONFIG.BASE_URL}${API_CONFIG.API_PREFIX}`,
       timeout: API_CONFIG.TIMEOUT,
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
     });
 
@@ -41,14 +41,14 @@ class HttpClient {
         }
         return config;
       },
-      (error) => {
+      error => {
         return Promise.reject(error);
       },
     );
 
     // Response interceptor - Supabase handles token refresh automatically
     this.axiosInstance.interceptors.response.use(
-      (response) => response,
+      response => response,
       async (error: AxiosError) => {
         // If we get 401, user needs to re-authenticate
         if (error.response?.status === 401) {
@@ -72,11 +72,11 @@ class HttpClient {
         return axiosError.response.data;
       }
       return {
-        detail: axiosError.message || "An unexpected error occurred",
+        detail: axiosError.message || 'An unexpected error occurred',
       };
     }
     return {
-      detail: "An unexpected error occurred",
+      detail: 'An unexpected error occurred',
     };
   }
 

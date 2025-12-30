@@ -1,5 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TableroElectricoResponse } from '@/types/api';
@@ -18,14 +24,16 @@ export default function PanelDetailModal() {
       detail = panel?.equipment_detail || {};
     }
   } catch (e) {
-    console.error("Error parsing panel data", e);
+    console.error('Error parsing panel data', e);
   }
 
   if (!panel || !detail) {
     return (
       <SafeAreaView style={modalStyles.container}>
         <View style={modalStyles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={modalStyles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={modalStyles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
           </TouchableOpacity>
           <Text style={modalStyles.headerTitle}>Detalle del Tablero</Text>
@@ -40,7 +48,9 @@ export default function PanelDetailModal() {
   return (
     <SafeAreaView style={modalStyles.container}>
       <View style={modalStyles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={modalStyles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={modalStyles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={modalStyles.headerTitle}>Detalle del Tablero</Text>
@@ -49,12 +59,12 @@ export default function PanelDetailModal() {
       <ScrollView contentContainerStyle={modalStyles.content}>
         <PanelDetailContent
           data={{
-            rotulo: panel.rotulo,
-            tipo_tablero: panel.tipo || '',
-            detalle_tecnico: detail.detalle_tecnico || {},
+            rotulo: detail.rotulo || '',
+            tipo_tablero: detail.tipo_tablero || '',
+            detalle_tecnico: detail.detalle_tecnico,
             itgs: detail.itgs || [],
             componentes: detail.componentes || [],
-            condiciones_especiales: detail.condiciones_especiales || {}
+            condiciones_especiales: detail.condiciones_especiales,
           }}
         />
       </ScrollView>

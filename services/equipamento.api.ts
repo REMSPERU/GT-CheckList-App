@@ -9,7 +9,9 @@ export const equipamentoApi = {
   /**
    * Get equipamentos by property ID
    */
-  getByProperty: async (propertyId: string): Promise<EquipamentoListResponse> => {
+  getByProperty: async (
+    propertyId: string,
+  ): Promise<EquipamentoListResponse> => {
     return await supabaseEquipamentoService.getByProperty(propertyId);
   },
 };

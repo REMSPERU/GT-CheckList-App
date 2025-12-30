@@ -30,7 +30,10 @@ export class SupabaseAuthService {
   }
   // Obtener usuario actual
   async getCurrentUser() {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
     if (error) throw error;
     return user;
   }
@@ -40,7 +43,10 @@ export class SupabaseAuthService {
   }
   // Obtener sesión actual
   async getSession() {
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
     if (error) throw error;
     return session;
   }

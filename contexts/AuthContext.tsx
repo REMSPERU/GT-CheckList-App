@@ -1,24 +1,21 @@
-import { useRouter, useSegments } from "expo-router";
+import { useRouter, useSegments } from 'expo-router';
 import React, {
   createContext,
   ReactNode,
   useContext,
   useEffect,
   useState,
-} from "react";
-import { AuthLoadingScreen } from "../components/auth-loading-screen";
+} from 'react';
+import { AuthLoadingScreen } from '../components/auth-loading-screen';
 import {
   useCurrentUser,
   useLogin,
   useLogout,
   useRegister,
-} from "../hooks/use-auth-query";
-import { supabaseAuthService } from "../services/supabase-auth.service";
-import type {
-  LoginRequest,
-  RegisterRequest,
-} from "../types/api";
-import type { User } from "@supabase/supabase-js";
+} from '../hooks/use-auth-query';
+import { supabaseAuthService } from '../services/supabase-auth.service';
+import type { LoginRequest, RegisterRequest } from '../types/api';
+import type { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -71,20 +68,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Listen for Supabase auth state changes
   useEffect(() => {
-    const { data: { subscription } } = supabaseAuthService.onAuthStateChange(
-      async (event, session) => {
-        console.log("Supabase auth event:", event);
+    const {
+      data: { subscription },
+    } = supabaseAuthService.onAuthStateChange(async (event, session) => {
+      console.log('Supabase auth event:', event);
 
-        if (event === "SIGNED_IN" && session) {
-          setHasSession(true);
-          await refetchUser();
-        } else if (event === "SIGNED_OUT") {
-          setHasSession(false);
-        } else if (event === "TOKEN_REFRESHED" && session) {
-          setHasSession(true);
-        }
+      if (event === 'SIGNED_IN' && session) {
+        setHasSession(true);
+        await refetchUser();
+      } else if (event === 'SIGNED_OUT') {
+        setHasSession(false);
+      } else if (event === 'TOKEN_REFRESHED' && session) {
+        setHasSession(true);
       }
-    );
+    });
 
     return () => {
       subscription.unsubscribe();
@@ -96,14 +93,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     if (!isInitialized) return;
 
-    const inAuthGroup = segments[0] === "auth";
+    const inAuthGroup = segments[0] === 'auth';
 
     if (!isAuthenticated && !inAuthGroup) {
       // Redirect to login if not authenticated and trying to access protected routes
-      setTimeout(() => router.replace("/auth/login"), 100);
+      setTimeout(() => router.replace('/auth/login'), 100);
     } else if (isAuthenticated && inAuthGroup) {
       // Redirect to main app if authenticated and on auth pages
-      setTimeout(() => router.replace("/(tabs)"), 100);
+      setTimeout(() => router.replace('/(tabs)'), 100);
     }
   }, [isAuthenticated, segments, isInitialized, router]);
 
@@ -120,7 +117,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         await refetchUser();
       }
     } catch (err) {
-      console.error("Failed to initialize auth:", err);
+      console.error('Failed to initialize auth:', err);
       setHasSession(false);
     } finally {
       setIsInitialized(true);
@@ -143,9 +140,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsInitialized(true);
 
       // Navigate to login
-      router.replace("/auth/login");
+      router.replace('/auth/login');
     } catch (err) {
-      console.error("Error handling auth failure:", err);
+      console.error('Error handling auth failure:', err);
     }
   };
 
@@ -162,7 +159,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // User data is automatically updated by React Query
     } catch (err) {
       const error = err as Error;
-      const errorMessage = error.message || "Error al iniciar sesión. Verifica tus credenciales.";
+      const errorMessage =
+        error.message || 'Error al iniciar sesión. Verifica tus credenciales.';
 
       setError(errorMessage);
       throw err;
@@ -178,7 +176,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await registerMutation.mutateAsync(credentials);
     } catch (err) {
       const error = err as Error;
-      const errorMessage = error.message || "Error al registrar el usuario. Verifica tus datos.";
+      const errorMessage =
+        error.message || 'Error al registrar el usuario. Verifica tus datos.';
       setError(errorMessage);
       throw err;
     }
@@ -194,7 +193,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Navigation will be handled by the useEffect hook
     } catch (err) {
-      console.error("Logout error:", err);
+      console.error('Logout error:', err);
       // Clear session anyway
       setHasSession(false);
       await supabaseAuthService.signOut();
@@ -208,7 +207,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await refetchUser();
     } catch (err) {
-      console.error("Failed to refresh user:", err);
+      console.error('Failed to refresh user:', err);
       // If refresh fails, handle auth failure
       await handleAuthFailure();
     }
@@ -247,7 +246,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }
@@ -259,7 +258,7 @@ export function useAuth(): AuthContextType {
 export function useRequireAuth(): User {
   const { user, isAuthenticated } = useAuth();
   if (!isAuthenticated || !user) {
-    throw new Error("Authentication required");
+    throw new Error('Authentication required');
   }
   return user;
 }

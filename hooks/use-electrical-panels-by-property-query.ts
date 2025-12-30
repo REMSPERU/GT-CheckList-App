@@ -1,18 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
-import { electricalPanelApi } from "../services/electrical_panel.api";
-import type { TableroElectricoResponse } from "../types/api";
+import { useQuery } from '@tanstack/react-query';
+import { electricalPanelApi } from '../services/electrical_panel.api';
+import type { TableroElectricoResponse } from '../types/api';
 
 export const useElectricalPanelsByPropertyQuery = (
   propertyId: string,
   panelType?: string,
   search?: string,
   config?: boolean | null,
-  locations?: string[]
+  locations?: string[],
 ) => {
   return useQuery<TableroElectricoResponse[], Error>({
     queryKey: [
-      "electricalPanels",
-      "byProperty",
+      'electricalPanels',
+      'byProperty',
       propertyId,
       panelType,
       search,
@@ -25,7 +25,7 @@ export const useElectricalPanelsByPropertyQuery = (
         panelType,
         search,
         config,
-        locations
+        locations,
       ),
     enabled: !!propertyId, // Only run the query if propertyId is provided
   });

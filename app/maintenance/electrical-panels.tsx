@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ScrollView,
   View,
@@ -7,20 +7,20 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Modal,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useState, useEffect } from "react";
-import { Ionicons } from "@expo/vector-icons";
-import DefaultHeader from "@/components/default-header";
-import { useElectricalPanelsByPropertyQuery } from "@/hooks/use-electrical-panels-by-property-query";
-import type { TableroElectricoResponse } from "@/types/api";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import DefaultHeader from '@/components/default-header';
+import { useElectricalPanelsByPropertyQuery } from '@/hooks/use-electrical-panels-by-property-query';
+import type { TableroElectricoResponse } from '@/types/api';
 
 export default function ElectricalPanelsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [building, setBuilding] = useState<any>(null);
   const [filterType, setFilterType] = useState<string | undefined>(undefined); // undefined = Todos
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Advanced Filters State
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -29,11 +29,11 @@ export default function ElectricalPanelsScreen() {
 
   // Temp state for modal
   const [tempFilterConfig, setTempFilterConfig] = useState<boolean | null>(
-    null
+    null,
   );
   const [tempFilterLocations, setTempFilterLocations] = useState<string[]>([]);
   const [tempFilterType, setTempFilterType] = useState<string | undefined>(
-    undefined
+    undefined,
   );
 
   const handleOpenFilter = () => {
@@ -57,7 +57,7 @@ export default function ElectricalPanelsScreen() {
   };
 
   const toggleLocation = (loc: string) => {
-    setTempFilterLocations((prev) => {
+    setTempFilterLocations(prev => {
       const newLocs = new Set(prev);
       if (newLocs.has(loc)) {
         newLocs.delete(loc);
@@ -73,14 +73,14 @@ export default function ElectricalPanelsScreen() {
       try {
         setBuilding(JSON.parse(params.building as string));
       } catch (e) {
-        console.error("Error parsing building param:", e);
+        console.error('Error parsing building param:', e);
       }
     }
   }, [params.building, params.equipamento]);
 
   // Si filterType es undefined, enviamos undefined al hook para que la API traiga todo.
   const panelTypeToSend = filterType;
-  console.log("Frontend: Sending panelType to hook:", panelTypeToSend);
+  console.log('Frontend: Sending panelType to hook:', panelTypeToSend);
 
   const {
     data: panelsData,
@@ -92,7 +92,7 @@ export default function ElectricalPanelsScreen() {
     panelTypeToSend, // Pasar el tipo de panel como filtro
     searchTerm, // Pasar el término de búsqueda
     filterConfig,
-    filterLocations
+    filterLocations,
   );
 
   const panels = panelsData || [];
@@ -100,7 +100,7 @@ export default function ElectricalPanelsScreen() {
   // Multi-selection state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedPanelIds, setSelectedPanelIds] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
 
   const toggleSelection = (panelId: string) => {
@@ -118,13 +118,13 @@ export default function ElectricalPanelsScreen() {
   };
 
   const handleSelectAll = () => {
-    if (selectedPanelIds.size === panels.filter((p) => p.config).length) {
+    if (selectedPanelIds.size === panels.filter(p => p.config).length) {
       // Deselect all
       setSelectedPanelIds(new Set());
       setIsSelectionMode(false);
     } else {
       // Select all configured
-      const allConfiguredIds = panels.filter((p) => p.config).map((p) => p.id);
+      const allConfiguredIds = panels.filter(p => p.config).map(p => p.id);
       setSelectedPanelIds(new Set(allConfiguredIds));
       setIsSelectionMode(true);
     }
@@ -134,22 +134,22 @@ export default function ElectricalPanelsScreen() {
     // Check 'config' property from DB instead of 'is_configured'
     if (!panel.config) {
       router.push({
-        pathname: "/maintenance/panel-configuration",
+        pathname: '/maintenance/panel-configuration',
         params: {
           panel: JSON.stringify(panel),
-          building: building ? JSON.stringify(building) : "",
+          building: building ? JSON.stringify(building) : '',
         },
       });
       return;
     }
 
     console.log(
-      "Panel configurado seleccionado:",
-      JSON.stringify(panel, null, 2)
+      'Panel configurado seleccionado:',
+      JSON.stringify(panel, null, 2),
     );
     // Navigate to the detail modal/screen
     router.push({
-      pathname: "/maintenance/panel-detail-modal",
+      pathname: '/maintenance/panel-detail-modal',
       params: {
         panel: JSON.stringify(panel),
       },
@@ -159,10 +159,10 @@ export default function ElectricalPanelsScreen() {
   const handleScheduleMaintenance = () => {
     // Navigate to schedule screen
     router.push({
-      pathname: "/maintenance/schedule-maintenance",
+      pathname: '/maintenance/schedule-maintenance',
       params: {
         count: selectedPanelIds.size,
-        ids: Array.from(selectedPanelIds).join(","),
+        ids: Array.from(selectedPanelIds).join(','),
         buildingName: building?.name,
       },
     });
@@ -218,15 +218,14 @@ export default function ElectricalPanelsScreen() {
           style={styles.panelCard}
           onPress={() => {
             router.push({
-              pathname: "/maintenance/panel-configuration",
+              pathname: '/maintenance/panel-configuration',
               params: {
                 panel: JSON.stringify(panel),
-                building: building ? JSON.stringify(building) : "",
+                building: building ? JSON.stringify(building) : '',
               },
             });
           }}
-          activeOpacity={0.7}
-        >
+          activeOpacity={0.7}>
           <View style={[styles.radioCircle, styles.radioCircleHidden]} />
           <PanelContent />
         </TouchableOpacity>
@@ -236,19 +235,16 @@ export default function ElectricalPanelsScreen() {
     return (
       <View
         key={panel.id}
-        style={[styles.panelCard, isSelected && styles.panelCardSelected]}
-      >
+        style={[styles.panelCard, isSelected && styles.panelCardSelected]}>
         {/* Selection Circle (Left) - Only for configured */}
         <TouchableOpacity
           style={styles.selectionArea}
-          onPress={() => toggleSelection(panel.id)}
-        >
+          onPress={() => toggleSelection(panel.id)}>
           <View
             style={[
               styles.radioCircle,
               isSelected && styles.radioCircleSelected,
-            ]}
-          >
+            ]}>
             {isSelected && <View style={styles.radioInnerCircle} />}
           </View>
         </TouchableOpacity>
@@ -256,8 +252,7 @@ export default function ElectricalPanelsScreen() {
         {/* Content Area (Rest of card) - Navigates to details */}
         <TouchableOpacity
           style={styles.panelContent}
-          onPress={() => handlePanelPress(panel)}
-        >
+          onPress={() => handlePanelPress(panel)}>
           <PanelContent />
         </TouchableOpacity>
       </View>
@@ -279,19 +274,18 @@ export default function ElectricalPanelsScreen() {
         <View style={styles.buildingInfoRow}>
           <View style={styles.buildingInfo}>
             <Text style={styles.buildingName}>
-              {building ? building.name : "Centro Empresarial Leuro"}
+              {building ? building.name : 'Centro Empresarial Leuro'}
             </Text>
           </View>
 
           {isSelectionMode && (
             <TouchableOpacity
               onPress={handleSelectAll}
-              style={styles.selectAllButton}
-            >
+              style={styles.selectAllButton}>
               <Text style={styles.selectAllText}>
-                {selectedPanelIds.size === panels.filter((p) => p.config).length
-                  ? "Deseleccionar todos"
-                  : "Seleccionar todos"}
+                {selectedPanelIds.size === panels.filter(p => p.config).length
+                  ? 'Deseleccionar todos'
+                  : 'Seleccionar todos'}
               </Text>
             </TouchableOpacity>
           )}
@@ -310,7 +304,7 @@ export default function ElectricalPanelsScreen() {
             ) : isError ? (
               <View style={styles.centerContainer}>
                 <Text style={styles.errorText}>
-                  {error?.message || "Error al cargar los tableros eléctricos"}
+                  {error?.message || 'Error al cargar los tableros eléctricos'}
                 </Text>
               </View>
             ) : panels.length === 0 ? (
@@ -331,8 +325,7 @@ export default function ElectricalPanelsScreen() {
         <View style={styles.fabContainer}>
           <TouchableOpacity
             style={styles.fabButton}
-            onPress={handleScheduleMaintenance}
-          >
+            onPress={handleScheduleMaintenance}>
             <Text style={styles.fabText}>
               Programar Mantenimiento ({selectedPanelIds.size})
             </Text>
@@ -350,8 +343,7 @@ export default function ElectricalPanelsScreen() {
         animationType="slide"
         transparent={true}
         visible={showFilterModal}
-        onRequestClose={() => setShowFilterModal(false)}
-      >
+        onRequestClose={() => setShowFilterModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -365,9 +357,9 @@ export default function ElectricalPanelsScreen() {
               {/* Panel Type Filter */}
               <Text style={styles.filterLabel}>Tipo de Tablero</Text>
               <View style={styles.filterOptions}>
-                {["Todos", "Autosoportado", "Distribucion"].map((label) => {
+                {['Todos', 'Autosoportado', 'Distribucion'].map(label => {
                   const typeValue =
-                    label === "Todos" ? undefined : label.toUpperCase();
+                    label === 'Todos' ? undefined : label.toUpperCase();
                   const isActive = tempFilterType === typeValue;
 
                   return (
@@ -377,14 +369,12 @@ export default function ElectricalPanelsScreen() {
                         styles.filterOptionChip,
                         isActive && styles.activeFilterOptionChip,
                       ]}
-                      onPress={() => setTempFilterType(typeValue)}
-                    >
+                      onPress={() => setTempFilterType(typeValue)}>
                       <Text
                         style={[
                           styles.filterOptionText,
                           isActive && styles.activeFilterOptionText,
-                        ]}
-                      >
+                        ]}>
                         {label}
                       </Text>
                     </TouchableOpacity>
@@ -396,10 +386,10 @@ export default function ElectricalPanelsScreen() {
               <Text style={styles.filterLabel}>Estado de Configuración</Text>
               <View style={styles.filterOptions}>
                 {[
-                  { label: "Todos", value: null },
-                  { label: "Configurados", value: true },
-                  { label: "No Configurados", value: false },
-                ].map((option) => (
+                  { label: 'Todos', value: null },
+                  { label: 'Configurados', value: true },
+                  { label: 'No Configurados', value: false },
+                ].map(option => (
                   <TouchableOpacity
                     key={option.label}
                     style={[
@@ -407,15 +397,13 @@ export default function ElectricalPanelsScreen() {
                       tempFilterConfig === option.value &&
                         styles.activeFilterOptionChip,
                     ]}
-                    onPress={() => setTempFilterConfig(option.value)}
-                  >
+                    onPress={() => setTempFilterConfig(option.value)}>
                     <Text
                       style={[
                         styles.filterOptionText,
                         tempFilterConfig === option.value &&
                           styles.activeFilterOptionText,
-                      ]}
-                    >
+                      ]}>
                       {option.label}
                     </Text>
                   </TouchableOpacity>
@@ -433,17 +421,16 @@ export default function ElectricalPanelsScreen() {
                     tempFilterLocations.length === 0 &&
                       styles.locationCheckboxSelected,
                   ]}
-                  onPress={() => setTempFilterLocations([])}
-                >
+                  onPress={() => setTempFilterLocations([])}>
                   <Ionicons
                     name={
                       tempFilterLocations.length === 0
-                        ? "checkbox"
-                        : "square-outline"
+                        ? 'checkbox'
+                        : 'square-outline'
                     }
                     size={20}
                     color={
-                      tempFilterLocations.length === 0 ? "#0891B2" : "#9CA3AF"
+                      tempFilterLocations.length === 0 ? '#0891B2' : '#9CA3AF'
                     }
                   />
                   <Text
@@ -451,8 +438,7 @@ export default function ElectricalPanelsScreen() {
                       styles.locationCheckboxText,
                       tempFilterLocations.length === 0 &&
                         styles.activeLocationCheckboxText,
-                    ]}
-                  >
+                    ]}>
                     Todos
                   </Text>
                 </TouchableOpacity>
@@ -466,8 +452,8 @@ export default function ElectricalPanelsScreen() {
                   <View style={styles.locationGrid}>
                     {Array.from(
                       { length: building.basement },
-                      (_, i) => `Sótano ${i + 1}`
-                    ).map((loc) => {
+                      (_, i) => `Sótano ${i + 1}`,
+                    ).map(loc => {
                       const isSelected = tempFilterLocations.includes(loc);
                       return (
                         <TouchableOpacity
@@ -476,19 +462,17 @@ export default function ElectricalPanelsScreen() {
                             styles.locationCheckboxItem,
                             isSelected && styles.locationCheckboxSelected,
                           ]}
-                          onPress={() => toggleLocation(loc)}
-                        >
+                          onPress={() => toggleLocation(loc)}>
                           <Ionicons
-                            name={isSelected ? "checkbox" : "square-outline"}
+                            name={isSelected ? 'checkbox' : 'square-outline'}
                             size={20}
-                            color={isSelected ? "#0891B2" : "#9CA3AF"}
+                            color={isSelected ? '#0891B2' : '#9CA3AF'}
                           />
                           <Text
                             style={[
                               styles.locationCheckboxText,
                               isSelected && styles.activeLocationCheckboxText,
-                            ]}
-                          >
+                            ]}>
                             {loc}
                           </Text>
                         </TouchableOpacity>
@@ -506,8 +490,8 @@ export default function ElectricalPanelsScreen() {
                   <View style={styles.locationGrid}>
                     {Array.from(
                       { length: building.floor },
-                      (_, i) => `Piso ${i + 1}`
-                    ).map((loc) => {
+                      (_, i) => `Piso ${i + 1}`,
+                    ).map(loc => {
                       const isSelected = tempFilterLocations.includes(loc);
                       return (
                         <TouchableOpacity
@@ -516,19 +500,17 @@ export default function ElectricalPanelsScreen() {
                             styles.locationCheckboxItem,
                             isSelected && styles.locationCheckboxSelected,
                           ]}
-                          onPress={() => toggleLocation(loc)}
-                        >
+                          onPress={() => toggleLocation(loc)}>
                           <Ionicons
-                            name={isSelected ? "checkbox" : "square-outline"}
+                            name={isSelected ? 'checkbox' : 'square-outline'}
                             size={20}
-                            color={isSelected ? "#0891B2" : "#9CA3AF"}
+                            color={isSelected ? '#0891B2' : '#9CA3AF'}
                           />
                           <Text
                             style={[
                               styles.locationCheckboxText,
                               isSelected && styles.activeLocationCheckboxText,
-                            ]}
-                          >
+                            ]}>
                             {loc}
                           </Text>
                         </TouchableOpacity>
@@ -546,31 +528,29 @@ export default function ElectricalPanelsScreen() {
                 <TouchableOpacity
                   style={[
                     styles.locationCheckboxItem,
-                    tempFilterLocations.includes("Azotea") &&
+                    tempFilterLocations.includes('Azotea') &&
                       styles.locationCheckboxSelected,
                   ]}
-                  onPress={() => toggleLocation("Azotea")}
-                >
+                  onPress={() => toggleLocation('Azotea')}>
                   <Ionicons
                     name={
-                      tempFilterLocations.includes("Azotea")
-                        ? "checkbox"
-                        : "square-outline"
+                      tempFilterLocations.includes('Azotea')
+                        ? 'checkbox'
+                        : 'square-outline'
                     }
                     size={20}
                     color={
-                      tempFilterLocations.includes("Azotea")
-                        ? "#0891B2"
-                        : "#9CA3AF"
+                      tempFilterLocations.includes('Azotea')
+                        ? '#0891B2'
+                        : '#9CA3AF'
                     }
                   />
                   <Text
                     style={[
                       styles.locationCheckboxText,
-                      tempFilterLocations.includes("Azotea") &&
+                      tempFilterLocations.includes('Azotea') &&
                         styles.activeLocationCheckboxText,
-                    ]}
-                  >
+                    ]}>
                     Azotea
                   </Text>
                 </TouchableOpacity>
@@ -580,14 +560,12 @@ export default function ElectricalPanelsScreen() {
             <View style={styles.modalFooter}>
               <TouchableOpacity
                 style={styles.resetButton}
-                onPress={handleResetFilter}
-              >
+                onPress={handleResetFilter}>
                 <Text style={styles.resetButtonText}>Limpiar</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.applyButton}
-                onPress={handleApplyFilter}
-              >
+                onPress={handleApplyFilter}>
                 <Text style={styles.applyButtonText}>Aplicar Filtros</Text>
               </TouchableOpacity>
             </View>
@@ -601,45 +579,45 @@ export default function ElectricalPanelsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: '#F3F4F6',
   },
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: "white",
+    backgroundColor: 'white',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24,
-    maxHeight: "80%",
+    maxHeight: '80%',
   },
   modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 24,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: "600",
-    color: "#1F2937",
+    fontWeight: '600',
+    color: '#1F2937',
   },
   modalBody: {
     marginBottom: 24,
   },
   filterLabel: {
     fontSize: 16,
-    fontWeight: "500",
-    color: "#374151",
+    fontWeight: '500',
+    color: '#374151',
     marginBottom: 12,
     marginTop: 8,
   },
   filterOptions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 8,
   },
@@ -647,57 +625,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: '#F3F4F6',
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: '#E5E7EB',
   },
   activeFilterOptionChip: {
-    backgroundColor: "#0891B2",
-    borderColor: "#0891B2",
+    backgroundColor: '#0891B2',
+    borderColor: '#0891B2',
   },
   filterOptionText: {
     fontSize: 14,
-    color: "#4B5563",
+    color: '#4B5563',
   },
   activeFilterOptionText: {
-    color: "white",
+    color: 'white',
   },
   input: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: '#E5E7EB',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: "#1F2937",
+    color: '#1F2937',
   },
   modalFooter: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 12,
   },
   resetButton: {
     flex: 1,
     padding: 16,
     borderRadius: 8,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
   },
   resetButtonText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#4B5563",
+    fontWeight: '600',
+    color: '#4B5563',
   },
   applyButton: {
     flex: 1,
     padding: 16,
     borderRadius: 8,
-    backgroundColor: "#0891B2",
-    alignItems: "center",
+    backgroundColor: '#0891B2',
+    alignItems: 'center',
   },
   applyButtonText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "white",
+    fontWeight: '600',
+    color: 'white',
   },
 
   buildingInfo: {
@@ -706,34 +684,34 @@ const styles = StyleSheet.create({
   },
   buildingName: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#1F2937",
+    fontWeight: '600',
+    color: '#1F2937',
   },
   filterContainer: {
     paddingHorizontal: 24,
     marginBottom: 16,
-    flexDirection: "row",
+    flexDirection: 'row',
   },
   filterChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: '#E5E7EB',
   },
   activeFilterChip: {
-    backgroundColor: "#0891B2",
-    borderColor: "#0891B2",
+    backgroundColor: '#0891B2',
+    borderColor: '#0891B2',
   },
   filterText: {
     fontSize: 14,
-    fontWeight: "500",
-    color: "#6B7280",
+    fontWeight: '500',
+    color: '#6B7280',
   },
   activeFilterText: {
-    color: "#FFFFFF",
+    color: '#FFFFFF',
   },
   panelsContainer: {
     paddingHorizontal: 16,
@@ -741,17 +719,17 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   panelsGrid: {
-    flexDirection: "column",
+    flexDirection: 'column',
   },
   panelCard: {
-    width: "100%",
-    backgroundColor: "#FFFFFF",
+    width: '100%',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -760,166 +738,166 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     borderWidth: 1,
-    borderColor: "transparent",
+    borderColor: 'transparent',
   },
   panelCardSelected: {
-    borderColor: "#0891B2",
-    backgroundColor: "#F0FDFA",
+    borderColor: '#0891B2',
+    backgroundColor: '#F0FDFA',
   },
   selectionArea: {
     paddingRight: 12,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   radioCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: "#D1D5DB",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
+    borderColor: '#D1D5DB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
   },
   radioCircleHidden: {
-    borderColor: "transparent",
-    backgroundColor: "transparent",
+    borderColor: 'transparent',
+    backgroundColor: 'transparent',
   },
   radioCircleSelected: {
-    borderColor: "#0891B2",
-    backgroundColor: "#fff",
+    borderColor: '#0891B2',
+    backgroundColor: '#fff',
   },
   radioInnerCircle: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: "#0891B2",
+    backgroundColor: '#0891B2',
   },
   panelContent: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   panelInfoColumn: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: 'center',
   },
   panelName: {
     fontSize: 15,
-    fontWeight: "700",
-    color: "#111827",
+    fontWeight: '700',
+    color: '#111827',
     marginBottom: 4,
   },
   locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   panelFloor: {
     fontSize: 13,
-    color: "#6B7280",
-    fontWeight: "500",
-    textTransform: "uppercase",
+    color: '#6B7280',
+    fontWeight: '500',
+    textTransform: 'uppercase',
   },
   actionIconContainer: {
     paddingLeft: 8,
   },
   statusContainer: {
     paddingLeft: 8,
-    justifyContent: "center",
-    flexDirection: "row",
-    alignItems: "center",
+    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   notConfiguredLabel: {
     fontSize: 12,
-    color: "#D97706",
-    fontWeight: "600",
-    fontStyle: "normal",
+    color: '#D97706',
+    fontWeight: '600',
+    fontStyle: 'normal',
   },
   // Removed explicit button styles
   detailLabel: {
     fontSize: 12,
-    color: "#6B7280",
+    color: '#6B7280',
     marginBottom: 2,
   },
   bottomNav: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
+    borderTopColor: '#E5E7EB',
   },
   navItem: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
   },
   activeNavItem: {
     // Estilo para el item activo
   },
   navText: {
     fontSize: 12,
-    color: "#6B7280",
+    color: '#6B7280',
     marginTop: 4,
   },
   activeNavText: {
-    color: "#0891B2",
+    color: '#0891B2',
   },
   centerContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 24,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: "#6B7280",
+    color: '#6B7280',
   },
   errorText: {
     fontSize: 14,
-    color: "#EF4444",
-    textAlign: "center",
+    color: '#EF4444',
+    textAlign: 'center',
   },
   emptyText: {
     fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
+    color: '#6B7280',
+    textAlign: 'center',
   },
 
   buildingInfoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingRight: 20,
   },
   selectAllButton: {
     padding: 8,
   },
   selectAllText: {
-    color: "#0891B2",
-    fontWeight: "600",
+    color: '#0891B2',
+    fontWeight: '600',
     fontSize: 14,
   },
   fabContainer: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 24,
     left: 20,
     right: 20,
-    alignItems: "center",
+    alignItems: 'center',
   },
   fabButton: {
-    flexDirection: "row",
-    backgroundColor: "#0891B2",
+    flexDirection: 'row',
+    backgroundColor: '#0891B2',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 30,
-    alignItems: "center",
-    shadowColor: "#000",
+    alignItems: 'center',
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -929,38 +907,38 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   fabText: {
-    color: "white",
+    color: 'white',
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   locationGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   locationCheckboxItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: '#F3F4F6',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    minWidth: "45%",
+    borderColor: '#E5E7EB',
+    minWidth: '45%',
     marginBottom: 4,
   },
   locationCheckboxSelected: {
-    backgroundColor: "#F0FDFA",
-    borderColor: "#0891B2",
+    backgroundColor: '#F0FDFA',
+    borderColor: '#0891B2',
   },
   locationCheckboxText: {
     marginLeft: 8,
     fontSize: 14,
-    color: "#4B5563",
-    fontWeight: "500",
+    color: '#4B5563',
+    fontWeight: '500',
   },
   activeLocationCheckboxText: {
-    color: "#0891B2",
+    color: '#0891B2',
   },
 });

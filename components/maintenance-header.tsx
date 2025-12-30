@@ -1,5 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ImageSourcePropType } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ImageSourcePropType,
+} from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
@@ -62,9 +69,7 @@ export default function MaintenanceHeader({
       <View style={[styles.headerIconContainer, { backgroundColor }]}>
         {renderIcon()}
       </View>
-      <Text style={styles.headerTitle}>
-        {title}
-      </Text>
+      <Text style={styles.headerTitle}>{title}</Text>
     </View>
   );
 }

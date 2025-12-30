@@ -15,7 +15,7 @@ export default function QRScannerComponent({
   onCodeScanned,
   codeTypes = ['qr', 'ean13'],
   overlayStyle,
-  showFrame = true
+  showFrame = true,
 }: QRScannerComponentProps) {
   const tintColor = useThemeColor({}, 'tint');
 
@@ -35,17 +35,41 @@ export default function QRScannerComponent({
         }}
         onBarcodeScanned={handleBarcodeScanned}
       />
-      
+
       {showFrame && (
         <View style={[styles.overlay, overlayStyle]}>
           <View style={styles.topOverlay} />
           <View style={styles.middleRow}>
             <View style={styles.sideOverlay} />
             <View style={styles.scanArea}>
-              <View style={[styles.corner, styles.topLeft, { borderColor: tintColor }]} />
-              <View style={[styles.corner, styles.topRight, { borderColor: tintColor }]} />
-              <View style={[styles.corner, styles.bottomLeft, { borderColor: tintColor }]} />
-              <View style={[styles.corner, styles.bottomRight, { borderColor: tintColor }]} />
+              <View
+                style={[
+                  styles.corner,
+                  styles.topLeft,
+                  { borderColor: tintColor },
+                ]}
+              />
+              <View
+                style={[
+                  styles.corner,
+                  styles.topRight,
+                  { borderColor: tintColor },
+                ]}
+              />
+              <View
+                style={[
+                  styles.corner,
+                  styles.bottomLeft,
+                  { borderColor: tintColor },
+                ]}
+              />
+              <View
+                style={[
+                  styles.corner,
+                  styles.bottomRight,
+                  { borderColor: tintColor },
+                ]}
+              />
             </View>
             <View style={styles.sideOverlay} />
           </View>

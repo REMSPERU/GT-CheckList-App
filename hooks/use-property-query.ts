@@ -26,7 +26,10 @@ export const propertyKeys = {
  */
 export function useProperty(
   propertyId: string,
-  options?: Omit<UseQueryOptions<PropertyResponse, Error>, 'queryKey' | 'queryFn'>
+  options?: Omit<
+    UseQueryOptions<PropertyResponse, Error>,
+    'queryKey' | 'queryFn'
+  >,
 ) {
   return useQuery({
     queryKey: propertyKeys.detail(propertyId),
@@ -50,7 +53,10 @@ export function useProperties(
     skip?: number;
     limit?: number;
   },
-  options?: Omit<UseQueryOptions<PropertyListResponse, Error>, 'queryKey' | 'queryFn'>
+  options?: Omit<
+    UseQueryOptions<PropertyListResponse, Error>,
+    'queryKey' | 'queryFn'
+  >,
 ) {
   return useQuery({
     queryKey: propertyKeys.list(filters),
@@ -64,18 +70,21 @@ export function useProperties(
  * Hook para crear una nueva propiedad
  */
 export function useCreateProperty(
-  options?: UseMutationOptions<PropertyResponse, Error, PropertyCreateRequest>
+  options?: UseMutationOptions<PropertyResponse, Error, PropertyCreateRequest>,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: supabasePropertyService.create.bind(supabasePropertyService),
-    onSuccess: (newProperty) => {
+    onSuccess: newProperty => {
       // Invalida todas las listas de propiedades para refetch automático
       queryClient.invalidateQueries({ queryKey: propertyKeys.lists() });
 
       // Guarda la nueva propiedad en el cache
-      queryClient.setQueryData(propertyKeys.detail(newProperty.id), newProperty);
+      queryClient.setQueryData(
+        propertyKeys.detail(newProperty.id),
+        newProperty,
+      );
     },
     ...options,
   });
@@ -85,18 +94,25 @@ export function useCreateProperty(
  * Hook para actualizar una propiedad
  */
 export function useUpdateProperty(
-  options?: UseMutationOptions<PropertyResponse, Error, { id: string; data: PropertyCreateRequest }>
+  options?: UseMutationOptions<
+    PropertyResponse,
+    Error,
+    { id: string; data: PropertyCreateRequest }
+  >,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ id, data }) => supabasePropertyService.update(id, data),
-    onSuccess: (updatedProperty) => {
+    onSuccess: updatedProperty => {
       // Invalida todas las listas de propiedades
       queryClient.invalidateQueries({ queryKey: propertyKeys.lists() });
 
       // Actualiza la propiedad en el cache
-      queryClient.setQueryData(propertyKeys.detail(updatedProperty.id), updatedProperty);
+      queryClient.setQueryData(
+        propertyKeys.detail(updatedProperty.id),
+        updatedProperty,
+      );
     },
     ...options,
   });
@@ -106,18 +122,20 @@ export function useUpdateProperty(
  * Hook para eliminar una propiedad
  */
 export function useDeleteProperty(
-  options?: UseMutationOptions<PropertyResponse, Error, string>
+  options?: UseMutationOptions<PropertyResponse, Error, string>,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: supabasePropertyService.delete.bind(supabasePropertyService),
-    onSuccess: (deletedProperty) => {
+    onSuccess: deletedProperty => {
       // Invalida todas las listas de propiedades
       queryClient.invalidateQueries({ queryKey: propertyKeys.lists() });
 
       // Remueve la propiedad del cache
-      queryClient.removeQueries({ queryKey: propertyKeys.detail(deletedProperty.id) });
+      queryClient.removeQueries({
+        queryKey: propertyKeys.detail(deletedProperty.id),
+      });
     },
     ...options,
   });
@@ -127,18 +145,23 @@ export function useDeleteProperty(
  * Hook para desactivar una propiedad
  */
 export function useDeactivateProperty(
-  options?: UseMutationOptions<PropertyResponse, Error, string>
+  options?: UseMutationOptions<PropertyResponse, Error, string>,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: supabasePropertyService.deactivate.bind(supabasePropertyService),
-    onSuccess: (deactivatedProperty) => {
+    mutationFn: supabasePropertyService.deactivate.bind(
+      supabasePropertyService,
+    ),
+    onSuccess: deactivatedProperty => {
       // Invalida todas las listas de propiedades
       queryClient.invalidateQueries({ queryKey: propertyKeys.lists() });
 
       // Actualiza la propiedad en el cache
-      queryClient.setQueryData(propertyKeys.detail(deactivatedProperty.id), deactivatedProperty);
+      queryClient.setQueryData(
+        propertyKeys.detail(deactivatedProperty.id),
+        deactivatedProperty,
+      );
     },
     ...options,
   });
@@ -148,18 +171,21 @@ export function useDeactivateProperty(
  * Hook para activar una propiedad
  */
 export function useActivateProperty(
-  options?: UseMutationOptions<PropertyResponse, Error, string>
+  options?: UseMutationOptions<PropertyResponse, Error, string>,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: supabasePropertyService.activate.bind(supabasePropertyService),
-    onSuccess: (activatedProperty) => {
+    onSuccess: activatedProperty => {
       // Invalida todas las listas de propiedades
       queryClient.invalidateQueries({ queryKey: propertyKeys.lists() });
 
       // Actualiza la propiedad en el cache
-      queryClient.setQueryData(propertyKeys.detail(activatedProperty.id), activatedProperty);
+      queryClient.setQueryData(
+        propertyKeys.detail(activatedProperty.id),
+        activatedProperty,
+      );
     },
     ...options,
   });

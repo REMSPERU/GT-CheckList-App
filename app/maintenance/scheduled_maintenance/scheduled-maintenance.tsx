@@ -15,10 +15,11 @@ import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useScheduledMaintenances } from '@/hooks/use-maintenance';
 
-
 export default function ScheduledMaintenanceScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'Hoy' | 'Esta Semana' | 'Todos'>('Todos');
+  const [activeTab, setActiveTab] = useState<'Hoy' | 'Esta Semana' | 'Todos'>(
+    'Todos',
+  );
   const [searchQuery, setSearchQuery] = useState('');
 
   const {
@@ -43,7 +44,7 @@ export default function ScheduledMaintenanceScreen() {
       const code = item.equipos?.codigo?.toLowerCase() || '';
       const address = item.equipos?.properties?.address?.toLowerCase() || '';
       const name = item.equipos?.properties?.name?.toLowerCase() || '';
-      
+
       const matchesSearch =
         code.includes(searchLower) ||
         address.includes(searchLower) ||
@@ -65,7 +66,7 @@ export default function ScheduledMaintenanceScreen() {
       if (activeTab === 'Esta Semana') {
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
-         return itemDate >= startOfWeek && itemDate <= endOfWeek;
+        return itemDate >= startOfWeek && itemDate <= endOfWeek;
       }
 
       // "Todos"
@@ -75,15 +76,20 @@ export default function ScheduledMaintenanceScreen() {
 
   // Group filtered data by Property Name (or ID)
   const filteredData = filterData();
-  
+
   const groupedData = React.useMemo(() => {
     const groups: { [key: string]: any } = {};
 
     filteredData.forEach((item: any) => {
       // Use ID if available, otherwise name as fallback key
-      const propertyId = item.equipos?.properties?.id || item.equipos?.properties?.name || 'unknown';
-      const propertyName = item.equipos?.properties?.name || 'Propiedad Desconocida';
-      const propertyAddress = item.equipos?.properties?.address || 'Sin dirección';
+      const propertyId =
+        item.equipos?.properties?.id ||
+        item.equipos?.properties?.name ||
+        'unknown';
+      const propertyName =
+        item.equipos?.properties?.name || 'Propiedad Desconocida';
+      const propertyAddress =
+        item.equipos?.properties?.address || 'Sin dirección';
 
       if (!groups[propertyId]) {
         groups[propertyId] = {
@@ -91,7 +97,7 @@ export default function ScheduledMaintenanceScreen() {
           propertyName,
           propertyAddress,
           items: [],
-          count: 0
+          count: 0,
         };
       }
       groups[propertyId].items.push(item);
@@ -101,14 +107,14 @@ export default function ScheduledMaintenanceScreen() {
     return Object.values(groups);
   }, [filteredData]);
 
-
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}>
             <Ionicons name="chevron-back" size={24} color={Colors.light.text} />
           </TouchableOpacity>
           <View style={styles.headerIconContainer}>
@@ -119,7 +125,12 @@ export default function ScheduledMaintenanceScreen() {
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <Feather name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+          <Feather
+            name="search"
+            size={20}
+            color="#9CA3AF"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Buscar por equipo, propiedad o dirección"
@@ -130,78 +141,99 @@ export default function ScheduledMaintenanceScreen() {
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-        <TouchableOpacity
+          <TouchableOpacity
             style={[styles.tab, activeTab === 'Todos' && styles.activeTab]}
-            onPress={() => setActiveTab('Todos')}
-          >
-            <Text style={[styles.tabText, activeTab === 'Todos' && styles.activeTabText]}>Todos</Text>
+            onPress={() => setActiveTab('Todos')}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'Todos' && styles.activeTabText,
+              ]}>
+              Todos
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'Hoy' && styles.activeTab]}
-            onPress={() => setActiveTab('Hoy')}
-          >
-            <Text style={[styles.tabText, activeTab === 'Hoy' && styles.activeTabText]}>Hoy</Text>
+            onPress={() => setActiveTab('Hoy')}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'Hoy' && styles.activeTabText,
+              ]}>
+              Hoy
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'Esta Semana' && styles.activeTabWhite]}
-            onPress={() => setActiveTab('Esta Semana')}
-          >
-            <Text style={[styles.tabText, activeTab === 'Esta Semana' && styles.activeTabTextDark]}>Esta Semana</Text>
+            style={[
+              styles.tab,
+              activeTab === 'Esta Semana' && styles.activeTabWhite,
+            ]}
+            onPress={() => setActiveTab('Esta Semana')}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'Esta Semana' && styles.activeTabTextDark,
+              ]}>
+              Esta Semana
+            </Text>
           </TouchableOpacity>
         </View>
 
         {isLoading ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <View
+            style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <ActivityIndicator size="large" color="#06B6D4" />
           </View>
         ) : (
-          <ScrollView 
-            style={styles.listContainer} 
+          <ScrollView
+            style={styles.listContainer}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-            }
-          >
+            }>
             {groupedData.length === 0 ? (
-                <View style={{ padding: 20, alignItems: 'center' }}>
-                    <Text style={{ color: '#6B7280' }}>No hay mantenimientos programados para {activeTab === 'Hoy' ? 'hoy' : 'esta semana'}.</Text>
-                </View>
-            ) : groupedData.map((group: any) => (
-              <TouchableOpacity
-                key={group.propertyId}
-                style={styles.card}
-                onPress={() => {
-                   if (group.items.length > 0) {
+              <View style={{ padding: 20, alignItems: 'center' }}>
+                <Text style={{ color: '#6B7280' }}>
+                  No hay mantenimientos programados para{' '}
+                  {activeTab === 'Hoy' ? 'hoy' : 'esta semana'}.
+                </Text>
+              </View>
+            ) : (
+              groupedData.map((group: any) => (
+                <TouchableOpacity
+                  key={group.propertyId}
+                  style={styles.card}
+                  onPress={() => {
+                    if (group.items.length > 0) {
                       // Navigate to equipment list for this property
                       router.push({
-                          pathname: "/maintenance/scheduled_maintenance/equipment-maintenance-list",
-                          params: { propertyId: group.propertyId } 
+                        pathname:
+                          '/maintenance/scheduled_maintenance/equipment-maintenance-list',
+                        params: { propertyId: group.propertyId },
                       });
-                   }
-                }}
-              >
-                <View style={styles.cardIconContainer}>
-                  <MaterialIcons name="business" size={24} color="#06B6D4" />
-                </View>
-                <View style={styles.cardContent}>
-                  <Text style={styles.cardTitle}>
-                    {group.propertyName}
-                  </Text>
-                  <Text style={styles.cardAddress} numberOfLines={2}>
-                    {group.propertyAddress}
-                  </Text>
-                  
-                  {/* List of Equipments - HIDDEN as per request, only count shown above */}
-                  {/* <View style={{ marginTop: 8 }}>...</View> */}
-
-                  <View style={styles.cardFooter}>
-                     {/* Footer content if needed, currently empty/redundant if listing all items above */}
+                    }
+                  }}>
+                  <View style={styles.cardIconContainer}>
+                    <MaterialIcons name="business" size={24} color="#06B6D4" />
                   </View>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-              </TouchableOpacity>
-            ))}
-            <View style={{height: 40}} />
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle}>{group.propertyName}</Text>
+                    <Text style={styles.cardAddress} numberOfLines={2}>
+                      {group.propertyAddress}
+                    </Text>
+
+                    {/* List of Equipments - HIDDEN as per request, only count shown above */}
+                    {/* <View style={{ marginTop: 8 }}>...</View> */}
+
+                    <View style={styles.cardFooter}>
+                      {/* Footer content if needed, currently empty/redundant if listing all items above */}
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+              ))
+            )}
+            <View style={{ height: 40 }} />
           </ScrollView>
         )}
       </View>

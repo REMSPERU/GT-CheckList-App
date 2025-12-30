@@ -1,24 +1,35 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { BarcodeScanningResult, CameraView, useCameraPermissions } from 'expo-camera';
+import {
+  BarcodeScanningResult,
+  CameraView,
+  useCameraPermissions,
+} from 'expo-camera';
 import { useState } from 'react';
-import { Alert, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  Linking,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 export default function QRScannerScreen() {
   const [isActive, setIsActive] = useState(true);
   const [scannedData, setScannedData] = useState<string | null>(null);
-  
+
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
-  
+
   const [permission, requestPermission] = useCameraPermissions();
 
   const handleBarcodeScanned = (result: BarcodeScanningResult) => {
     if (isActive) {
       setIsActive(false);
       setScannedData(result.data || 'Código sin valor');
-      
+
       Alert.alert(
         'Código Escaneado',
         `Tipo: ${result.type}\nValor: ${result.data}`,
@@ -28,16 +39,16 @@ export default function QRScannerScreen() {
             onPress: () => {
               // Aquí puedes implementar la lógica para copiar al portapapeles
               console.log('Copiado:', result.data);
-            }
+            },
           },
           {
             text: 'Escanear otro',
             onPress: () => {
               setScannedData(null);
               setIsActive(true);
-            }
-          }
-        ]
+            },
+          },
+        ],
       );
     }
   };
@@ -50,8 +61,11 @@ export default function QRScannerScreen() {
         'La aplicación necesita acceso a la cámara para escanear códigos QR. Por favor, habilita los permisos en la configuración.',
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Abrir Configuración', onPress: () => Linking.openSettings() }
-        ]
+          {
+            text: 'Abrir Configuración',
+            onPress: () => Linking.openSettings(),
+          },
+        ],
       );
     }
   };
@@ -68,10 +82,9 @@ export default function QRScannerScreen() {
         <Text style={[styles.permissionText, { color: textColor }]}>
           Se requiere permiso de cámara para escanear códigos QR
         </Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.button, { backgroundColor: tintColor }]}
-          onPress={handleRequestPermission}
-        >
+          onPress={handleRequestPermission}>
           <Text style={styles.buttonText}>Otorgar Permiso</Text>
         </TouchableOpacity>
       </View>
@@ -88,17 +101,41 @@ export default function QRScannerScreen() {
         }}
         onBarcodeScanned={handleBarcodeScanned}
       />
-      
+
       {/* Overlay con marco de escaneo */}
       <View style={styles.overlay}>
         <View style={styles.topOverlay} />
         <View style={styles.middleRow}>
           <View style={styles.sideOverlay} />
           <View style={styles.scanArea}>
-            <View style={[styles.corner, styles.topLeft, { borderColor: tintColor }]} />
-            <View style={[styles.corner, styles.topRight, { borderColor: tintColor }]} />
-            <View style={[styles.corner, styles.bottomLeft, { borderColor: tintColor }]} />
-            <View style={[styles.corner, styles.bottomRight, { borderColor: tintColor }]} />
+            <View
+              style={[
+                styles.corner,
+                styles.topLeft,
+                { borderColor: tintColor },
+              ]}
+            />
+            <View
+              style={[
+                styles.corner,
+                styles.topRight,
+                { borderColor: tintColor },
+              ]}
+            />
+            <View
+              style={[
+                styles.corner,
+                styles.bottomLeft,
+                { borderColor: tintColor },
+              ]}
+            />
+            <View
+              style={[
+                styles.corner,
+                styles.bottomRight,
+                { borderColor: tintColor },
+              ]}
+            />
           </View>
           <View style={styles.sideOverlay} />
         </View>
@@ -119,13 +156,12 @@ export default function QRScannerScreen() {
 
       {/* Botón para reactivar el escáner */}
       {!isActive && (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.scanButton, { backgroundColor: tintColor }]}
           onPress={() => {
             setScannedData(null);
             setIsActive(true);
-          }}
-        >
+          }}>
           <MaterialIcons name="qr-code-scanner" size={24} color="#fff" />
           <Text style={styles.scanButtonText}>Escanear Nuevo</Text>
         </TouchableOpacity>

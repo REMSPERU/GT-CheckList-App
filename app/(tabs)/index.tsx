@@ -1,34 +1,30 @@
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import Feather from "@expo/vector-icons/Feather";
+import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Octicons from '@expo/vector-icons/Octicons';
-import { useRouter } from "expo-router";
+import { useRouter } from 'expo-router';
 
 function HomeScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro de que deseas cerrar sesión?',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
+    Alert.alert('Cerrar Sesión', '¿Estás seguro de que deseas cerrar sesión?', [
+      {
+        text: 'Cancelar',
+        style: 'cancel',
+      },
+      {
+        text: 'Cerrar Sesión',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
         },
-        {
-          text: 'Cerrar Sesión',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-          },
-        },
-      ]
-    );
+      },
+    ]);
   };
 
   return (
@@ -37,7 +33,11 @@ function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.userInfo}>
           <Text style={styles.welcome}>Bienvenido,</Text>
-          <Text style={styles.username}>{user?.user_metadata?.username || user?.email?.split('@')[0] || 'Usuario'}</Text>
+          <Text style={styles.username}>
+            {user?.user_metadata?.username ||
+              user?.email?.split('@')[0] ||
+              'Usuario'}
+          </Text>
         </View>
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={18} color="#0a7ea4" />
@@ -51,44 +51,109 @@ function HomeScreen() {
 
       <View style={styles.optionsWrapper}>
         <View style={styles.optionCardContainer}>
-          <Octicons name="checklist" size={32} color="#06B6D4" style={{ marginRight: 16 }} />
+          <Octicons
+            name="checklist"
+            size={32}
+            color="#06B6D4"
+            style={{ marginRight: 16 }}
+          />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: '#11181C', marginBottom: 4 }}>Checklist</Text>
-            <Text style={{ color: '#4B5563', fontSize: 14 }}>Gestione sus tareas de inspección</Text>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: '600',
+                color: '#11181C',
+                marginBottom: 4,
+              }}>
+              Checklist
+            </Text>
+            <Text style={{ color: '#4B5563', fontSize: 14 }}>
+              Gestione sus tareas de inspección
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
         </View>
         <View style={styles.optionCardContainer}>
-          <MaterialIcons name="home-repair-service" size={32} color="#06B6D4" style={{ marginRight: 16 }} />
+          <MaterialIcons
+            name="home-repair-service"
+            size={32}
+            color="#06B6D4"
+            style={{ marginRight: 16 }}
+          />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: '#11181C', marginBottom: 4 }}>Programar Mantenimiento</Text>
-            <Text style={{ color: '#4B5563', fontSize: 14 }}>Registre y resuelva los problemas inmediato del equipo</Text>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: '600',
+                color: '#11181C',
+                marginBottom: 4,
+              }}>
+              Programar Mantenimiento
+            </Text>
+            <Text style={{ color: '#4B5563', fontSize: 14 }}>
+              Registre y resuelva los problemas inmediato del equipo
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
         </View>
         <TouchableOpacity
           style={styles.optionCardContainer}
-          onPress={() => router.push("/maintenance/scheduled_maintenance/scheduled-maintenance")}
-        >
-          <MaterialIcons name="home-repair-service" size={32} color="#06B6D4" style={{ marginRight: 16 }} />
+          onPress={() =>
+            router.push(
+              '/maintenance/scheduled_maintenance/scheduled-maintenance',
+            )
+          }>
+          <MaterialIcons
+            name="home-repair-service"
+            size={32}
+            color="#06B6D4"
+            style={{ marginRight: 16 }}
+          />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: '#11181C', marginBottom: 4 }}>Ejecutar mantenimiento</Text>
-            <Text style={{ color: '#4B5563', fontSize: 14 }}>Registre sus revisiones de rutina</Text>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: '600',
+                color: '#11181C',
+                marginBottom: 4,
+              }}>
+              Ejecutar mantenimiento
+            </Text>
+            <Text style={{ color: '#4B5563', fontSize: 14 }}>
+              Registre sus revisiones de rutina
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
         </TouchableOpacity>
         <View style={styles.optionCardContainer}>
-          <Feather name="file-text" size={32} color="#06B6D4" style={{ marginRight: 16 }} />
+          <Feather
+            name="file-text"
+            size={32}
+            color="#06B6D4"
+            style={{ marginRight: 16 }}
+          />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', color: '#11181C', marginBottom: 4 }}>Ficha técnica</Text>
-            <Text style={{ color: '#4B5563', fontSize: 14 }}>Accese al historial de los equipo</Text>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: '600',
+                color: '#11181C',
+                marginBottom: 4,
+              }}>
+              Ficha técnica
+            </Text>
+            <Text style={{ color: '#4B5563', fontSize: 14 }}>
+              Accese al historial de los equipo
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
         </View>
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Rol: {user?.user_metadata?.role || 'Personal'} • v1.0.0</Text>
+        <Text style={styles.footerText}>
+          Rol: {user?.user_metadata?.role || 'Personal'} • v1.0.0
+        </Text>
       </View>
     </View>
   );

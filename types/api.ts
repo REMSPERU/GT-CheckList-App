@@ -1,11 +1,11 @@
 // API Type Definitions based on OpenAPI spec
 
 export enum RoleEnum {
-  GUEST = "GUEST",
-  PROVEEDOR = "PROVEEDOR",
-  TECNICO = "TECNICO",
-  SUPERVISOR = "SUPERVISOR",
-  SUPERADMIN = "SUPERADMIN",
+  GUEST = 'GUEST',
+  PROVEEDOR = 'PROVEEDOR',
+  TECNICO = 'TECNICO',
+  SUPERVISOR = 'SUPERVISOR',
+  SUPERADMIN = 'SUPERADMIN',
 }
 
 // User types
@@ -144,30 +144,90 @@ export interface EquipamentoListResponse {
   total: number;
 }
 
+// Equipment Detail Types
+export interface Differential {
+  fases: string;
+  existe: boolean;
+  amperaje: number;
+  tipo_cable: string;
+  diametro_cable: string;
+}
+
+export interface ITM {
+  id: string;
+  fases: string;
+  amperaje: number;
+  suministra: string;
+  tipo_cable: string;
+  diametro_cable: string;
+  diferencial?: Differential;
+}
+
+export interface ITG {
+  id: string;
+  itms: ITM[];
+  prefijo: string;
+  suministra: string;
+}
+
+export interface ComponentItem {
+  codigo: string;
+  suministra: string;
+}
+
+export interface Componente {
+  tipo: string;
+  items: ComponentItem[];
+}
+
+export interface TechnicalDetail {
+  fases: string;
+  voltaje: number;
+  tipo_tablero: string;
+}
+
+export interface SpecialConditions {
+  barra_tierra: boolean;
+  mandil_proteccion: boolean;
+  terminal_electrico: boolean;
+  puerta_mandil_aterrados: boolean;
+  mangas_termo_contraibles: boolean;
+  diagrama_unifilar_directorio: boolean;
+  [key: string]: boolean; // Allow other keys just in case
+}
+
+export interface EquipmentDetail {
+  itgs: ITG[];
+  rotulo: string;
+  componentes: Componente[];
+  tipo_tablero: string;
+  detalle_tecnico: TechnicalDetail;
+  condiciones_especiales: SpecialConditions;
+}
+
 // TableroElectrico types
 export interface TableroElectricoResponse {
   id: string;
   id_property: string;
   tipo: string;
   ubicacion: string;
-  rotulo: string;
   codigo: string;
   config?: boolean;
-  equipment_detail?: any;
+  equipment_detail?: EquipmentDetail;
 }
 
 // Maintenance types
 export enum MaintenanceStatusEnum {
-  NO_INICIADO = "NO_INICIADO",
-  EN_PROGRESO = "EN_PROGRESO",
-  PENDIENTE = "PENDIENTE",
-  FINALIZADO = "FINALIZADO",
-  CANCELADO = "CANCELADO",
+  NO_INICIADO = 'NO_INICIADO',
+  EN_PROGRESO = 'EN_PROGRESO',
+  PENDIENTE = 'PENDIENTE',
+  FINALIZADO = 'FINALIZADO',
+  CANCELADO = 'CANCELADO',
 }
 
 export enum MaintenanceTypeEnum {
-  PREVENTIVO = "Preventivo",
-  CORRECTIVO = "Correctivo",
+  PREVENTIVO = 'Preventivo',
+  CORRECTIVO = 'Correctivo',
 }
 
 export interface MaintenanceCreateRequest {

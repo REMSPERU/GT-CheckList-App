@@ -1,5 +1,8 @@
 import { supabase } from '../lib/supabase';
-import type { EquipamentoResponse, EquipamentoListResponse } from '../types/api';
+import type {
+  EquipamentoResponse,
+  EquipamentoListResponse,
+} from '../types/api';
 
 export class SupabaseEquipamentoService {
   private tableName = 'equipamentos';
@@ -28,26 +31,30 @@ export class SupabaseEquipamentoService {
   async getByProperty(propertyId: string): Promise<EquipamentoListResponse> {
     const { data, error, count } = await supabase
       .from(this.relationTableName)
-      .select(`
+      .select(
+        `
         equipamentos (
           id,
           nombre,
           abreviatura
         )
-      `, { count: 'exact' })
+      `,
+        { count: 'exact' },
+      )
       .eq('id_property', propertyId);
 
     if (error) throw error;
 
     // Transformar la respuesta de Supabase al formato esperado
-    const items = data?.map(item => {
-      const equipamento = (item as any).equipamentos;
-      return {
-        id: equipamento.id,
-        nombre: equipamento.nombre,
-        abreviatura: equipamento.abreviatura,
-      } as EquipamentoResponse;
-    }) || [];
+    const items =
+      data?.map(item => {
+        const equipamento = (item as any).equipamentos;
+        return {
+          id: equipamento.id,
+          nombre: equipamento.nombre,
+          abreviatura: equipamento.abreviatura,
+        } as EquipamentoResponse;
+      }) || [];
 
     return {
       items,
@@ -58,13 +65,14 @@ export class SupabaseEquipamentoService {
   /**
    * Asociar un equipamento a una propiedad
    */
-  async linkToProperty(equipamentoId: string, propertyId: string): Promise<void> {
-    const { error } = await supabase
-      .from(this.relationTableName)
-      .insert({
-        id_equipamentos: equipamentoId,
-        id_property: propertyId,
-      });
+  async linkToProperty(
+    equipamentoId: string,
+    propertyId: string,
+  ): Promise<void> {
+    const { error } = await supabase.from(this.relationTableName).insert({
+      id_equipamentos: equipamentoId,
+      id_property: propertyId,
+    });
 
     if (error) throw error;
   }
@@ -72,7 +80,10 @@ export class SupabaseEquipamentoService {
   /**
    * Desasociar un equipamento de una propiedad
    */
-  async unlinkFromProperty(equipamentoId: string, propertyId: string): Promise<void> {
+  async unlinkFromProperty(
+    equipamentoId: string,
+    propertyId: string,
+  ): Promise<void> {
     const { error } = await supabase
       .from(this.relationTableName)
       .delete()
@@ -99,7 +110,10 @@ export class SupabaseEquipamentoService {
   /**
    * Crear un nuevo equipamento
    */
-  async create(equipamento: { nombre: string; abreviatura: string }): Promise<EquipamentoResponse> {
+  async create(equipamento: {
+    nombre: string;
+    abreviatura: string;
+  }): Promise<EquipamentoResponse> {
     const { data, error } = await supabase
       .from(this.tableName)
       .insert(equipamento)
@@ -113,7 +127,10 @@ export class SupabaseEquipamentoService {
   /**
    * Actualizar un equipamento
    */
-  async update(id: string, equipamento: { nombre?: string; abreviatura?: string }): Promise<EquipamentoResponse> {
+  async update(
+    id: string,
+    equipamento: { nombre?: string; abreviatura?: string },
+  ): Promise<EquipamentoResponse> {
     const { data, error } = await supabase
       .from(this.tableName)
       .update(equipamento)
@@ -129,10 +146,7 @@ export class SupabaseEquipamentoService {
    * Eliminar un equipamento
    */
   async delete(id: string): Promise<void> {
-    const { error } = await supabase
-      .from(this.tableName)
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from(this.tableName).delete().eq('id', id);
 
     if (error) throw error;
   }

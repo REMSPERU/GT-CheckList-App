@@ -34,7 +34,9 @@ export class SupabasePropertyService {
 
     // Aplicar filtros
     if (filters?.search) {
-      query = query.or(`name.ilike.%${filters.search}%,code.ilike.%${filters.search}%,address.ilike.%${filters.search}%`);
+      query = query.or(
+        `name.ilike.%${filters.search}%,code.ilike.%${filters.search}%,address.ilike.%${filters.search}%`,
+      );
     }
 
     if (filters?.city) {
@@ -96,7 +98,10 @@ export class SupabasePropertyService {
   /**
    * Actualizar una propiedad
    */
-  async update(id: string, propertyData: PropertyCreateRequest): Promise<PropertyResponse> {
+  async update(
+    id: string,
+    propertyData: PropertyCreateRequest,
+  ): Promise<PropertyResponse> {
     const { data, error } = await supabase
       .from(this.tableName)
       .update({

@@ -1,9 +1,9 @@
-import { Colors } from "@/constants/theme";
-import { useAuth } from "@/contexts/AuthContext";
-import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { Colors } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,10 +14,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useNetworkState } from "expo-network";
+import { useNetworkState } from 'expo-network';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -25,15 +25,15 @@ export default function LoginScreen() {
 
   const networkState = useNetworkState();
 
-  const [emailOrUsername, setEmailOrUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [emailOrUsername, setEmailOrUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     clearError();
 
     if (!emailOrUsername.trim() || !password.trim()) {
-      Alert.alert("Error", "Por favor, completa todos los campos");
+      Alert.alert('Error', 'Por favor, completa todos los campos');
       return;
     }
 
@@ -41,26 +41,25 @@ export default function LoginScreen() {
       await login({ email_or_username: emailOrUsername.trim(), password });
     } catch (err) {
       Alert.alert(
-        "Error de inicio de sesión",
-        error || "No se pudo iniciar sesión. Verifica tus credenciales.",
+        'Error de inicio de sesión',
+        error || 'No se pudo iniciar sesión. Verifica tus credenciales.',
       );
-      console.error("Login error:", err);
+      console.error('Login error:', err);
     }
   };
 
   return (
     <SafeAreaView style={styles.page}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.flex}
-      >
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}>
         <View style={styles.header}>
           <Text style={styles.headerText}>Bienvenido</Text>
         </View>
 
         <View style={styles.content}>
           <Image
-            source={require("../../../assets/logo/image.png")}
+            source={require('../../../assets/logo/image.png')}
             style={styles.logo}
             contentFit="contain"
             transition={1000}
@@ -106,10 +105,9 @@ export default function LoginScreen() {
               <TouchableOpacity
                 style={styles.eyeIcon}
                 onPress={() => setShowPassword(!showPassword)}
-                disabled={isLoading}
-              >
+                disabled={isLoading}>
                 <Ionicons
-                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
                   color={Colors.light.icon}
                 />
@@ -123,8 +121,7 @@ export default function LoginScreen() {
             <TouchableOpacity
               onPress={handleLogin}
               disabled={isLoading}
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-            >
+              style={[styles.button, isLoading && styles.buttonDisabled]}>
               {isLoading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
@@ -135,17 +132,16 @@ export default function LoginScreen() {
             <TouchableOpacity
               disabled={isLoading}
               style={styles.secondaryButton}
-              onPress={() => router.push("/auth/register")}
-            >
+              onPress={() => router.push('/auth/register')}>
               <Text style={styles.secondaryButtonText}>Crear cuenta</Text>
             </TouchableOpacity>
           </View>
         </View>
-        <View style={{ height: 16, alignItems: "center" }}>
+        <View style={{ height: 16, alignItems: 'center' }}>
           <Text style={{ color: Colors.light.text, fontSize: 12 }}>
             {networkState.isConnected
-              ? "Conexión a internet"
-              : "Sin conexión a internet"}
+              ? 'Conexión a internet'
+              : 'Sin conexión a internet'}
           </Text>
         </View>
       </KeyboardAvoidingView>
@@ -157,23 +153,23 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   page: {
     flex: 1,
-    backgroundColor: "#E8E9E9",
+    backgroundColor: '#E8E9E9',
   },
   header: {
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: '#E5E7EB',
   },
   headerText: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700',
   },
   content: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 16,
   },
@@ -183,73 +179,73 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   form: {
-    width: "100%",
-    alignItems: "center",
+    width: '100%',
+    alignItems: 'center',
   },
   inputWrapper: {
-    width: "100%",
+    width: '100%',
     marginBottom: 12,
-    position: "relative",
+    position: 'relative',
   },
   input: {
     height: 52,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: '#FFFFFF',
     borderRadius: 10,
     paddingLeft: 44,
     paddingRight: 44,
     fontSize: 16,
     lineHeight: 26,
-    color: "#565D6D",
+    color: '#565D6D',
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: '#F3F4F6',
   },
   icon: {
-    position: "absolute",
+    position: 'absolute',
     left: 12,
     top: 16,
     zIndex: 10,
   },
   eyeIcon: {
-    position: "absolute",
+    position: 'absolute',
     right: 12,
     top: 16,
     zIndex: 10,
   },
   forgotWrapper: {
-    width: "100%",
-    alignItems: "flex-end",
+    width: '100%',
+    alignItems: 'flex-end',
     marginBottom: 24,
   },
   forgotText: {
     color: Colors.light.tint,
   },
   button: {
-    width: "100%",
+    width: '100%',
     backgroundColor: Colors.light.tint,
     paddingVertical: 14,
     borderRadius: 10,
-    alignItems: "center",
+    alignItems: 'center',
     marginTop: 8,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   secondaryButton: {
-    width: "100%",
-    backgroundColor: "#FFFFFF",
+    width: '100%',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: Colors.light.tint,
     paddingVertical: 12,
     borderRadius: 10,
-    alignItems: "center",
+    alignItems: 'center',
     marginTop: 12,
   },
   secondaryButtonText: {
     color: Colors.light.tint,
-    fontWeight: "600",
+    fontWeight: '600',
   },
 });

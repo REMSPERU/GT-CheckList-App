@@ -1,13 +1,11 @@
 import { View, Text, ScrollView } from 'react-native';
-import { useFormContext } from "react-hook-form";
+import { useFormContext } from 'react-hook-form';
 import { ReviewStepProps } from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 import { PanelDetailContent } from '@/components/maintenance/PanelDetailContent';
 import { styles } from './_styles';
 
-export default function ReviewStep({
-  panel,
-}: ReviewStepProps) {
+export default function ReviewStep({ panel }: ReviewStepProps) {
   const { getValues } = useFormContext<PanelConfigurationFormValues>();
   const values = getValues();
 
@@ -36,26 +34,30 @@ export default function ReviewStep({
           amperaje: itm.amperajeID || 0,
           fases: itm.phaseID || '',
           tipo_cable: itm.cableTypeID || '',
-          diametro_cable: itm.diameterID || ''
-        }
-      }))
+          diametro_cable: itm.diameterID || '',
+        },
+      })),
     })),
     componentes: values.enabledComponents.map(type => ({
       tipo: type,
       items: (values.extraComponents[type] || []).map(item => ({
         codigo: item.id,
-        suministra: item.description
-      }))
+        suministra: item.description,
+      })),
     })),
-    condiciones_especiales: values.extraConditions
+    condiciones_especiales: values.extraConditions,
   };
 
   return (
     <View style={styles.contentWrapper}>
-      <Text style={styles.equipmentLabel}>Equipo {panel?.name || panel?.codigo || ''}</Text>
+      <Text style={styles.equipmentLabel}>
+        Equipo {panel?.name || panel?.codigo || ''}
+      </Text>
       <Text style={styles.stepTitleStrong}>Resumen Final</Text>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 16 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={{ marginTop: 16 }}>
         <PanelDetailContent data={mappedDetail} />
       </ScrollView>
     </View>

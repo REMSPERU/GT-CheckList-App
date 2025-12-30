@@ -7,13 +7,13 @@ import {
   TextInput,
   Modal,
   Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { useState, useRef } from "react";
-import { useTechnicians, useCreateMaintenance } from "@/hooks/use-maintenance";
-import { MaintenanceTypeEnum } from "@/types/api";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useState, useRef } from 'react';
+import { useTechnicians, useCreateMaintenance } from '@/hooks/use-maintenance';
+import { MaintenanceTypeEnum } from '@/types/api';
 
 export default function ScheduleMaintenanceScreen() {
   const router = useRouter();
@@ -21,19 +21,19 @@ export default function ScheduleMaintenanceScreen() {
   const selectedCount = params.count ? Number(params.count) : 0;
   const buildingName = params.buildingName
     ? (params.buildingName as string)
-    : "Centro Empresarial";
+    : 'Centro Empresarial';
 
   // State
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [time, setTime] = useState("12:00 PM"); // String for simplicity in custom picker
+  const [time, setTime] = useState('12:00 PM'); // String for simplicity in custom picker
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   const [maintenanceType, setMaintenanceType] = useState<MaintenanceTypeEnum>(
-    MaintenanceTypeEnum.PREVENTIVO
+    MaintenanceTypeEnum.PREVENTIVO,
   );
   const [selectedTechnicians, setSelectedTechnicians] = useState<string[]>([]);
-  const [observations, setObservations] = useState("");
+  const [observations, setObservations] = useState('');
   const [isTechniciansExpanded, setIsTechniciansExpanded] = useState(true);
 
   const [showTechModal, setShowTechModal] = useState(false);
@@ -56,32 +56,32 @@ export default function ScheduleMaintenanceScreen() {
     const totalMinutes = i * 30;
     const h = Math.floor(totalMinutes / 60);
     const m = totalMinutes % 60;
-    const period = h < 12 ? "AM" : "PM";
+    const period = h < 12 ? 'AM' : 'PM';
     const displayH = h % 12 || 12;
-    const displayM = m === 0 ? "00" : m;
+    const displayM = m === 0 ? '00' : m;
     return `${displayH}:${displayM} ${period}`;
   });
 
   const handleCreate = async () => {
     if (createMaintenanceMutation.isPending || isSubmitting.current) {
-        console.log("🚫 Intento de doble envío bloqueado");
-        return;
+      console.log('🚫 Intento de doble envío bloqueado');
+      return;
     }
 
     try {
       isSubmitting.current = true;
-      console.log("🚀 Iniciando creación de mantenimiento...");
+      console.log('🚀 Iniciando creación de mantenimiento...');
 
       // Parse panel IDs from params
       const rawIds = params.ids
-          ? typeof params.ids === "string"
-            ? params.ids.split(",")
-            : (params.ids as string[])
-          : [];
-      
+        ? typeof params.ids === 'string'
+          ? params.ids.split(',')
+          : (params.ids as string[])
+        : [];
+
       // Deduplicate IDs just in case
       const uniquePanelIds = [...new Set(rawIds)];
-      console.log("📋 Paneles a programar:", uniquePanelIds);
+      console.log('📋 Paneles a programar:', uniquePanelIds);
 
       await createMaintenanceMutation.mutateAsync({
         panel_ids: uniquePanelIds,
@@ -91,34 +91,33 @@ export default function ScheduleMaintenanceScreen() {
         assigned_technicians: selectedTechnicians,
         observations,
       });
-      Alert.alert("Éxito", "Mantenimiento programado correctamente", [
-        { text: "OK", onPress: () => router.back() },
+      Alert.alert('Éxito', 'Mantenimiento programado correctamente', [
+        { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (error) {
-      console.error("❌ Error creando mantenimiento:", error);
-      Alert.alert("Error", "No se pudo programar el mantenimiento");
+      console.error('❌ Error creando mantenimiento:', error);
+      Alert.alert('Error', 'No se pudo programar el mantenimiento');
     } finally {
-        // Add a small delay before unlocking to ensure navigation happens or UI updates
-        setTimeout(() => {
-            isSubmitting.current = false;
-        }, 500);
+      // Add a small delay before unlocking to ensure navigation happens or UI updates
+      setTimeout(() => {
+        isSubmitting.current = false;
+      }, 500);
     }
   };
 
   const toggleTechnician = (id: string) => {
-    setSelectedTechnicians((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
+    setSelectedTechnicians(prev =>
+      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id],
     );
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
-          style={styles.backButton}
-        >
+          style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#0891B2" />
         </TouchableOpacity>
         <Ionicons
@@ -143,7 +142,7 @@ export default function ScheduleMaintenanceScreen() {
           <Text style={styles.selectedCountText}>
             {selectedCount} paneles seleccionados
           </Text>
-          <TouchableOpacity onPress={() => console.log("Ver lista")}>
+          <TouchableOpacity onPress={() => console.log('Ver lista')}>
             <Text style={styles.linkText}>Ver lista completa / Editar</Text>
           </TouchableOpacity>
         </View>
@@ -153,8 +152,7 @@ export default function ScheduleMaintenanceScreen() {
         <View style={styles.row}>
           <TouchableOpacity
             style={styles.inputCard}
-            onPress={() => setShowDatePicker(true)}
-          >
+            onPress={() => setShowDatePicker(true)}>
             <View style={styles.inputLabelRow}>
               <Ionicons name="calendar-outline" size={20} color="#374151" />
               <View style={styles.dateTextContainer}>
@@ -171,8 +169,7 @@ export default function ScheduleMaintenanceScreen() {
 
           <TouchableOpacity
             style={styles.inputCard}
-            onPress={() => setShowTimePicker(true)}
-          >
+            onPress={() => setShowTimePicker(true)}>
             <View style={styles.inputLabelRow}>
               <Ionicons name="time-outline" size={20} color="#374151" />
               <View style={styles.dateTextContainer}>
@@ -193,15 +190,13 @@ export default function ScheduleMaintenanceScreen() {
               maintenanceType === MaintenanceTypeEnum.PREVENTIVO &&
                 styles.typeButtonActive,
             ]}
-            onPress={() => setMaintenanceType(MaintenanceTypeEnum.PREVENTIVO)}
-          >
+            onPress={() => setMaintenanceType(MaintenanceTypeEnum.PREVENTIVO)}>
             <Text
               style={[
                 styles.typeButtonText,
                 maintenanceType === MaintenanceTypeEnum.PREVENTIVO &&
                   styles.typeButtonTextActive,
-              ]}
-            >
+              ]}>
               Preventivo
             </Text>
           </TouchableOpacity>
@@ -212,15 +207,13 @@ export default function ScheduleMaintenanceScreen() {
               maintenanceType === MaintenanceTypeEnum.CORRECTIVO &&
                 styles.typeButtonActive,
             ]}
-            onPress={() => setMaintenanceType(MaintenanceTypeEnum.CORRECTIVO)}
-          >
+            onPress={() => setMaintenanceType(MaintenanceTypeEnum.CORRECTIVO)}>
             <Text
               style={[
                 styles.typeButtonText,
                 maintenanceType === MaintenanceTypeEnum.CORRECTIVO &&
                   styles.typeButtonTextActive,
-              ]}
-            >
+              ]}>
               Correctivo
             </Text>
           </TouchableOpacity>
@@ -229,11 +222,10 @@ export default function ScheduleMaintenanceScreen() {
         {/* Assigned Technicians */}
         <TouchableOpacity
           style={styles.accordionHeader}
-          onPress={() => setIsTechniciansExpanded(!isTechniciansExpanded)}
-        >
+          onPress={() => setIsTechniciansExpanded(!isTechniciansExpanded)}>
           <Text style={styles.accordionTitle}>Técnicos Asignados</Text>
           <Ionicons
-            name={isTechniciansExpanded ? "chevron-up" : "chevron-down"}
+            name={isTechniciansExpanded ? 'chevron-up' : 'chevron-down'}
             size={20}
             color="#6B7280"
           />
@@ -243,8 +235,7 @@ export default function ScheduleMaintenanceScreen() {
           <View style={styles.techniciansContainer}>
             <TouchableOpacity
               style={styles.addTechnicianButton}
-              onPress={() => setShowTechModal(true)}
-            >
+              onPress={() => setShowTechModal(true)}>
               <Ionicons name="add" size={16} color="#374151" />
               <Text style={styles.addTechnicianText}>Asignar técnicos</Text>
               <View style={{ flex: 1 }} />
@@ -252,8 +243,8 @@ export default function ScheduleMaintenanceScreen() {
             </TouchableOpacity>
 
             {technicians
-              .filter((t) => selectedTechnicians.includes(t.id))
-              .map((tech) => (
+              .filter(t => selectedTechnicians.includes(t.id))
+              .map(tech => (
                 <View key={tech.id} style={styles.technicianRow}>
                   <View style={styles.techIconContainer}>
                     <Ionicons name="person-outline" size={20} color="#374151" />
@@ -289,12 +280,11 @@ export default function ScheduleMaintenanceScreen() {
             createMaintenanceMutation.isPending && styles.disabledButton,
           ]}
           onPress={handleCreate}
-          disabled={createMaintenanceMutation.isPending}
-        >
+          disabled={createMaintenanceMutation.isPending}>
           <Text style={styles.confirmButtonText}>
             {createMaintenanceMutation.isPending
-              ? "Programando..."
-              : "Confirmar Programación"}
+              ? 'Programando...'
+              : 'Confirmar Programación'}
           </Text>
         </TouchableOpacity>
 
@@ -306,8 +296,7 @@ export default function ScheduleMaintenanceScreen() {
         visible={showDatePicker}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowDatePicker(false)}
-      >
+        onRequestClose={() => setShowDatePicker(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Seleccionar Fecha</Text>
@@ -324,19 +313,17 @@ export default function ScheduleMaintenanceScreen() {
                       styles.modalOption,
                       isSelected && styles.modalOptionSelected,
                     ]}
-                    onPress={() => handleDateConfirm(d)}
-                  >
+                    onPress={() => handleDateConfirm(d)}>
                     <Text
                       style={[
                         styles.modalOptionText,
                         isSelected && styles.modalOptionTextSelected,
-                      ]}
-                    >
+                      ]}>
                       {d.toLocaleDateString(undefined, {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
                       })}
                     </Text>
                     {isSelected && (
@@ -348,8 +335,7 @@ export default function ScheduleMaintenanceScreen() {
             </ScrollView>
             <TouchableOpacity
               style={styles.modalCloseButton}
-              onPress={() => setShowDatePicker(false)}
-            >
+              onPress={() => setShowDatePicker(false)}>
               <Text style={styles.modalCloseText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
@@ -361,13 +347,12 @@ export default function ScheduleMaintenanceScreen() {
         visible={showTimePicker}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowTimePicker(false)}
-      >
+        onRequestClose={() => setShowTimePicker(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Seleccionar Hora</Text>
             <ScrollView style={{ maxHeight: 300 }}>
-              {times.map((t) => (
+              {times.map(t => (
                 <TouchableOpacity
                   key={t}
                   style={[
@@ -377,14 +362,12 @@ export default function ScheduleMaintenanceScreen() {
                   onPress={() => {
                     setTime(t);
                     setShowTimePicker(false);
-                  }}
-                >
+                  }}>
                   <Text
                     style={[
                       styles.modalOptionText,
                       time === t && styles.modalOptionTextSelected,
-                    ]}
-                  >
+                    ]}>
                     {t}
                   </Text>
                   {time === t && (
@@ -395,8 +378,7 @@ export default function ScheduleMaintenanceScreen() {
             </ScrollView>
             <TouchableOpacity
               style={styles.modalCloseButton}
-              onPress={() => setShowTimePicker(false)}
-            >
+              onPress={() => setShowTimePicker(false)}>
               <Text style={styles.modalCloseText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
@@ -408,18 +390,17 @@ export default function ScheduleMaintenanceScreen() {
         visible={showTechModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowTechModal(false)}
-      >
+        onRequestClose={() => setShowTechModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Asignar Técnicos</Text>
             <ScrollView style={{ maxHeight: 300 }}>
               {loadingTechs ? (
-                <Text style={{ padding: 20, textAlign: "center" }}>
+                <Text style={{ padding: 20, textAlign: 'center' }}>
                   Cargando...
                 </Text>
               ) : (
-                technicians.map((t) => {
+                technicians.map(t => {
                   const isSelected = selectedTechnicians.includes(t.id);
                   return (
                     <TouchableOpacity
@@ -428,35 +409,31 @@ export default function ScheduleMaintenanceScreen() {
                         styles.modalOption,
                         isSelected && styles.modalOptionSelected,
                       ]}
-                      onPress={() => toggleTechnician(t.id)}
-                    >
+                      onPress={() => toggleTechnician(t.id)}>
                       <View
-                        style={{ flexDirection: "row", alignItems: "center" }}
-                      >
+                        style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View
                           style={[
                             styles.techIconContainer,
                             {
-                              borderColor: isSelected ? "#0891B2" : "#374151",
+                              borderColor: isSelected ? '#0891B2' : '#374151',
                               width: 24,
                               height: 24,
                               borderWidth: 1,
                               marginRight: 8,
                             },
-                          ]}
-                        >
+                          ]}>
                           <Ionicons
                             name="person"
                             size={14}
-                            color={isSelected ? "#0891B2" : "#374151"}
+                            color={isSelected ? '#0891B2' : '#374151'}
                           />
                         </View>
                         <Text
                           style={[
                             styles.modalOptionText,
                             isSelected && styles.modalOptionTextSelected,
-                          ]}
-                        >
+                          ]}>
                           {t.username}
                         </Text>
                       </View>
@@ -474,8 +451,7 @@ export default function ScheduleMaintenanceScreen() {
             </ScrollView>
             <TouchableOpacity
               style={styles.modalCloseButton}
-              onPress={() => setShowTechModal(false)}
-            >
+              onPress={() => setShowTechModal(false)}>
               <Text style={styles.modalCloseText}>Listo</Text>
             </TouchableOpacity>
           </View>
@@ -488,16 +464,16 @@ export default function ScheduleMaintenanceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: '#F9FAFB',
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: '#E5E7EB',
   },
   backButton: {
     padding: 4,
@@ -508,79 +484,79 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#374151",
+    fontWeight: '600',
+    color: '#374151',
   },
   scrollContent: {
     paddingBottom: 24,
   },
   bannerContainer: {
     height: 80,
-    backgroundColor: "#B91C1C", // Red color from image
-    justifyContent: "center",
+    backgroundColor: '#B91C1C', // Red color from image
+    justifyContent: 'center',
     paddingHorizontal: 20,
-    position: "relative",
-    overflow: "hidden",
+    position: 'relative',
+    overflow: 'hidden',
   },
   bannerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.1)", // subtle overlay
+    backgroundColor: 'rgba(0,0,0,0.1)', // subtle overlay
     // Add gradient or image here if needed
   },
   bannerText: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    textShadowColor: "rgba(0, 0, 0, 0.25)",
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.25)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#4B5563",
+    fontWeight: '600',
+    color: '#4B5563',
     marginTop: 20,
     marginBottom: 8,
     paddingHorizontal: 16,
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     padding: 16,
     marginHorizontal: 16,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    alignItems: "center",
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
   },
   selectedCountText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
+    fontWeight: '600',
+    color: '#374151',
     marginBottom: 4,
   },
   linkText: {
     fontSize: 14,
-    color: "#0891B2",
-    fontWeight: "500",
+    color: '#0891B2',
+    fontWeight: '500',
   },
   row: {
-    flexDirection: "row",
+    flexDirection: 'row',
     paddingHorizontal: 16,
   },
   inputCard: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    borderColor: '#E5E7EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   inputLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   dateTextContainer: {
@@ -588,80 +564,80 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 11,
-    color: "#6B7280",
+    color: '#6B7280',
   },
   inputValue: {
     fontSize: 14,
-    fontWeight: "500",
-    color: "#1F2937",
+    fontWeight: '500',
+    color: '#1F2937',
   },
   typeSelectorContainer: {
-    flexDirection: "row",
+    flexDirection: 'row',
     paddingHorizontal: 16,
   },
   typeButton: {
     flex: 1,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#FFFFFF",
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 12,
-    alignItems: "center",
+    alignItems: 'center',
   },
   typeButtonActive: {
-    borderColor: "#0891B2",
-    backgroundColor: "#FFFFFF",
+    borderColor: '#0891B2',
+    backgroundColor: '#FFFFFF',
     // borderBottomWidth: 2, // If tab style, but button style implies full border
   },
   typeButtonText: {
     fontSize: 14,
-    fontWeight: "500",
-    color: "#6B7280",
+    fontWeight: '500',
+    color: '#6B7280',
   },
   typeButtonTextActive: {
-    color: "#0891B2",
-    fontWeight: "600",
+    color: '#0891B2',
+    fontWeight: '600',
   },
   accordionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: '#E5E7EB',
     marginTop: 20,
   },
   accordionTitle: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
+    fontWeight: '600',
+    color: '#374151',
   },
   techniciansContainer: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: '#E5E7EB',
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
   addTechnicianButton: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomColor: '#F3F4F6',
   },
   addTechnicianText: {
     marginLeft: 8,
     fontSize: 14,
-    color: "#374151",
-    fontWeight: "500",
+    color: '#374151',
+    fontWeight: '500',
   },
   technicianRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
   },
   techIconContainer: {
@@ -669,97 +645,97 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: "#374151",
-    justifyContent: "center",
-    alignItems: "center",
+    borderColor: '#374151',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   techName: {
     fontSize: 14,
-    color: "#374151",
-    fontWeight: "500",
+    color: '#374151',
+    fontWeight: '500',
     flex: 1,
   },
   techCompany: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
+    fontWeight: '600',
+    color: '#374151',
   },
   textArea: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: '#E5E7EB',
     padding: 12,
     marginHorizontal: 16,
-    textAlignVertical: "top",
+    textAlignVertical: 'top',
     fontSize: 14,
-    color: "#1F2937",
+    color: '#1F2937',
     height: 100,
   },
   confirmButton: {
-    backgroundColor: "#0891B2",
+    backgroundColor: '#0891B2',
     borderRadius: 8,
     paddingVertical: 14,
     marginHorizontal: 16,
     marginTop: 24,
-    alignItems: "center",
+    alignItems: 'center',
   },
   confirmButtonText: {
-    color: "#FFFFFF",
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   disabledButton: {
-    backgroundColor: "#9CA3AF",
+    backgroundColor: '#9CA3AF',
   },
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 20,
-    maxHeight: "60%",
+    maxHeight: '60%',
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#1F2937",
+    fontWeight: '600',
+    color: '#1F2937',
     marginBottom: 16,
-    textAlign: "center",
+    textAlign: 'center',
   },
   modalOption: {
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    borderBottomColor: '#F3F4F6',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   modalOptionSelected: {
-    backgroundColor: "#F0FDFA",
+    backgroundColor: '#F0FDFA',
   },
   modalOptionText: {
     fontSize: 16,
-    color: "#374151",
+    color: '#374151',
   },
   modalOptionTextSelected: {
-    color: "#0891B2",
-    fontWeight: "500",
+    color: '#0891B2',
+    fontWeight: '500',
   },
   modalCloseButton: {
     marginTop: 16,
-    alignItems: "center",
+    alignItems: 'center',
     paddingVertical: 12,
   },
   modalCloseText: {
-    color: "#EF4444",
+    color: '#EF4444',
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: '500',
   },
 });

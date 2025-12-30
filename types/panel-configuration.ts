@@ -1,6 +1,6 @@
-export type PanelType = "adosado" | "empotrado";
-export type PhaseType = "mono_2w" | "tri_3w" | "tri_4w";
-export type CableType = "libre_halogeno" | "no_libre_halogeno";
+export type PanelType = 'adosado' | 'empotrado';
+export type PhaseType = 'mono_2w' | 'tri_3w' | 'tri_4w';
+export type CableType = 'libre_halogeno' | 'no_libre_halogeno';
 
 export interface CircuitConfig {
   phaseITM: PhaseType;
@@ -45,12 +45,12 @@ export interface CircuitsConfigStepProps {
 }
 
 export type ExtraComponentType =
-  | "contactores"
-  | "relays"
-  | "ventiladores"
-  | "termostato"
-  | "medidores"
-  | "timers";
+  | 'contactores'
+  | 'relays'
+  | 'ventiladores'
+  | 'termostato'
+  | 'medidores'
+  | 'timers';
 
 export interface ExtraComponent {
   id: string;
