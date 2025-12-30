@@ -38,7 +38,13 @@ export default function EquipmentDetailsScreen() {
     // Simulate loading for 1s then navigate
     setTimeout(() => {
       setIsMaintenanceLoading(false);
-      router.push('/maintenance/scheduled_maintenance/pre-maintenance-photos');
+      router.push({
+        pathname: '/maintenance/execution/pre-photos',
+        params: {
+          panelId: panelId,
+          maintenanceId: params.maintenanceId,
+        },
+      });
     }, 1000);
   };
 
