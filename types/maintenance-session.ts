@@ -13,6 +13,11 @@ export type MaintenanceStep =
   | 'post-photos'
   | 'summary';
 
+export interface ItemObservation {
+  note: string;
+  photoUri?: string;
+}
+
 export interface MaintenanceSession {
   sessionId: string;
   maintenanceId?: string; // If linked to a scheduled maintenance
@@ -24,6 +29,7 @@ export interface MaintenanceSession {
   prePhotos: PhotoItem[];
   postPhotos: PhotoItem[];
   checklist: Record<string, boolean | string>; // stepId -> value
+  itemObservations: Record<string, ItemObservation>;
   observations: string;
 
   // Progress

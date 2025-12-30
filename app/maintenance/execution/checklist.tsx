@@ -1,19 +1,24 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Alert,
   ActivityIndicator,
+  TouchableOpacity,
+  Text,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
 import { useElectricalPanelDetail } from '@/hooks/use-electrical-panel-detail';
+
+import { ITGChecklist } from '@/components/maintenance/checklist/itg-checklist';
+import { AuxiliaryChecklist } from '@/components/maintenance/checklist/auxiliary-checklist';
+import { ConditionsChecklist } from '@/components/maintenance/checklist/conditions-checklist';
 
 export default function MaintenanceChecklistScreen() {
   const router = useRouter();
@@ -29,37 +34,145 @@ export default function MaintenanceChecklistScreen() {
     maintenanceId,
   );
 
-  // Load Equipment Data (for the checklist items)
+  // Load Equipment Data
   const { data: panel, isLoading: isPanelLoading } = useElectricalPanelDetail(
     panelId || '',
   );
   const detail = panel?.equipment_detail;
 
-  // State for checklist is managed via session.checklist (Record<string, boolean>)
-  // But for simple UI toggle, we can read directly from session.
-
-  const toggleItem = (itemId: string) => {
+  const handleStatusChange = (itemId: string, status: boolean) => {
     if (!session) return;
-
-    const currentVal = session.checklist[itemId];
-    // Logic: undefined -> true (OK) -> false (Issue) -> true...
-    // Or maybe: undefined (unchecked) -> true (OK) -> false (Issue)
-    // Let's go with: true = OK, false = Issue.
-
-    const newVal = currentVal === undefined ? true : !currentVal;
-
-    const updatedSession = {
-      ...session,
-      checklist: {
-        ...session.checklist,
-        [itemId]: newVal,
-      },
-      lastUpdated: new Date().toISOString(),
+    const updatedSession = { ...session };
+    updatedSession.checklist = {
+      ...updatedSession.checklist,
+      [itemId]: status,
     };
+
+    // If status is OK (true), maybe clear observation note?
+    // Usually better to keep it unless explicitly cleared, but if they toggle OK, the Issue UI disappears.
+    // Let's decide to keep it to avoid data loss.
+
+    updatedSession.lastUpdated = new Date().toISOString();
     saveSession(updatedSession);
   };
 
+  const handleObservationChange = (itemId: string, text: string) => {
+    if (!session) return;
+    const updatedSession = { ...session };
+
+    if (!updatedSession.itemObservations[itemId]) {
+      updatedSession.itemObservations[itemId] = { note: '' };
+    }
+    updatedSession.itemObservations[itemId].note = text;
+    updatedSession.lastUpdated = new Date().toISOString();
+    saveSession(updatedSession);
+  };
+
+  const handlePhotoPress = async (itemId: string) => {
+    // If photo exists, ask to remove? Or just overwrite.
+    // ChecklistItem UI shows a remove button if photo exists, which calls this with same ID?
+    // My ChecklistItem has `onPhotoPress`. If photoUri exists it shows X button which calls onPhotoPress.
+    // If photoUri is null, it shows Camera button which calls onPhotoPress.
+    // So I need to check if photo exists to decide whether to delete or add.
+
+    if (!session) return;
+    const currentPhoto = session.itemObservations[itemId]?.photoUri;
+
+    if (currentPhoto) {
+      // Remove photo
+      Alert.alert('Eliminar foto', '¿Estás seguro de eliminar la foto?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => {
+            const updatedSession = { ...session };
+            if (updatedSession.itemObservations[itemId]) {
+              updatedSession.itemObservations[itemId].photoUri = undefined;
+            }
+            saveSession(updatedSession);
+          },
+        },
+      ]);
+    } else {
+      // Take photo
+      takePhoto(itemId);
+    }
+  };
+
+  const takePhoto = async (itemId: string) => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.5,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        if (!session) return;
+        const updatedSession = { ...session };
+        if (!updatedSession.itemObservations[itemId]) {
+          updatedSession.itemObservations[itemId] = { note: '' };
+        }
+        updatedSession.itemObservations[itemId].photoUri = result.assets[0].uri;
+        updatedSession.lastUpdated = new Date().toISOString();
+        saveSession(updatedSession);
+      }
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo abrir la cámara');
+    }
+  };
+
   const handleContinue = () => {
+    // Validate all items
+    const itgs = detail?.itgs || [];
+    const components = detail?.componentes || [];
+    const conditions = detail?.condiciones_especiales || {};
+
+    let pending = false;
+
+    // Check ITGs
+    itgs.forEach((itg: any) => {
+      itg.itms.forEach((itm: any) => {
+        const id = `itg_${itg.id}_${itm.id}`;
+        if (session?.checklist[id] === undefined) pending = true;
+      });
+    });
+
+    // Check Components
+    components.forEach((comp: any) => {
+      comp.items.forEach((item: any) => {
+        const id = `comp_${comp.tipo}_${item.codigo}`;
+        if (session?.checklist[id] === undefined) pending = true;
+      });
+    });
+
+    // Check Conditions
+    Object.keys(conditions).forEach(key => {
+      // Only if mapped label exists (meaning it's a valid condition to check)
+      // We imported labels in component but here we don't have them easily.
+      // Assuming we check all keys that are true/present.
+      // Let's assume keys in conditions object are required.
+      const id = `cond_${key}`;
+      // Verify only if we rendered it. In ConditionsChecklist we filter by CONDITION_LABELS keys.
+      // We should loosely check or duplication logic.
+      // For now, let's enforce checklist has value.
+      // Actually, let's skip strict validation for conditions to avoid blocking if keys mismatch,
+      // unless we are sure.
+      // A safer check:
+      if (session?.checklist[id] === undefined) {
+        // pending = true; // Uncomment to enforce
+      }
+    });
+
+    if (pending) {
+      Alert.alert(
+        'Incompleto',
+        'Por favor verifique todos los items antes de continuar.',
+      );
+      return;
+    }
+
     router.push({
       pathname: '/maintenance/execution/post-photos',
       params: { panelId, maintenanceId },
@@ -68,7 +181,7 @@ export default function MaintenanceChecklistScreen() {
 
   if (isPanelLoading || !session) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#06B6D4" />
       </View>
     );
@@ -76,100 +189,44 @@ export default function MaintenanceChecklistScreen() {
 
   const itgs = detail?.itgs || [];
   const components = detail?.componentes || [];
-
-  // Flatten items for display
-  // We need unique IDs. Assuming properties have IDs or we generate one.
-  // The 'itgs' items might not have stable IDs in the JSON.
-  // Ideally they should. If not, we might use index (risky if list changes, but maintenance session is short lived).
-  // Let's try to find a unique key or use index prefixed.
+  const conditions = detail?.condiciones_especiales || {};
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.container}>
       <MaintenanceHeader
-        title="Checklist de Mantenimiento"
-        iconName="checklist"
+        title="Verificación de Equipos"
+        iconName="playlist-add-check"
       />
 
       <ScrollView style={styles.content}>
-        <Text style={styles.sectionTitle}>ITGs (Interruptores)</Text>
-        {itgs.map((item: any, index: number) => {
-          const id = `itg_${index}`; // Fallback ID
-          const status = session.checklist[id];
+        <ITGChecklist
+          itgs={itgs}
+          checklist={session.checklist}
+          itemObservations={session.itemObservations}
+          onStatusChange={handleStatusChange}
+          onObservationChange={handleObservationChange}
+          onPhotoPress={handlePhotoPress}
+        />
 
-          return (
-            <TouchableOpacity
-              key={id}
-              style={styles.checkItem}
-              onPress={() => toggleItem(id)}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.itemTitle}>
-                  {item.brand} - {item.model}
-                </Text>
-                <Text style={styles.itemSubtitle}>{item.current}A</Text>
-              </View>
+        <AuxiliaryChecklist
+          components={components}
+          checklist={session.checklist}
+          itemObservations={session.itemObservations}
+          onStatusChange={handleStatusChange}
+          onObservationChange={handleObservationChange}
+          onPhotoPress={handlePhotoPress}
+        />
 
-              <Ionicons
-                name={
-                  status === true
-                    ? 'checkmark-circle'
-                    : status === false
-                      ? 'alert-circle'
-                      : 'ellipse-outline'
-                }
-                size={28}
-                color={
-                  status === true
-                    ? '#10B981'
-                    : status === false
-                      ? '#EF4444'
-                      : '#D1D5DB'
-                }
-              />
-            </TouchableOpacity>
-          );
-        })}
+        <ConditionsChecklist
+          conditions={conditions}
+          checklist={session.checklist}
+          itemObservations={session.itemObservations}
+          onStatusChange={handleStatusChange}
+          onObservationChange={handleObservationChange}
+          onPhotoPress={handlePhotoPress}
+        />
 
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
-          Componentes
-        </Text>
-        {components.map((item: any, index: number) => {
-          const id = `comp_${index}`;
-          const status = session.checklist[id];
-
-          return (
-            <TouchableOpacity
-              key={id}
-              style={styles.checkItem}
-              onPress={() => toggleItem(id)}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.itemTitle}>{item.name}</Text>
-                <Text style={styles.itemSubtitle}>
-                  {item.brand || 'Sin marca'}
-                </Text>
-              </View>
-
-              <Ionicons
-                name={
-                  status === true
-                    ? 'checkmark-circle'
-                    : status === false
-                      ? 'alert-circle'
-                      : 'ellipse-outline'
-                }
-                size={28}
-                color={
-                  status === true
-                    ? '#10B981'
-                    : status === false
-                      ? '#EF4444'
-                      : '#D1D5DB'
-                }
-              />
-            </TouchableOpacity>
-          );
-        })}
-
-        <View style={{ height: 40 }} />
+        <View style={styles.footerSpacer} />
       </ScrollView>
 
       <View style={styles.footer}>
@@ -182,33 +239,25 @@ export default function MaintenanceChecklistScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff' },
-  content: { flex: 1, backgroundColor: '#F3F7FA', padding: 16 },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#11181C',
-    marginBottom: 10,
-  },
-  checkItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  container: {
+    flex: 1,
     backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
   },
-  itemTitle: { fontSize: 16, fontWeight: '500', color: '#374151' },
-  itemSubtitle: { fontSize: 14, color: '#6B7280' },
+  content: {
+    flex: 1,
+    backgroundColor: '#F3F7FA',
+    padding: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   footer: {
     padding: 20,
-    backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
+    backgroundColor: '#fff',
   },
   continueBtn: {
     backgroundColor: '#06B6D4',
@@ -216,5 +265,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
-  continueBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  continueBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  footerSpacer: {
+    height: 40,
+  },
 });

@@ -23,7 +23,12 @@ export const useMaintenanceSession = (
       try {
         const stored = await AsyncStorage.getItem(sessionId);
         if (stored) {
-          setSession(JSON.parse(stored));
+          const loadedSession = JSON.parse(stored);
+          // Migration/Fallback for older sessions
+          if (!loadedSession.itemObservations) {
+            loadedSession.itemObservations = {};
+          }
+          setSession(loadedSession);
         } else {
           // Initialize new session
           const newSession: MaintenanceSession = {
@@ -35,6 +40,7 @@ export const useMaintenanceSession = (
             prePhotos: [],
             postPhotos: [],
             checklist: {},
+            itemObservations: {},
             observations: '',
             currentStep: 'pre-photos',
             isUploaded: false,
