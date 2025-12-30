@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { decode } from 'base64-arraybuffer';
 
 import { supabase } from '@/lib/supabase';
@@ -102,15 +102,20 @@ export default function SummaryScreen() {
 
       setUploadProgress('Guardando reporte...');
 
-      // 3. Save Maintenance Record to DB (mocked for now, or use Supabase insert)
-      // Here you would call your API to save `session.checklist` and the photo URLs.
-      // await maintenanceApi.complete(...)
-
-      console.log('FINAL DATA:', {
-        pre: prePhotosUrls,
+      // 3. Prepare final data
+      const detailMaintenance = {
+        prePhotos: prePhotosUrls,
+        postPhotos: postPhotosUrls,
         checklist: session.checklist,
-        post: postPhotosUrls,
-      });
+        itemObservations: session.itemObservations,
+        observations: session.observations,
+        completedAt: new Date().toISOString(),
+      };
+
+      console.log(
+        'FINAL DATA FOR DB (detail_maintenance):',
+        JSON.stringify(detailMaintenance, null, 2),
+      );
 
       // 4. Clear Local Session
       await clearSession();
@@ -123,7 +128,6 @@ export default function SummaryScreen() {
               '/maintenance/scheduled_maintenance/scheduled-maintenance',
             ),
         },
-        // Or go back to home
       ]);
     } catch (e) {
       console.error(e);
@@ -133,31 +137,69 @@ export default function SummaryScreen() {
     }
   };
 
+  const renderPhotoGrid = (photos: PhotoItem[]) => {
+    if (photos.length === 0)
+      return <Text style={styles.emptyText}>No hay fotos</Text>;
+    return (
+      <View style={styles.photoGrid}>
+        {photos.map((photo, index) => (
+          <Image
+            key={photo.id || index}
+            source={{ uri: photo.uri }}
+            style={styles.photoThumbnail}
+          />
+        ))}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <MaintenanceHeader title="Resumen" iconName="flag" />
 
       <ScrollView style={styles.content}>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Fotos Previas</Text>
-          <Text>{session.prePhotos.length} fotos listas para subir</Text>
+          <Text style={styles.cardTitle}>
+            Fotos Previas ({session.prePhotos.length})
+          </Text>
+          {renderPhotoGrid(session.prePhotos)}
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Checklist</Text>
-          <Text>{Object.keys(session.checklist).length} items verificados</Text>
-          <Text style={{ color: '#10B981' }}>
-            {Object.values(session.checklist).filter(v => v === true).length} OK
-          </Text>
-          <Text style={{ color: '#EF4444' }}>
-            {Object.values(session.checklist).filter(v => v === false).length}{' '}
-            Fallos
-          </Text>
+          <View style={styles.statRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {Object.keys(session.checklist).length}
+              </Text>
+              <Text style={styles.statLabel}>Total</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: '#10B981' }]}>
+                {
+                  Object.values(session.checklist).filter(v => v === true)
+                    .length
+                }
+              </Text>
+              <Text style={styles.statLabel}>OK</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: '#EF4444' }]}>
+                {
+                  Object.values(session.checklist).filter(v => v === false)
+                    .length
+                }
+              </Text>
+              <Text style={styles.statLabel}>Issues</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Fotos Finales</Text>
-          <Text>{session.postPhotos.length} fotos listas para subir</Text>
+          <Text style={styles.cardTitle}>
+            Fotos Finales ({session.postPhotos.length})
+          </Text>
+          {renderPhotoGrid(session.postPhotos)}
         </View>
       </ScrollView>
 
@@ -188,8 +230,48 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
+    // Shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  cardTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#11181C',
+  },
+  emptyText: { color: '#9CA3AF', fontStyle: 'italic' },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  photoThumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#E5E7EB',
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 8,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#11181C',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+  },
   footer: {
     padding: 20,
     backgroundColor: '#fff',
@@ -197,11 +279,11 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
   },
   continueBtn: {
-    backgroundColor: '#10B981',
+    backgroundColor: '#06B6D4', // Changed to Brand Color
     padding: 16,
     borderRadius: 10,
     alignItems: 'center',
   },
-  disabledBtn: { backgroundColor: '#6EE7B7' },
+  disabledBtn: { backgroundColor: '#67E8F9' },
   continueBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
