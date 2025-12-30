@@ -1,23 +1,23 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import {
   MaintenanceCreateRequest,
   MaintenanceStatusEnum,
   User,
-} from "@/types/api";
+} from '@/types/api';
 
 // Fetch technicians (Users with role TECNICO)
 export const useTechnicians = () => {
   return useQuery({
-    queryKey: ["technicians"],
+    queryKey: ['technicians'],
     queryFn: async (): Promise<User[]> => {
       // Assuming we have a 'users' table and we can filter by role,
       // OR we use an RPC/Edge Function.
       // Based on SQL provided, there is a 'users' table.
       // We will try standard select.
       const { data, error } = await supabase
-        .from("users") // Check if table is 'users' or 'profiles' in Supabase usually, but SQL said 'users' foreign key.
-        .select("*");
+        .from('users') // Check if table is 'users' or 'profiles' in Supabase usually, but SQL said 'users' foreign key.
+        .select('*');
       // .eq("role", RoleEnum.TECNICO); // TEMPORARY: Fetch all users for testing
 
       if (error) throw error;
@@ -36,7 +36,7 @@ export const useCreateMaintenance = () => {
       const { panel_ids, assigned_technicians, ...commonData } = vars;
 
       if (!panel_ids || panel_ids.length === 0) {
-        throw new Error("No panels selected");
+        throw new Error('No panels selected');
       }
 
       // 1. Get current user
@@ -45,11 +45,11 @@ export const useCreateMaintenance = () => {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        throw new Error("No authenticated user found");
+        throw new Error('No authenticated user found');
       }
 
       // 2. Create maintenance records
-      const maintenanceInserts = panel_ids.map((panelId) => ({
+      const maintenanceInserts = panel_ids.map(panelId => ({
         id_equipo: panelId,
         dia_programado: commonData.dia_programado, // Date type in DB
         tipo_mantenimiento: commonData.tipo_mantenimiento,
@@ -58,16 +58,16 @@ export const useCreateMaintenance = () => {
         observations: commonData.observations,
       }));
 
-      console.log("Saving Maintenance:", maintenanceInserts);
+      console.log('Saving Maintenance:', maintenanceInserts);
 
       const { data: maintenanceData, error: maintenanceError } = await supabase
-        .from("mantenimientos")
+        .from('mantenimientos')
         .insert(maintenanceInserts)
         .select();
 
       if (maintenanceError) throw maintenanceError;
       if (!maintenanceData)
-        throw new Error("Failed to create maintenance records");
+        throw new Error('Failed to create maintenance records');
 
       // 2. Assign technicians (user_maintenace table)
       // SQL: user_maintenace (id_user, id_maintenance)
@@ -79,8 +79,8 @@ export const useCreateMaintenance = () => {
       }[] = [];
 
       if (assigned_technicians && assigned_technicians.length > 0) {
-        maintenanceData.forEach((m) => {
-          assigned_technicians.forEach((techId) => {
+        maintenanceData.forEach(m => {
+          assigned_technicians.forEach(techId => {
             userMaintenanceInserts.push({
               id_maintenance: m.id,
               id_user: techId,
@@ -89,11 +89,11 @@ export const useCreateMaintenance = () => {
         });
       }
 
-      console.log("Saving User Maintenance:", userMaintenanceInserts);
+      console.log('Saving User Maintenance:', userMaintenanceInserts);
 
       if (userMaintenanceInserts.length > 0) {
         const { error: assignError } = await supabase
-          .from("user_maintenace")
+          .from('user_maintenace')
           .insert(userMaintenanceInserts);
 
         if (assignError) throw assignError;
@@ -103,23 +103,23 @@ export const useCreateMaintenance = () => {
     },
     onSuccess: () => {
       // Invalidate queries if needed, e.g. list of maintenances
-      queryClient.invalidateQueries({ queryKey: ["maintenances"] });
+      queryClient.invalidateQueries({ queryKey: ['maintenances'] });
     },
     retry: 0,
   });
 };
 
-
 // Fetch Scheduled Maintenances
 export const useScheduledMaintenances = () => {
   return useQuery({
-    queryKey: ["scheduled-maintenances"],
+    queryKey: ['scheduled-maintenances'],
     queryFn: async () => {
       // Fetch maintenance with equipment, property, and technician count
       // Note: We need deep joins: mantenimientos -> equipos -> properties
       const { data, error } = await supabase
-        .from("mantenimientos")
-        .select(`
+        .from('mantenimientos')
+        .select(
+          `
           id,
           dia_programado,
           estatus,
@@ -139,8 +139,9 @@ export const useScheduledMaintenances = () => {
           user_maintenace (
             id_user
           )
-        `)
-        .order("dia_programado", { ascending: true });
+        `,
+        )
+        .order('dia_programado', { ascending: true });
 
       if (error) throw error;
       return data;
@@ -151,13 +152,14 @@ export const useScheduledMaintenances = () => {
 // Fetch Maintenances by Property ID
 export const useMaintenanceByProperty = (propertyId: string) => {
   return useQuery({
-    queryKey: ["maintenance-by-property", propertyId],
+    queryKey: ['maintenance-by-property', propertyId],
     queryFn: async () => {
       if (!propertyId) return [];
-      
+
       const { data, error } = await supabase
-        .from("mantenimientos")
-        .select(`
+        .from('mantenimientos')
+        .select(
+          `
           id,
           dia_programado,
           estatus,
@@ -172,9 +174,10 @@ export const useMaintenanceByProperty = (propertyId: string) => {
               nombre
             )
           )
-        `)
-        .eq("equipos.id_property", propertyId)
-        .order("dia_programado", { ascending: true });
+        `,
+        )
+        .eq('equipos.id_property', propertyId)
+        .order('dia_programado', { ascending: true });
 
       if (error) throw error;
       return data;

@@ -36,13 +36,16 @@ export default function PreMaintenancePhotosScreen() {
 
   // Modal State
   const [modalVisible, setModalVisible] = useState(false);
-  const [currentSection, setCurrentSection] = useState<'panel' | 'thermo' | null>(null);
+  const [currentSection, setCurrentSection] = useState<
+    'panel' | 'thermo' | null
+  >(null);
 
   // Request permissions on mount (optional, expo-image-picker handles this automatically mostly)
   useEffect(() => {
     (async () => {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      const libraryStatus = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const libraryStatus =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted' || libraryStatus.status !== 'granted') {
         // Alert.alert('Permiso requerido', 'Se requiere acceso a la cámara y galería.');
       }
@@ -52,7 +55,10 @@ export default function PreMaintenancePhotosScreen() {
   // CONFIG: Bucket Name in Supabase Storage
   const BUCKET_NAME = 'maintenance';
 
-  const uploadImageToSupabase = async (uri: string, folder: string): Promise<{ path: string; publicUrl: string } | null> => {
+  const uploadImageToSupabase = async (
+    uri: string,
+    folder: string,
+  ): Promise<{ path: string; publicUrl: string } | null> => {
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
@@ -63,11 +69,15 @@ export default function PreMaintenancePhotosScreen() {
         reader.onload = async () => {
           if (reader.result) {
             try {
-              const arrayBuffer = decode((reader.result as string).split(',')[1]);
+              const arrayBuffer = decode(
+                (reader.result as string).split(',')[1],
+              );
               const fileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
               const filePath = `pre-maintenance/${folder}/${fileName}`;
 
-              console.log(`Uploading to bucket: ${BUCKET_NAME}, path: ${filePath}`);
+              console.log(
+                `Uploading to bucket: ${BUCKET_NAME}, path: ${filePath}`,
+              );
 
               const { data, error } = await supabase.storage
                 .from(BUCKET_NAME)
@@ -78,14 +88,17 @@ export default function PreMaintenancePhotosScreen() {
 
               if (error) {
                 console.error('Supabase Upload error:', error);
-                Alert.alert('Upload Error', `Error uploading to ${BUCKET_NAME}: ${error.message}`);
+                Alert.alert(
+                  'Upload Error',
+                  `Error uploading to ${BUCKET_NAME}: ${error.message}`,
+                );
                 reject(error);
                 return;
               }
 
-              const { data: { publicUrl } } = supabase.storage
-                .from(BUCKET_NAME)
-                .getPublicUrl(filePath);
+              const {
+                data: { publicUrl },
+              } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
 
               console.log('Upload successful:', publicUrl);
               resolve({ path: filePath, publicUrl });
@@ -95,13 +108,12 @@ export default function PreMaintenancePhotosScreen() {
             }
           }
         };
-        reader.onerror = (err) => {
-          console.error("FileReader error:", err);
+        reader.onerror = err => {
+          console.error('FileReader error:', err);
           reject(err);
         };
         reader.readAsDataURL(blob);
       });
-
     } catch (error) {
       console.error('Processing error:', error);
       Alert.alert('Processing Error', 'Error preparing image for upload.');
@@ -148,9 +160,10 @@ export default function PreMaintenancePhotosScreen() {
     }
   };
 
-
-
-  const handleImageResult = async (result: ImagePicker.ImagePickerResult, section: 'panel' | 'thermo') => {
+  const handleImageResult = async (
+    result: ImagePicker.ImagePickerResult,
+    section: 'panel' | 'thermo',
+  ) => {
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const asset = result.assets[0];
       const newPhoto: PhotoItem = {
@@ -160,22 +173,31 @@ export default function PreMaintenancePhotosScreen() {
       };
 
       if (section === 'panel') {
-        setPanelPhotos((prev) => [...prev, newPhoto]);
+        setPanelPhotos(prev => [...prev, newPhoto]);
       } else {
-        setThermoPhotos((prev) => [...prev, newPhoto]);
+        setThermoPhotos(prev => [...prev, newPhoto]);
       }
 
       await processUpload(newPhoto, section);
     }
   };
 
-  const processUpload = async (photo: PhotoItem, section: 'panel' | 'thermo') => {
+  const processUpload = async (
+    photo: PhotoItem,
+    section: 'panel' | 'thermo',
+  ) => {
     updatePhotoStatus(photo.id, 'uploading', section);
 
     try {
       const result = await uploadImageToSupabase(photo.uri, section);
       if (result) {
-        updatePhotoStatus(photo.id, 'done', section, result.path, result.publicUrl);
+        updatePhotoStatus(
+          photo.id,
+          'done',
+          section,
+          result.path,
+          result.publicUrl,
+        );
       } else {
         updatePhotoStatus(photo.id, 'error', section);
       }
@@ -189,11 +211,10 @@ export default function PreMaintenancePhotosScreen() {
     status: PhotoItem['status'],
     section: 'panel' | 'thermo',
     remotePath?: string,
-    url?: string
+    url?: string,
   ) => {
-    const updater = (prev: PhotoItem[]) => prev.map(p =>
-      p.id === id ? { ...p, status, remotePath, url } : p
-    );
+    const updater = (prev: PhotoItem[]) =>
+      prev.map(p => (p.id === id ? { ...p, status, remotePath, url } : p));
 
     if (section === 'panel') setPanelPhotos(updater);
     else setThermoPhotos(updater);
@@ -210,8 +231,14 @@ export default function PreMaintenancePhotosScreen() {
   const handleContinue = () => {
     setIsGlobalLoading(true);
     // Here you would save the photo URLs to your main inspection record or pass them forward
-    console.log("Panel Photos:", panelPhotos.map(p => p.url));
-    console.log("Thermo Photos:", thermoPhotos.map(p => p.url));
+    console.log(
+      'Panel Photos:',
+      panelPhotos.map(p => p.url),
+    );
+    console.log(
+      'Thermo Photos:',
+      thermoPhotos.map(p => p.url),
+    );
 
     setTimeout(() => {
       setIsGlobalLoading(false);
@@ -222,11 +249,17 @@ export default function PreMaintenancePhotosScreen() {
 
   // Validation: Min 2 photos each, and all must be uploaded (status 'done')
   const MIN_PHOTOS = 2;
-  const panelValid = panelPhotos.filter(p => p.status === 'done').length >= MIN_PHOTOS;
-  const thermoValid = thermoPhotos.filter(p => p.status === 'done').length >= MIN_PHOTOS;
+  const panelValid =
+    panelPhotos.filter(p => p.status === 'done').length >= MIN_PHOTOS;
+  const thermoValid =
+    thermoPhotos.filter(p => p.status === 'done').length >= MIN_PHOTOS;
   const isFormValid = panelValid && thermoValid;
 
-  const PhotoBoxSection = ({ title, photos, section }: {
+  const PhotoBoxSection = ({
+    title,
+    photos,
+    section,
+  }: {
     title: string;
     photos: PhotoItem[];
     section: 'panel' | 'thermo';
@@ -237,10 +270,13 @@ export default function PreMaintenancePhotosScreen() {
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{title}</Text>
-          <Text style={[
-            styles.sectionCounter,
-            count >= MIN_PHOTOS ? styles.counterSuccess : styles.counterPending
-          ]}>
+          <Text
+            style={[
+              styles.sectionCounter,
+              count >= MIN_PHOTOS
+                ? styles.counterSuccess
+                : styles.counterPending,
+            ]}>
             ({count}/{MIN_PHOTOS} min)
           </Text>
         </View>
@@ -260,17 +296,32 @@ export default function PreMaintenancePhotosScreen() {
 
                 {/* Status Overlay */}
                 <View style={styles.statusOverlay}>
-                  {item.status === 'uploading' && <ActivityIndicator size="small" color="#FFF" />}
-                  {item.status === 'done' && <Ionicons name="checkmark-circle" size={20} color="#10B981" />}
+                  {item.status === 'uploading' && (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  )}
+                  {item.status === 'done' && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color="#10B981"
+                    />
+                  )}
                   {item.status === 'error' && (
-                    <TouchableOpacity onPress={() => processUpload(item, section)}>
-                      <Ionicons name="reload-circle" size={24} color="#EF4444" />
+                    <TouchableOpacity
+                      onPress={() => processUpload(item, section)}>
+                      <Ionicons
+                        name="reload-circle"
+                        size={24}
+                        color="#EF4444"
+                      />
                     </TouchableOpacity>
                   )}
                 </View>
 
                 {/* Remove Button */}
-                <TouchableOpacity style={styles.removeBtn} onPress={() => removeItem(item.id, section)}>
+                <TouchableOpacity
+                  style={styles.removeBtn}
+                  onPress={() => removeItem(item.id, section)}>
                   <Ionicons name="close-circle" size={20} color="#EF4444" />
                 </TouchableOpacity>
               </View>
@@ -280,14 +331,18 @@ export default function PreMaintenancePhotosScreen() {
 
         {/* Add Button */}
         <View style={styles.adderContainer}>
-          <TouchableOpacity style={styles.addBtnContainer} onPress={() => openSelectionModal(section)}>
+          <TouchableOpacity
+            style={styles.addBtnContainer}
+            onPress={() => openSelectionModal(section)}>
             <View style={styles.addBtn}>
               <Ionicons name="camera-outline" size={20} color="white" />
               <Text style={styles.addBtnText}>Agregar Foto</Text>
             </View>
           </TouchableOpacity>
           {count < MIN_PHOTOS && (
-            <Text style={styles.requirementText}>Faltan {MIN_PHOTOS - count} foto(s)</Text>
+            <Text style={styles.requirementText}>
+              Faltan {MIN_PHOTOS - count} foto(s)
+            </Text>
           )}
         </View>
       </View>
@@ -322,8 +377,7 @@ export default function PreMaintenancePhotosScreen() {
         <TouchableOpacity
           style={[styles.continueBtn, !isFormValid && styles.disabledBtn]}
           onPress={handleContinue}
-          disabled={!isFormValid || isGlobalLoading}
-        >
+          disabled={!isFormValid || isGlobalLoading}>
           {isGlobalLoading ? (
             <ActivityIndicator color="white" />
           ) : (
@@ -331,7 +385,9 @@ export default function PreMaintenancePhotosScreen() {
           )}
         </TouchableOpacity>
         {!isFormValid && (
-          <Text style={styles.footerSubtext}>Complete el mínimo de fotos requeridas.</Text>
+          <Text style={styles.footerSubtext}>
+            Complete el mínimo de fotos requeridas.
+          </Text>
         )}
       </View>
       {/* Modal Selection */}
@@ -339,13 +395,11 @@ export default function PreMaintenancePhotosScreen() {
         animationType="fade"
         transparent={true}
         visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
+        onRequestClose={() => setModalVisible(false)}>
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => setModalVisible(false)}
-        >
+          onPress={() => setModalVisible(false)}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Seleccionar origen</Text>
 
@@ -354,12 +408,16 @@ export default function PreMaintenancePhotosScreen() {
               <Text style={styles.modalOptionText}>Tomar Foto</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.modalOption} onPress={handleGallery}>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={handleGallery}>
               <Ionicons name="images" size={24} color="#06B6D4" />
               <Text style={styles.modalOptionText}>Elegir de Galería</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setModalVisible(false)}>
+            <TouchableOpacity
+              style={styles.modalCancelBtn}
+              onPress={() => setModalVisible(false)}>
               <Text style={styles.modalCancelText}>Cancelar</Text>
             </TouchableOpacity>
           </View>

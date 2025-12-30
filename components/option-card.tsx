@@ -1,6 +1,12 @@
-import Feather from "@expo/vector-icons/Feather";
-import { JSX } from "react";
-import { Linking, Text, TouchableOpacity, View, StyleSheet } from "react-native";
+import Feather from '@expo/vector-icons/Feather';
+import { JSX } from 'react';
+import {
+  Linking,
+  Text,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+} from 'react-native';
 
 type Props = {
   icon: JSX.Element;
@@ -12,14 +18,15 @@ type Props = {
 export default function OptionCard({ icon, title, description, link }: Props) {
   return (
     <View>
-      <View style={styles.content}
-      >
+      <View style={styles.content}>
         <View style={styles.row}>
           {icon}
           <Text style={styles.title}>{title}</Text>
         </View>
         <Text style={styles.description}>{description}</Text>
-        <TouchableOpacity onPress={() => Linking.openURL(link)} style={styles.learnMoreWrap}>
+        <TouchableOpacity
+          onPress={() => Linking.openURL(link)}
+          style={styles.learnMoreWrap}>
           <Text style={styles.learnMore}>Learn more</Text>
         </TouchableOpacity>
       </View>

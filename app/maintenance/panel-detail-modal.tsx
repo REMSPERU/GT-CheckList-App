@@ -1,15 +1,15 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { TableroElectricoResponse } from "@/types/api";
-import { PanelDetailContent } from "@/components/maintenance/PanelDetailContent";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { TableroElectricoResponse } from '@/types/api';
+import { PanelDetailContent } from '@/components/maintenance/PanelDetailContent';
 
 export default function PanelDetailModal() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function PanelDetailModal() {
       detail = panel?.equipment_detail || {};
     }
   } catch (e) {
-    console.error("Error parsing panel data", e);
+    console.error('Error parsing panel data', e);
   }
 
   if (!panel || !detail) {
@@ -33,8 +33,7 @@ export default function PanelDetailModal() {
         <View style={modalStyles.header}>
           <TouchableOpacity
             onPress={() => router.back()}
-            style={modalStyles.backButton}
-          >
+            style={modalStyles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
           </TouchableOpacity>
           <Text style={modalStyles.headerTitle}>Detalle del Tablero</Text>
@@ -51,8 +50,7 @@ export default function PanelDetailModal() {
       <View style={modalStyles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
-          style={modalStyles.backButton}
-        >
+          style={modalStyles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={modalStyles.headerTitle}>Detalle del Tablero</Text>
@@ -61,12 +59,12 @@ export default function PanelDetailModal() {
       <ScrollView contentContainerStyle={modalStyles.content}>
         <PanelDetailContent
           data={{
-            rotulo: panel.rotulo || detail.rotulo || "",
-            tipo_tablero: panel.tipo || "",
-            detalle_tecnico: detail.detalle_tecnico || {},
+            rotulo: detail.rotulo || '',
+            tipo_tablero: detail.tipo_tablero || '',
+            detalle_tecnico: detail.detalle_tecnico,
             itgs: detail.itgs || [],
             componentes: detail.componentes || [],
-            condiciones_especiales: detail.condiciones_especiales || {},
+            condiciones_especiales: detail.condiciones_especiales,
           }}
         />
       </ScrollView>
@@ -77,15 +75,15 @@ export default function PanelDetailModal() {
 const modalStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: '#F3F4F6',
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
-    backgroundColor: "#FFF",
+    backgroundColor: '#FFF',
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: '#E5E7EB',
   },
   backButton: {
     padding: 8,
@@ -93,13 +91,13 @@ const modalStyles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#11181C",
+    fontWeight: '600',
+    color: '#11181C',
   },
   centerContent: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     padding: 16,

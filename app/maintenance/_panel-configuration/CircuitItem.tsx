@@ -1,11 +1,17 @@
-import React, { memo } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
-import { Controller, useFormContext, useWatch } from "react-hook-form";
-import RNPickerSelect from "react-native-picker-select";
-import { Ionicons } from "@expo/vector-icons";
-import { styles } from "./_styles";
-import { PhaseType, CableType } from "@/types/panel-configuration";
-import { PanelConfigurationFormValues } from "@/schemas/panel-configuration";
+import React, { memo } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
+import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import RNPickerSelect from 'react-native-picker-select';
+import { Ionicons } from '@expo/vector-icons';
+import { styles } from './_styles';
+import { PhaseType, CableType } from '@/types/panel-configuration';
+import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 
 const pickerSelectStyles = StyleSheet.create({
   inputIOS: {
@@ -13,10 +19,10 @@ const pickerSelectStyles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: '#E5E7EB',
     borderRadius: 8,
-    color: "#11181C",
-    backgroundColor: "#FFFFFF",
+    color: '#11181C',
+    backgroundColor: '#FFFFFF',
     paddingRight: 30,
     height: 48,
   },
@@ -25,27 +31,27 @@ const pickerSelectStyles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: '#E5E7EB',
     borderRadius: 8,
-    color: "#11181C",
-    backgroundColor: "#FFFFFF",
+    color: '#11181C',
+    backgroundColor: '#FFFFFF',
     paddingRight: 30,
     height: 48,
   },
   placeholder: {
-    color: "#9CA3AF",
+    color: '#9CA3AF',
   },
 });
 
 const PHASE_OPTIONS: { key: PhaseType; label: string }[] = [
-  { key: "mono_2w", label: "Monofásico 2 hilos" },
-  { key: "tri_3w", label: "Trifásico 3 hilos" },
-  { key: "tri_4w", label: "Trifásico 4 hilos" },
+  { key: 'mono_2w', label: 'Monofásico 2 hilos' },
+  { key: 'tri_3w', label: 'Trifásico 3 hilos' },
+  { key: 'tri_4w', label: 'Trifásico 4 hilos' },
 ];
 
 const CABLE_TYPE_OPTIONS: { key: CableType; label: string }[] = [
-  { key: "libre_halogeno", label: "Libre de Halógeno" },
-  { key: "no_libre_halogeno", label: "No libre de Halógeno" },
+  { key: 'libre_halogeno', label: 'Libre de Halógeno' },
+  { key: 'no_libre_halogeno', label: 'No libre de Halógeno' },
 ];
 
 interface CircuitItemProps {
@@ -63,7 +69,11 @@ const CircuitItem = ({
   onToggleExpand,
   cnPrefix,
 }: CircuitItemProps) => {
-  const { control, setValue, formState: { errors } } = useFormContext<PanelConfigurationFormValues>();
+  const {
+    control,
+    setValue,
+    formState: { errors },
+  } = useFormContext<PanelConfigurationFormValues>();
 
   // Use granular useWatch for this specific item's ID toggle
   const hasID = useWatch({
@@ -75,11 +85,11 @@ const CircuitItem = ({
     <View style={styles.cnCard}>
       <View style={styles.cnCardHeader}>
         <Text style={styles.cnTitle}>
-          {cnPrefix || "CN"}-{index + 1}
+          {cnPrefix || 'CN'}-{index + 1}
         </Text>
         <TouchableOpacity onPress={() => onToggleExpand(index)}>
           <Ionicons
-            name={isExpanded ? "chevron-up" : "chevron-down"}
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
             size={20}
             color="#6B7280"
           />
@@ -99,14 +109,14 @@ const CircuitItem = ({
             render={({ field: { onChange, value } }) => (
               <RNPickerSelect
                 onValueChange={onChange}
-                items={PHASE_OPTIONS.map((opt) => ({
+                items={PHASE_OPTIONS.map(opt => ({
                   label: opt.label,
                   value: opt.key,
                 }))}
                 placeholder={{
-                  label: "Seleccione tipo de fase",
+                  label: 'Seleccione tipo de fase',
                   value: null,
-                  color: "#9CA3AF",
+                  color: '#9CA3AF',
                 }}
                 value={value}
                 style={{
@@ -133,7 +143,8 @@ const CircuitItem = ({
                 <TextInput
                   style={[
                     styles.itgInputWithUnit,
-                    errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.amperajeITM && styles.inputError
+                    errors.itgCircuits?.[itgIndex]?.circuits?.[index]
+                      ?.amperajeITM && styles.inputError,
                   ]}
                   value={value}
                   onChangeText={onChange}
@@ -148,7 +159,10 @@ const CircuitItem = ({
           </View>
           {errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.amperajeITM && (
             <Text style={styles.errorText}>
-              {errors.itgCircuits[itgIndex]?.circuits?.[index]?.amperajeITM?.message}
+              {
+                errors.itgCircuits[itgIndex]?.circuits?.[index]?.amperajeITM
+                  ?.message
+              }
             </Text>
           )}
 
@@ -161,7 +175,7 @@ const CircuitItem = ({
               render={({ field: { onChange, onBlur, value } }) => (
                 <TextInput
                   style={styles.itgInputWithUnit}
-                  value={value || ""}
+                  value={value || ''}
                   onChangeText={onChange}
                   onBlur={onBlur}
                   placeholder="Ingrese diámetro"
@@ -181,14 +195,14 @@ const CircuitItem = ({
             render={({ field: { onChange, value } }) => (
               <RNPickerSelect
                 onValueChange={onChange}
-                items={CABLE_TYPE_OPTIONS.map((opt) => ({
+                items={CABLE_TYPE_OPTIONS.map(opt => ({
                   label: opt.label,
                   value: opt.key,
                 }))}
                 placeholder={{
-                  label: "Seleccione una opción",
+                  label: 'Seleccione una opción',
                   value: null,
-                  color: "#9CA3AF",
+                  color: '#9CA3AF',
                 }}
                 value={value}
                 style={{
@@ -209,36 +223,52 @@ const CircuitItem = ({
           {/* ID - Optional Section */}
           <View style={{ marginTop: 12 }}>
             <TouchableOpacity
-              style={[
-                styles.toggleRow,
-                hasID && styles.toggleRowActive,
-              ]}
+              style={[styles.toggleRow, hasID && styles.toggleRowActive]}
               onPress={() => {
                 const newValue = !hasID;
-                setValue(`itgCircuits.${itgIndex}.circuits.${index}.hasID`, newValue);
+                setValue(
+                  `itgCircuits.${itgIndex}.circuits.${index}.hasID`,
+                  newValue,
+                );
                 if (!newValue) {
-                  setValue(`itgCircuits.${itgIndex}.circuits.${index}.phaseID`, undefined);
-                  setValue(`itgCircuits.${itgIndex}.circuits.${index}.amperajeID`, undefined);
-                  setValue(`itgCircuits.${itgIndex}.circuits.${index}.diameterID`, undefined);
-                  setValue(`itgCircuits.${itgIndex}.circuits.${index}.cableTypeID`, undefined);
+                  setValue(
+                    `itgCircuits.${itgIndex}.circuits.${index}.phaseID`,
+                    undefined,
+                  );
+                  setValue(
+                    `itgCircuits.${itgIndex}.circuits.${index}.amperajeID`,
+                    undefined,
+                  );
+                  setValue(
+                    `itgCircuits.${itgIndex}.circuits.${index}.diameterID`,
+                    undefined,
+                  );
+                  setValue(
+                    `itgCircuits.${itgIndex}.circuits.${index}.cableTypeID`,
+                    undefined,
+                  );
                 } else {
-                  setValue(`itgCircuits.${itgIndex}.circuits.${index}.phaseID`, "mono_2w");
-                  setValue(`itgCircuits.${itgIndex}.circuits.${index}.amperajeID`, "");
+                  setValue(
+                    `itgCircuits.${itgIndex}.circuits.${index}.phaseID`,
+                    'mono_2w',
+                  );
+                  setValue(
+                    `itgCircuits.${itgIndex}.circuits.${index}.amperajeID`,
+                    '',
+                  );
                 }
-              }}
-            >
+              }}>
               <View style={styles.toggleIconRow}>
                 <Ionicons
                   name="shield-checkmark-outline"
                   size={20}
-                  color={hasID ? "#0891B2" : "#6B7280"}
+                  color={hasID ? '#0891B2' : '#6B7280'}
                 />
                 <Text
                   style={[
                     styles.toggleLabel,
                     hasID && styles.toggleLabelActive,
-                  ]}
-                >
+                  ]}>
                   Interruptor diferencial (ID)
                 </Text>
               </View>
@@ -246,8 +276,7 @@ const CircuitItem = ({
                 style={[
                   styles.toggleSwitch,
                   hasID && styles.toggleSwitchActive,
-                ]}
-              >
+                ]}>
                 <View
                   style={[
                     styles.toggleThumb,
@@ -266,14 +295,14 @@ const CircuitItem = ({
                   render={({ field: { onChange, value } }) => (
                     <RNPickerSelect
                       onValueChange={onChange}
-                      items={PHASE_OPTIONS.map((opt) => ({
+                      items={PHASE_OPTIONS.map(opt => ({
                         label: opt.label,
                         value: opt.key,
                       }))}
                       placeholder={{
-                        label: "Seleccione tipo de fase",
+                        label: 'Seleccione tipo de fase',
                         value: null,
-                        color: "#9CA3AF",
+                        color: '#9CA3AF',
                       }}
                       value={value}
                       style={{
@@ -285,7 +314,11 @@ const CircuitItem = ({
                       }}
                       useNativeAndroidPickerStyle={false}
                       Icon={() => (
-                        <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                        <Ionicons
+                          name="chevron-down"
+                          size={20}
+                          color="#6B7280"
+                        />
                       )}
                     />
                   )}
@@ -298,7 +331,7 @@ const CircuitItem = ({
                     render={({ field: { onChange, onBlur, value } }) => (
                       <TextInput
                         style={styles.itgInputWithUnit}
-                        value={value || ""}
+                        value={value || ''}
                         onChangeText={onChange}
                         onBlur={onBlur}
                         placeholder="Ingrese amperaje"
@@ -319,7 +352,7 @@ const CircuitItem = ({
                     render={({ field: { onChange, onBlur, value } }) => (
                       <TextInput
                         style={styles.itgInputWithUnit}
-                        value={value || ""}
+                        value={value || ''}
                         onChangeText={onChange}
                         onBlur={onBlur}
                         placeholder="Ingrese diámetro"
@@ -339,14 +372,14 @@ const CircuitItem = ({
                   render={({ field: { onChange, value } }) => (
                     <RNPickerSelect
                       onValueChange={onChange}
-                      items={CABLE_TYPE_OPTIONS.map((opt) => ({
+                      items={CABLE_TYPE_OPTIONS.map(opt => ({
                         label: opt.label,
                         value: opt.key,
                       }))}
                       placeholder={{
-                        label: "Seleccione una opción",
+                        label: 'Seleccione una opción',
                         value: null,
-                        color: "#9CA3AF",
+                        color: '#9CA3AF',
                       }}
                       value={value}
                       style={{
@@ -358,7 +391,11 @@ const CircuitItem = ({
                       }}
                       useNativeAndroidPickerStyle={false}
                       Icon={() => (
-                        <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                        <Ionicons
+                          name="chevron-down"
+                          size={20}
+                          color="#6B7280"
+                        />
                       )}
                     />
                   )}
@@ -369,7 +406,7 @@ const CircuitItem = ({
 
           {/* Suministro */}
           <Text style={[styles.cnLabel, { marginTop: 12 }]}>
-            ¿Qué suministra eléctricamente el Circuito {cnPrefix || "CN"}-
+            ¿Qué suministra eléctricamente el Circuito {cnPrefix || 'CN'}-
             {index + 1}?
           </Text>
           <Controller

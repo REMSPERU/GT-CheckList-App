@@ -4,19 +4,16 @@ import {
   useQueryClient,
   type UseMutationResult,
   type UseQueryResult,
-} from "@tanstack/react-query";
-import { supabaseAuthService } from "../services/supabase-auth.service";
-import type {
-  LoginRequest,
-  RegisterRequest,
-} from "../types/api";
-import type { User } from "@supabase/supabase-js";
+} from '@tanstack/react-query';
+import { supabaseAuthService } from '../services/supabase-auth.service';
+import type { LoginRequest, RegisterRequest } from '../types/api';
+import type { User } from '@supabase/supabase-js';
 
 // Query Keys
 export const authKeys = {
-  all: ["auth"] as const,
-  currentUser: () => [...authKeys.all, "current-user"] as const,
-  verify: () => [...authKeys.all, "verify"] as const,
+  all: ['auth'] as const,
+  currentUser: () => [...authKeys.all, 'current-user'] as const,
+  verify: () => [...authKeys.all, 'verify'] as const,
 };
 
 /**
@@ -31,7 +28,7 @@ export function useCurrentUser(
       try {
         return await supabaseAuthService.getCurrentUser();
       } catch (error) {
-        console.error("Error getting current user:", error);
+        console.error('Error getting current user:', error);
         return null;
       }
     },
@@ -44,18 +41,14 @@ export function useCurrentUser(
 /**
  * Hook to login
  */
-export function useLogin(): UseMutationResult<
-  User,
-  Error,
-  LoginRequest
-> {
+export function useLogin(): UseMutationResult<User, Error, LoginRequest> {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (credentials: LoginRequest) => {
       const data = await supabaseAuthService.signIn(
         credentials.email_or_username,
-        credentials.password
+        credentials.password,
       );
       return data.user;
     },
@@ -67,28 +60,24 @@ export function useLogin(): UseMutationResult<
     },
     onError: () => {
       queryClient.removeQueries({ queryKey: authKeys.currentUser() });
-    }
+    },
   });
 }
 
 /**
  * Hook to register
  */
-export function useRegister(): UseMutationResult<
-  User,
-  Error,
-  RegisterRequest
-> {
+export function useRegister(): UseMutationResult<User, Error, RegisterRequest> {
   return useMutation({
     mutationFn: async (credentials: RegisterRequest) => {
       const data = await supabaseAuthService.signUp(
         credentials.email,
         credentials.password,
-        credentials.username
+        credentials.username,
       );
 
       if (!data.user) {
-        throw new Error("Failed to create user");
+        throw new Error('Failed to create user');
       }
 
       return data.user;
@@ -112,5 +101,3 @@ export function useLogout(): UseMutationResult<void, Error, void> {
     },
   });
 }
-
-

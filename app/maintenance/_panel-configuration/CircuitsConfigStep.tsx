@@ -1,43 +1,48 @@
-
+import { View, Text, TextInput } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
-  View,
-  Text,
-  TextInput,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useFormContext, Controller, useWatch, useFieldArray } from "react-hook-form";
+  useFormContext,
+  Controller,
+  useWatch,
+  useFieldArray,
+} from 'react-hook-form';
 import {
   CircuitsConfigStepProps,
   CircuitConfig,
-} from "@/types/panel-configuration";
+} from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
-import { useState, useEffect, useRef, useCallback } from "react";
-import ProgressTabs from "@/components/progress-tabs";
-import { styles } from "./_styles";
-import CircuitItem from "./CircuitItem";
+import { useState, useEffect, useRef, useCallback } from 'react';
+import ProgressTabs from '@/components/progress-tabs';
+import { styles } from './_styles';
+import CircuitItem from './CircuitItem';
 
 const DEFAULT_CIRCUIT: CircuitConfig = {
-  phaseITM: "mono_2w",
-  amperajeITM: "",
-  diameter: "",
+  phaseITM: 'mono_2w',
+  amperajeITM: '',
+  diameter: '',
   cableType: undefined,
   hasID: false,
-  diameterID: "",
+  diameterID: '',
   cableTypeID: undefined,
-  supply: "",
+  supply: '',
 };
 
 export default function CircuitsConfigStep({
   panel,
   navigationHandlers,
 }: CircuitsConfigStepProps) {
-  const { control, setValue, formState: { errors } } = useFormContext<PanelConfigurationFormValues>();
+  const {
+    control,
+    setValue,
+    formState: { errors },
+  } = useFormContext<PanelConfigurationFormValues>();
 
   // Watch only necessary top-level fields
-  const itgCircuitsLength = useWatch({
-    control,
-    name: "itgCircuits",
-  })?.length || 0;
+  const itgCircuitsLength =
+    useWatch({
+      control,
+      name: 'itgCircuits',
+    })?.length || 0;
 
   const [selectedItgIndex, setSelectedItgIndex] = useState(0);
 
@@ -65,7 +70,10 @@ export default function CircuitsConfigStep({
 
   // Helper to generate tab labels
   const getTabLabels = () => {
-    return Array.from({ length: itgCircuitsLength }, (_, i) => `IT - G${i + 1} `);
+    return Array.from(
+      { length: itgCircuitsLength },
+      (_, i) => `IT - G${i + 1} `,
+    );
   };
 
   // Navigation handlers - parent will call these instead of goNext/goBack
@@ -111,7 +119,7 @@ export default function CircuitsConfigStep({
       // Items were added - expand them
       const newIndices = Array.from(
         { length: fields.length - prevFieldsLengthRef.current },
-        (_, i) => prevFieldsLengthRef.current + i
+        (_, i) => prevFieldsLengthRef.current + i,
       );
       setExpandedIndices(prev => [...prev, ...newIndices]);
     }
@@ -127,13 +135,13 @@ export default function CircuitsConfigStep({
 
   // Toggle handler using useCallback to keep prop stable for React.memo
   const toggleExpand = useCallback((index: number) => {
-    setExpandedIndices((prev) =>
-      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
+    setExpandedIndices(prev =>
+      prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index],
     );
   }, []);
 
   const updateCircuitsCount = (value: string) => {
-    const n = Math.max(0, parseInt(value || "0", 10));
+    const n = Math.max(0, parseInt(value || '0', 10));
     const currentLength = fields.length;
 
     if (n > currentLength) {
@@ -144,7 +152,7 @@ export default function CircuitsConfigStep({
       // Remove excess items from the end
       const indicesToRemove = Array.from(
         { length: currentLength - n },
-        (_, i) => currentLength - 1 - i
+        (_, i) => currentLength - 1 - i,
       );
       remove(indicesToRemove);
     }
@@ -156,7 +164,7 @@ export default function CircuitsConfigStep({
     <View style={styles.contentWrapper}>
       {/* Equipo */}
       <Text style={styles.equipmentLabel}>
-        Equipo {panel?.name || panel?.codigo || ""}
+        Equipo {panel?.name || panel?.codigo || ''}
       </Text>
 
       {/* Tabs for IT-G selection - Non-clickable, navigation via buttons */}
@@ -164,7 +172,7 @@ export default function CircuitsConfigStep({
         <ProgressTabs
           items={getTabLabels()}
           selectedIndex={selectedItgIndex}
-          onSelectIndex={() => { }} // Disabled
+          onSelectIndex={() => {}} // Disabled
           disabled={true}
         />
       )}
@@ -191,7 +199,8 @@ export default function CircuitsConfigStep({
             <TextInput
               style={[
                 styles.input,
-                errors.itgCircuits?.[selectedItgIndex]?.cnPrefix && styles.inputError
+                errors.itgCircuits?.[selectedItgIndex]?.cnPrefix &&
+                  styles.inputError,
               ]}
               value={value}
               onChangeText={onChange}
@@ -218,7 +227,8 @@ export default function CircuitsConfigStep({
             <TextInput
               style={[
                 styles.countInput,
-                errors.itgCircuits?.[selectedItgIndex]?.circuitsCount && styles.inputError
+                errors.itgCircuits?.[selectedItgIndex]?.circuitsCount &&
+                  styles.inputError,
               ]}
               value={circuitsCount}
               onChangeText={updateCircuitsCount}
@@ -251,5 +261,3 @@ export default function CircuitsConfigStep({
     </View>
   );
 }
-
-

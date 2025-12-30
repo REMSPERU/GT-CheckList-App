@@ -1,8 +1,8 @@
-import { supabase } from "../lib/supabase";
-import type { TableroElectricoResponse } from "../types/api";
+import { supabase } from '../lib/supabase';
+import type { TableroElectricoResponse } from '../types/api';
 
 export class SupabaseElectricalPanelService {
-  private tableName = "equipos";
+  private tableName = 'equipos';
 
   /**
    * Obtener tableros eléctricos por property ID
@@ -12,31 +12,31 @@ export class SupabaseElectricalPanelService {
     tipo?: string,
     search?: string,
     config?: boolean | null,
-    locations?: string[]
+    locations?: string[],
   ): Promise<TableroElectricoResponse[]> {
     let query = supabase
       .from(this.tableName)
       .select(
         `
         *
-      `
+      `,
       )
-      .eq("id_property", propertyId);
+      .eq('id_property', propertyId);
 
     // Filtro opcional por tipo (JSONB)
     if (tipo) {
-      query = query.filter("equipment_detail->>tipo_tablero", "eq", tipo);
+      query = query.filter('equipment_detail->>tipo_tablero', 'eq', tipo);
     }
 
     // Filtro por configuración
     if (config !== undefined && config !== null) {
-      query = query.eq("config", config);
+      query = query.eq('config', config);
     }
 
     // Filtro por ubicación (Multi-select)
     if (locations && locations.length > 0) {
       // Use .in() filter for exact matches
-      query = query.in("ubicacion", locations);
+      query = query.in('ubicacion', locations);
     }
 
     // Filtro por búsqueda (código o rótulo)
@@ -47,7 +47,7 @@ export class SupabaseElectricalPanelService {
       // La sintaxis de .or() permite referencias a columnas.
       // `codigo.ilike.%${search}%,equipment_detail->>rotulo.ilike.%${search}%`
       query = query.or(
-        `codigo.ilike.%${search}%,equipment_detail->>rotulo.ilike.%${search}%`
+        `codigo.ilike.%${search}%,equipment_detail->>rotulo.ilike.%${search}%`,
       );
     }
 
@@ -63,8 +63,8 @@ export class SupabaseElectricalPanelService {
   async getById(id: string): Promise<TableroElectricoResponse> {
     const { data, error } = await supabase
       .from(this.tableName)
-      .select("*")
-      .eq("id", id)
+      .select('*')
+      .eq('id', id)
       .single();
 
     if (error) throw error;
@@ -81,7 +81,7 @@ export class SupabaseElectricalPanelService {
         equipment_detail: detail,
         config: true,
       })
-      .eq("id", id);
+      .eq('id', id);
 
     if (error) throw error;
   }
