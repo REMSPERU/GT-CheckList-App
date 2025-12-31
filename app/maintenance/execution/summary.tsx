@@ -52,7 +52,7 @@ export default function SummaryScreen() {
       for (const p of session.prePhotos) {
         setUploadProgress(`Subiendo foto previa ${p.id.slice(-4)}...`);
         const url = await supabaseMaintenanceService.uploadPhoto(p.uri, 'pre');
-        prePhotosUrls.push({ ...p, url, status: 'done' });
+        prePhotosUrls.push(url);
       }
 
       // 2. Upload Post-Photos
@@ -60,7 +60,7 @@ export default function SummaryScreen() {
       for (const p of session.postPhotos) {
         setUploadProgress(`Subiendo foto final ${p.id.slice(-4)}...`);
         const url = await supabaseMaintenanceService.uploadPhoto(p.uri, 'post');
-        postPhotosUrls.push({ ...p, url, status: 'done' });
+        postPhotosUrls.push(url);
       }
 
       // 3. Upload Observation Photos
@@ -82,7 +82,7 @@ export default function SummaryScreen() {
 
         itemObservationsFinal[key] = {
           note: obs.note,
-          photoUrl: photoUrl,
+          photoUrl: photoUrl, // Only URL string
         };
       }
 
@@ -90,8 +90,8 @@ export default function SummaryScreen() {
 
       // 4. Prepare final data
       const detailMaintenance = {
-        prePhotos: prePhotosUrls,
-        postPhotos: postPhotosUrls,
+        prePhotos: prePhotosUrls, // Array of strings
+        postPhotos: postPhotosUrls, // Array of strings
         checklist: session.checklist,
         measurements: session.measurements,
         itemObservations: itemObservationsFinal,
@@ -100,8 +100,12 @@ export default function SummaryScreen() {
       };
 
       // 5. Save to DB
+      if (!maintenanceId) {
+        console.warn('No maintenanceId provided, saving as adhoc/null');
+      }
+
       await supabaseMaintenanceService.saveMaintenanceResponse({
-        id_mantenimiento: maintenanceId, // Can be null if adhoc
+        id_mantenimiento: maintenanceId,
         user_created: userId,
         detail_maintenance: detailMaintenance,
       });
@@ -118,9 +122,11 @@ export default function SummaryScreen() {
           {
             text: 'OK',
             onPress: () =>
-              router.push(
-                '/maintenance/scheduled_maintenance/scheduled-maintenance',
-              ),
+              router.push({
+                pathname:
+                  '/maintenance/scheduled_maintenance/equipment-maintenance-list',
+                params: { maintenanceId }, // Pass back if needed or just go to list
+              }),
           },
         ],
       );
