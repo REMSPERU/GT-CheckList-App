@@ -7,13 +7,21 @@ import {
   ScrollView,
 } from 'react-native';
 import { ChecklistItem } from './check-list-item';
-import { ItemObservation } from '@/types/maintenance-session';
+import { ItemObservation, ItemMeasurement } from '@/types/maintenance-session';
+import { MeasurementInput } from './measurement-input';
 
 interface ITGChecklistProps {
   itgs: any[];
   checklist: Record<string, boolean | string>;
+  measurements?: Record<string, ItemMeasurement>;
   itemObservations: Record<string, ItemObservation>;
   onStatusChange: (itemId: string, status: boolean) => void;
+  onMeasurementChange: (
+    itemId: string,
+    field: 'voltage' | 'amperage',
+    value: string,
+    isValid: boolean,
+  ) => void;
   onObservationChange: (itemId: string, text: string) => void;
   onPhotoPress: (itemId: string) => void;
 }
@@ -21,8 +29,10 @@ interface ITGChecklistProps {
 export const ITGChecklist: React.FC<ITGChecklistProps> = ({
   itgs,
   checklist,
+  measurements = {},
   itemObservations,
   onStatusChange,
+  onMeasurementChange,
   onObservationChange,
   onPhotoPress,
 }) => {
@@ -71,6 +81,37 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
           const itemId = `itg_${currentItg.id}_${itm.id}`;
           const status = checklist[itemId];
           const obs = itemObservations[itemId];
+          const measure = measurements[itemId] || {};
+
+          // Validation Logic
+          // Voltage: 220V +/- 10% -> 198 to 242
+          // Amperage: <= itm.amperaje (Rated)
+          const ratedAmps = parseFloat(itm.amperaje) || 0;
+
+          const validateVoltage = (val: string) => {
+            if (!val) return undefined;
+            const v = parseFloat(val);
+            if (isNaN(v)) return false;
+            return v >= 198 && v <= 242;
+          };
+
+          const validateAmperage = (val: string) => {
+            if (!val) return undefined;
+            const a = parseFloat(val);
+            if (isNaN(a)) return false;
+            return ratedAmps > 0 ? a <= ratedAmps : true;
+          };
+
+          const isVoltValid = measure.voltage
+            ? validateVoltage(measure.voltage)
+            : undefined;
+          const isAmpValid = measure.amperage
+            ? validateAmperage(measure.amperage)
+            : undefined;
+
+          // Determine if we need to force "Observation" state
+          const hasMeasurementIssue =
+            isVoltValid === false || isAmpValid === false;
 
           return (
             <View key={itemId} style={styles.card}>
@@ -79,12 +120,39 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
               </Text>
 
               <View style={styles.detailsContainer}>
-                {/* Note: Assuming 'voltaje' exists based on design, defaulting if not in type */}
-                {renderDetailRow(
-                  'Voltaje',
-                  '220', // Static or derived from 'fases'
-                )}
-                {renderDetailRow('Amperaje', itm.amperaje || '-')}
+                {/* Inputs for Voltage and Amperage */}
+                <MeasurementInput
+                  label="Voltaje (V)"
+                  value={measure.voltage || ''}
+                  onChange={val =>
+                    onMeasurementChange(
+                      itemId,
+                      'voltage',
+                      val,
+                      validateVoltage(val) === true,
+                    )
+                  }
+                  unit="V"
+                  isValid={isVoltValid}
+                  placeholder="220"
+                />
+
+                <MeasurementInput
+                  label={`Amperaje (Max ${itm.amperaje || '-'} A)`}
+                  value={measure.amperage || ''}
+                  onChange={val =>
+                    onMeasurementChange(
+                      itemId,
+                      'amperage',
+                      val,
+                      validateAmperage(val) === true,
+                    )
+                  }
+                  unit="A"
+                  isValid={isAmpValid}
+                  placeholder="0.0"
+                />
+
                 {renderDetailRow(
                   'Diametro de cable',
                   itm.diametro_cable || '-',
@@ -109,16 +177,36 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
               <View style={styles.divider} />
 
               <ChecklistItem
-                label="Estatus del circuito"
-                status={
-                  status === undefined ? true : status === true ? true : false
+                label={
+                  hasMeasurementIssue
+                    ? 'Observación Requerida'
+                    : 'Estatus del circuito'
                 }
-                onStatusChange={val => onStatusChange(itemId, val)}
+                status={
+                  // If measurement issue, force status to false (Observation mode)
+                  // Else use checked status. If undefined, default to true (OK)
+                  // Handle potential string type from record by defaulting to true if not explicitly false boolean
+                  typeof status === 'boolean' ? status : true
+                }
+                onStatusChange={val => {
+                  // Prevent setting to OK if measurement issue exists
+                  if (hasMeasurementIssue && val === true) {
+                    // Maybe alert user? For now just ignore or force update.
+                    // The parent handler can handle this logic too, but visual feedback here.
+                    // We will let the parent `handleStatusChange` decide, but we pass the intent.
+                    onStatusChange(itemId, val);
+                  } else {
+                    onStatusChange(itemId, val);
+                  }
+                }}
                 observation={obs?.note}
                 onObservationChange={text => onObservationChange(itemId, text)}
-                hasPhoto={true} // Add logic for photo button
+                hasPhoto={true}
                 photoUri={obs?.photoUri}
                 onPhotoPress={() => onPhotoPress(itemId)}
+                // Hide switch if mandatory validation failed? Or just show it as OFF (Obs).
+                // If hasMeasurementIssue is true, the user MUST put an observation/photo.
+                // We'll rely on the status being false to show the input fields.
                 style={{ borderWidth: 0, shadowOpacity: 0, elevation: 0 }}
               />
             </View>

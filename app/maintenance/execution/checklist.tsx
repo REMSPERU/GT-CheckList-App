@@ -43,6 +43,25 @@ export default function MaintenanceChecklistScreen() {
   const handleStatusChange = (itemId: string, status: boolean) => {
     if (!session) return;
     const updatedSession = { ...session };
+
+    // Check if measurements block status change (if invalid, cannot be OK)
+    // We need to re-validate here if we want strictly robust logic,
+    // but the UI component already tries to enforce visual feedback.
+    // Let's enforce it:
+    const measurements = updatedSession.measurements?.[itemId];
+    if (measurements && status === true) {
+      if (
+        measurements.isVoltageInRange === false ||
+        measurements.isAmperageInRange === false
+      ) {
+        Alert.alert(
+          'Medición Fuera de Rango',
+          'No se puede marcar como OK si las mediciones están fuera de rango. Debe registrar una observación y foto.',
+        );
+        return;
+      }
+    }
+
     updatedSession.checklist = {
       ...updatedSession.checklist,
       [itemId]: status,
@@ -51,6 +70,51 @@ export default function MaintenanceChecklistScreen() {
     // If status is OK (true), maybe clear observation note?
     // Usually better to keep it unless explicitly cleared, but if they toggle OK, the Issue UI disappears.
     // Let's decide to keep it to avoid data loss.
+
+    updatedSession.lastUpdated = new Date().toISOString();
+    saveSession(updatedSession);
+  };
+
+  const handleMeasurementChange = (
+    itemId: string,
+    field: 'voltage' | 'amperage',
+    value: string,
+    isValid: boolean,
+  ) => {
+    if (!session) return;
+    const updatedSession = { ...session };
+    if (!updatedSession.measurements) updatedSession.measurements = {};
+    if (!updatedSession.measurements[itemId]) {
+      updatedSession.measurements[itemId] = {};
+    }
+
+    updatedSession.measurements[itemId][field] = value;
+    if (field === 'voltage')
+      updatedSession.measurements[itemId].isVoltageInRange = isValid;
+    if (field === 'amperage')
+      updatedSession.measurements[itemId].isAmperageInRange = isValid;
+
+    // Auto-update status if invalid
+    if (!isValid) {
+      // If INVALID, force status to false (Observation)
+      updatedSession.checklist = {
+        ...updatedSession.checklist,
+        [itemId]: false,
+      };
+    } else {
+      // If VALID, do we auto-set to true?
+      // Only if BOTH are valid (or undefined/empty yet?).
+      // Let's check the other field.
+      const m = updatedSession.measurements[itemId];
+      const vValid = m.isVoltageInRange !== false; // true or undefined
+      const aValid = m.isAmperageInRange !== false;
+
+      if (vValid && aValid) {
+        // Both seem fine, we CAN set to true, but maybe user manually set to false?
+        // Let's NOT auto-set to true to avoid overriding user intent (e.g. physical visual damage).
+        // But we unblock them.
+      }
+    }
 
     updatedSession.lastUpdated = new Date().toISOString();
     saveSession(updatedSession);
@@ -135,7 +199,36 @@ export default function MaintenanceChecklistScreen() {
     itgs.forEach((itg: any) => {
       itg.itms.forEach((itm: any) => {
         const id = `itg_${itg.id}_${itm.id}`;
-        if (session?.checklist[id] === undefined) pending = true;
+
+        // Check Checklist Status
+        if (session?.checklist[id] === undefined) {
+          pending = true;
+        }
+
+        // Check Measurements (Voltage/Amperage required?)
+        // Assuming they are mandatory inputs now.
+        const m = session?.measurements?.[id];
+        if (!m || !m.voltage || !m.amperage) {
+          // Only if "checklist" is not explicitly skipped? Assuming mandatory.
+          pending = true;
+        } else {
+          // If measurements invalid, check if Photo + Observation exists
+          const invalid =
+            m.isVoltageInRange === false || m.isAmperageInRange === false;
+          if (invalid) {
+            const obs = session.itemObservations[id];
+            if (!obs || !obs.photoUri || !obs.note) {
+              Alert.alert(
+                'Faltan Datos',
+                `En el circuito ${itm.id}, las mediciones están fuera de rango. Debe agregar foto y observación.`,
+              );
+              pending = true; // Block continue separate from generic pending
+              // Actually we return here to stop loop or just flagged.
+              // Let's rely on generic 'pending' flag logic or specific alerts?
+              // The loop continues, so we might overwrite pending=true, but once true stays true if (x || pending).
+            }
+          }
+        }
       });
     });
 
@@ -168,7 +261,7 @@ export default function MaintenanceChecklistScreen() {
     if (pending) {
       Alert.alert(
         'Incompleto',
-        'Por favor verifique todos los items antes de continuar.',
+        'Por favor verifique todos los items y mediciones antes de continuar.',
       );
       return;
     }
@@ -202,8 +295,10 @@ export default function MaintenanceChecklistScreen() {
         <ITGChecklist
           itgs={itgs}
           checklist={session.checklist}
+          measurements={session.measurements}
           itemObservations={session.itemObservations}
           onStatusChange={handleStatusChange}
+          onMeasurementChange={handleMeasurementChange}
           onObservationChange={handleObservationChange}
           onPhotoPress={handlePhotoPress}
         />

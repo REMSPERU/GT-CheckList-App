@@ -18,6 +18,13 @@ export interface ItemObservation {
   photoUri?: string;
 }
 
+export interface ItemMeasurement {
+  voltage?: string;
+  amperage?: string;
+  isVoltageInRange?: boolean;
+  isAmperageInRange?: boolean;
+}
+
 export interface MaintenanceSession {
   sessionId: string;
   maintenanceId?: string; // If linked to a scheduled maintenance
@@ -29,6 +36,7 @@ export interface MaintenanceSession {
   prePhotos: PhotoItem[];
   postPhotos: PhotoItem[];
   checklist: Record<string, boolean | string>; // stepId -> value
+  measurements?: Record<string, ItemMeasurement>; // itemId -> measurement
   itemObservations: Record<string, ItemObservation>;
   observations: string;
 
