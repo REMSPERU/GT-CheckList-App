@@ -40,7 +40,7 @@ export default function MaintenanceScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const maintenanceType = params.type as string;
-  const { data, isLoading, isError, error } = useProperties();
+  const { data, isLoading, isError } = useProperties();
 
   function handleBuildingSelect({
     building,
@@ -70,16 +70,10 @@ export default function MaintenanceScreen() {
   }
 
   if (isError) {
-    const errorMessage = error?.detail
-      ? Array.isArray(error.detail)
-        ? error.detail.map(d => d.msg).join(', ')
-        : String(error.detail)
-      : 'Ocurrió un error inesperado';
-
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <Text>Error al cargar los inmuebles: {errorMessage}</Text>
+          <Text>Error al cargar los inmuebles</Text>
         </View>
       </SafeAreaView>
     );

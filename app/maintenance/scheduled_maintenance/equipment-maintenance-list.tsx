@@ -113,6 +113,7 @@ export default function EquipmentMaintenanceListScreen() {
             <TextInput
               style={styles.searchInput}
               placeholder="Buscar por código"
+              placeholderTextColor="#BDC1CA"
               value={searchQuery}
               onChangeText={setSearchQuery}
             />

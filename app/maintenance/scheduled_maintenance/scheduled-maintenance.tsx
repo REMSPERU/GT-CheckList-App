@@ -134,6 +134,7 @@ export default function ScheduledMaintenanceScreen() {
           <TextInput
             style={styles.searchInput}
             placeholder="Buscar por equipo, propiedad o dirección"
+            placeholderTextColor="#BDC1CA"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
