@@ -8,10 +8,10 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 
 import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
@@ -27,7 +27,7 @@ export default function SummaryScreen() {
   }>();
   const { panelId, maintenanceId } = params;
 
-  const { session, clearSession } = useMaintenanceSession(
+  const { session, clearSession, saveSession } = useMaintenanceSession(
     panelId || '',
     maintenanceId,
   );
@@ -48,19 +48,29 @@ export default function SummaryScreen() {
       const userId = user?.id;
 
       // 1. Upload Pre-Photos
-      const prePhotosUrls = [];
+      const prePhotosDetails = [];
       for (const p of session.prePhotos) {
         setUploadProgress(`Subiendo foto previa ${p.id.slice(-4)}...`);
         const url = await supabaseMaintenanceService.uploadPhoto(p.uri, 'pre');
-        prePhotosUrls.push(url);
+        prePhotosDetails.push({
+          url,
+          id: p.id,
+          type: 'pre',
+          category: p.category || 'visual', // Default to visual if undefined
+        });
       }
 
       // 2. Upload Post-Photos
-      const postPhotosUrls = [];
+      const postPhotosDetails = [];
       for (const p of session.postPhotos) {
         setUploadProgress(`Subiendo foto final ${p.id.slice(-4)}...`);
         const url = await supabaseMaintenanceService.uploadPhoto(p.uri, 'post');
-        postPhotosUrls.push(url);
+        postPhotosDetails.push({
+          url,
+          id: p.id,
+          type: 'post',
+          category: 'visual',
+        });
       }
 
       // 3. Upload Observation Photos
@@ -90,8 +100,8 @@ export default function SummaryScreen() {
 
       // 4. Prepare final data
       const detailMaintenance = {
-        prePhotos: prePhotosUrls, // Array of strings
-        postPhotos: postPhotosUrls, // Array of strings
+        prePhotos: prePhotosDetails,
+        postPhotos: postPhotosDetails,
         checklist: session.checklist,
         measurements: session.measurements,
         itemObservations: itemObservationsFinal,
@@ -100,15 +110,24 @@ export default function SummaryScreen() {
       };
 
       // 5. Save to DB
-      if (!maintenanceId) {
+      // Ensure maintenanceId is null if it's the string "null" or empty
+      const cleanMaintenanceId =
+        maintenanceId && maintenanceId !== 'null' ? maintenanceId : null;
+
+      if (!cleanMaintenanceId) {
         console.warn('No maintenanceId provided, saving as adhoc/null');
       }
 
-      await supabaseMaintenanceService.saveMaintenanceResponse({
-        id_mantenimiento: maintenanceId,
+      const payload = {
+        id_mantenimiento: cleanMaintenanceId,
         user_created: userId,
         detail_maintenance: detailMaintenance,
-      });
+      };
+
+      console.log('--- SUBMITTING MAINTENANCE ---');
+      console.log('Payload:', JSON.stringify(payload, null, 2));
+
+      await supabaseMaintenanceService.saveMaintenanceResponse(payload);
 
       console.log('SUCCESS: Maintenance Saved to DB');
 
@@ -123,9 +142,7 @@ export default function SummaryScreen() {
             text: 'OK',
             onPress: () =>
               router.push({
-                pathname:
-                  '/maintenance/scheduled_maintenance/equipment-maintenance-list',
-                params: { maintenanceId }, // Pass back if needed or just go to list
+                pathname: '/(tabs)/maintenance',
               }),
           },
         ],
@@ -139,6 +156,15 @@ export default function SummaryScreen() {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleObservationsChange = (text: string) => {
+    if (!session) return;
+    saveSession({
+      ...session,
+      observations: text,
+      lastUpdated: new Date().toISOString(),
+    });
   };
 
   const renderPhotoGrid = (photos: PhotoItem[]) => {
@@ -232,10 +258,19 @@ export default function SummaryScreen() {
 
       <ScrollView style={styles.content}>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>
-            Fotos Previas ({session.prePhotos.length})
-          </Text>
-          {renderPhotoGrid(session.prePhotos)}
+          <Text style={styles.cardTitle}>Fotos Previas (Visual)</Text>
+          {renderPhotoGrid(
+            session.prePhotos.filter(
+              p => !p.category || p.category === 'visual',
+            ),
+          )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Fotos Termográficas</Text>
+          {renderPhotoGrid(
+            session.prePhotos.filter(p => p.category === 'thermo'),
+          )}
         </View>
 
         <View style={styles.card}>
@@ -245,9 +280,15 @@ export default function SummaryScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Comentarios Generales</Text>
-          <Text style={styles.obsText}>
-            {session.observations || 'Sin comentarios.'}
-          </Text>
+          <TextInput
+            style={styles.observationsInput}
+            placeholder="Ingrese comentarios sobre el mantenimiento..."
+            value={session.observations}
+            onChangeText={handleObservationsChange}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
         </View>
 
         <View style={styles.card}>
@@ -386,6 +427,16 @@ const styles = StyleSheet.create({
   obsText: {
     fontSize: 14,
     color: '#374151',
+  },
+  observationsInput: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#11181C',
+    minHeight: 100,
   },
   obsPhoto: {
     width: 60,

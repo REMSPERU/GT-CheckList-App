@@ -219,7 +219,10 @@ export default function EquipmentMaintenanceListScreen() {
                       router.push({
                         pathname:
                           '/maintenance/scheduled_maintenance/equipment-details',
-                        params: { panelId: equipment.id }, // Passing equipment ID
+                        params: {
+                          panelId: equipment.id,
+                          maintenanceId: item.id,
+                        },
                       })
                     }>
                     <View style={styles.cardHeader}>

@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { decode } from 'base64-arraybuffer';
 
 export interface MaintenanceResponse {
-  id_mantenimiento?: string;
+  id_mantenimiento?: string | null;
   user_created?: string;
   detail_maintenance: any;
 }
