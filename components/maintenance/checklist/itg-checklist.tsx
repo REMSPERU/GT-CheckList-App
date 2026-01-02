@@ -24,6 +24,7 @@ interface ITGChecklistProps {
   ) => void;
   onObservationChange: (itemId: string, text: string) => void;
   onPhotoPress: (itemId: string) => void;
+  configuredVoltage?: number;
 }
 
 export const ITGChecklist: React.FC<ITGChecklistProps> = ({
@@ -35,6 +36,7 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
   onMeasurementChange,
   onObservationChange,
   onPhotoPress,
+  configuredVoltage = 220,
 }) => {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -84,7 +86,7 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
           const measure = measurements[itemId] || {};
 
           // Validation Logic
-          // Voltage: 220V +/- 10% -> 198 to 242
+          // Voltage: configuredVoltage +/- 10
           // Amperage: <= itm.amperaje (Rated)
           const ratedAmps = parseFloat(itm.amperaje) || 0;
 
@@ -92,7 +94,9 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
             if (!val) return undefined;
             const v = parseFloat(val);
             if (isNaN(v)) return false;
-            return v >= 198 && v <= 242;
+            const min = configuredVoltage - 10;
+            const max = configuredVoltage + 10;
+            return v >= min && v <= max;
           };
 
           const validateAmperage = (val: string) => {
@@ -171,6 +175,86 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                     'Diametro de cable',
                     itm.diferencial.diametro_cable || '-',
                   )}
+
+                  {(() => {
+                    const diffId = `diff_itg_${currentItg.id}_${itm.id}`;
+                    const diffMeasure = measurements[diffId] || {};
+                    const diffStatus = checklist[diffId];
+                    const diffObs = itemObservations[diffId];
+
+                    const diffRatedAmps =
+                      parseFloat(itm.diferencial.amperaje) || 0;
+
+                    const validateDiffAmperage = (val: string) => {
+                      if (!val) return undefined;
+                      const a = parseFloat(val);
+                      if (isNaN(a)) return false;
+                      return diffRatedAmps > 0 ? a <= diffRatedAmps : true;
+                    };
+
+                    const isDiffVoltValid = diffMeasure.voltage
+                      ? validateVoltage(diffMeasure.voltage)
+                      : undefined;
+                    const isDiffAmpValid = diffMeasure.amperage
+                      ? validateDiffAmperage(diffMeasure.amperage)
+                      : undefined;
+
+                    return (
+                      <View style={{ marginTop: 12, gap: 12 }}>
+                        <MeasurementInput
+                          label="Voltaje Diferencial (V)"
+                          value={diffMeasure.voltage || ''}
+                          onChange={val =>
+                            onMeasurementChange(
+                              diffId,
+                              'voltage',
+                              val,
+                              validateVoltage(val) === true,
+                            )
+                          }
+                          unit="V"
+                          isValid={isDiffVoltValid}
+                          placeholder={`${configuredVoltage}`}
+                        />
+
+                        <MeasurementInput
+                          label={`Amperaje Diferencial (Max ${itm.diferencial.amperaje || '-'} A)`}
+                          value={diffMeasure.amperage || ''}
+                          onChange={val =>
+                            onMeasurementChange(
+                              diffId,
+                              'amperage',
+                              val,
+                              validateDiffAmperage(val) === true,
+                            )
+                          }
+                          unit="A"
+                          isValid={isDiffAmpValid}
+                          placeholder="0.0"
+                        />
+
+                        <ChecklistItem
+                          label="Prueba Test"
+                          status={
+                            typeof diffStatus === 'boolean' ? diffStatus : true
+                          }
+                          onStatusChange={val => onStatusChange(diffId, val)}
+                          observation={diffObs?.note}
+                          onObservationChange={text =>
+                            onObservationChange(diffId, text)
+                          }
+                          hasPhoto={true}
+                          photoUri={diffObs?.photoUri}
+                          onPhotoPress={() => onPhotoPress(diffId)}
+                          style={{
+                            borderWidth: 0,
+                            shadowOpacity: 0,
+                            elevation: 0,
+                          }}
+                        />
+                      </View>
+                    );
+                  })()}
                 </View>
               )}
 

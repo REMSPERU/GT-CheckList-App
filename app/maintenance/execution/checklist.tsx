@@ -229,6 +229,36 @@ export default function MaintenanceChecklistScreen() {
             }
           }
         }
+
+        // Check Differential Switch if exists
+        if (itm.diferencial && itm.diferencial.existe) {
+          const diffId = `diff_itg_${itg.id}_${itm.id}`;
+
+          if (session?.checklist[diffId] === undefined) {
+            pending = true;
+          }
+
+          const diffM = session?.measurements?.[diffId];
+          // If configuredVoltage is missing, maybe default validation?
+          // But strict generic validation:
+          if (!diffM || !diffM.voltage || !diffM.amperage) {
+            pending = true;
+          } else {
+            const invalid =
+              diffM.isVoltageInRange === false ||
+              diffM.isAmperageInRange === false;
+            if (invalid) {
+              const obs = session.itemObservations[diffId];
+              if (!obs || !obs.photoUri || !obs.note) {
+                Alert.alert(
+                  'Faltan Datos',
+                  `En el diferencial del circuito ${itm.id}, las mediciones están fuera de rango. Debe agregar foto y observación.`,
+                );
+                pending = true;
+              }
+            }
+          }
+        }
       });
     });
 
@@ -301,6 +331,7 @@ export default function MaintenanceChecklistScreen() {
           onMeasurementChange={handleMeasurementChange}
           onObservationChange={handleObservationChange}
           onPhotoPress={handlePhotoPress}
+          configuredVoltage={detail?.detalle_tecnico?.voltaje}
         />
 
         <AuxiliaryChecklist
