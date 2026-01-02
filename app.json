@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Alexperto Checklist",
-    "slug": "alexperto-checklist",
+    "slug": "alexperto",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -67,8 +67,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "72eb658b-c62f-4987-9073-5a6ce854a170"
+        "projectId": "62374539-5ff1-45f5-a1b2-c0fb60067ecd"
       }
-    }
+    },
+    "owner": "remsperu"
   }
 }
