@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PanelData, CircuitConfig } from '@/types/panel-configuration';
+import { PanelData } from '@/types/panel-configuration';
 import {
   PanelConfigurationSchema,
   PanelConfigurationFormValues,
@@ -50,7 +50,7 @@ export function isFirstStep(stepId: StepId): boolean {
 // DEFAULT VALUES
 // ============================================================================
 
-const DEFAULT_CIRCUIT: CircuitConfig = {
+const DEFAULT_CIRCUIT: any = {
   phaseITM: 'mono_2w',
   amperajeITM: '',
   diameter: '',

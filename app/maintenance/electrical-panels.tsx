@@ -177,7 +177,7 @@ export default function ElectricalPanelsScreen() {
       <>
         <View style={styles.panelInfoColumn}>
           <Text style={styles.panelName}>
-            {panel.codigo || panel.equipment_detail.rotulo}
+            {panel.codigo || panel.equipment_detail?.rotulo || 'N/A'}
           </Text>
 
           <View style={styles.locationRow}>
