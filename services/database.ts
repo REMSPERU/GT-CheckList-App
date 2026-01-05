@@ -254,4 +254,35 @@ export const DatabaseService = {
     const db = await dbPromise;
     return await db.getAllAsync('SELECT * FROM local_properties');
   },
+
+  async saveCurrentUser(user: {
+    id: string;
+    username?: string;
+    email: string;
+    first_name?: string;
+    last_name?: string;
+  }) {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+    await db.runAsync(
+      'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name) VALUES (?, ?, ?, ?, ?)',
+      [
+        user.id,
+        user.username || user.email?.split('@')[0] || '',
+        user.email,
+        user.first_name || '',
+        user.last_name || '',
+      ],
+    );
+    console.log('Current user saved to local DB:', user.email);
+  },
+
+  async getLocalUserById(id: string) {
+    const db = await dbPromise;
+    const result = await db.getFirstAsync(
+      'SELECT * FROM local_users WHERE id = ?',
+      [id]
+    );
+    return result;
+  },
 };

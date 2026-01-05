@@ -70,21 +70,18 @@ class SyncService {
         .select('*');
       if (propError) throw propError;
 
-      const { data: users, error: userError } = await supabase
-        .from('users')
-        .select('*');
-      if (userError) throw userError;
-
       const { data: techDevices, error: tdError } = await supabase
         .from('technician_devices')
         .select('*');
       if (tdError) throw tdError;
 
       // 2. Update Local DB
+      // We do NOT sync all users anymore for privacy/efficiency. 
+      // Current user is saved on login via AuthContext.
       await DatabaseService.bulkInsertMirrorData(
         equipos || [],
         properties || [],
-        users || [],
+        [], // Empty users array
         techDevices || [],
       );
 
