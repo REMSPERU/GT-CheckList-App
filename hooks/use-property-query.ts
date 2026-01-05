@@ -11,6 +11,7 @@ import type {
   PropertyListResponse,
   PropertyResponse,
 } from '../types/api';
+import { DatabaseService } from '../services/database';
 
 // Query Keys
 export const propertyKeys = {
@@ -60,7 +61,53 @@ export function useProperties(
 ) {
   return useQuery({
     queryKey: propertyKeys.list(filters),
-    queryFn: () => supabasePropertyService.list(filters),
+    queryFn: async () => {
+      try {
+        // Try fetching from API (Supabase)
+        return await supabasePropertyService.list(filters);
+      } catch (error) {
+        console.log(
+          'Network request failed, attempting local fallback for Properties...',
+          error,
+        );
+
+        // Fallback to SQLite
+        // Note: SQLite filters are basic here, you might want to expand filtering logic
+        const localProps = await DatabaseService.getLocalProperties();
+
+        // Transform local data to match PropertyListResponse structure
+        // Assuming localProps has columns matching what we need
+        // adapt this to match PropertyResponse interface
+        const items = localProps.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          code: p.code,
+          address: p.address,
+          city: p.city,
+          // defaults for missing fields in mirror
+          property_type: 'Unknown',
+          is_active: true,
+          maintenance_priority: 'Low',
+          country: '',
+          latitude: 0,
+          longitude: 0,
+          postal_code: '',
+          total_area_sqm: 0,
+          construction_year: 0,
+          created_at: '',
+          updated_at: '',
+        })) as unknown as PropertyResponse[]; // Cast or map properly
+
+        return {
+          items: items,
+          total: items.length,
+          page: 1,
+          limit: items.length,
+          pages: 1,
+          skip: 0,
+        };
+      }
+    },
     staleTime: 2 * 60 * 1000, // 2 minutos
     ...options,
   });

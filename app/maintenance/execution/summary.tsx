@@ -16,8 +16,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
 import { PhotoItem } from '@/types/maintenance-session';
-import { supabaseMaintenanceService } from '@/services/supabase-maintenance.service';
 import { supabase } from '@/lib/supabase'; // To get current user
+import { DatabaseService } from '@/services/database';
+import { syncService } from '@/services/sync';
 
 export default function SummaryScreen() {
   const router = useRouter();
@@ -38,7 +39,7 @@ export default function SummaryScreen() {
 
   const handleFinalize = async () => {
     setIsUploading(true);
-    setUploadProgress('Iniciando carga...');
+    setUploadProgress('Guardando localmente...');
 
     try {
       // 0. Get Current User
@@ -47,58 +48,37 @@ export default function SummaryScreen() {
       } = await supabase.auth.getUser();
       const userId = user?.id;
 
-      // 1. Upload Pre-Photos
-      const prePhotosDetails = [];
-      for (const p of session.prePhotos) {
-        setUploadProgress(`Subiendo foto previa ${p.id.slice(-4)}...`);
-        const url = await supabaseMaintenanceService.uploadPhoto(p.uri, 'pre');
-        prePhotosDetails.push({
-          url,
-          id: p.id,
-          type: 'pre',
-          category: p.category || 'visual', // Default to visual if undefined
-        });
-      }
+      if (!userId) throw new Error('No user found');
 
-      // 2. Upload Post-Photos
-      const postPhotosDetails = [];
-      for (const p of session.postPhotos) {
-        setUploadProgress(`Subiendo foto final ${p.id.slice(-4)}...`);
-        const url = await supabaseMaintenanceService.uploadPhoto(p.uri, 'post');
-        postPhotosDetails.push({
-          url,
-          id: p.id,
-          type: 'post',
-          category: 'visual',
-        });
-      }
+      // 1. Prepare Data for Local Storage
+      // We keep local URIs in the 'url' field for now, SyncService will replace them later.
 
-      // 3. Upload Observation Photos
+      const prePhotosDetails = session.prePhotos.map(p => ({
+        url: p.uri, // Local URI
+        id: p.id,
+        type: 'pre',
+        category: p.category || 'visual',
+      }));
+
+      const postPhotosDetails = session.postPhotos.map(p => ({
+        url: p.uri, // Local URI
+        id: p.id,
+        type: 'post',
+        category: 'visual',
+      }));
+
       const itemObservationsFinal: Record<string, any> = {};
       const observationKeys = Object.keys(session.itemObservations);
 
       for (const key of observationKeys) {
         const obs = session.itemObservations[key];
-        let photoUrl = undefined;
-
-        if (obs.photoUri) {
-          setUploadProgress(`Subiendo foto de observación...`);
-          // Determine if it's a local file needed upload? Yes.
-          photoUrl = await supabaseMaintenanceService.uploadPhoto(
-            obs.photoUri,
-            'observations',
-          );
-        }
-
         itemObservationsFinal[key] = {
           note: obs.note,
-          photoUrl: photoUrl, // Only URL string
+          photoUrl: obs.photoUri, // Local URI
         };
       }
 
-      setUploadProgress('Guardando reporte...');
-
-      // 4. Prepare final data
+      // 2. Prepare Final Maintenance Object
       const detailMaintenance = {
         prePhotos: prePhotosDetails,
         postPhotos: postPhotosDetails,
@@ -109,34 +89,52 @@ export default function SummaryScreen() {
         completedAt: new Date().toISOString(),
       };
 
-      // 5. Save to DB
-      // Ensure maintenanceId is null if it's the string "null" or empty
+      // 3. Extract Photos for separate tracking in DB
+      const allPhotos = [
+        ...session.prePhotos.map(p => ({
+          uri: p.uri,
+          type: 'pre',
+          category: p.category,
+        })),
+        ...session.postPhotos.map(p => ({
+          uri: p.uri,
+          type: 'post',
+          category: 'visual',
+        })),
+        ...observationKeys
+          .filter(k => session.itemObservations[k].photoUri)
+          .map(k => ({
+            uri: session.itemObservations[k].photoUri!,
+            type: 'observation',
+            observationKey: k,
+          })),
+      ];
+
+      // 4. Save to Local DB
       const cleanMaintenanceId =
         maintenanceId && maintenanceId !== 'null' ? maintenanceId : null;
 
-      if (!cleanMaintenanceId) {
-        console.warn('No maintenanceId provided, saving as adhoc/null');
-      }
+      await DatabaseService.saveOfflineMaintenance(
+        userId,
+        cleanMaintenanceId,
+        detailMaintenance,
+        allPhotos,
+      );
 
-      const payload = {
-        id_mantenimiento: cleanMaintenanceId,
-        user_created: userId,
-        detail_maintenance: detailMaintenance,
-      };
+      console.log('SUCCESS: Saved locally');
 
-      console.log('--- SUBMITTING MAINTENANCE ---');
-      console.log('Payload:', JSON.stringify(payload, null, 2));
+      // 5. Trigger Sync (Background)
+      // We don't await this so the user can continue
+      syncService
+        .pushData()
+        .catch(err => console.error('Background sync failed:', err));
 
-      await supabaseMaintenanceService.saveMaintenanceResponse(payload);
-
-      console.log('SUCCESS: Maintenance Saved to DB');
-
-      // 6. Clear Local Session
+      // 6. Clear Local Session & Navigate
       await clearSession();
 
       Alert.alert(
-        'Éxito',
-        'Mantenimiento finalizado y guardado correctamente.',
+        'Guardado',
+        'Mantenimiento guardado en dispositivo. Se sincronizará cuando haya conexión.',
         [
           {
             text: 'OK',
@@ -149,10 +147,7 @@ export default function SummaryScreen() {
       );
     } catch (e) {
       console.error(e);
-      Alert.alert(
-        'Error',
-        'Hubo un error al subir la información. Verifique su conexión.',
-      );
+      Alert.alert('Error', 'Hubo un error al guardar localmente.');
     } finally {
       setIsUploading(false);
     }

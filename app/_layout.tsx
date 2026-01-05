@@ -12,8 +12,15 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { QueryProvider } from '@/lib/query-provider';
 
+import { useEffect } from 'react';
+import { DatabaseService } from '@/services/database';
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    DatabaseService.initDatabase().catch(console.error);
+  }, []);
 
   return (
     <QueryProvider>

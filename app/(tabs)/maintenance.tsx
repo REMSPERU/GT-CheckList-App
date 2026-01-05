@@ -11,6 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DefaultHeader from '@/components/default-header';
 import { useProperties } from '@/hooks/use-property-query';
 import type { PropertyResponse as Property } from '@/types/api';
+import { useEffect, useState } from 'react';
+import { syncService } from '@/services/sync';
 
 const styles = StyleSheet.create({
   container: {
@@ -40,7 +42,30 @@ export default function MaintenanceScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const maintenanceType = params.type as string;
-  const { data, isLoading, isError } = useProperties();
+  const { data, isLoading, isError, refetch } = useProperties();
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    const performAutoSync = async () => {
+      try {
+        console.log('Auto-sync starting...');
+        setIsSyncing(true);
+        // 1. Upload pending work
+        await syncService.pushData();
+        // 2. Download fresh data
+        await syncService.pullData();
+        // 3. Refresh properties query
+        await refetch();
+        console.log('Auto-sync completed.');
+      } catch (error) {
+        console.error('Auto-sync failed:', error);
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+
+    performAutoSync();
+  }, [refetch]);
 
   function handleBuildingSelect({
     building,
@@ -90,6 +115,14 @@ export default function MaintenanceScreen() {
             shouldShowBackButton={false}
           />
         </View>
+
+        {isSyncing && (
+          <View style={{ padding: 8, alignItems: 'center' }}>
+            <Text style={{ fontSize: 12, color: '#6b7280' }}>
+              Sincronizando datos...
+            </Text>
+          </View>
+        )}
 
         {/* Lista de inmuebles */}
         <View style={styles.listWrapper}>
