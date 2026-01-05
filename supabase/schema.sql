@@ -12,7 +12,6 @@ SET row_security = off;
 
 CREATE SCHEMA IF NOT EXISTS "public";
 
-
 ALTER SCHEMA "public" OWNER TO "pg_database_owner";
 
 
@@ -157,6 +156,20 @@ CREATE TABLE IF NOT EXISTS "public"."company_property" (
 ALTER TABLE "public"."company_property" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."detalle_tablero_electrico" (
+    "id" "uuid" NOT NULL,
+    "created_at" timestamp without time zone NOT NULL,
+    "updated_at" timestamp without time zone,
+    "id_tablero_electrico" "uuid" NOT NULL,
+    "tipo" character varying(45) NOT NULL,
+    "voltaje" integer NOT NULL,
+    "fases" character varying(45) NOT NULL
+);
+
+
+ALTER TABLE "public"."detalle_tablero_electrico" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."equipamentos" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "nombre" character varying(45),
@@ -174,6 +187,18 @@ CREATE TABLE IF NOT EXISTS "public"."equipamentos_property" (
 
 
 ALTER TABLE "public"."equipamentos_property" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."equipo_extra" (
+    "id" "uuid" NOT NULL,
+    "created_at" timestamp without time zone NOT NULL,
+    "updated_at" timestamp without time zone,
+    "equipo" character varying(45),
+    "abreviatura" character varying(45)
+);
+
+
+ALTER TABLE "public"."equipo_extra" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."equipos" (
@@ -207,6 +232,44 @@ CREATE TABLE IF NOT EXISTS "public"."equipos_tablero" (
 ALTER TABLE "public"."equipos_tablero" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."interruptor_diferencial" (
+    "id" "uuid" NOT NULL,
+    "created_at" timestamp without time zone NOT NULL,
+    "updated_at" timestamp without time zone,
+    "id_itm" "uuid" NOT NULL,
+    "fases" character varying(45) NOT NULL,
+    "amperaje" integer NOT NULL
+);
+
+
+ALTER TABLE "public"."interruptor_diferencial" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."itg" (
+    "id" "uuid" NOT NULL,
+    "created_at" timestamp without time zone NOT NULL,
+    "updated_at" timestamp without time zone,
+    "id_detalle_tablero_electrico" "uuid" NOT NULL,
+    "suministra" character varying(45) NOT NULL
+);
+
+
+ALTER TABLE "public"."itg" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."itm" (
+    "id" "uuid" NOT NULL,
+    "created_at" timestamp without time zone NOT NULL,
+    "updated_at" timestamp without time zone,
+    "id_itg" "uuid" NOT NULL,
+    "fases" character varying(45) NOT NULL,
+    "amperaje" integer NOT NULL
+);
+
+
+ALTER TABLE "public"."itm" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."maintenance_response" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "id_mantenimiento" "uuid",
@@ -225,7 +288,7 @@ CREATE TABLE IF NOT EXISTS "public"."mantenimientos" (
     "id_equipo" "uuid" DEFAULT "gen_random_uuid"(),
     "estatus" "text" DEFAULT 'NO INICIADO'::"text",
     "id_user" "uuid" DEFAULT "gen_random_uuid"(),
-    "dia_programado" "timestamp",
+    "dia_programado" timestamp with time zone,
     "tipo_mantenimiento" "text",
     "observations" "text"
 );
@@ -264,6 +327,22 @@ CREATE TABLE IF NOT EXISTS "public"."properties" (
 
 
 ALTER TABLE "public"."properties" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."tablero_electrico" (
+    "id" "uuid" NOT NULL,
+    "created_at" timestamp without time zone NOT NULL,
+    "updated_at" timestamp without time zone,
+    "id_property" "uuid" NOT NULL,
+    "tipo" character varying(45) NOT NULL,
+    "ubicacion" character varying(45) NOT NULL,
+    "rotulo" character varying(45) NOT NULL,
+    "codigo" character varying(45) NOT NULL,
+    "is_configured" boolean NOT NULL
+);
+
+
+ALTER TABLE "public"."tablero_electrico" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."technician_devices" (
@@ -385,6 +464,11 @@ ALTER TABLE ONLY "public"."company_property"
 
 
 
+ALTER TABLE ONLY "public"."detalle_tablero_electrico"
+    ADD CONSTRAINT "detalle_tablero_electrico_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."equipamentos"
     ADD CONSTRAINT "equipamentos_pkey" PRIMARY KEY ("id");
 
@@ -392,6 +476,11 @@ ALTER TABLE ONLY "public"."equipamentos"
 
 ALTER TABLE ONLY "public"."equipamentos_property"
     ADD CONSTRAINT "equipamentos_property_pkey" PRIMARY KEY ("id_equipamentos", "id_property");
+
+
+
+ALTER TABLE ONLY "public"."equipo_extra"
+    ADD CONSTRAINT "equipo_extra_pkey" PRIMARY KEY ("id");
 
 
 
@@ -405,6 +494,21 @@ ALTER TABLE ONLY "public"."equipos_tablero"
 
 
 
+ALTER TABLE ONLY "public"."interruptor_diferencial"
+    ADD CONSTRAINT "interruptor_diferencial_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."itg"
+    ADD CONSTRAINT "itg_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."itm"
+    ADD CONSTRAINT "itm_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."maintenance_response"
     ADD CONSTRAINT "maintenance_response_pkey" PRIMARY KEY ("id");
 
@@ -412,6 +516,11 @@ ALTER TABLE ONLY "public"."maintenance_response"
 
 ALTER TABLE ONLY "public"."properties"
     ADD CONSTRAINT "properties_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."tablero_electrico"
+    ADD CONSTRAINT "tablero_electrico_pkey" PRIMARY KEY ("id");
 
 
 
@@ -496,7 +605,27 @@ CREATE INDEX "ix_audit_logs_user_id" ON "public"."audit_logs" USING "btree" ("us
 
 
 
+CREATE INDEX "ix_detalle_tablero_electrico_id" ON "public"."detalle_tablero_electrico" USING "btree" ("id");
+
+
+
+CREATE INDEX "ix_equipo_extra_id" ON "public"."equipo_extra" USING "btree" ("id");
+
+
+
 CREATE INDEX "ix_equipos_tablero_id" ON "public"."equipos_tablero" USING "btree" ("id");
+
+
+
+CREATE INDEX "ix_interruptor_diferencial_id" ON "public"."interruptor_diferencial" USING "btree" ("id");
+
+
+
+CREATE INDEX "ix_itg_id" ON "public"."itg" USING "btree" ("id");
+
+
+
+CREATE INDEX "ix_itm_id" ON "public"."itm" USING "btree" ("id");
 
 
 
@@ -505,6 +634,10 @@ CREATE UNIQUE INDEX "ix_properties_code" ON "public"."properties" USING "btree" 
 
 
 CREATE INDEX "ix_properties_id" ON "public"."properties" USING "btree" ("id");
+
+
+
+CREATE INDEX "ix_tablero_electrico_id" ON "public"."tablero_electrico" USING "btree" ("id");
 
 
 
@@ -577,6 +710,11 @@ ALTER TABLE ONLY "public"."company_property"
 
 
 
+ALTER TABLE ONLY "public"."detalle_tablero_electrico"
+    ADD CONSTRAINT "detalle_tablero_electrico_id_tablero_electrico_fkey" FOREIGN KEY ("id_tablero_electrico") REFERENCES "public"."tablero_electrico"("id");
+
+
+
 ALTER TABLE ONLY "public"."equipos"
     ADD CONSTRAINT "equipos_id_equipamento_fkey" FOREIGN KEY ("id_equipamento") REFERENCES "public"."equipamentos"("id");
 
@@ -602,6 +740,21 @@ ALTER TABLE ONLY "public"."maintenance_response"
 
 
 
+ALTER TABLE ONLY "public"."interruptor_diferencial"
+    ADD CONSTRAINT "interruptor_diferencial_id_itm_fkey" FOREIGN KEY ("id_itm") REFERENCES "public"."itm"("id");
+
+
+
+ALTER TABLE ONLY "public"."itg"
+    ADD CONSTRAINT "itg_id_detalle_tablero_electrico_fkey" FOREIGN KEY ("id_detalle_tablero_electrico") REFERENCES "public"."detalle_tablero_electrico"("id");
+
+
+
+ALTER TABLE ONLY "public"."itm"
+    ADD CONSTRAINT "itm_id_itg_fkey" FOREIGN KEY ("id_itg") REFERENCES "public"."itg"("id");
+
+
+
 ALTER TABLE ONLY "public"."mantenimientos"
     ADD CONSTRAINT "mantenimientos_id_equipo_fkey" FOREIGN KEY ("id_equipo") REFERENCES "public"."equipos"("id");
 
@@ -609,6 +762,11 @@ ALTER TABLE ONLY "public"."mantenimientos"
 
 ALTER TABLE ONLY "public"."mantenimientos"
     ADD CONSTRAINT "mantenimientos_id_user_fkey" FOREIGN KEY ("id_user") REFERENCES "public"."users"("id");
+
+
+
+ALTER TABLE ONLY "public"."tablero_electrico"
+    ADD CONSTRAINT "tablero_electrico_id_property_fkey" FOREIGN KEY ("id_property") REFERENCES "public"."properties"("id");
 
 
 
@@ -677,10 +835,10 @@ ALTER TABLE ONLY "public"."users"
 
 
 
-CREATE POLICY "Users ven solo propiedades de su compañia" ON "public"."properties" FOR SELECT USING ((EXISTS ( SELECT 1
+CREATE POLICY "Users ven solo propiedades de su compa├▒ia" ON "public"."properties" FOR SELECT USING ((EXISTS ( SELECT 1
    FROM ("public"."company_property" "cp"
      JOIN "public"."users" "u" ON (("u"."id_company" = "cp"."id_company")))
-  WHERE (("cp"."id_property" = "properties"."id") AND ("u"."id" = "auth"."uid"())))));
+  WHERE (("cp"."id_property" = "properties"."id") AND ("u"."id" = ( SELECT "auth"."uid"() AS "uid"))))));
 
 
 
@@ -736,6 +894,12 @@ GRANT ALL ON TABLE "public"."company_property" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."detalle_tablero_electrico" TO "anon";
+GRANT ALL ON TABLE "public"."detalle_tablero_electrico" TO "authenticated";
+GRANT ALL ON TABLE "public"."detalle_tablero_electrico" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."equipamentos" TO "anon";
 GRANT ALL ON TABLE "public"."equipamentos" TO "authenticated";
 GRANT ALL ON TABLE "public"."equipamentos" TO "service_role";
@@ -748,6 +912,12 @@ GRANT ALL ON TABLE "public"."equipamentos_property" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."equipo_extra" TO "anon";
+GRANT ALL ON TABLE "public"."equipo_extra" TO "authenticated";
+GRANT ALL ON TABLE "public"."equipo_extra" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."equipos" TO "anon";
 GRANT ALL ON TABLE "public"."equipos" TO "authenticated";
 GRANT ALL ON TABLE "public"."equipos" TO "service_role";
@@ -757,6 +927,24 @@ GRANT ALL ON TABLE "public"."equipos" TO "service_role";
 GRANT ALL ON TABLE "public"."equipos_tablero" TO "anon";
 GRANT ALL ON TABLE "public"."equipos_tablero" TO "authenticated";
 GRANT ALL ON TABLE "public"."equipos_tablero" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."interruptor_diferencial" TO "anon";
+GRANT ALL ON TABLE "public"."interruptor_diferencial" TO "authenticated";
+GRANT ALL ON TABLE "public"."interruptor_diferencial" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."itg" TO "anon";
+GRANT ALL ON TABLE "public"."itg" TO "authenticated";
+GRANT ALL ON TABLE "public"."itg" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."itm" TO "anon";
+GRANT ALL ON TABLE "public"."itm" TO "authenticated";
+GRANT ALL ON TABLE "public"."itm" TO "service_role";
 
 
 
@@ -775,6 +963,12 @@ GRANT ALL ON TABLE "public"."mantenimientos" TO "service_role";
 GRANT ALL ON TABLE "public"."properties" TO "anon";
 GRANT ALL ON TABLE "public"."properties" TO "authenticated";
 GRANT ALL ON TABLE "public"."properties" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."tablero_electrico" TO "anon";
+GRANT ALL ON TABLE "public"."tablero_electrico" TO "authenticated";
+GRANT ALL ON TABLE "public"."tablero_electrico" TO "service_role";
 
 
 
@@ -827,27 +1021,13 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQ
 
 
 
-
-
-
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "service_role";
 
 
-
-
-
-
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "postgres";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
-
-
-
-
-
-
-
