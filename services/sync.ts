@@ -23,6 +23,7 @@ interface OfflinePhoto {
 
 class SyncService {
   private isConnected = false;
+  private netInfoUnsubscribe: (() => void) | null = null;
 
   constructor() {
     this.init();
@@ -30,17 +31,46 @@ class SyncService {
 
   init() {
     // Listen for network changes
-    NetInfo.addEventListener(state => {
+    this.netInfoUnsubscribe = NetInfo.addEventListener(state => {
       const wasConnected = this.isConnected;
       this.isConnected = state.isConnected ?? false;
 
       console.log('Network State Change. Connected:', this.isConnected);
 
       if (this.isConnected && !wasConnected) {
-        // Reconnected -> Trigger Sync
-        this.pushData();
+        // Reconnected -> Trigger bidirectional sync
+        this.syncOnReconnect();
       }
     });
+  }
+
+  /**
+   * Cleanup method to remove listeners
+   */
+  cleanup() {
+    if (this.netInfoUnsubscribe) {
+      this.netInfoUnsubscribe();
+      this.netInfoUnsubscribe = null;
+    }
+  }
+
+  /**
+   * Sync both ways when reconnecting
+   */
+  private async syncOnReconnect() {
+    try {
+      console.log('🔄 Auto-sync triggered on reconnect...');
+      
+      // 1. Push pending offline work first
+      await this.pushData();
+      
+      // 2. Pull fresh data from server
+      await this.pullData();
+      
+      console.log('✅ Auto-sync completed');
+    } catch (error) {
+      console.error('❌ Auto-sync failed:', error);
+    }
   }
 
   /**
