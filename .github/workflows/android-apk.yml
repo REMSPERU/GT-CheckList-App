@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - dev # Agregado para builds en dev también
+      - dev
   workflow_dispatch:
     inputs:
       profile:
@@ -16,91 +16,60 @@ jobs:
   build-android:
     name: Android APK
     runs-on: ubuntu-latest
-    timeout-minutes: 60 # Aumentado para builds más complejos
+    timeout-minutes: 60
+
+    env:
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx4g -XX:+HeapDumpOnOutOfMemoryError"'
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      APP_ENV: ${{ github.event.inputs.profile || 'preview' }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
 
     steps:
-      # 1️⃣ Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Node.js
+      - name: Setup Java & Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 18
           cache: npm
 
-      # 3️⃣ Create .env file with Supabase credentials
-      - name: Create .env file
-        run: |
-          cat > .env << EOF
-          EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
-          EXPO_PUBLIC_API_BASE_URL=${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
-          EOF
-        shell: bash
-
-      # 4️ Setup google-services.json
-      # - name: Create google-services.json
-      #   if: ${{ env.GOOGLE_SERVICES_JSON != '' }}
-      #   run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
-      #   env:
-      #     GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-
-      # 5️⃣ Dependencies
       - name: Install dependencies
         run: npm ci
 
-      # 6️⃣ Java
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
 
-      # 7️⃣ Expo + EAS
-      - name: Install Expo CLI & EAS CLI
-        run: npm install -g expo-cli eas-cli
-
-      # 8️⃣ Cache Android / Expo / Gradle
-      - name: Cache build tools
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle
-            ~/.android
-            ~/.expo
-            node_modules
-          key: ${{ runner.os }}-android-${{ hashFiles('**/*.gradle*', '**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-android-
-
-      # 9️⃣ Expo auth
-      - name: Authenticate with Expo
-        run: expo whoami
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
-      # 🔟 EAS build local
-      - name: Build APK (EAS local)
+      - name: Build APK
         run: |
-          PROFILE="${{ github.event.inputs.profile || 'preview' }}"
-          eas build --platform android --profile $PROFILE --local --non-interactive --output ./build-output.apk
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          echo "Building profile: $APP_ENV"
+          eas build --platform android --profile $APP_ENV --local --non-interactive --output ./build-output.apk
 
-      # 1️⃣1️⃣ Rename APK with version and date
       - name: Rename APK
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          DATE=$(date +%Y%m%d-%H%M%S)
-          mv build-output.apk "app-${VERSION}-${DATE}.apk"
-        shell: bash
+          DATE=$(date +%Y%m%d-%H%M) # Formato más corto
+          FILENAME="app-${VERSION}-${DATE}.apk"
+          mv build-output.apk "$FILENAME"
+          echo "APK_NAME=$FILENAME" >> $GITHUB_ENV # Guardar nombre para el siguiente paso
 
-      # 1️⃣2️⃣ Upload artifact
+      # Upload artifact
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk-${{ github.sha }}
-          path: app-*.apk
-          retention-days: 30 # Mantener por 30 días
+          name: ${{ env.APK_NAME }}
+          path: ${{ env.APK_NAME }}
+          retention-days: 14
