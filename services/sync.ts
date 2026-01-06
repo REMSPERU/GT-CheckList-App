@@ -60,13 +60,13 @@ class SyncService {
   private async syncOnReconnect() {
     try {
       console.log('🔄 Auto-sync triggered on reconnect...');
-      
+
       // 1. Push pending offline work first
       await this.pushData();
-      
+
       // 2. Pull fresh data from server
       await this.pullData();
-      
+
       console.log('✅ Auto-sync completed');
     } catch (error) {
       console.error('❌ Auto-sync failed:', error);
@@ -78,6 +78,7 @@ class SyncService {
    * This is a "Reset" sync for reference data.
    */
   async pullData() {
+    await DatabaseService.ensureInitialized();
     try {
       if (!this.isConnected) {
         console.log('Cannot pull data: Offline');
@@ -106,7 +107,7 @@ class SyncService {
       if (tdError) throw tdError;
 
       // 2. Update Local DB
-      // We do NOT sync all users anymore for privacy/efficiency. 
+      // We do NOT sync all users anymore for privacy/efficiency.
       // Current user is saved on login via AuthContext.
       await DatabaseService.bulkInsertMirrorData(
         equipos || [],
@@ -127,6 +128,7 @@ class SyncService {
    * Pushes pending offline work to Supabase.
    */
   async pushData() {
+    await DatabaseService.ensureInitialized();
     if (!this.isConnected) {
       console.log('Skipping Push: Offline');
       return;

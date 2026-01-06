@@ -198,6 +198,7 @@ export const DatabaseService = {
   },
 
   async getPendingMaintenances() {
+    await this.ensureInitialized();
     const db = await dbPromise;
     // Get headers
     const rows = await db.getAllAsync(`
@@ -208,6 +209,7 @@ export const DatabaseService = {
   },
 
   async getPendingPhotos(maintenanceLocalId: number) {
+    await this.ensureInitialized();
     const db = await dbPromise;
     const rows = await db.getAllAsync(
       `
@@ -224,6 +226,7 @@ export const DatabaseService = {
     remoteUrl: string | null = null,
     errorMessage: string | null = null,
   ) {
+    await this.ensureInitialized();
     const db = await dbPromise;
     await db.runAsync(
       `UPDATE offline_photos SET status = ?, remote_url = ?, error_message = ? WHERE id = ?`,
@@ -236,6 +239,7 @@ export const DatabaseService = {
     status: string,
     errorMessage: string | null = null,
   ) {
+    await this.ensureInitialized();
     const db = await dbPromise;
     const now = status === 'synced' ? new Date().toISOString() : null;
     await db.runAsync(
@@ -246,11 +250,13 @@ export const DatabaseService = {
 
   // --- READ METHODS FOR UI ---
   async getLocalEquipments() {
+    await this.ensureInitialized();
     const db = await dbPromise;
     return await db.getAllAsync('SELECT * FROM local_equipos');
   },
 
   async getLocalProperties() {
+    await this.ensureInitialized();
     const db = await dbPromise;
     return await db.getAllAsync('SELECT * FROM local_properties');
   },
@@ -278,10 +284,11 @@ export const DatabaseService = {
   },
 
   async getLocalUserById(id: string) {
+    await this.ensureInitialized();
     const db = await dbPromise;
     const result = await db.getFirstAsync(
       'SELECT * FROM local_users WHERE id = ?',
-      [id]
+      [id],
     );
     return result;
   },
