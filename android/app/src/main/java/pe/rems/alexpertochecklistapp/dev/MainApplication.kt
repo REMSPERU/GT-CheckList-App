@@ -1,4 +1,4 @@
-package pe.rems.alexpertochecklistapp
+package pe.rems.alexpertochecklistapp.dev
 
 import android.app.Application
 import android.content.res.Configuration

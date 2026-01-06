@@ -1,4 +1,4 @@
-package pe.rems.alexpertochecklistapp
+package pe.rems.alexpertochecklistapp.dev
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

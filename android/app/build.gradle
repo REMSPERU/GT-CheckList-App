@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'pe.rems.alexpertochecklistapp'
+    namespace 'pe.rems.alexpertochecklistapp.dev'
     defaultConfig {
-        applicationId 'pe.rems.alexpertochecklistapp'
+        applicationId 'pe.rems.alexpertochecklistapp.dev'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
