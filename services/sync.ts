@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { DatabaseService } from './database';
 import { supabaseMaintenanceService } from './supabase-maintenance.service';
+import { supabaseElectricalPanelService } from './supabase-electrical-panel.service';
 import NetInfo from '@react-native-community/netinfo';
 
 interface OfflineMaintenance {
@@ -238,6 +239,53 @@ class SyncService {
           'error',
           String(error),
         );
+      }
+    }
+
+    // --- SYNC PANEL CONFIGURATIONS ---
+    const pendingConfigs =
+      (await DatabaseService.getPendingPanelConfigurations()) as {
+        id: number;
+        panel_id: string;
+        configuration_data: string;
+      }[];
+
+    if (pendingConfigs.length > 0) {
+      console.log(
+        `Found ${pendingConfigs.length} pending panel configs to sync.`,
+      );
+
+      for (const config of pendingConfigs) {
+        try {
+          await DatabaseService.updatePanelConfigurationStatus(
+            config.id,
+            'syncing',
+          );
+
+          const detail = JSON.parse(config.configuration_data);
+
+          // Update in Supabase
+          await supabaseElectricalPanelService.updateEquipmentDetail(
+            config.panel_id,
+            detail,
+          );
+
+          await DatabaseService.updatePanelConfigurationStatus(
+            config.id,
+            'synced',
+          );
+          console.log(`Panel config ${config.id} synced successfully.`);
+        } catch (error) {
+          console.error(
+            `Sync failed for panel config ${config.id}:`,
+            String(error),
+          );
+          await DatabaseService.updatePanelConfigurationStatus(
+            config.id,
+            'error',
+            String(error),
+          );
+        }
       }
     }
   }

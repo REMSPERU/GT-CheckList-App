@@ -82,6 +82,16 @@ export const DatabaseService = {
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(maintenance_local_id) REFERENCES offline_maintenance_response(local_id)
           );
+
+          CREATE TABLE IF NOT EXISTS offline_panel_configurations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            panel_id TEXT,
+            configuration_data TEXT, -- JSON string
+            status TEXT DEFAULT 'pending', -- pending, syncing, synced, error
+            error_message TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            synced_at TEXT
+          );
         `);
       console.log('Database initialized');
     })();
@@ -105,6 +115,7 @@ export const DatabaseService = {
       DELETE FROM local_users;
       DELETE FROM local_equipamentos;
       DELETE FROM local_equipamentos_property;
+      DELETE FROM offline_panel_configurations;
     `);
   },
 
@@ -211,6 +222,52 @@ export const DatabaseService = {
     });
 
     return localId;
+  },
+
+  async saveOfflinePanelConfiguration(panelId: string, configurationData: any) {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+    const jsonConfig = JSON.stringify(configurationData);
+
+    await db.withTransactionAsync(async () => {
+      // 1. Queue configuration for sync
+      await db.runAsync(
+        `INSERT INTO offline_panel_configurations (panel_id, configuration_data, status)
+         VALUES (?, ?, 'pending')`,
+        [panelId, jsonConfig],
+      );
+
+      // 2. Update local mirror immediately aka "optimistic update"
+      // This ensures the user sees the panel as configured even if offline
+      await db.runAsync(
+        `UPDATE local_equipos
+         SET equipment_detail = ?, config = 1, last_synced_at = ?
+         WHERE id = ?`,
+        [jsonConfig, new Date().toISOString(), panelId],
+      );
+    });
+  },
+
+  async getPendingPanelConfigurations() {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+    return await db.getAllAsync(`
+      SELECT * FROM offline_panel_configurations WHERE status = 'pending' OR status = 'error'
+    `);
+  },
+
+  async updatePanelConfigurationStatus(
+    id: number,
+    status: string,
+    errorMessage: string | null = null,
+  ) {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+    const now = status === 'synced' ? new Date().toISOString() : null;
+    await db.runAsync(
+      `UPDATE offline_panel_configurations SET status = ?, error_message = ?, synced_at = ? WHERE id = ?`,
+      [status, errorMessage, now, id],
+    );
   },
 
   async getPendingMaintenances() {
