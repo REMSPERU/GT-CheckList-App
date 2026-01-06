@@ -53,10 +53,15 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
+      - name: Expo Prebuild (clean)
+        run: |
+          echo "Building profile: $APP_ENV"
+          APP_ENV=$APP_ENV npx expo prebuild --platform android --clean --non-interactive
+
       - name: Build APK
         run: |
           echo "Building profile: $APP_ENV"
-          eas build --platform android --profile $APP_ENV --local --non-interactive --output ./build-output.apk
+          APP_ENV=$APP_ENV eas build --platform android --profile $APP_ENV --local --non-interactive --output ./build-output.apk
 
       - name: Rename APK
         run: |
