@@ -44,11 +44,17 @@ export const DatabaseService = {
             last_name TEXT
           );
 
-          CREATE TABLE IF NOT EXISTS local_technician_devices (
+
+          CREATE TABLE IF NOT EXISTS local_equipamentos (
             id TEXT PRIMARY KEY,
-            technician_id TEXT,
-            device_id TEXT,
-            is_active INTEGER
+            nombre TEXT,
+            abreviatura TEXT
+          );
+
+          CREATE TABLE IF NOT EXISTS local_equipamentos_property (
+            id_equipamentos TEXT,
+            id_property TEXT,
+            PRIMARY KEY (id_equipamentos, id_property)
           );
 
           -- Offline Work (Write-Sync)
@@ -97,7 +103,8 @@ export const DatabaseService = {
       DELETE FROM local_equipos;
       DELETE FROM local_properties;
       DELETE FROM local_users;
-      DELETE FROM local_technician_devices;
+      DELETE FROM local_equipamentos;
+      DELETE FROM local_equipamentos_property;
     `);
   },
 
@@ -105,7 +112,8 @@ export const DatabaseService = {
     equipos: any[],
     properties: any[],
     users: any[],
-    techDevices: any[],
+    equipamentos: any[] = [],
+    equipamentosProperty: any[] = [],
   ) {
     const db = await dbPromise;
 
@@ -145,11 +153,19 @@ export const DatabaseService = {
         );
       }
 
-      // Tech Devices
-      for (const item of techDevices) {
+      // Equipamentos
+      for (const item of equipamentos) {
         await db.runAsync(
-          'INSERT OR REPLACE INTO local_technician_devices (id, technician_id, device_id, is_active) VALUES (?, ?, ?, ?)',
-          [item.id, item.technician_id, item.device_id, item.is_active ? 1 : 0],
+          'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura) VALUES (?, ?, ?)',
+          [item.id, item.nombre, item.abreviatura],
+        );
+      }
+
+      // Equipamentos Property
+      for (const item of equipamentosProperty) {
+        await db.runAsync(
+          'INSERT OR REPLACE INTO local_equipamentos_property (id_equipamentos, id_property) VALUES (?, ?)',
+          [item.id_equipamentos, item.id_property],
         );
       }
     });
@@ -259,6 +275,22 @@ export const DatabaseService = {
     await this.ensureInitialized();
     const db = await dbPromise;
     return await db.getAllAsync('SELECT * FROM local_properties');
+  },
+
+  async getEquipamentosByProperty(propertyId: string) {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+    // Join local_equipamentos and local_equipamentos_property
+    const rows = await db.getAllAsync(
+      `
+      SELECT e.id, e.nombre, e.abreviatura
+      FROM local_equipamentos e
+      JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
+      WHERE ep.id_property = ?
+      `,
+      [propertyId],
+    );
+    return rows;
   },
 
   async saveCurrentUser(user: {

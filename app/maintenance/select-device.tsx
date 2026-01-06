@@ -5,13 +5,17 @@ import {
   StyleSheet,
   ActivityIndicator,
   Text,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DefaultHeader from '@/components/default-header';
 import MaintenanceCard from '@/components/maintenance-card';
 import type { EquipamentoResponse } from '@/types/api';
-import { useEquipamentosByPropertyQuery } from '@/hooks/use-equipments-by-property-query';
+// import { useEquipamentosByPropertyQuery } from '@/hooks/use-equipments-by-property-query';
+import { DatabaseService } from '@/services/database';
+import { syncService } from '@/services/sync';
 
 export default function SelectDeviceScreen() {
   const router = useRouter();
@@ -32,14 +36,46 @@ export default function SelectDeviceScreen() {
     }
   }, [params.building]);
 
-  const {
-    data: equipamentosData,
-    isLoading,
-    isError,
-    error,
-  } = useEquipamentosByPropertyQuery(building?.id);
+  const [equipamentos, setEquipamentos] = useState<EquipamentoResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const equipamentos = equipamentosData?.items || [];
+  const loadData = useCallback(async () => {
+    if (!building?.id) return;
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await DatabaseService.getEquipamentosByProperty(building.id);
+      setEquipamentos(data as EquipamentoResponse[]);
+    } catch (err) {
+      console.error('Error loading equipments:', err);
+      setError('Error al cargar equipamientos locales');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [building?.id]);
+
+  useEffect(() => {
+    if (building?.id) {
+      loadData();
+    }
+  }, [building, loadData]);
+
+  const onRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      // 1. Trigger Sync
+      await syncService.pullData();
+      // 2. Reload local data
+      await loadData();
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo sincronizar con el servidor.');
+      console.error(e);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadData]);
 
   const handleEquipamentoPress = (equipamento: EquipamentoResponse) => {
     console.log('Selected equipamento:', equipamento);
@@ -74,7 +110,10 @@ export default function SelectDeviceScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView>
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+        }>
         {/* Header */}
         <DefaultHeader
           title={
@@ -85,16 +124,14 @@ export default function SelectDeviceScreen() {
 
         {/* Content */}
         <View style={styles.listWrapper}>
-          {isLoading ? (
+          {isLoading && !isRefreshing ? (
             <View style={styles.centerContainer}>
               <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={styles.loadingText}>Cargando equipamientos...</Text>
+              <Text style={styles.loadingText}>Cargando localmente...</Text>
             </View>
-          ) : isError ? (
+          ) : error ? (
             <View style={styles.centerContainer}>
-              <Text style={styles.errorText}>
-                {error?.message || 'Error al cargar los equipamientos'}
-              </Text>
+              <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : equipamentos.length === 0 ? (
             <View style={styles.centerContainer}>

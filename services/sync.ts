@@ -101,10 +101,17 @@ class SyncService {
         .select('*');
       if (propError) throw propError;
 
-      const { data: techDevices, error: tdError } = await supabase
-        .from('technician_devices')
+      // Equipamentos (Catalog)
+      const { data: equipamentos, error: eqError } = await supabase
+        .from('equipamentos')
         .select('*');
-      if (tdError) throw tdError;
+      if (eqError) throw eqError;
+
+      // Equipamentos Property (Relation)
+      const { data: equipamentosProperty, error: epError } = await supabase
+        .from('equipamentos_property')
+        .select('*');
+      if (epError) throw epError;
 
       // 2. Update Local DB
       // We do NOT sync all users anymore for privacy/efficiency.
@@ -113,7 +120,8 @@ class SyncService {
         equipos || [],
         properties || [],
         [], // Empty users array
-        techDevices || [],
+        equipamentos || [],
+        equipamentosProperty || [],
       );
 
       console.log('Down-Sync Completed: Data mirrored locally.');
