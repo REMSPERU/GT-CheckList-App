@@ -14,6 +14,7 @@ import {
   useRegister,
 } from '../hooks/use-auth-query';
 import { supabaseAuthService } from '../services/supabase-auth.service';
+import { DatabaseService } from '../services/database';
 import type { LoginRequest, RegisterRequest } from '../types/api';
 import type { User } from '@supabase/supabase-js';
 
@@ -76,6 +77,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (event === 'SIGNED_IN' && session) {
         setHasSession(true);
         await refetchUser();
+        
+        // Save user to local DB
+        if (session.user) {
+          try {
+            await DatabaseService.saveCurrentUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              username: session.user.user_metadata?.username,
+              first_name: session.user.user_metadata?.first_name,
+              last_name: session.user.user_metadata?.last_name,
+            });
+          } catch (err) {
+            console.error('Failed to save user to local DB:', err);
+          }
+        }
       } else if (event === 'SIGNED_OUT') {
         setHasSession(false);
       } else if (event === 'TOKEN_REFRESHED' && session) {

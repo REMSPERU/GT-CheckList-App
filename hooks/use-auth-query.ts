@@ -6,6 +6,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import { supabaseAuthService } from '../services/supabase-auth.service';
+import { DatabaseService } from '../services/database';
 import type { LoginRequest, RegisterRequest } from '../types/api';
 import type { User } from '@supabase/supabase-js';
 
@@ -26,9 +27,36 @@ export function useCurrentUser(
     queryKey: authKeys.currentUser(),
     queryFn: async () => {
       try {
+        // 1. Try online fetch
         return await supabaseAuthService.getCurrentUser();
       } catch (error) {
-        console.error('Error getting current user:', error);
+        console.log('Network auth check failed, checking local storage...');
+        
+        // 2. Fallback: Check if we have a valid session in AsyncStorage (handled by Supabase)
+        // verify if we have a session
+        const session = await supabaseAuthService.getSession();
+        
+        if (session && session.user) {
+            // 3. Try to get user details from local SQLite
+            const localUser = (await DatabaseService.getLocalUserById(session.user.id)) as any;
+            if (localUser) {
+                console.log('User restored from local DB');
+                // Construct a minimal User object compatible with Supabase User type
+                return {
+                    id: localUser.id,
+                    aud: 'authenticated',
+                    role: 'authenticated',
+                    email: localUser.email,
+                    created_at: '',
+                    app_metadata: {},
+                    user_metadata: {
+                        username: localUser.username,
+                        first_name: localUser.first_name,
+                        last_name: localUser.last_name
+                    }
+                } as User;
+            }
+        }
         return null;
       }
     },

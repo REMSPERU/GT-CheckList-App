@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { DatabaseService } from './database';
 import { supabaseMaintenanceService } from './supabase-maintenance.service';
+import { supabaseElectricalPanelService } from './supabase-electrical-panel.service';
 import NetInfo from '@react-native-community/netinfo';
 
 interface OfflineMaintenance {
@@ -23,6 +24,7 @@ interface OfflinePhoto {
 
 class SyncService {
   private isConnected = false;
+  private netInfoUnsubscribe: (() => void) | null = null;
 
   constructor() {
     this.init();
@@ -30,17 +32,46 @@ class SyncService {
 
   init() {
     // Listen for network changes
-    NetInfo.addEventListener(state => {
+    this.netInfoUnsubscribe = NetInfo.addEventListener(state => {
       const wasConnected = this.isConnected;
       this.isConnected = state.isConnected ?? false;
 
       console.log('Network State Change. Connected:', this.isConnected);
 
       if (this.isConnected && !wasConnected) {
-        // Reconnected -> Trigger Sync
-        this.pushData();
+        // Reconnected -> Trigger bidirectional sync
+        this.syncOnReconnect();
       }
     });
+  }
+
+  /**
+   * Cleanup method to remove listeners
+   */
+  cleanup() {
+    if (this.netInfoUnsubscribe) {
+      this.netInfoUnsubscribe();
+      this.netInfoUnsubscribe = null;
+    }
+  }
+
+  /**
+   * Sync both ways when reconnecting
+   */
+  private async syncOnReconnect() {
+    try {
+      console.log('🔄 Auto-sync triggered on reconnect...');
+
+      // 1. Push pending offline work first
+      await this.pushData();
+
+      // 2. Pull fresh data from server
+      await this.pullData();
+
+      console.log('✅ Auto-sync completed');
+    } catch (error) {
+      console.error('❌ Auto-sync failed:', error);
+    }
   }
 
   /**
@@ -48,6 +79,7 @@ class SyncService {
    * This is a "Reset" sync for reference data.
    */
   async pullData() {
+    await DatabaseService.ensureInitialized();
     try {
       if (!this.isConnected) {
         console.log('Cannot pull data: Offline');
@@ -70,22 +102,27 @@ class SyncService {
         .select('*');
       if (propError) throw propError;
 
-      const { data: users, error: userError } = await supabase
-        .from('users')
+      // Equipamentos (Catalog)
+      const { data: equipamentos, error: eqError } = await supabase
+        .from('equipamentos')
         .select('*');
-      if (userError) throw userError;
+      if (eqError) throw eqError;
 
-      const { data: techDevices, error: tdError } = await supabase
-        .from('technician_devices')
+      // Equipamentos Property (Relation)
+      const { data: equipamentosProperty, error: epError } = await supabase
+        .from('equipamentos_property')
         .select('*');
-      if (tdError) throw tdError;
+      if (epError) throw epError;
 
       // 2. Update Local DB
+      // We do NOT sync all users anymore for privacy/efficiency.
+      // Current user is saved on login via AuthContext.
       await DatabaseService.bulkInsertMirrorData(
         equipos || [],
         properties || [],
-        users || [],
-        techDevices || [],
+        [], // Empty users array
+        equipamentos || [],
+        equipamentosProperty || [],
       );
 
       console.log('Down-Sync Completed: Data mirrored locally.');
@@ -100,6 +137,7 @@ class SyncService {
    * Pushes pending offline work to Supabase.
    */
   async pushData() {
+    await DatabaseService.ensureInitialized();
     if (!this.isConnected) {
       console.log('Skipping Push: Offline');
       return;
@@ -201,6 +239,53 @@ class SyncService {
           'error',
           String(error),
         );
+      }
+    }
+
+    // --- SYNC PANEL CONFIGURATIONS ---
+    const pendingConfigs =
+      (await DatabaseService.getPendingPanelConfigurations()) as {
+        id: number;
+        panel_id: string;
+        configuration_data: string;
+      }[];
+
+    if (pendingConfigs.length > 0) {
+      console.log(
+        `Found ${pendingConfigs.length} pending panel configs to sync.`,
+      );
+
+      for (const config of pendingConfigs) {
+        try {
+          await DatabaseService.updatePanelConfigurationStatus(
+            config.id,
+            'syncing',
+          );
+
+          const detail = JSON.parse(config.configuration_data);
+
+          // Update in Supabase
+          await supabaseElectricalPanelService.updateEquipmentDetail(
+            config.panel_id,
+            detail,
+          );
+
+          await DatabaseService.updatePanelConfigurationStatus(
+            config.id,
+            'synced',
+          );
+          console.log(`Panel config ${config.id} synced successfully.`);
+        } catch (error) {
+          console.error(
+            `Sync failed for panel config ${config.id}:`,
+            String(error),
+          );
+          await DatabaseService.updatePanelConfigurationStatus(
+            config.id,
+            'error',
+            String(error),
+          );
+        }
       }
     }
   }

@@ -7,18 +7,26 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Modal,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import DefaultHeader from '@/components/default-header';
-import { useElectricalPanelsByPropertyQuery } from '@/hooks/use-electrical-panels-by-property-query';
 import type { TableroElectricoResponse } from '@/types/api';
+import { DatabaseService } from '@/services/database';
+import { syncService } from '@/services/sync';
 
 export default function ElectricalPanelsScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const { building: buildingParam } = useLocalSearchParams();
   const [building, setBuilding] = useState<any>(null);
+  const [panels, setPanels] = useState<TableroElectricoResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
   const [filterType, setFilterType] = useState<string | undefined>(undefined); // undefined = Todos
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -69,33 +77,60 @@ export default function ElectricalPanelsScreen() {
   };
 
   useEffect(() => {
-    if (params.building) {
+    if (buildingParam) {
       try {
-        setBuilding(JSON.parse(params.building as string));
+        const parsedBuilding = JSON.parse(buildingParam as string);
+        setBuilding(parsedBuilding);
       } catch (e) {
         console.error('Error parsing building param:', e);
       }
     }
-  }, [params.building, params.equipamento]);
+  }, [buildingParam]);
 
-  // Si filterType es undefined, enviamos undefined al hook para que la API traiga todo.
-  const panelTypeToSend = filterType;
-  console.log('Frontend: Sending panelType to hook:', panelTypeToSend);
+  const loadData = useCallback(async () => {
+    if (!building?.id) return;
+    setIsLoading(true);
+    setError(null);
+    setIsError(false);
+    try {
+      const data = await DatabaseService.getElectricalPanelsByProperty(
+        building.id,
+        {
+          type: filterType,
+          search: searchTerm,
+          config: filterConfig,
+          locations: filterLocations,
+        },
+      );
+      setPanels(data);
+    } catch (err) {
+      console.error('Error loading electrical panels:', err);
+      setError(err as Error);
+      setIsError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [building?.id, filterType, searchTerm, filterConfig, filterLocations]);
 
-  const {
-    data: panelsData,
-    isLoading,
-    isError,
-    error,
-  } = useElectricalPanelsByPropertyQuery(
-    building?.id,
-    panelTypeToSend, // Pasar el tipo de panel como filtro
-    searchTerm, // Pasar el término de búsqueda
-    filterConfig,
-    filterLocations,
-  );
+  // Load data initially and when filters change
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const panels = panelsData || [];
+  const onRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      // 1. Trigger Sync
+      await syncService.pullData();
+      // 2. Reload Local Data
+      await loadData();
+    } catch (err) {
+      console.error('Refresh failed:', err);
+      // Optional: Show toast or alert
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadData]);
 
   // Multi-selection state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -177,7 +212,7 @@ export default function ElectricalPanelsScreen() {
       <>
         <View style={styles.panelInfoColumn}>
           <Text style={styles.panelName}>
-            {panel.codigo || panel.equipment_detail.rotulo}
+            {panel.codigo || panel.equipment_detail?.rotulo || 'N/A'}
           </Text>
 
           <View style={styles.locationRow}>
@@ -261,7 +296,10 @@ export default function ElectricalPanelsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView>
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+        }>
         {/* Header */}
         <DefaultHeader
           title="Tableros eléctricos"

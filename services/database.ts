@@ -44,11 +44,17 @@ export const DatabaseService = {
             last_name TEXT
           );
 
-          CREATE TABLE IF NOT EXISTS local_technician_devices (
+
+          CREATE TABLE IF NOT EXISTS local_equipamentos (
             id TEXT PRIMARY KEY,
-            technician_id TEXT,
-            device_id TEXT,
-            is_active INTEGER
+            nombre TEXT,
+            abreviatura TEXT
+          );
+
+          CREATE TABLE IF NOT EXISTS local_equipamentos_property (
+            id_equipamentos TEXT,
+            id_property TEXT,
+            PRIMARY KEY (id_equipamentos, id_property)
           );
 
           -- Offline Work (Write-Sync)
@@ -76,6 +82,16 @@ export const DatabaseService = {
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(maintenance_local_id) REFERENCES offline_maintenance_response(local_id)
           );
+
+          CREATE TABLE IF NOT EXISTS offline_panel_configurations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            panel_id TEXT,
+            configuration_data TEXT, -- JSON string
+            status TEXT DEFAULT 'pending', -- pending, syncing, synced, error
+            error_message TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            synced_at TEXT
+          );
         `);
       console.log('Database initialized');
     })();
@@ -97,7 +113,9 @@ export const DatabaseService = {
       DELETE FROM local_equipos;
       DELETE FROM local_properties;
       DELETE FROM local_users;
-      DELETE FROM local_technician_devices;
+      DELETE FROM local_equipamentos;
+      DELETE FROM local_equipamentos_property;
+      DELETE FROM offline_panel_configurations;
     `);
   },
 
@@ -105,7 +123,8 @@ export const DatabaseService = {
     equipos: any[],
     properties: any[],
     users: any[],
-    techDevices: any[],
+    equipamentos: any[] = [],
+    equipamentosProperty: any[] = [],
   ) {
     const db = await dbPromise;
 
@@ -145,11 +164,19 @@ export const DatabaseService = {
         );
       }
 
-      // Tech Devices
-      for (const item of techDevices) {
+      // Equipamentos
+      for (const item of equipamentos) {
         await db.runAsync(
-          'INSERT OR REPLACE INTO local_technician_devices (id, technician_id, device_id, is_active) VALUES (?, ?, ?, ?)',
-          [item.id, item.technician_id, item.device_id, item.is_active ? 1 : 0],
+          'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura) VALUES (?, ?, ?)',
+          [item.id, item.nombre, item.abreviatura],
+        );
+      }
+
+      // Equipamentos Property
+      for (const item of equipamentosProperty) {
+        await db.runAsync(
+          'INSERT OR REPLACE INTO local_equipamentos_property (id_equipamentos, id_property) VALUES (?, ?)',
+          [item.id_equipamentos, item.id_property],
         );
       }
     });
@@ -197,7 +224,54 @@ export const DatabaseService = {
     return localId;
   },
 
+  async saveOfflinePanelConfiguration(panelId: string, configurationData: any) {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+    const jsonConfig = JSON.stringify(configurationData);
+
+    await db.withTransactionAsync(async () => {
+      // 1. Queue configuration for sync
+      await db.runAsync(
+        `INSERT INTO offline_panel_configurations (panel_id, configuration_data, status)
+         VALUES (?, ?, 'pending')`,
+        [panelId, jsonConfig],
+      );
+
+      // 2. Update local mirror immediately aka "optimistic update"
+      // This ensures the user sees the panel as configured even if offline
+      await db.runAsync(
+        `UPDATE local_equipos
+         SET equipment_detail = ?, config = 1, last_synced_at = ?
+         WHERE id = ?`,
+        [jsonConfig, new Date().toISOString(), panelId],
+      );
+    });
+  },
+
+  async getPendingPanelConfigurations() {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+    return await db.getAllAsync(`
+      SELECT * FROM offline_panel_configurations WHERE status = 'pending' OR status = 'error'
+    `);
+  },
+
+  async updatePanelConfigurationStatus(
+    id: number,
+    status: string,
+    errorMessage: string | null = null,
+  ) {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+    const now = status === 'synced' ? new Date().toISOString() : null;
+    await db.runAsync(
+      `UPDATE offline_panel_configurations SET status = ?, error_message = ?, synced_at = ? WHERE id = ?`,
+      [status, errorMessage, now, id],
+    );
+  },
+
   async getPendingMaintenances() {
+    await this.ensureInitialized();
     const db = await dbPromise;
     // Get headers
     const rows = await db.getAllAsync(`
@@ -208,6 +282,7 @@ export const DatabaseService = {
   },
 
   async getPendingPhotos(maintenanceLocalId: number) {
+    await this.ensureInitialized();
     const db = await dbPromise;
     const rows = await db.getAllAsync(
       `
@@ -224,6 +299,7 @@ export const DatabaseService = {
     remoteUrl: string | null = null,
     errorMessage: string | null = null,
   ) {
+    await this.ensureInitialized();
     const db = await dbPromise;
     await db.runAsync(
       `UPDATE offline_photos SET status = ?, remote_url = ?, error_message = ? WHERE id = ?`,
@@ -236,6 +312,7 @@ export const DatabaseService = {
     status: string,
     errorMessage: string | null = null,
   ) {
+    await this.ensureInitialized();
     const db = await dbPromise;
     const now = status === 'synced' ? new Date().toISOString() : null;
     await db.runAsync(
@@ -246,12 +323,130 @@ export const DatabaseService = {
 
   // --- READ METHODS FOR UI ---
   async getLocalEquipments() {
+    await this.ensureInitialized();
     const db = await dbPromise;
     return await db.getAllAsync('SELECT * FROM local_equipos');
   },
 
   async getLocalProperties() {
+    await this.ensureInitialized();
     const db = await dbPromise;
     return await db.getAllAsync('SELECT * FROM local_properties');
+  },
+
+  async getEquipamentosByProperty(propertyId: string) {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+    // Join local_equipamentos and local_equipamentos_property
+    const rows = await db.getAllAsync(
+      `
+      SELECT e.id, e.nombre, e.abreviatura
+      FROM local_equipamentos e
+      JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
+      WHERE ep.id_property = ?
+      `,
+      [propertyId],
+    );
+    return rows;
+  },
+
+  async saveCurrentUser(user: {
+    id: string;
+    username?: string;
+    email: string;
+    first_name?: string;
+    last_name?: string;
+  }) {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+    await db.runAsync(
+      'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name) VALUES (?, ?, ?, ?, ?)',
+      [
+        user.id,
+        user.username || user.email?.split('@')[0] || '',
+        user.email,
+        user.first_name || '',
+        user.last_name || '',
+      ],
+    );
+    console.log('Current user saved to local DB:', user.email);
+  },
+
+  async getLocalUserById(id: string) {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+    const result = await db.getFirstAsync(
+      'SELECT * FROM local_users WHERE id = ?',
+      [id],
+    );
+    return result;
+  },
+
+  async getElectricalPanelsByProperty(
+    propertyId: string,
+    filters?: {
+      type?: string;
+      search?: string;
+      config?: boolean | null;
+      locations?: string[];
+    },
+  ) {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+
+    // 1. Fetch all panels for the property
+    const rows = (await db.getAllAsync(
+      'SELECT * FROM local_equipos WHERE id_property = ?',
+      [propertyId],
+    )) as any[];
+
+    // 2. Parse JSON and Apply Filters in Memory
+    return rows
+      .map(row => {
+        try {
+          return {
+            ...row,
+            equipment_detail: row.equipment_detail
+              ? JSON.parse(row.equipment_detail)
+              : null,
+            // Convert SQLite integer boolean (0/1) to true/false
+            config: row.config === 1,
+          };
+        } catch (e) {
+          console.error('Error parsing panel detail:', e);
+          return row;
+        }
+      })
+      .filter(panel => {
+        // Filter by Type
+        if (
+          filters?.type &&
+          panel.equipment_detail?.tipo_tablero !== filters.type
+        ) {
+          return false;
+        }
+
+        // Filter by Config Status (null means "All", so ignore if null/undefined)
+        if (filters?.config !== undefined && filters?.config !== null) {
+          if (panel.config !== filters.config) return false;
+        }
+
+        // Filter by Locations
+        if (filters?.locations && filters.locations.length > 0) {
+          if (!filters.locations.includes(panel.ubicacion)) return false;
+        }
+
+        // Filter by Search (Code or Label)
+        if (filters?.search) {
+          const searchLower = filters.search.toLowerCase();
+          const matchesCode = panel.codigo?.toLowerCase().includes(searchLower);
+          const matchesLabel = panel.equipment_detail?.rotulo
+            ?.toLowerCase()
+            .includes(searchLower);
+          if (!matchesCode && !matchesLabel) return false;
+        }
+
+        return true;
+      });
   },
 };

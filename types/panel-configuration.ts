@@ -20,6 +20,8 @@ export interface PanelData {
   id?: string;
   codigo?: string;
   rotulo?: string;
+  id_property?: string;
+  equipment_detail?: any; // JSONB structure
 }
 
 export interface BasicInfoStepProps {

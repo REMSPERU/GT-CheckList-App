@@ -3,12 +3,14 @@ import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PanelData, CircuitConfig } from '@/types/panel-configuration';
+import { PanelData } from '@/types/panel-configuration';
 import {
   PanelConfigurationSchema,
   PanelConfigurationFormValues,
 } from '@/schemas/panel-configuration';
-import { supabaseElectricalPanelService } from '@/services/supabase-electrical-panel.service';
+// import { supabaseElectricalPanelService } from '@/services/supabase-electrical-panel.service';
+import { DatabaseService } from '@/services/database';
+import { syncService } from '@/services/sync';
 
 // ============================================================================
 // STEP CONFIGURATION
@@ -50,7 +52,7 @@ export function isFirstStep(stepId: StepId): boolean {
 // DEFAULT VALUES
 // ============================================================================
 
-const DEFAULT_CIRCUIT: CircuitConfig = {
+const DEFAULT_CIRCUIT: any = {
   phaseITM: 'mono_2w',
   amperajeITM: '',
   diameter: '',
@@ -305,25 +307,38 @@ export function usePanelConfiguration(
 
         if (initialPanel?.id) {
           // 1. Fetch current equipment_detail to avoid losing fields (merge)
-          const currentPanel = await supabaseElectricalPanelService.getById(
-            initialPanel.id,
-          );
-          const currentDetail = currentPanel.equipment_detail || {};
+          // For offline support, we should merge with what we have locally or just overwrite if critical.
+          // Since we are moving to offline-first, relying on `initialPanel` which comes from local DB should be safer.
+          // If we want to be 100% sure we merge with existing local data:
+          // const existingPanelLocal =
+          //   (await DatabaseService.getElectricalPanelsByProperty(
+          //     initialPanel.id_property!, // we need property ID here
+          //   )) as any[];
+          // Actually, we can just assume initialPanel content is relatively fresh or simplistic merge.
+
+          // Better approach: Just use initialPanel.equipment_detail if connected components passed it correctly.
+          const currentDetail = initialPanel.equipment_detail || {};
 
           // 2. Merge existing data with new mapping
-          // We prioritize new mapping but keep anything else that was in currentDetail
           const finalEquipmentDetail = {
             ...currentDetail,
             ...newDetailMapping,
           };
 
-          await supabaseElectricalPanelService.updateEquipmentDetail(
+          // SAVE LOCALLY (Offline First)
+          await DatabaseService.saveOfflinePanelConfiguration(
             initialPanel.id,
             finalEquipmentDetail,
           );
+
+          // Trigger background sync if possible, or let the periodic/auto sync handle it.
+          syncService.pushData().catch(err => {
+            console.log('Background sync trigger failed (expected if offline)');
+          });
+
           Alert.alert(
             'Configuración guardada',
-            'El equipo ha sido configurado correctamente.',
+            'El equipo ha sido configurado localmente y se sincronizará cuando haya conexión.',
             [{ text: 'OK', onPress: () => router.back() }],
           );
         } else {
