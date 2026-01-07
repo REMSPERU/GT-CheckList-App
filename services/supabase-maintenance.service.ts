@@ -73,6 +73,26 @@ export class SupabaseMaintenanceService {
       throw error;
     }
   }
+
+  /**
+   * Update maintenance status in the mantenimientos table
+   * @param maintenanceId UUID of the maintenance record
+   * @param status New status value ('FINALIZADO', 'EN_PROGRESO', etc.)
+   */
+  async updateMaintenanceStatus(
+    maintenanceId: string,
+    status: string,
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('mantenimientos')
+      .update({ estatus: status })
+      .eq('id', maintenanceId);
+
+    if (error) {
+      console.error('Error updating maintenance status:', error);
+      throw error;
+    }
+  }
 }
 
 export const supabaseMaintenanceService = new SupabaseMaintenanceService();

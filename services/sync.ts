@@ -229,6 +229,17 @@ class SyncService {
           detail_maintenance: detail,
         });
 
+        // 3.5 Update maintenance status to FINALIZADO if it has an associated maintenance record
+        if (item.id_mantenimiento) {
+          await supabaseMaintenanceService.updateMaintenanceStatus(
+            item.id_mantenimiento,
+            'FINALIZADO',
+          );
+          console.log(
+            `Maintenance ${item.id_mantenimiento} status updated to FINALIZADO`,
+          );
+        }
+
         // 4. Mark Synced
         await DatabaseService.updateMaintenanceStatus(item.local_id, 'synced');
         console.log(`Maintenance ${item.local_id} synced successfully.`);

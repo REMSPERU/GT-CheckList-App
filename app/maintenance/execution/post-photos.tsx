@@ -39,7 +39,7 @@ export default function PostMaintenancePhotosScreen() {
   // Request permissions on mount
   useEffect(() => {
     (async () => {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      await ImagePicker.requestCameraPermissionsAsync();
     })();
   }, []);
 

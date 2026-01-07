@@ -181,7 +181,7 @@ export default function MaintenanceChecklistScreen() {
         updatedSession.lastUpdated = new Date().toISOString();
         saveSession(updatedSession);
       }
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'No se pudo abrir la cámara');
     }
   };
