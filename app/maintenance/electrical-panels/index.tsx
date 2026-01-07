@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  Modal,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +12,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import DefaultHeader from '@/components/default-header';
 import { EquipmentList } from '@/components/maintenance/EquipmentList';
+import {
+  EquipmentFilterModal,
+  FilterState,
+} from '@/components/maintenance/EquipmentFilterModal';
 import type { TableroElectricoResponse } from '@/types/api';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
@@ -29,54 +32,16 @@ export default function ElectricalPanelsScreen() {
   const [isError, setIsError] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const [filterType, setFilterType] = useState<string | undefined>(undefined); // undefined = Todos
+  const [filterType, setFilterType] = useState<string | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Advanced Filters State
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [filterConfig, setFilterConfig] = useState<boolean | null>(null); // null = Todos, true = Configurado, false = No Configurado
+  const [filterConfig, setFilterConfig] = useState<boolean | null>(null);
   const [filterLocations, setFilterLocations] = useState<string[]>([]);
 
-  // Temp state for modal
-  const [tempFilterConfig, setTempFilterConfig] = useState<boolean | null>(
-    null,
-  );
-  const [tempFilterLocations, setTempFilterLocations] = useState<string[]>([]);
+  // Temp state for panel type filter (electrical panels specific)
   const [tempFilterType, setTempFilterType] = useState<string | undefined>(
     undefined,
   );
-
-  const handleOpenFilter = () => {
-    setTempFilterConfig(filterConfig);
-    setTempFilterLocations(filterLocations);
-    setTempFilterType(filterType);
-    setShowFilterModal(true);
-  };
-
-  const handleApplyFilter = () => {
-    setFilterConfig(tempFilterConfig);
-    setFilterLocations(tempFilterLocations);
-    setFilterType(tempFilterType);
-    setShowFilterModal(false);
-  };
-
-  const handleResetFilter = () => {
-    setTempFilterConfig(null);
-    setTempFilterLocations([]);
-    setTempFilterType(undefined);
-  };
-
-  const toggleLocation = (loc: string) => {
-    setTempFilterLocations(prev => {
-      const newLocs = new Set(prev);
-      if (newLocs.has(loc)) {
-        newLocs.delete(loc);
-      } else {
-        newLocs.add(loc);
-      }
-      return Array.from(newLocs);
-    });
-  };
 
   useEffect(() => {
     if (buildingParam) {
@@ -110,7 +75,7 @@ export default function ElectricalPanelsScreen() {
           search: searchTerm,
           config: filterConfig,
           locations: filterLocations,
-          equipamentoId: equipamento?.id, // Filter by equipment type
+          equipamentoId: equipamento?.id,
         },
       );
       setPanels(data);
@@ -130,7 +95,6 @@ export default function ElectricalPanelsScreen() {
     filterLocations,
   ]);
 
-  // Load data initially and when filters change
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -138,13 +102,10 @@ export default function ElectricalPanelsScreen() {
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      // 1. Trigger Sync
       await syncService.pullData();
-      // 2. Reload Local Data
       await loadData();
     } catch (err) {
       console.error('Refresh failed:', err);
-      // Optional: Show toast or alert
     } finally {
       setIsRefreshing(false);
     }
@@ -172,11 +133,9 @@ export default function ElectricalPanelsScreen() {
 
   const handleSelectAll = () => {
     if (selectedPanelIds.size === panels.filter(p => p.config).length) {
-      // Deselect all
       setSelectedPanelIds(new Set());
       setIsSelectionMode(false);
     } else {
-      // Select all configured
       const allConfiguredIds = panels.filter(p => p.config).map(p => p.id);
       setSelectedPanelIds(new Set(allConfiguredIds));
       setIsSelectionMode(true);
@@ -184,7 +143,6 @@ export default function ElectricalPanelsScreen() {
   };
 
   const handlePanelPress = (panel: TableroElectricoResponse) => {
-    // Check 'config' property from DB instead of 'is_configured'
     if (!panel.config) {
       router.push({
         pathname: '/maintenance/electrical-panels/configuration',
@@ -196,11 +154,6 @@ export default function ElectricalPanelsScreen() {
       return;
     }
 
-    console.log(
-      'Panel configurado seleccionado:',
-      JSON.stringify(panel, null, 2),
-    );
-    // Navigate to the detail modal/screen
     router.push({
       pathname: '/maintenance/electrical-panels/detail-modal',
       params: {
@@ -210,7 +163,6 @@ export default function ElectricalPanelsScreen() {
   };
 
   const handleScheduleMaintenance = () => {
-    // Navigate to schedule screen
     router.push({
       pathname: '/maintenance/schedule-maintenance',
       params: {
@@ -220,6 +172,48 @@ export default function ElectricalPanelsScreen() {
       },
     });
   };
+
+  const handleOpenFilter = () => {
+    setTempFilterType(filterType);
+    setShowFilterModal(true);
+  };
+
+  const handleApplyFilter = (filters: FilterState) => {
+    setFilterConfig(filters.config);
+    setFilterLocations(filters.locations);
+    setFilterType(tempFilterType);
+  };
+
+  // Panel type filter chips (electrical panels specific)
+  const PanelTypeFilter = (
+    <View>
+      <Text style={styles.filterLabel}>Tipo de Tablero</Text>
+      <View style={styles.filterOptions}>
+        {['Todos', 'Autosoportado', 'Distribucion'].map(label => {
+          const typeValue = label === 'Todos' ? undefined : label.toUpperCase();
+          const isActive = tempFilterType === typeValue;
+
+          return (
+            <TouchableOpacity
+              key={label}
+              style={[
+                styles.filterOptionChip,
+                isActive && styles.activeFilterOptionChip,
+              ]}
+              onPress={() => setTempFilterType(typeValue)}>
+              <Text
+                style={[
+                  styles.filterOptionText,
+                  isActive && styles.activeFilterOptionText,
+                ]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -296,239 +290,16 @@ export default function ElectricalPanelsScreen() {
         </View>
       )}
 
-      <Modal
-        animationType="slide"
-        transparent={true}
+      {/* Filter Modal */}
+      <EquipmentFilterModal
         visible={showFilterModal}
-        onRequestClose={() => setShowFilterModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Filtrar Tableros</Text>
-              <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalBody}>
-              {/* Panel Type Filter */}
-              <Text style={styles.filterLabel}>Tipo de Tablero</Text>
-              <View style={styles.filterOptions}>
-                {['Todos', 'Autosoportado', 'Distribucion'].map(label => {
-                  const typeValue =
-                    label === 'Todos' ? undefined : label.toUpperCase();
-                  const isActive = tempFilterType === typeValue;
-
-                  return (
-                    <TouchableOpacity
-                      key={label}
-                      style={[
-                        styles.filterOptionChip,
-                        isActive && styles.activeFilterOptionChip,
-                      ]}
-                      onPress={() => setTempFilterType(typeValue)}>
-                      <Text
-                        style={[
-                          styles.filterOptionText,
-                          isActive && styles.activeFilterOptionText,
-                        ]}>
-                        {label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Config Status Filter */}
-              <Text style={styles.filterLabel}>Estado de Configuración</Text>
-              <View style={styles.filterOptions}>
-                {[
-                  { label: 'Todos', value: null },
-                  { label: 'Configurados', value: true },
-                  { label: 'No Configurados', value: false },
-                ].map(option => (
-                  <TouchableOpacity
-                    key={option.label}
-                    style={[
-                      styles.filterOptionChip,
-                      tempFilterConfig === option.value &&
-                        styles.activeFilterOptionChip,
-                    ]}
-                    onPress={() => setTempFilterConfig(option.value)}>
-                    <Text
-                      style={[
-                        styles.filterOptionText,
-                        tempFilterConfig === option.value &&
-                          styles.activeFilterOptionText,
-                      ]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Location Filter */}
-              <Text style={styles.filterLabel}>Ubicación</Text>
-
-              <View style={styles.filterOptions}>
-                {/* Option: Todos */}
-                <TouchableOpacity
-                  style={[
-                    styles.locationCheckboxItem,
-                    tempFilterLocations.length === 0 &&
-                      styles.locationCheckboxSelected,
-                  ]}
-                  onPress={() => setTempFilterLocations([])}>
-                  <Ionicons
-                    name={
-                      tempFilterLocations.length === 0
-                        ? 'checkbox'
-                        : 'square-outline'
-                    }
-                    size={20}
-                    color={
-                      tempFilterLocations.length === 0 ? '#0891B2' : '#9CA3AF'
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.locationCheckboxText,
-                      tempFilterLocations.length === 0 &&
-                        styles.activeLocationCheckboxText,
-                    ]}>
-                    Todos
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {building?.basement > 0 && (
-                <View style={{ marginBottom: 12 }}>
-                  <Text style={[styles.detailLabel, { marginBottom: 8 }]}>
-                    Sótanos
-                  </Text>
-                  <View style={styles.locationGrid}>
-                    {Array.from(
-                      { length: building.basement },
-                      (_, i) => `Sótano ${i + 1}`,
-                    ).map(loc => {
-                      const isSelected = tempFilterLocations.includes(loc);
-                      return (
-                        <TouchableOpacity
-                          key={loc}
-                          style={[
-                            styles.locationCheckboxItem,
-                            isSelected && styles.locationCheckboxSelected,
-                          ]}
-                          onPress={() => toggleLocation(loc)}>
-                          <Ionicons
-                            name={isSelected ? 'checkbox' : 'square-outline'}
-                            size={20}
-                            color={isSelected ? '#0891B2' : '#9CA3AF'}
-                          />
-                          <Text
-                            style={[
-                              styles.locationCheckboxText,
-                              isSelected && styles.activeLocationCheckboxText,
-                            ]}>
-                            {loc}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-              )}
-
-              {building?.floor > 0 && (
-                <View style={{ marginBottom: 12 }}>
-                  <Text style={[styles.detailLabel, { marginBottom: 8 }]}>
-                    Pisos
-                  </Text>
-                  <View style={styles.locationGrid}>
-                    {Array.from(
-                      { length: building.floor },
-                      (_, i) => `Piso ${i + 1}`,
-                    ).map(loc => {
-                      const isSelected = tempFilterLocations.includes(loc);
-                      return (
-                        <TouchableOpacity
-                          key={loc}
-                          style={[
-                            styles.locationCheckboxItem,
-                            isSelected && styles.locationCheckboxSelected,
-                          ]}
-                          onPress={() => toggleLocation(loc)}>
-                          <Ionicons
-                            name={isSelected ? 'checkbox' : 'square-outline'}
-                            size={20}
-                            color={isSelected ? '#0891B2' : '#9CA3AF'}
-                          />
-                          <Text
-                            style={[
-                              styles.locationCheckboxText,
-                              isSelected && styles.activeLocationCheckboxText,
-                            ]}>
-                            {loc}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-              )}
-
-              {/* Extras: Azotea */}
-              <View>
-                <Text style={[styles.detailLabel, { marginBottom: 8 }]}>
-                  Otros
-                </Text>
-                <TouchableOpacity
-                  style={[
-                    styles.locationCheckboxItem,
-                    tempFilterLocations.includes('Azotea') &&
-                      styles.locationCheckboxSelected,
-                  ]}
-                  onPress={() => toggleLocation('Azotea')}>
-                  <Ionicons
-                    name={
-                      tempFilterLocations.includes('Azotea')
-                        ? 'checkbox'
-                        : 'square-outline'
-                    }
-                    size={20}
-                    color={
-                      tempFilterLocations.includes('Azotea')
-                        ? '#0891B2'
-                        : '#9CA3AF'
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.locationCheckboxText,
-                      tempFilterLocations.includes('Azotea') &&
-                        styles.activeLocationCheckboxText,
-                    ]}>
-                    Azotea
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={styles.resetButton}
-                onPress={handleResetFilter}>
-                <Text style={styles.resetButtonText}>Limpiar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.applyButton}
-                onPress={handleApplyFilter}>
-                <Text style={styles.applyButtonText}>Aplicar Filtros</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowFilterModal(false)}
+        onApply={handleApplyFilter}
+        initialFilters={{ config: filterConfig, locations: filterLocations }}
+        title="Filtrar Tableros"
+        building={building}
+        additionalFilters={PanelTypeFilter}
+      />
     </SafeAreaView>
   );
 }
@@ -538,33 +309,60 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F3F4F6',
   },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    maxHeight: '80%',
-  },
-  modalHeader: {
+  buildingInfoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    paddingRight: 20,
   },
-  modalTitle: {
-    fontSize: 20,
+  buildingInfo: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  buildingName: {
+    fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
   },
-  modalBody: {
-    marginBottom: 24,
+  selectAllButton: {
+    padding: 8,
   },
+  selectAllText: {
+    color: '#0891B2',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  panelsContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 100,
+  },
+  fabContainer: {
+    position: 'absolute',
+    bottom: 24,
+    left: 20,
+    right: 20,
+    alignItems: 'center',
+  },
+  fabButton: {
+    flexDirection: 'row',
+    backgroundColor: '#0891B2',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 30,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  fabText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  // Filter chip styles for panel type (additional filters slot)
   filterLabel: {
     fontSize: 16,
     fontWeight: '500',
@@ -596,161 +394,5 @@ const styles = StyleSheet.create({
   },
   activeFilterOptionText: {
     color: 'white',
-  },
-  input: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  resetButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-  },
-  resetButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  applyButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: '#0891B2',
-    alignItems: 'center',
-  },
-  applyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-  },
-
-  buildingInfo: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-  },
-  buildingName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  filterContainer: {
-    paddingHorizontal: 24,
-    marginBottom: 16,
-    flexDirection: 'row',
-  },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  activeFilterChip: {
-    backgroundColor: '#0891B2',
-    borderColor: '#0891B2',
-  },
-  filterText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  activeFilterText: {
-    color: '#FFFFFF',
-  },
-  panelsContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 100,
-  },
-  detailLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 2,
-  },
-
-  buildingInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingRight: 20,
-  },
-  selectAllButton: {
-    padding: 8,
-  },
-  selectAllText: {
-    color: '#0891B2',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  fabContainer: {
-    position: 'absolute',
-    bottom: 24,
-    left: 20,
-    right: 20,
-    alignItems: 'center',
-  },
-  fabButton: {
-    flexDirection: 'row',
-    backgroundColor: '#0891B2',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 30,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  fabText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  locationGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  locationCheckboxItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    minWidth: '45%',
-    marginBottom: 4,
-  },
-  locationCheckboxSelected: {
-    backgroundColor: '#F0FDFA',
-    borderColor: '#0891B2',
-  },
-  locationCheckboxText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#4B5563',
-    fontWeight: '500',
-  },
-  activeLocationCheckboxText: {
-    color: '#0891B2',
   },
 });
