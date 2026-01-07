@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
-import { styles } from '../_panel-configuration/_styles';
+import { styles } from '../electrical-panels/_config-steps/_styles';
 import { PanelDetailContent } from '@/components/maintenance/PanelDetailContent';
 import { useElectricalPanelDetail } from '@/hooks/use-electrical-panel-detail';
 

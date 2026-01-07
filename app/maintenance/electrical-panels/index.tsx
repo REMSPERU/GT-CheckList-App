@@ -180,7 +180,7 @@ export default function ElectricalPanelsScreen() {
     // Check 'config' property from DB instead of 'is_configured'
     if (!panel.config) {
       router.push({
-        pathname: '/maintenance/panel-configuration',
+        pathname: '/maintenance/electrical-panels/configuration',
         params: {
           panel: JSON.stringify(panel),
           building: building ? JSON.stringify(building) : '',
@@ -195,7 +195,7 @@ export default function ElectricalPanelsScreen() {
     );
     // Navigate to the detail modal/screen
     router.push({
-      pathname: '/maintenance/panel-detail-modal',
+      pathname: '/maintenance/electrical-panels/detail-modal',
       params: {
         panel: JSON.stringify(panel),
       },
@@ -264,7 +264,7 @@ export default function ElectricalPanelsScreen() {
           style={styles.panelCard}
           onPress={() => {
             router.push({
-              pathname: '/maintenance/panel-configuration',
+              pathname: '/maintenance/electrical-panels/configuration',
               params: {
                 panel: JSON.stringify(panel),
                 building: building ? JSON.stringify(building) : '',

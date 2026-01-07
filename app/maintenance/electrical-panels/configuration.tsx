@@ -11,13 +11,13 @@ import {
   isFirstStep,
 } from '@/hooks/use-electrical-panel-configuration';
 import { PanelData } from '@/types/panel-configuration';
-import { styles } from './_panel-configuration/_styles';
-import BasicInfoStep from './_panel-configuration/BasicInfoStep';
-import ITGConfigStep from './_panel-configuration/ITGConfigStep';
-import CircuitsConfigStep from './_panel-configuration/CircuitsConfigStep';
-import ExtraComponentsStep from './_panel-configuration/ExtraComponentsStep';
-import ExtraConditionsStep from './_panel-configuration/ExtraConditionsStep';
-import ReviewStep from './_panel-configuration/ReviewStep';
+import { styles } from './_config-steps/_styles';
+import BasicInfoStep from './_config-steps/BasicInfoStep';
+import ITGConfigStep from './_config-steps/ITGConfigStep';
+import CircuitsConfigStep from './_config-steps/CircuitsConfigStep';
+import ExtraComponentsStep from './_config-steps/ExtraComponentsStep';
+import ExtraConditionsStep from './_config-steps/ExtraConditionsStep';
+import ReviewStep from './_config-steps/ReviewStep';
 
 export default function PanelConfigurationScreen() {
   const params = useLocalSearchParams();
