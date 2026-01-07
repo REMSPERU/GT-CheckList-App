@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ChecklistItem } from './check-list-item';
 import { ItemObservation } from '@/types/maintenance-session';
@@ -39,14 +39,26 @@ export const ConditionsChecklist: React.FC<ConditionsChecklistProps> = ({
   onObservationChange,
   onPhotoPress,
 }) => {
-  if (!conditions) return null;
-
   // Filter keys that are actual conditions (boolean true usually means they SHOULD exist)
-  // But usage might be: if key exists in object, we verify it?
-  // The API returns an object where keys are the condition names and values are booleans (presumably 'required' or 'exists').
-  // We will iterate over all keys in the `conditions` object.
   const conditionKeys = Object.keys(conditions);
 
+  // Initialize items that don't have a status with default true
+  useEffect(() => {
+    if (!conditions) return;
+
+    conditionKeys.forEach(key => {
+      if (!conditions[key]) return;
+      if (!CONDITION_LABELS[key]) return;
+
+      const itemId = `cond_${key}`;
+      if (checklist[itemId] === undefined) {
+        onStatusChange(itemId, true);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conditionKeys.length]);
+
+  if (!conditions) return null;
   if (conditionKeys.length === 0) return null;
 
   return (

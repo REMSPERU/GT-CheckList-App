@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ChecklistItem } from './check-list-item';
 import { ItemObservation } from '@/types/maintenance-session';
@@ -21,6 +21,21 @@ export const AuxiliaryChecklist: React.FC<AuxiliaryChecklistProps> = ({
   onObservationChange,
   onPhotoPress,
 }) => {
+  // Initialize items that don't have a status with default true
+  useEffect(() => {
+    if (!components || components.length === 0) return;
+
+    components.forEach((comp: any) => {
+      comp.items.forEach((item: any) => {
+        const itemId = `comp_${comp.tipo}_${item.codigo}`;
+        if (checklist[itemId] === undefined) {
+          onStatusChange(itemId, true);
+        }
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [components]);
+
   if (!components || components.length === 0) return null;
 
   const getIconForType = (type: string): keyof typeof Ionicons.glyphMap => {
