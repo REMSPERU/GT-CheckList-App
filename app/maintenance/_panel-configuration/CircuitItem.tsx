@@ -83,18 +83,20 @@ const CircuitItem = ({
 
   return (
     <View style={styles.cnCard}>
-      <View style={styles.cnCardHeader}>
+      {/* Header clickeable para expandir/colapsar */}
+      <TouchableOpacity
+        style={styles.cnCardHeader}
+        onPress={() => onToggleExpand(index)}
+        activeOpacity={0.7}>
         <Text style={styles.cnTitle}>
           {cnPrefix || 'CN'}-{index + 1}
         </Text>
-        <TouchableOpacity onPress={() => onToggleExpand(index)}>
-          <Ionicons
-            name={isExpanded ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color="#6B7280"
-          />
-        </TouchableOpacity>
-      </View>
+        <Ionicons
+          name={isExpanded ? 'chevron-up' : 'chevron-down'}
+          size={20}
+          color="#6B7280"
+        />
+      </TouchableOpacity>
 
       {isExpanded && (
         <View>
