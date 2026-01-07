@@ -75,6 +75,7 @@ export default function PanelConfigurationScreen() {
         return <BasicInfoStep panel={panel} />;
       case STEP_IDS.ITG_CONFIG:
         return <ITGConfigStep panel={panel} />;
+      /* ... */
       case STEP_IDS.CIRCUITS:
         return (
           <CircuitsConfigStep

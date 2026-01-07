@@ -30,6 +30,7 @@ export interface BasicInfoStepProps {
 
 export interface ITGConfigStepProps {
   panel: PanelData | null;
+  updateITGCount?: (count: string) => void;
 }
 
 export interface ITGCircuitData {

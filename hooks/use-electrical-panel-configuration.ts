@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState } from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, UseFormReturn } from 'react-hook-form';
@@ -87,7 +87,7 @@ export function usePanelConfiguration(
       voltage: '220',
       phase: 'mono_2w',
       itgCount: '1',
-      itgDescriptions: ['', '', ''],
+      itgDescriptions: [''],
       itgCircuits: [
         {
           cnPrefix: 'CN',
@@ -116,42 +116,9 @@ export function usePanelConfiguration(
     mode: 'onChange',
   });
 
-  const { trigger, watch, setValue, getValues } = form;
+  const { trigger, getValues } = form;
 
-  // Watchers for side effects (like updating array lengths based on counts)
-  const itgCount = watch('itgCount');
 
-  // Sync itgDescriptions and itgCircuits with itgCount
-  useEffect(() => {
-    const n = Math.max(0, parseInt(itgCount || '0', 10));
-    const currentDescriptions = getValues('itgDescriptions');
-
-    if (n !== currentDescriptions.length) {
-      const nextDescriptions = [...currentDescriptions];
-      if (n > nextDescriptions.length) {
-        while (nextDescriptions.length < n) nextDescriptions.push('');
-      } else {
-        nextDescriptions.length = n;
-      }
-      setValue('itgDescriptions', nextDescriptions);
-
-      // Sync circuits array
-      const currentCircuits = getValues('itgCircuits');
-      const nextCircuits = [...currentCircuits];
-      if (n > nextCircuits.length) {
-        while (nextCircuits.length < n) {
-          nextCircuits.push({
-            cnPrefix: 'CN',
-            circuitsCount: '1',
-            circuits: [{ ...DEFAULT_CIRCUIT }],
-          });
-        }
-      } else {
-        nextCircuits.length = n;
-      }
-      setValue('itgCircuits', nextCircuits);
-    }
-  }, [itgCount, setValue, getValues]);
 
   const validateCurrentStep = async (): Promise<boolean> => {
     let fieldsToValidate: (keyof PanelConfigurationFormValues)[] = [];

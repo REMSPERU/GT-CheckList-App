@@ -1,5 +1,5 @@
 import { View, Text, TextInput } from 'react-native';
-import { useFormContext, Controller } from 'react-hook-form';
+import { useFormContext, Controller, useWatch } from 'react-hook-form';
 import { ITGConfigStepProps } from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 import { styles } from './_styles';
@@ -7,10 +7,68 @@ import { styles } from './_styles';
 export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
   const {
     control,
-    watch,
+    setValue,
+    getValues,
     formState: { errors },
   } = useFormContext<PanelConfigurationFormValues>();
-  const itgDescriptions = watch('itgDescriptions');
+
+  // Watch itgDescriptions for reactive re-renders
+  const itgDescriptions = useWatch({
+    control,
+    name: 'itgDescriptions',
+  });
+
+  // Handler that updates count and syncs arrays
+  const updateCount = (text: string) => {
+    // 1. Update the count field
+    setValue('itgCount', text, { shouldValidate: true });
+
+    // 2. Sync itgDescriptions array
+    const n = Math.max(0, parseInt(text || '0', 10));
+    const currentDescriptions = getValues('itgDescriptions');
+    const currentLength = currentDescriptions.length;
+
+    if (n > currentLength) {
+      // Add items
+      const newDescriptions = [...currentDescriptions];
+      while (newDescriptions.length < n) {
+        newDescriptions.push('');
+      }
+      setValue('itgDescriptions', newDescriptions);
+
+      // Also sync itgCircuits
+      const currentCircuits = getValues('itgCircuits');
+      const newCircuits = [...currentCircuits];
+      while (newCircuits.length < n) {
+        newCircuits.push({
+          cnPrefix: 'CN',
+          circuitsCount: '1',
+          circuits: [
+            {
+              phaseITM: 'mono_2w',
+              amperajeITM: '',
+              diameter: '',
+              cableType: 'libre_halogeno',
+              hasID: false,
+              diameterID: '',
+              cableTypeID: undefined,
+              supply: '',
+            },
+          ],
+        });
+      }
+      setValue('itgCircuits', newCircuits);
+    } else if (n < currentLength) {
+      // Remove items from the end
+      const newDescriptions = currentDescriptions.slice(0, n);
+      setValue('itgDescriptions', newDescriptions);
+
+      // Also sync itgCircuits
+      const currentCircuits = getValues('itgCircuits');
+      const newCircuits = currentCircuits.slice(0, n);
+      setValue('itgCircuits', newCircuits);
+    }
+  };
 
   return (
     <View style={styles.contentWrapper}>
@@ -28,11 +86,11 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
         <Controller
           control={control}
           name="itgCount"
-          render={({ field: { onChange, onBlur, value } }) => (
+          render={({ field: { onBlur, value } }) => (
             <TextInput
               style={[styles.countInput, errors.itgCount && styles.inputError]}
               value={value}
-              onChangeText={onChange}
+              onChangeText={updateCount}
               onBlur={onBlur}
               keyboardType="numeric"
               placeholder="1"
@@ -45,7 +103,7 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
         <Text style={styles.errorText}>{errors.itgCount.message}</Text>
       )}
 
-      {/* Lista IT-G */}
+      {/* Lista IT-G - render based on watched itgDescriptions array */}
       <View style={{ marginTop: 12 }}>
         {itgDescriptions.map((_, idx) => (
           <View key={`itg-${idx}`} style={styles.itgCard}>
@@ -73,3 +131,4 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
     </View>
   );
 }
+
