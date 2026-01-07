@@ -21,6 +21,8 @@ export interface EquipmentListProps<T extends BaseEquipment> {
   onItemPress: (item: T) => void;
   /** Custom function to extract display label from an item */
   renderLabel?: (item: T) => string;
+  /** Custom function to extract secondary text (shown below label) */
+  renderSubtitle?: (item: T) => string | null;
 }
 
 /**
@@ -38,6 +40,7 @@ export function EquipmentList<T extends BaseEquipment>({
   onToggleSelection,
   onItemPress,
   renderLabel,
+  renderSubtitle,
 }: EquipmentListProps<T>) {
   const getLabel = (item: T): string => {
     if (renderLabel) {
@@ -51,40 +54,44 @@ export function EquipmentList<T extends BaseEquipment>({
     const isSelected = selectedIds.has(item.id);
     const isConfigured = item.config;
 
-    const ItemContent = () => (
-      <>
-        <View style={styles.itemInfoColumn}>
-          <Text style={styles.itemName}>{getLabel(item)}</Text>
-          <View style={styles.locationRow}>
-            <Ionicons
-              name="location-outline"
-              size={14}
-              color="#6B7280"
-              style={{ marginRight: 4 }}
-            />
-            <Text style={styles.itemLocation}>{item.ubicacion}</Text>
+    const ItemContent = () => {
+      const subtitle = renderSubtitle ? renderSubtitle(item) : null;
+      return (
+        <>
+          <View style={styles.itemInfoColumn}>
+            <Text style={styles.itemName}>{getLabel(item)}</Text>
+            {subtitle && <Text style={styles.itemSubtitle}>{subtitle}</Text>}
+            <View style={styles.locationRow}>
+              <Ionicons
+                name="location-outline"
+                size={14}
+                color="#6B7280"
+                style={{ marginRight: 4 }}
+              />
+              <Text style={styles.itemLocation}>{item.ubicacion}</Text>
+            </View>
           </View>
-        </View>
 
-        {!isConfigured && (
-          <View style={styles.statusContainer}>
-            <Ionicons
-              name="alert-circle-outline"
-              size={16}
-              color="#D97706"
-              style={{ marginRight: 4 }}
-            />
-            <Text style={styles.notConfiguredLabel}>Sin configurar</Text>
-          </View>
-        )}
+          {!isConfigured && (
+            <View style={styles.statusContainer}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={16}
+                color="#D97706"
+                style={{ marginRight: 4 }}
+              />
+              <Text style={styles.notConfiguredLabel}>Sin configurar</Text>
+            </View>
+          )}
 
-        {isConfigured && (
-          <View style={styles.actionIconContainer}>
-            <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
-          </View>
-        )}
-      </>
-    );
+          {isConfigured && (
+            <View style={styles.actionIconContainer}>
+              <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+            </View>
+          )}
+        </>
+      );
+    };
 
     // Not configured: entire card is pressable, no selection circle
     if (!isConfigured) {
@@ -242,6 +249,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#111827',
+    marginBottom: 2,
+  },
+  itemSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
     marginBottom: 4,
   },
   locationRow: {

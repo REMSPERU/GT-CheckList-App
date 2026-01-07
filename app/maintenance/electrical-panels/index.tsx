@@ -265,8 +265,9 @@ export default function ElectricalPanelsScreen() {
             onToggleSelection={toggleSelection}
             onItemPress={handlePanelPress}
             renderLabel={panel =>
-              panel.codigo || panel.equipment_detail?.rotulo || 'N/A'
+              panel.equipment_detail?.rotulo || panel.codigo || 'N/A'
             }
+            renderSubtitle={panel => panel.codigo || null}
           />
         </View>
       </ScrollView>
