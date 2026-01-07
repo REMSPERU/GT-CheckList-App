@@ -205,14 +205,22 @@ export interface EquipmentDetail {
   condiciones_especiales: SpecialConditions;
 }
 
-// TableroElectrico types
-export interface TableroElectricoResponse {
+// Base Equipment interface (shared by all equipment types from 'equipos' table)
+export interface BaseEquipment {
   id: string;
   id_property: string;
-  tipo: string;
-  ubicacion: string;
+  id_equipamento?: string;
   codigo: string;
-  config?: boolean;
+  ubicacion: string;
+  estatus: string;
+  config: boolean;
+  equipment_detail?: Record<string, any> | null;
+  created?: string;
+}
+
+// TableroElectrico types
+export interface TableroElectricoResponse extends BaseEquipment {
+  tipo?: string;
   equipment_detail?: EquipmentDetail;
 }
 

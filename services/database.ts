@@ -455,4 +455,69 @@ export const DatabaseService = {
         return true;
       });
   },
+
+  /**
+   * Generic method to get equipment by property and equipment type.
+   * Works for any equipment type (emergency lights, etc.)
+   */
+  async getEquipmentByProperty(
+    propertyId: string,
+    filters?: {
+      search?: string;
+      config?: boolean | null;
+      locations?: string[];
+      equipamentoId?: string;
+    },
+  ) {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+
+    let query = 'SELECT * FROM local_equipos WHERE id_property = ?';
+    const params: any[] = [propertyId];
+
+    if (filters?.equipamentoId) {
+      query += ' AND id_equipamento = ?';
+      params.push(filters.equipamentoId);
+    }
+
+    const rows = (await db.getAllAsync(query, params)) as any[];
+
+    return rows
+      .map(row => {
+        try {
+          return {
+            ...row,
+            equipment_detail: row.equipment_detail
+              ? JSON.parse(row.equipment_detail)
+              : null,
+            config: row.config === 1,
+          };
+        } catch (e) {
+          console.error('Error parsing equipment detail:', e);
+          return row;
+        }
+      })
+      .filter(equipment => {
+        // Filter by Config Status
+        if (filters?.config !== undefined && filters?.config !== null) {
+          if (equipment.config !== filters.config) return false;
+        }
+
+        // Filter by Locations
+        if (filters?.locations && filters.locations.length > 0) {
+          if (!filters.locations.includes(equipment.ubicacion)) return false;
+        }
+
+        // Filter by Search (Code)
+        if (filters?.search) {
+          const searchLower = filters.search.toLowerCase();
+          const matchesCode = equipment.codigo
+            ?.toLowerCase()
+            .includes(searchLower);
+          if (!matchesCode) return false;
+        }
+
+        return true;
+      });
+  },
 };

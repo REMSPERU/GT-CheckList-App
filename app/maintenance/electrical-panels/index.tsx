@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  ActivityIndicator,
   Modal,
   RefreshControl,
 } from 'react-native';
@@ -13,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import DefaultHeader from '@/components/default-header';
+import { EquipmentList } from '@/components/maintenance/EquipmentList';
 import type { TableroElectricoResponse } from '@/types/api';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
@@ -121,7 +121,14 @@ export default function ElectricalPanelsScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [building?.id, equipamento?.id, filterType, searchTerm, filterConfig, filterLocations]);
+  }, [
+    building?.id,
+    equipamento?.id,
+    filterType,
+    searchTerm,
+    filterConfig,
+    filterLocations,
+  ]);
 
   // Load data initially and when filters change
   useEffect(() => {
@@ -214,97 +221,6 @@ export default function ElectricalPanelsScreen() {
     });
   };
 
-  const renderPanel = (panel: TableroElectricoResponse) => {
-    const isSelected = selectedPanelIds.has(panel.id);
-    const isConfigured = panel.config;
-
-    // Common content for both states
-    const PanelContent = () => (
-      <>
-        <View style={styles.panelInfoColumn}>
-          <Text style={styles.panelName}>
-            {panel.codigo || panel.equipment_detail?.rotulo || 'N/A'}
-          </Text>
-
-          <View style={styles.locationRow}>
-            <Ionicons
-              name="location-outline"
-              size={14}
-              color="#6B7280"
-              style={{ marginRight: 4 }}
-            />
-            <Text style={styles.panelFloor}>{panel.ubicacion}</Text>
-          </View>
-        </View>
-
-        {!isConfigured && (
-          <View style={styles.statusContainer}>
-            <Ionicons
-              name="alert-circle-outline"
-              size={16}
-              color="#D97706"
-              style={{ marginRight: 4 }}
-            />
-            <Text style={styles.notConfiguredLabel}>Sin configurar</Text>
-          </View>
-        )}
-
-        {isConfigured && (
-          <View style={styles.actionIconContainer}>
-            <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
-          </View>
-        )}
-      </>
-    );
-
-    if (!isConfigured) {
-      return (
-        <TouchableOpacity
-          key={panel.id}
-          style={styles.panelCard}
-          onPress={() => {
-            router.push({
-              pathname: '/maintenance/electrical-panels/configuration',
-              params: {
-                panel: JSON.stringify(panel),
-                building: building ? JSON.stringify(building) : '',
-              },
-            });
-          }}
-          activeOpacity={0.7}>
-          <View style={[styles.radioCircle, styles.radioCircleHidden]} />
-          <PanelContent />
-        </TouchableOpacity>
-      );
-    }
-
-    return (
-      <View
-        key={panel.id}
-        style={[styles.panelCard, isSelected && styles.panelCardSelected]}>
-        {/* Selection Circle (Left) - Only for configured */}
-        <TouchableOpacity
-          style={styles.selectionArea}
-          onPress={() => toggleSelection(panel.id)}>
-          <View
-            style={[
-              styles.radioCircle,
-              isSelected && styles.radioCircleSelected,
-            ]}>
-            {isSelected && <View style={styles.radioInnerCircle} />}
-          </View>
-        </TouchableOpacity>
-
-        {/* Content Area (Rest of card) - Navigates to details */}
-        <TouchableOpacity
-          style={styles.panelContent}
-          onPress={() => handlePanelPress(panel)}>
-          <PanelContent />
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -340,32 +256,24 @@ export default function ElectricalPanelsScreen() {
           )}
         </View>
 
-        {/* Panels Grid */}
+        {/* Panels List */}
         <View style={styles.panelsContainer}>
-          <View style={styles.panelsGrid}>
-            {isLoading ? (
-              <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color="#007AFF" />
-                <Text style={styles.loadingText}>
-                  Cargando tableros eléctricos...
-                </Text>
-              </View>
-            ) : isError ? (
-              <View style={styles.centerContainer}>
-                <Text style={styles.errorText}>
-                  {error?.message || 'Error al cargar los tableros eléctricos'}
-                </Text>
-              </View>
-            ) : panels.length === 0 ? (
-              <View style={styles.centerContainer}>
-                <Text style={styles.emptyText}>
-                  No hay tableros eléctricos disponibles con este filtro.
-                </Text>
-              </View>
-            ) : (
-              panels.map(renderPanel)
-            )}
-          </View>
+          <EquipmentList<TableroElectricoResponse>
+            items={panels}
+            isLoading={isLoading}
+            isError={isError}
+            errorMessage={
+              error?.message || 'Error al cargar los tableros eléctricos'
+            }
+            emptyMessage="No hay tableros eléctricos disponibles con este filtro."
+            loadingMessage="Cargando tableros eléctricos..."
+            selectedIds={selectedPanelIds}
+            onToggleSelection={toggleSelection}
+            onItemPress={handlePanelPress}
+            renderLabel={panel =>
+              panel.codigo || panel.equipment_detail?.rotulo || 'N/A'
+            }
+          />
         </View>
       </ScrollView>
 
@@ -767,155 +675,10 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 100,
   },
-  panelsGrid: {
-    flexDirection: 'column',
-  },
-  panelCard: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  panelCardSelected: {
-    borderColor: '#0891B2',
-    backgroundColor: '#F0FDFA',
-  },
-  selectionArea: {
-    paddingRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  radioCircleHidden: {
-    borderColor: 'transparent',
-    backgroundColor: 'transparent',
-  },
-  radioCircleSelected: {
-    borderColor: '#0891B2',
-    backgroundColor: '#fff',
-  },
-  radioInnerCircle: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#0891B2',
-  },
-  panelContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  panelInfoColumn: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  panelName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  panelFloor: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '500',
-    textTransform: 'uppercase',
-  },
-  actionIconContainer: {
-    paddingLeft: 8,
-  },
-  statusContainer: {
-    paddingLeft: 8,
-    justifyContent: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  notConfiguredLabel: {
-    fontSize: 12,
-    color: '#D97706',
-    fontWeight: '600',
-    fontStyle: 'normal',
-  },
-  // Removed explicit button styles
   detailLabel: {
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 2,
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  activeNavItem: {
-    // Estilo para el item activo
-  },
-  navText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  activeNavText: {
-    color: '#0891B2',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#EF4444',
-    textAlign: 'center',
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
   },
 
   buildingInfoRow: {
