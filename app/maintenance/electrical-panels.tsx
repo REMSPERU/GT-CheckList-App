@@ -19,8 +19,10 @@ import { syncService } from '@/services/sync';
 
 export default function ElectricalPanelsScreen() {
   const router = useRouter();
-  const { building: buildingParam } = useLocalSearchParams();
+  const { building: buildingParam, equipamento: equipamentoParam } =
+    useLocalSearchParams();
   const [building, setBuilding] = useState<any>(null);
+  const [equipamento, setEquipamento] = useState<any>(null);
   const [panels, setPanels] = useState<TableroElectricoResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -85,7 +87,15 @@ export default function ElectricalPanelsScreen() {
         console.error('Error parsing building param:', e);
       }
     }
-  }, [buildingParam]);
+    if (equipamentoParam) {
+      try {
+        const parsedEquipamento = JSON.parse(equipamentoParam as string);
+        setEquipamento(parsedEquipamento);
+      } catch (e) {
+        console.error('Error parsing equipamento param:', e);
+      }
+    }
+  }, [buildingParam, equipamentoParam]);
 
   const loadData = useCallback(async () => {
     if (!building?.id) return;
@@ -100,6 +110,7 @@ export default function ElectricalPanelsScreen() {
           search: searchTerm,
           config: filterConfig,
           locations: filterLocations,
+          equipamentoId: equipamento?.id, // Filter by equipment type
         },
       );
       setPanels(data);
@@ -110,7 +121,7 @@ export default function ElectricalPanelsScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [building?.id, filterType, searchTerm, filterConfig, filterLocations]);
+  }, [building?.id, equipamento?.id, filterType, searchTerm, filterConfig, filterLocations]);
 
   // Load data initially and when filters change
   useEffect(() => {

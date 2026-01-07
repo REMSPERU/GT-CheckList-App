@@ -81,28 +81,41 @@ export default function SelectDeviceScreen() {
     console.log('Selected equipamento:', equipamento);
     console.log('Building:', building);
 
-    // Navegar a la pantalla de tableros eléctricos si el equipo es un tablero
-    if (
-      equipamento.abreviatura === 'TE' ||
-      equipamento.nombre.toLowerCase().includes('tablero')
-    ) {
-      router.push({
-        pathname: '/maintenance/electrical-panels',
-        params: {
-          building: JSON.stringify(building),
-          equipamento: JSON.stringify(equipamento), // Pasar el equipamento seleccionado
-        },
-      });
+    // Route based on equipment abbreviation from DB
+    switch (equipamento.abreviatura) {
+      case 'TBELEC':
+        // Tablero electrico
+        router.push({
+          pathname: '/maintenance/electrical-panels',
+          params: {
+            building: JSON.stringify(building),
+            equipamento: JSON.stringify(equipamento),
+          },
+        });
+        break;
+      case 'LUZ':
+        // Luces de Emergencia
+        router.push({
+          pathname: '/maintenance/emergency-lights',
+          params: {
+            building: JSON.stringify(building),
+            equipamento: JSON.stringify(equipamento),
+          },
+        });
+        break;
+      default:
+        // Fallback for other equipment types
+        console.log('No route configured for:', equipamento.abreviatura);
+        break;
     }
-    // Añadir más lógica de navegación para otros tipos de equipos si es necesario
   };
 
   const getIconForEquipamento = (abreviatura: string) => {
-    // Mapear abreviaturas de equipos a iconos
+    // Map equipment abbreviations to icons
     const iconMap: Record<string, any> = {
-      TE: 'stats-chart-outline',
+      TBELEC: 'stats-chart-outline', // Tablero electrico
+      LUZ: 'flashlight-outline',     // Luces de Emergencia
       PT: 'construct-outline',
-      LE: 'bulb-outline',
       ASC: 'arrow-up-outline',
     };
     return iconMap[abreviatura] || 'cube-outline';

@@ -389,16 +389,22 @@ export const DatabaseService = {
       search?: string;
       config?: boolean | null;
       locations?: string[];
+      equipamentoId?: string; // Filter by equipment type (e.g., TBELEC id)
     },
   ) {
     await this.ensureInitialized();
     const db = await dbPromise;
 
-    // 1. Fetch all panels for the property
-    const rows = (await db.getAllAsync(
-      'SELECT * FROM local_equipos WHERE id_property = ?',
-      [propertyId],
-    )) as any[];
+    // 1. Fetch panels for the property, optionally filtered by equipment type
+    let query = 'SELECT * FROM local_equipos WHERE id_property = ?';
+    const params: any[] = [propertyId];
+
+    if (filters?.equipamentoId) {
+      query += ' AND id_equipamento = ?';
+      params.push(filters.equipamentoId);
+    }
+
+    const rows = (await db.getAllAsync(query, params)) as any[];
 
     // 2. Parse JSON and Apply Filters in Memory
     return rows
