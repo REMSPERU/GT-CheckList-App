@@ -9,6 +9,7 @@ import {
 import { ChecklistItem } from './check-list-item';
 import { ItemObservation, ItemMeasurement } from '@/types/maintenance-session';
 import { MeasurementInput } from './measurement-input';
+import { CableTypePicker } from './cable-type-picker';
 
 interface ITGChecklistProps {
   itgs: any[];
@@ -182,8 +183,8 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
 
                 {/* Editable Cable fields */}
                 <MeasurementInput
-                  label="Diámetro de cable"
-                  value={measure.cableDiameter ?? itm.diametro_cable ?? ''}
+                  label={`Diámetro de cable (Ref: ${itm.diametro_cable || '-'})`}
+                  value={measure.cableDiameter || ''}
                   onChange={val =>
                     onCableChange(
                       itemId,
@@ -204,9 +205,9 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                   }
                 />
 
-                <MeasurementInput
-                  label="Tipo de cable"
-                  value={measure.cableType ?? itm.tipo_cable ?? ''}
+                <CableTypePicker
+                  label={`Tipo de cable (Ref: ${itm.tipo_cable === 'libre_halogeno' ? 'Libre Halógeno' : itm.tipo_cable === 'no_libre_halogeno' ? 'No Libre Halógeno' : '-'})`}
+                  value={measure.cableType || ''}
                   onChange={val =>
                     onCableChange(
                       itemId,
@@ -215,8 +216,6 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                       itm.tipo_cable || '',
                     )
                   }
-                  placeholder={itm.tipo_cable || 'Ej: THW'}
-                  keyboardType="default"
                   showIncomplete={validationErrors[itemId]?.includes(
                     'cableType',
                   )}
@@ -314,12 +313,8 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
 
                         {/* Editable Differential Cable fields */}
                         <MeasurementInput
-                          label="Diámetro de cable (Diferencial)"
-                          value={
-                            diffMeasure.cableDiameter ??
-                            itm.diferencial.diametro_cable ??
-                            ''
-                          }
+                          label={`Diámetro de cable (Ref: ${itm.diferencial.diametro_cable || '-'})`}
+                          value={diffMeasure.cableDiameter || ''}
                           onChange={val =>
                             onCableChange(
                               diffId,
@@ -342,13 +337,9 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                           }
                         />
 
-                        <MeasurementInput
-                          label="Tipo de cable (Diferencial)"
-                          value={
-                            diffMeasure.cableType ??
-                            itm.diferencial.tipo_cable ??
-                            ''
-                          }
+                        <CableTypePicker
+                          label={`Tipo de cable (Ref: ${itm.diferencial.tipo_cable === 'libre_halogeno' ? 'Libre Halógeno' : itm.diferencial.tipo_cable === 'no_libre_halogeno' ? 'No Libre Halógeno' : '-'})`}
+                          value={diffMeasure.cableType || ''}
                           onChange={val =>
                             onCableChange(
                               diffId,
@@ -357,8 +348,6 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                               itm.diferencial.tipo_cable || '',
                             )
                           }
-                          placeholder={itm.diferencial.tipo_cable || 'Ej: THW'}
-                          keyboardType="default"
                           showIncomplete={validationErrors[diffId]?.includes(
                             'cableType',
                           )}
