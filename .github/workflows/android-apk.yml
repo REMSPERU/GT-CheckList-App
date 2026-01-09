@@ -21,6 +21,9 @@ on:
           - minor
           - major
 
+permissions:
+  contents: write
+
 jobs:
   build-android:
     name: Android APK
