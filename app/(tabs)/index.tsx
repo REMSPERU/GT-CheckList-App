@@ -73,7 +73,9 @@ function HomeScreen() {
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
         </View>
-        <View style={styles.optionCardContainer}>
+        <TouchableOpacity
+          style={styles.optionCardContainer}
+          onPress={() => router.push('/maintenance')}>
           <MaterialIcons
             name="home-repair-service"
             size={32}
@@ -95,7 +97,7 @@ function HomeScreen() {
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
-        </View>
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.optionCardContainer}
           onPress={() =>
@@ -173,6 +175,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 24,
+    marginTop: 10,
   },
   userInfo: {
     flexDirection: 'column',

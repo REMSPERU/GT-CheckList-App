@@ -2,19 +2,21 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import Feather from '@expo/vector-icons/Feather';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import Octicons from '@expo/vector-icons/Octicons';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: Colors.light.tint,
+        tabBarInactiveTintColor: Colors.light.tabIconDefault,
+        tabBarStyle: {
+          backgroundColor: Colors.light.tabBarBackground,
+          borderTopColor: '#E5E7EB',
+          borderTopWidth: 1,
+        },
         headerShown: false,
       }}>
       <Tabs.Screen
@@ -26,7 +28,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="checklist"
         options={{
           title: 'Check Lists',
@@ -34,7 +36,7 @@ export default function TabLayout() {
             <Octicons name="checklist" size={24} color={color} />
           ),
         }}
-      />
+      /> */}
       <Tabs.Screen
         name="qr-scanner"
         options={{
@@ -44,7 +46,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="maintenance"
         options={{
           title: 'Mantenimiento',
@@ -52,7 +54,7 @@ export default function TabLayout() {
             <MaterialIcons name="home-repair-service" size={24} color={color} />
           ),
         }}
-      />
+      /> */}
       <Tabs.Screen
         name="reports"
         options={{
