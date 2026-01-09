@@ -47,7 +47,7 @@ export default function PostMaintenancePhotosScreen() {
     setModalVisible(false);
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: false,
         quality: 0.5,
       });
@@ -62,7 +62,7 @@ export default function PostMaintenancePhotosScreen() {
     setModalVisible(false);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: false,
         quality: 0.5,
       });
