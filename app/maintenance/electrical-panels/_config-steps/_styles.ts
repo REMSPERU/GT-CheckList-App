@@ -295,6 +295,8 @@ export const styles = StyleSheet.create({
     color: '#11181C',
     fontSize: 15,
     fontWeight: '500',
+    flex: 1,
+    flexShrink: 1,
   },
   componentToggleTextActive: {
     color: '#0891B2',
@@ -337,6 +339,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
   },
   toggleLabel: {
     color: '#11181C',
