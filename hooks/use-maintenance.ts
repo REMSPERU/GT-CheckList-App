@@ -141,6 +141,7 @@ export const useScheduledMaintenances = () => {
           )
         `,
         )
+        .eq('estatus', MaintenanceStatusEnum.NO_INICIADO)
         .order('dia_programado', { ascending: true });
 
       if (error) throw error;

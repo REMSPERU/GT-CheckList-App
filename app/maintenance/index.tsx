@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DefaultHeader from '@/components/default-header';
 import { useProperties } from '@/hooks/use-property-query';
 import type { PropertyResponse as Property } from '@/types/api';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { syncService } from '@/services/sync';
 
 const styles = StyleSheet.create({
@@ -43,28 +43,28 @@ export default function MaintenanceScreen() {
   const params = useLocalSearchParams();
   const maintenanceType = params.type as string;
   const { data, isLoading, isError, refetch } = useProperties();
-  const [isSyncing, setIsSyncing] = useState(false);
+  const hasSynced = useRef(false);
 
+  // Background sync - doesn't block UI
   useEffect(() => {
-    const performAutoSync = async () => {
+    if (hasSynced.current) return;
+    hasSynced.current = true;
+
+    // Run sync in background without awaiting
+    const backgroundSync = async () => {
       try {
-        console.log('Auto-sync starting...');
-        setIsSyncing(true);
-        // 1. Upload pending work
+        console.log('Background sync starting...');
         await syncService.pushData();
-        // 2. Download fresh data
         await syncService.pullData();
-        // 3. Refresh properties query
-        await refetch();
-        console.log('Auto-sync completed.');
+        refetch();
+        console.log('Background sync completed.');
       } catch (error) {
-        console.error('Auto-sync failed:', error);
-      } finally {
-        setIsSyncing(false);
+        console.error('Background sync failed:', error);
       }
     };
 
-    performAutoSync();
+    // Don't await - let it run in background
+    backgroundSync();
   }, [refetch]);
 
   function handleBuildingSelect({
@@ -84,7 +84,8 @@ export default function MaintenanceScreen() {
     });
   }
 
-  if (isLoading) {
+  // Only show loading on first load when there's no cached data
+  if (isLoading && !data) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
@@ -94,7 +95,7 @@ export default function MaintenanceScreen() {
     );
   }
 
-  if (isError) {
+  if (isError && !data) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
@@ -112,17 +113,9 @@ export default function MaintenanceScreen() {
           <DefaultHeader
             title="¿Qué inmueble deseas gestionar?"
             searchPlaceholder="Buscar inmuebles"
-            shouldShowBackButton={false}
+            shouldShowBackButton={true}
           />
         </View>
-
-        {isSyncing && (
-          <View style={{ padding: 8, alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, color: '#6b7280' }}>
-              Sincronizando datos...
-            </Text>
-          </View>
-        )}
 
         {/* Lista de inmuebles */}
         <View style={styles.listWrapper}>

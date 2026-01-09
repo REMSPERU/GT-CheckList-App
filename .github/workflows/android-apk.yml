@@ -11,6 +11,15 @@ on:
         description: 'Build profile (preview/production)'
         required: false
         default: 'preview'
+      version_bump:
+        description: 'Version bump type (only for production)'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 jobs:
   build-android:
@@ -18,10 +27,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
+    # Prevent duplicate runs
+    concurrency:
+      group: build-${{ github.ref }}
+      cancel-in-progress: true
+
     env:
       GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx4g -XX:+HeapDumpOnOutOfMemoryError"'
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      APP_ENV: ${{ github.event.inputs.profile || 'preview' }}
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
       EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
@@ -29,8 +42,65 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-      - name: Setup Java & Gradle
+      - name: Set build environment
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "APP_ENV=production" >> $GITHUB_OUTPUT
+            echo "IS_RELEASE=true" >> $GITHUB_OUTPUT
+          else
+            echo "APP_ENV=${{ github.event.inputs.profile || 'preview' }}" >> $GITHUB_OUTPUT
+            echo "IS_RELEASE=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Configure Git (only for releases)
+        if: steps.env.outputs.IS_RELEASE == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version (only for production/main)
+        id: version
+        if: steps.env.outputs.IS_RELEASE == 'true'
+        run: |
+          BUMP_TYPE="${{ github.event.inputs.version_bump || 'patch' }}"
+          npm version $BUMP_TYPE --no-git-tag-version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "🔖 New version: $NEW_VERSION"
+
+      - name: Update app.config.js version (only for releases)
+        if: steps.env.outputs.IS_RELEASE == 'true'
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          sed -i "s/version: '[^']*'/version: '$NEW_VERSION'/g" app.config.js
+          echo "✅ Updated app.config.js to version $NEW_VERSION"
+
+      - name: Commit version bump (only for releases)
+        if: steps.env.outputs.IS_RELEASE == 'true'
+        run: |
+          git add package.json package-lock.json app.config.js
+          git commit -m "chore: bump version to v${{ steps.version.outputs.new_version }} [skip ci]"
+          git push
+
+      - name: Get current version (for preview builds)
+        id: current_version
+        if: steps.env.outputs.IS_RELEASE != 'true'
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -41,12 +111,6 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: npm
-
       - name: Install dependencies
         run: npm ci
 
@@ -55,26 +119,56 @@ jobs:
 
       - name: Expo Prebuild (clean)
         run: |
-          echo "Building profile: $APP_ENV"
-          APP_ENV=$APP_ENV npx expo prebuild --platform android --clean --non-interactive
+          echo "🏗️ Building profile: ${{ steps.env.outputs.APP_ENV }}"
+          APP_ENV=${{ steps.env.outputs.APP_ENV }} npx expo prebuild --platform android --clean --non-interactive
 
       - name: Build APK
         run: |
-          echo "Building profile: $APP_ENV"
-          APP_ENV=$APP_ENV eas build --platform android --profile $APP_ENV --local --non-interactive --output ./build-output.apk
+          APP_ENV=${{ steps.env.outputs.APP_ENV }} eas build --platform android --profile ${{ steps.env.outputs.APP_ENV }} --local --non-interactive --output ./build-output.apk
 
       - name: Rename APK
+        id: apk
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          DATE=$(date +%Y%m%d-%H%M) # Formato más corto
-          FILENAME="app-${VERSION}-${DATE}.apk"
+          if [[ "${{ steps.env.outputs.IS_RELEASE }}" == "true" ]]; then
+            VERSION="${{ steps.version.outputs.new_version }}"
+            FILENAME="GT-CheckList-v${VERSION}.apk"
+          else
+            VERSION="${{ steps.current_version.outputs.version }}"
+            DATE=$(date +%Y%m%d-%H%M)
+            FILENAME="GT-CheckList-preview-${VERSION}-${DATE}.apk"
+          fi
           mv build-output.apk "$FILENAME"
-          echo "APK_NAME=$FILENAME" >> $GITHUB_ENV # Guardar nombre para el siguiente paso
+          echo "apk_name=$FILENAME" >> $GITHUB_OUTPUT
+          echo "📦 APK: $FILENAME"
 
-      # Upload artifact
-      - name: Upload APK
+      # Create GitHub Release (only for main/production)
+      - name: Create GitHub Release
+        if: steps.env.outputs.IS_RELEASE == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.new_version }}
+          name: Release v${{ steps.version.outputs.new_version }}
+          body: |
+            ## 📱 GT CheckList App v${{ steps.version.outputs.new_version }}
+
+            ### Instalación
+            1. Descarga el archivo APK adjunto abajo
+            2. Abre el archivo en tu dispositivo Android
+            3. Permite la instalación de fuentes desconocidas si se solicita
+            4. ¡Listo! La app se instalará automáticamente
+
+            ---
+            🔧 Build automático desde branch `main`
+          files: ${{ steps.apk.outputs.apk_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload as artifact (for both preview and production)
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.APK_NAME }}
-          path: ${{ env.APK_NAME }}
-          retention-days: 14
+          name: ${{ steps.apk.outputs.apk_name }}
+          path: ${{ steps.apk.outputs.apk_name }}
+          retention-days: ${{ steps.env.outputs.IS_RELEASE == 'true' && 90 || 14 }}

@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   Modal,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -31,10 +32,17 @@ export default function EquipmentMaintenanceListScreen() {
   // Filter States
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<string>(
+    MaintenanceStatusEnum.NO_INICIADO,
+  );
 
   // Fetch Data
-  const { data: maintenanceData = [], isLoading } =
-    useMaintenanceByProperty(propertyId);
+  const {
+    data: maintenanceData = [],
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useMaintenanceByProperty(propertyId);
 
   // Derived Filters Options
   const { locations, types } = useMemo(() => {
@@ -60,13 +68,16 @@ export default function EquipmentMaintenanceListScreen() {
       // Database stores 'Preventivo' or 'Correctivo' (case sensitive usually)
       if (item.tipo_mantenimiento !== activeTab) return false;
 
-      // 2. Search Filter (Only Code)
+      // 2. Status Filter
+      if (selectedStatus && item.estatus !== selectedStatus) return false;
+
+      // 3. Search Filter (Only Code)
       const searchLower = searchQuery.toLowerCase();
       const code = item.equipos?.codigo?.toLowerCase() || '';
 
       if (!code.includes(searchLower)) return false;
 
-      // 3. Dynamic Filters
+      // 4. Dynamic Filters
       if (selectedLocation && item.equipos?.ubicacion !== selectedLocation)
         return false;
       if (selectedType && item.equipos?.equipamentos?.nombre !== selectedType)
@@ -74,7 +85,14 @@ export default function EquipmentMaintenanceListScreen() {
 
       return true;
     });
-  }, [maintenanceData, activeTab, searchQuery, selectedLocation, selectedType]);
+  }, [
+    maintenanceData,
+    activeTab,
+    searchQuery,
+    selectedLocation,
+    selectedType,
+    selectedStatus,
+  ]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -198,7 +216,10 @@ export default function EquipmentMaintenanceListScreen() {
         ) : (
           <ScrollView
             style={styles.listContainer}
-            showsVerticalScrollIndicator={false}>
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+            }>
             {filteredData.length === 0 ? (
               <View style={{ alignItems: 'center', marginTop: 40 }}>
                 <Text style={{ color: '#6B7280' }}>
@@ -216,16 +237,27 @@ export default function EquipmentMaintenanceListScreen() {
                       styles.card,
                       // index === 0 && activeTab === 'Preventivo' && styles.highlightedCard // Removed highlight logic for now
                     ]}
-                    onPress={() =>
-                      router.push({
-                        pathname:
-                          '/maintenance/scheduled_maintenance/equipment-details',
-                        params: {
-                          panelId: equipment.id,
-                          maintenanceId: item.id,
-                        },
-                      })
-                    }>
+                    onPress={() => {
+                      // Navigate to response detail if finalized, otherwise to equipment details
+                      if (item.estatus === MaintenanceStatusEnum.FINALIZADO) {
+                        router.push({
+                          pathname:
+                            '/maintenance/scheduled_maintenance/maintenance-response-detail',
+                          params: {
+                            maintenanceId: item.id,
+                          },
+                        });
+                      } else {
+                        router.push({
+                          pathname:
+                            '/maintenance/scheduled_maintenance/equipment-details',
+                          params: {
+                            panelId: equipment.id,
+                            maintenanceId: item.id,
+                          },
+                        });
+                      }
+                    }}>
                     <View style={styles.cardHeader}>
                       <Text style={styles.cardCode}>
                         {equipment.codigo || 'S/N'}
@@ -308,6 +340,39 @@ export default function EquipmentMaintenanceListScreen() {
               </View>
 
               <ScrollView style={{ maxHeight: 400 }}>
+                <Text style={styles.filterSectionTitle}>Estado</Text>
+                <View style={styles.filterOptionsContainer}>
+                  {[
+                    { label: 'Todos', value: '' },
+                    {
+                      label: 'No Iniciado',
+                      value: MaintenanceStatusEnum.NO_INICIADO,
+                    },
+                    {
+                      label: 'Finalizado',
+                      value: MaintenanceStatusEnum.FINALIZADO,
+                    },
+                  ].map(option => (
+                    <TouchableOpacity
+                      key={option.label}
+                      style={[
+                        styles.filterOption,
+                        selectedStatus === option.value &&
+                          styles.filterOptionActive,
+                      ]}
+                      onPress={() => setSelectedStatus(option.value)}>
+                      <Text
+                        style={[
+                          styles.filterOptionText,
+                          selectedStatus === option.value &&
+                            styles.filterOptionTextActive,
+                        ]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
                 <Text style={styles.filterSectionTitle}>Ubicación</Text>
                 <View style={styles.filterOptionsContainer}>
                   {locations.map(loc => (

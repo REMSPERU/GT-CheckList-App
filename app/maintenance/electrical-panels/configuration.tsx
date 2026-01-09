@@ -11,13 +11,13 @@ import {
   isFirstStep,
 } from '@/hooks/use-electrical-panel-configuration';
 import { PanelData } from '@/types/panel-configuration';
-import { styles } from './_panel-configuration/_styles';
-import BasicInfoStep from './_panel-configuration/BasicInfoStep';
-import ITGConfigStep from './_panel-configuration/ITGConfigStep';
-import CircuitsConfigStep from './_panel-configuration/CircuitsConfigStep';
-import ExtraComponentsStep from './_panel-configuration/ExtraComponentsStep';
-import ExtraConditionsStep from './_panel-configuration/ExtraConditionsStep';
-import ReviewStep from './_panel-configuration/ReviewStep';
+import { styles } from './_config-steps/_styles';
+import BasicInfoStep from './_config-steps/BasicInfoStep';
+import ITGConfigStep from './_config-steps/ITGConfigStep';
+import CircuitsConfigStep from './_config-steps/CircuitsConfigStep';
+import ExtraComponentsStep from './_config-steps/ExtraComponentsStep';
+import ExtraConditionsStep from './_config-steps/ExtraConditionsStep';
+import ReviewStep from './_config-steps/ReviewStep';
 
 export default function PanelConfigurationScreen() {
   const params = useLocalSearchParams();
@@ -25,7 +25,7 @@ export default function PanelConfigurationScreen() {
 
   // Ref to hold custom navigation handlers from CircuitsConfigStep
   const circuitsNavHandlersRef = useRef<{
-    handleNext: () => boolean;
+    handleNext: () => boolean | Promise<boolean>;
     handleBack: () => boolean;
   } | null>(null);
 
@@ -42,12 +42,12 @@ export default function PanelConfigurationScreen() {
   const { currentStepId, form, goNext, goBack } = usePanelConfiguration(panel);
 
   // Custom navigation for Circuits step
-  const handleGoNext = () => {
+  const handleGoNext = async () => {
     // If we are in Circuits step and have custom handlers
     if (currentStepId === STEP_IDS.CIRCUITS && circuitsNavHandlersRef.current) {
       // handleNext returns true if we should proceed to next step
-      // returns false if we just switched tabs locally
-      const canProceed = circuitsNavHandlersRef.current.handleNext();
+      // returns false if we just switched tabs locally or validation failed
+      const canProceed = await circuitsNavHandlersRef.current.handleNext();
       if (canProceed) {
         goNext(); // Actually go to next step
       }
@@ -75,6 +75,7 @@ export default function PanelConfigurationScreen() {
         return <BasicInfoStep panel={panel} />;
       case STEP_IDS.ITG_CONFIG:
         return <ITGConfigStep panel={panel} />;
+      /* ... */
       case STEP_IDS.CIRCUITS:
         return (
           <CircuitsConfigStep

@@ -30,6 +30,7 @@ export interface BasicInfoStepProps {
 
 export interface ITGConfigStepProps {
   panel: PanelData | null;
+  updateITGCount?: (count: string) => void;
 }
 
 export interface ITGCircuitData {
@@ -41,7 +42,7 @@ export interface ITGCircuitData {
 export interface CircuitsConfigStepProps {
   panel: PanelData | null;
   navigationHandlers?: React.MutableRefObject<{
-    handleNext: () => boolean;
+    handleNext: () => boolean | Promise<boolean>;
     handleBack: () => boolean;
   } | null>;
 }

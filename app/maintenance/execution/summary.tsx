@@ -140,7 +140,7 @@ export default function SummaryScreen() {
             text: 'OK',
             onPress: () =>
               router.push({
-                pathname: '/(tabs)/maintenance',
+                pathname: '/maintenance',
               }),
           },
         ],
@@ -183,6 +183,14 @@ export default function SummaryScreen() {
     if (keys.length === 0)
       return <Text style={styles.emptyText}>No hay items verificados.</Text>;
 
+    // Helper to format cable type
+    const formatCableType = (value?: string) => {
+      if (!value) return '-';
+      if (value === 'libre_halogeno') return 'Libre de Halógeno';
+      if (value === 'no_libre_halogeno') return 'No libre de Halógeno';
+      return value;
+    };
+
     return (
       <View style={styles.listContainer}>
         {keys.map(key => {
@@ -211,19 +219,33 @@ export default function SummaryScreen() {
                 </View>
               </View>
 
-              {/* Measurements */}
+              {/* Measurements - Show all data */}
               {measure && (
                 <View style={styles.measurementsBox}>
-                  {measure.voltage && (
-                    <Text style={styles.measureText}>
-                      Voltaje: {measure.voltage} V
-                    </Text>
-                  )}
-                  {measure.amperage && (
-                    <Text style={styles.measureText}>
-                      Amperaje: {measure.amperage} A
-                    </Text>
-                  )}
+                  <View style={styles.measureColumn}>
+                    {measure.voltage && (
+                      <Text style={styles.measureText}>
+                        Voltaje: {measure.voltage} V
+                      </Text>
+                    )}
+                    {measure.amperage && (
+                      <Text style={styles.measureText}>
+                        Amperaje: {measure.amperage} A
+                      </Text>
+                    )}
+                  </View>
+                  <View style={styles.measureColumn}>
+                    {measure.cableDiameter && (
+                      <Text style={styles.measureText}>
+                        Ø Cable: {measure.cableDiameter}
+                      </Text>
+                    )}
+                    {measure.cableType && (
+                      <Text style={styles.measureText}>
+                        Tipo: {formatCableType(measure.cableType)}
+                      </Text>
+                    )}
+                  </View>
                 </View>
               )}
 
@@ -400,6 +422,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     padding: 8,
     borderRadius: 6,
+    flexWrap: 'wrap',
+  },
+  measureColumn: {
+    flex: 1,
+    minWidth: 120,
+    gap: 2,
   },
   measureText: {
     fontSize: 13,
