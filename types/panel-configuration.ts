@@ -42,7 +42,7 @@ export interface ITGCircuitData {
 export interface CircuitsConfigStepProps {
   panel: PanelData | null;
   navigationHandlers?: React.MutableRefObject<{
-    handleNext: () => boolean;
+    handleNext: () => boolean | Promise<boolean>;
     handleBack: () => boolean;
   } | null>;
 }

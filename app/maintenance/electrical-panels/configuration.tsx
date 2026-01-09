@@ -25,7 +25,7 @@ export default function PanelConfigurationScreen() {
 
   // Ref to hold custom navigation handlers from CircuitsConfigStep
   const circuitsNavHandlersRef = useRef<{
-    handleNext: () => boolean;
+    handleNext: () => boolean | Promise<boolean>;
     handleBack: () => boolean;
   } | null>(null);
 
@@ -42,12 +42,12 @@ export default function PanelConfigurationScreen() {
   const { currentStepId, form, goNext, goBack } = usePanelConfiguration(panel);
 
   // Custom navigation for Circuits step
-  const handleGoNext = () => {
+  const handleGoNext = async () => {
     // If we are in Circuits step and have custom handlers
     if (currentStepId === STEP_IDS.CIRCUITS && circuitsNavHandlersRef.current) {
       // handleNext returns true if we should proceed to next step
-      // returns false if we just switched tabs locally
-      const canProceed = circuitsNavHandlersRef.current.handleNext();
+      // returns false if we just switched tabs locally or validation failed
+      const canProceed = await circuitsNavHandlersRef.current.handleNext();
       if (canProceed) {
         goNext(); // Actually go to next step
       }

@@ -1,11 +1,6 @@
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  useFormContext,
-  Controller,
-  useWatch,
-  useFieldArray,
-} from 'react-hook-form';
+import { useFormContext, Controller, useWatch } from 'react-hook-form';
 import {
   CircuitsConfigStepProps,
   CircuitConfig,
@@ -34,38 +29,44 @@ export default function CircuitsConfigStep({
   const {
     control,
     setValue,
+    getValues,
+    trigger,
+    clearErrors,
     formState: { errors },
   } = useFormContext<PanelConfigurationFormValues>();
 
-  // Watch only necessary top-level fields
-  const itgCircuitsLength =
+  // Watch the full itgCircuits array to get its length
+  const itgCircuitsData =
     useWatch({
       control,
       name: 'itgCircuits',
-    })?.length || 0;
+    }) || [];
+
+  const itgCircuitsLength = itgCircuitsData.length;
 
   const [selectedItgIndex, setSelectedItgIndex] = useState(0);
 
-  // Use useFieldArray to manage the dynamic list of circuits efficiently
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: `itgCircuits.${selectedItgIndex}.circuits`,
-  });
+  // Watch circuits for the currently selected ITG
+  const currentCircuits =
+    useWatch({
+      control,
+      name: `itgCircuits.${selectedItgIndex}.circuits` as const,
+    }) || [];
 
-  // Watch only necessary fields for the *current* ITG
+  // Watch other fields for the current ITG
   const cnPrefix = useWatch({
     control,
-    name: `itgCircuits.${selectedItgIndex}.cnPrefix` as any,
+    name: `itgCircuits.${selectedItgIndex}.cnPrefix` as const,
   });
 
   const circuitsCount = useWatch({
     control,
-    name: `itgCircuits.${selectedItgIndex}.circuitsCount` as any,
+    name: `itgCircuits.${selectedItgIndex}.circuitsCount` as const,
   });
 
   const itgDescription = useWatch({
     control,
-    name: `itgDescriptions.${selectedItgIndex}` as any,
+    name: `itgDescriptions.${selectedItgIndex}` as const,
   });
 
   // Helper to generate tab labels
@@ -76,9 +77,48 @@ export default function CircuitsConfigStep({
     );
   };
 
-  // Navigation handlers - parent will call these instead of goNext/goBack
-  const handleNext = useCallback(() => {
+  // Validate current ITG before allowing tab change
+  const validateCurrentItg = useCallback(async (): Promise<boolean> => {
+    const result = await trigger(`itgCircuits.${selectedItgIndex}` as any);
+
+    if (!result) {
+      // Get specific errors for this ITG
+      const itgErrors = errors.itgCircuits?.[selectedItgIndex];
+      let errorMessages: string[] = [];
+
+      if (itgErrors?.cnPrefix) {
+        errorMessages.push('• Prefijo es requerido');
+      }
+      if (itgErrors?.circuitsCount) {
+        errorMessages.push('• Cantidad de circuitos debe ser mayor a 0');
+      }
+      if (itgErrors?.circuits) {
+        errorMessages.push('• Complete todos los campos de los circuitos');
+      }
+
+      if (errorMessages.length > 0) {
+        Alert.alert(
+          `Error en IT-G${selectedItgIndex + 1}`,
+          `Por favor complete los siguientes campos:\n\n${errorMessages.join('\n')}`,
+        );
+      }
+    }
+
+    return result;
+  }, [selectedItgIndex, trigger, errors]);
+
+  // Navigation handlers with validation
+  const handleNext = useCallback(async () => {
+    // Validate current ITG before proceeding
+    const isValid = await validateCurrentItg();
+
+    if (!isValid) {
+      return false; // Don't proceed - validation failed
+    }
+
     if (selectedItgIndex < itgCircuitsLength - 1) {
+      // Clear errors before switching to next ITG
+      clearErrors('itgCircuits');
       // Go to next IT-G tab
       setSelectedItgIndex(prev => prev + 1);
       return false; // Don't proceed to next step
@@ -86,78 +126,109 @@ export default function CircuitsConfigStep({
       // Last IT-G, OK to go to next step
       return true;
     }
-  }, [selectedItgIndex, itgCircuitsLength]);
+  }, [selectedItgIndex, itgCircuitsLength, validateCurrentItg, clearErrors]);
 
   const handleBack = useCallback(() => {
     if (selectedItgIndex > 0) {
-      // Go to previous IT-G tab
+      // Clear errors before switching to previous ITG
+      clearErrors('itgCircuits');
+      // Go to previous IT-G tab - no validation needed when going back
       setSelectedItgIndex(prev => prev - 1);
-      return false; // Don't go to previous step
+      return false; // Don't go back to previous step
     } else {
       // First IT-G, OK to go to previous step
       return true;
     }
-  }, [selectedItgIndex]);
+  }, [selectedItgIndex, clearErrors]);
 
   // Expose handlers to parent via ref
   useEffect(() => {
     if (navigationHandlers) {
       navigationHandlers.current = {
-        handleNext: () => handleNext(),
-        handleBack: () => handleBack(),
+        handleNext: handleNext,
+        handleBack: handleBack,
       };
     }
   }, [navigationHandlers, handleNext, handleBack]);
 
-  const [expandedIndices, setExpandedIndices] = useState<number[]>([]);
+  // State to track expanded indices per ITG
+  const [expandedIndicesMap, setExpandedIndicesMap] = useState<
+    Record<number, number[]>
+  >({});
 
-  // Automatically expand newly added items (but not all on initial load)
-  const prevFieldsLengthRef = useRef(fields.length);
+  // Get expanded indices for current ITG
+  const expandedIndices = expandedIndicesMap[selectedItgIndex] || [];
+
+  // Track previous circuits length to detect new additions
+  const prevCircuitsLengthRef = useRef(currentCircuits.length);
+  const prevItgIndexRef = useRef(selectedItgIndex);
 
   useEffect(() => {
-    if (fields.length > prevFieldsLengthRef.current) {
-      // Items were added - expand them
-      const newIndices = Array.from(
-        { length: fields.length - prevFieldsLengthRef.current },
-        (_, i) => prevFieldsLengthRef.current + i,
-      );
-      setExpandedIndices(prev => [...prev, ...newIndices]);
+    // Only expand new items if we're still on the same ITG
+    if (prevItgIndexRef.current === selectedItgIndex) {
+      if (currentCircuits.length > prevCircuitsLengthRef.current) {
+        // Items were added - expand them
+        const newIndices = Array.from(
+          { length: currentCircuits.length - prevCircuitsLengthRef.current },
+          (_, i) => prevCircuitsLengthRef.current + i,
+        );
+        setExpandedIndicesMap(prev => ({
+          ...prev,
+          [selectedItgIndex]: [
+            ...(prev[selectedItgIndex] || []),
+            ...newIndices,
+          ],
+        }));
+      }
     }
-    prevFieldsLengthRef.current = fields.length;
-  }, [fields.length]);
-
-  // Reset expanded indices when changing IT-G
-  useEffect(() => {
-    setExpandedIndices([]);
-    prevFieldsLengthRef.current = fields.length;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedItgIndex]);
+    prevCircuitsLengthRef.current = currentCircuits.length;
+    prevItgIndexRef.current = selectedItgIndex;
+  }, [currentCircuits.length, selectedItgIndex]);
 
   // Toggle handler using useCallback to keep prop stable for React.memo
-  const toggleExpand = useCallback((index: number) => {
-    setExpandedIndices(prev =>
-      prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index],
-    );
-  }, []);
+  const toggleExpand = useCallback(
+    (index: number) => {
+      setExpandedIndicesMap(prev => {
+        const currentIndices = prev[selectedItgIndex] || [];
+        const newIndices = currentIndices.includes(index)
+          ? currentIndices.filter((i: number) => i !== index)
+          : [...currentIndices, index];
+        return { ...prev, [selectedItgIndex]: newIndices };
+      });
+    },
+    [selectedItgIndex],
+  );
 
+  // Update circuits count - uses setValue directly instead of useFieldArray
   const updateCircuitsCount = (value: string) => {
     const n = Math.max(0, parseInt(value || '0', 10));
-    const currentLength = fields.length;
+    const currentCircuitsList =
+      getValues(`itgCircuits.${selectedItgIndex}.circuits`) || [];
+    const currentLength = currentCircuitsList.length;
+
+    let newCircuits = [...currentCircuitsList];
 
     if (n > currentLength) {
-      // Append needed items
-      const itemsToAdd = Array(n - currentLength).fill({ ...DEFAULT_CIRCUIT });
-      append(itemsToAdd);
+      // Add new circuits
+      for (let i = currentLength; i < n; i++) {
+        newCircuits.push({
+          ...DEFAULT_CIRCUIT,
+          cableType: 'libre_halogeno' as const,
+        });
+      }
     } else if (n < currentLength) {
-      // Remove excess items from the end
-      const indicesToRemove = Array.from(
-        { length: currentLength - n },
-        (_, i) => currentLength - 1 - i,
-      );
-      remove(indicesToRemove);
+      // Remove excess circuits from the end
+      newCircuits = newCircuits.slice(0, n);
     }
 
+    // Update both the circuits array and the count
+    setValue(`itgCircuits.${selectedItgIndex}.circuits`, newCircuits as any);
     setValue(`itgCircuits.${selectedItgIndex}.circuitsCount`, value);
+  };
+
+  // Generate stable keys for circuit items based on ITG index and circuit index
+  const getCircuitKey = (circuitIndex: number) => {
+    return `itg-${selectedItgIndex}-circuit-${circuitIndex}`;
   };
 
   return (
@@ -182,8 +253,10 @@ export default function CircuitsConfigStep({
         <Text style={styles.itgDescription}>{itgDescription}</Text>
       )}
 
-      {/* Prefijo */}
-      <View style={{ marginBottom: 8 }}>
+      {/* Prefijo - key forces re-mount when ITG changes */}
+      <View
+        key={`prefix-container-${selectedItgIndex}`}
+        style={{ marginBottom: 8 }}>
         <View style={styles.labelWithIconRow}>
           <Text style={styles.countLabel}>Ingrese el prefijo</Text>
           <Ionicons
@@ -193,8 +266,9 @@ export default function CircuitsConfigStep({
           />
         </View>
         <Controller
+          key={`prefix-${selectedItgIndex}`}
           control={control}
-          name={`itgCircuits.${selectedItgIndex}.cnPrefix` as any}
+          name={`itgCircuits.${selectedItgIndex}.cnPrefix` as const}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
               style={[
@@ -217,12 +291,15 @@ export default function CircuitsConfigStep({
         )}
       </View>
 
-      {/* ¿Cuántos circuitos tienes? */}
-      <View style={styles.rowBetween}>
+      {/* ¿Cuántos circuitos tienes? - key forces re-mount when ITG changes */}
+      <View
+        key={`count-container-${selectedItgIndex}`}
+        style={styles.rowBetween}>
         <Text style={styles.countLabel}>¿Cuántos circuitos tienes?</Text>
         <Controller
+          key={`count-${selectedItgIndex}`}
           control={control}
-          name={`itgCircuits.${selectedItgIndex}.circuitsCount` as any}
+          name={`itgCircuits.${selectedItgIndex}.circuitsCount` as const}
           render={({ field: { value } }) => (
             <TextInput
               style={[
@@ -230,7 +307,7 @@ export default function CircuitsConfigStep({
                 errors.itgCircuits?.[selectedItgIndex]?.circuitsCount &&
                   styles.inputError,
               ]}
-              value={circuitsCount}
+              value={value}
               onChangeText={updateCircuitsCount}
               keyboardType="numeric"
               placeholder="1"
@@ -247,9 +324,9 @@ export default function CircuitsConfigStep({
 
       {/* Lista de circuitos */}
       <View style={{ marginTop: 12 }}>
-        {fields.map((field, idx) => (
+        {currentCircuits.map((circuit, idx) => (
           <CircuitItem
-            key={field.id} // Important: use field.id from useFieldArray
+            key={getCircuitKey(idx)}
             index={idx}
             itgIndex={selectedItgIndex}
             isExpanded={expandedIndices.includes(idx)}
