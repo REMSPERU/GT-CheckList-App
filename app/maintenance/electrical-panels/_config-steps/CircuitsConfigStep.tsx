@@ -59,11 +59,6 @@ export default function CircuitsConfigStep({
     name: `itgCircuits.${selectedItgIndex}.cnPrefix` as const,
   });
 
-  const circuitsCount = useWatch({
-    control,
-    name: `itgCircuits.${selectedItgIndex}.circuitsCount` as const,
-  });
-
   const itgDescription = useWatch({
     control,
     name: `itgDescriptions.${selectedItgIndex}` as const,

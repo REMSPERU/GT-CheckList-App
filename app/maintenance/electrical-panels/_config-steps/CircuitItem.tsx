@@ -43,6 +43,36 @@ const pickerSelectStyles = StyleSheet.create({
   },
 });
 
+const pickerErrorStyles = StyleSheet.create({
+  inputIOS: {
+    fontSize: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+    borderRadius: 8,
+    color: '#11181C',
+    backgroundColor: '#FEF2F2',
+    paddingRight: 30,
+    height: 48,
+  },
+  inputAndroid: {
+    fontSize: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+    borderRadius: 8,
+    color: '#11181C',
+    backgroundColor: '#FEF2F2',
+    paddingRight: 30,
+    height: 48,
+  },
+  placeholder: {
+    color: '#9CA3AF',
+  },
+});
+
 const PHASE_OPTIONS: { key: PhaseType; label: string }[] = [
   { key: 'mono_2w', label: 'Monofásico 2 hilos' },
   { key: 'tri_3w', label: 'Trifásico 3 hilos' },
@@ -81,20 +111,48 @@ const CircuitItem = ({
     name: `itgCircuits.${itgIndex}.circuits.${index}.hasID`,
   });
 
+  // Check if this circuit has any validation errors
+  const circuitErrors = errors.itgCircuits?.[itgIndex]?.circuits?.[index];
+  const hasErrors = !!(
+    circuitErrors?.amperajeITM ||
+    circuitErrors?.diameter ||
+    circuitErrors?.cableType
+  );
+
   return (
-    <View style={styles.cnCard}>
+    <View
+      style={[
+        styles.cnCard,
+        hasErrors && { borderColor: '#EF4444', borderWidth: 1.5 },
+      ]}>
       {/* Header clickeable para expandir/colapsar */}
       <TouchableOpacity
         style={styles.cnCardHeader}
         onPress={() => onToggleExpand(index)}
         activeOpacity={0.7}>
-        <Text style={styles.cnTitle}>
-          {cnPrefix || 'CN'}-{index + 1}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={styles.cnTitle}>
+            {cnPrefix || 'CN'}-{index + 1}
+          </Text>
+          {hasErrors && (
+            <View
+              style={{
+                backgroundColor: '#EF4444',
+                borderRadius: 10,
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+              }}>
+              <Text
+                style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }}>
+                Incompleto
+              </Text>
+            </View>
+          )}
+        </View>
         <Ionicons
           name={isExpanded ? 'chevron-up' : 'chevron-down'}
           size={20}
-          color="#6B7280"
+          color={hasErrors ? '#EF4444' : '#6B7280'}
         />
       </TouchableOpacity>
 
@@ -170,7 +228,14 @@ const CircuitItem = ({
 
           {/* Diámetro */}
           <Text style={styles.cnLabel}>DIÁMETRO:</Text>
-          <View style={styles.inputWithUnitWrapper}>
+          <View
+            style={[
+              styles.inputWithUnitWrapper,
+              errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.diameter && {
+                borderColor: '#EF4444',
+                borderWidth: 1.5,
+              },
+            ]}>
             <Controller
               control={control}
               name={`itgCircuits.${itgIndex}.circuits.${index}.diameter`}
@@ -188,6 +253,14 @@ const CircuitItem = ({
             />
             <Text style={styles.unitText}>mm²</Text>
           </View>
+          {errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.diameter && (
+            <Text style={styles.errorText}>
+              {
+                errors.itgCircuits[itgIndex]?.circuits?.[index]?.diameter
+                  ?.message
+              }
+            </Text>
+          )}
 
           {/* Tipo de Cable */}
           <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
@@ -208,7 +281,10 @@ const CircuitItem = ({
                 }}
                 value={value}
                 style={{
-                  ...pickerSelectStyles,
+                  ...(errors.itgCircuits?.[itgIndex]?.circuits?.[index]
+                    ?.cableType
+                    ? pickerErrorStyles
+                    : pickerSelectStyles),
                   iconContainer: {
                     top: 12,
                     right: 12,
@@ -216,11 +292,23 @@ const CircuitItem = ({
                 }}
                 useNativeAndroidPickerStyle={false}
                 Icon={() => (
-                  <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                  <Ionicons
+                    name="chevron-down"
+                    size={20}
+                    color={
+                      errors.itgCircuits?.[itgIndex]?.circuits?.[index]
+                        ?.cableType
+                        ? '#EF4444'
+                        : '#6B7280'
+                    }
+                  />
                 )}
               />
             )}
           />
+          {errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.cableType && (
+            <Text style={styles.errorText}>Seleccione tipo de cable</Text>
+          )}
 
           {/* ID - Optional Section */}
           <View style={{ marginTop: 12 }}>
