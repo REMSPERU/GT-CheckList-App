@@ -94,6 +94,7 @@ jobs:
         run: |
           git add package.json package-lock.json app.config.js
           git commit -m "chore: bump version to v${{ steps.version.outputs.new_version }} [skip ci]"
+          git pull --rebase origin main
           git push
 
       - name: Get current version (for preview builds)
