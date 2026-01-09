@@ -9,7 +9,10 @@ interface MeasurementInputProps {
   unit?: string;
   isValid?: boolean; // If undefined, no validation shown yet. If false, shows error.
   placeholder?: string;
-  keyboardType?: 'numeric' | 'decimal-pad';
+  keyboardType?: 'numeric' | 'decimal-pad' | 'default';
+  errorMessage?: string; // Inline error message to display
+  showIncomplete?: boolean; // Show as incomplete field (orange highlight)
+  editable?: boolean;
 }
 
 export const MeasurementInput: React.FC<MeasurementInputProps> = ({
@@ -20,6 +23,9 @@ export const MeasurementInput: React.FC<MeasurementInputProps> = ({
   isValid,
   placeholder,
   keyboardType = 'decimal-pad',
+  errorMessage,
+  showIncomplete,
+  editable = true,
 }) => {
   return (
     <View style={styles.container}>
@@ -29,14 +35,16 @@ export const MeasurementInput: React.FC<MeasurementInputProps> = ({
           styles.inputWrapper,
           isValid === false && styles.inputError,
           isValid === true && styles.inputSuccess,
+          showIncomplete && styles.inputIncomplete,
         ]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, !editable && styles.inputDisabled]}
           value={value}
           onChangeText={onChange}
           placeholder={placeholder}
           keyboardType={keyboardType}
           placeholderTextColor="#9CA3AF"
+          editable={editable}
         />
         {unit && <Text style={styles.unit}>{unit}</Text>}
         {isValid === true && (
@@ -45,7 +53,11 @@ export const MeasurementInput: React.FC<MeasurementInputProps> = ({
         {isValid === false && (
           <Ionicons name="alert-circle" size={20} color="#EF4444" />
         )}
+        {showIncomplete && isValid !== false && (
+          <Ionicons name="warning" size={20} color="#F59E0B" />
+        )}
       </View>
+      {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
     </View>
   );
 };
@@ -87,5 +99,18 @@ const styles = StyleSheet.create({
   inputSuccess: {
     borderColor: '#10B981',
     backgroundColor: '#ECFDF5',
+  },
+  inputIncomplete: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#FFFBEB',
+  },
+  inputDisabled: {
+    backgroundColor: '#F3F4F6',
+    color: '#9CA3AF',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 4,
   },
 });

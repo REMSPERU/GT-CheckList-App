@@ -23,6 +23,11 @@ export interface ItemMeasurement {
   amperage?: string;
   isVoltageInRange?: boolean;
   isAmperageInRange?: boolean;
+  // Cable fields
+  cableDiameter?: string;
+  cableType?: string;
+  originalCableDiameter?: string;
+  originalCableType?: string;
 }
 
 export interface MaintenanceSession {

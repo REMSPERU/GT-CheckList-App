@@ -22,9 +22,16 @@ interface ITGChecklistProps {
     value: string,
     isValid: boolean,
   ) => void;
+  onCableChange: (
+    itemId: string,
+    field: 'cableDiameter' | 'cableType',
+    value: string,
+    originalValue: string,
+  ) => void;
   onObservationChange: (itemId: string, text: string) => void;
   onPhotoPress: (itemId: string) => void;
   configuredVoltage?: number;
+  validationErrors?: Record<string, string[]>;
 }
 
 export const ITGChecklist: React.FC<ITGChecklistProps> = ({
@@ -34,9 +41,11 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
   itemObservations,
   onStatusChange,
   onMeasurementChange,
+  onCableChange,
   onObservationChange,
   onPhotoPress,
   configuredVoltage = 220,
+  validationErrors = {},
 }) => {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -139,6 +148,12 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                   unit="V"
                   isValid={isVoltValid}
                   placeholder="220"
+                  showIncomplete={validationErrors[itemId]?.includes('voltage')}
+                  errorMessage={
+                    validationErrors[itemId]?.includes('voltage')
+                      ? 'Requerido'
+                      : undefined
+                  }
                 />
 
                 <MeasurementInput
@@ -155,13 +170,62 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                   unit="A"
                   isValid={isAmpValid}
                   placeholder="0.0"
+                  showIncomplete={validationErrors[itemId]?.includes(
+                    'amperage',
+                  )}
+                  errorMessage={
+                    validationErrors[itemId]?.includes('amperage')
+                      ? 'Requerido'
+                      : undefined
+                  }
                 />
 
-                {renderDetailRow(
-                  'Diametro de cable',
-                  itm.diametro_cable || '-',
-                )}
-                {renderDetailRow('Tipo cable', itm.tipo_cable || '-')}
+                {/* Editable Cable fields */}
+                <MeasurementInput
+                  label="Diámetro de cable"
+                  value={measure.cableDiameter ?? itm.diametro_cable ?? ''}
+                  onChange={val =>
+                    onCableChange(
+                      itemId,
+                      'cableDiameter',
+                      val,
+                      itm.diametro_cable || '',
+                    )
+                  }
+                  placeholder={itm.diametro_cable || 'Ej: 2.5mm'}
+                  keyboardType="default"
+                  showIncomplete={validationErrors[itemId]?.includes(
+                    'cableDiameter',
+                  )}
+                  errorMessage={
+                    validationErrors[itemId]?.includes('cableDiameter')
+                      ? 'Requerido'
+                      : undefined
+                  }
+                />
+
+                <MeasurementInput
+                  label="Tipo de cable"
+                  value={measure.cableType ?? itm.tipo_cable ?? ''}
+                  onChange={val =>
+                    onCableChange(
+                      itemId,
+                      'cableType',
+                      val,
+                      itm.tipo_cable || '',
+                    )
+                  }
+                  placeholder={itm.tipo_cable || 'Ej: THW'}
+                  keyboardType="default"
+                  showIncomplete={validationErrors[itemId]?.includes(
+                    'cableType',
+                  )}
+                  errorMessage={
+                    validationErrors[itemId]?.includes('cableType')
+                      ? 'Requerido'
+                      : undefined
+                  }
+                />
               </View>
 
               {/* Differential Section if exists */}
@@ -170,10 +234,9 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                   <Text style={styles.subHeader}>
                     Interruptor diferencial ID : ID-{itm.id}
                   </Text>
-                  {renderDetailRow('Amperaje', itm.diferencial.amperaje || '-')}
                   {renderDetailRow(
-                    'Diametro de cable',
-                    itm.diferencial.diametro_cable || '-',
+                    'Amperaje Nominal',
+                    itm.diferencial.amperaje || '-',
                   )}
 
                   {(() => {
@@ -215,6 +278,14 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                           unit="V"
                           isValid={isDiffVoltValid}
                           placeholder={`${configuredVoltage}`}
+                          showIncomplete={validationErrors[diffId]?.includes(
+                            'voltage',
+                          )}
+                          errorMessage={
+                            validationErrors[diffId]?.includes('voltage')
+                              ? 'Requerido'
+                              : undefined
+                          }
                         />
 
                         <MeasurementInput
@@ -231,6 +302,71 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                           unit="A"
                           isValid={isDiffAmpValid}
                           placeholder="0.0"
+                          showIncomplete={validationErrors[diffId]?.includes(
+                            'amperage',
+                          )}
+                          errorMessage={
+                            validationErrors[diffId]?.includes('amperage')
+                              ? 'Requerido'
+                              : undefined
+                          }
+                        />
+
+                        {/* Editable Differential Cable fields */}
+                        <MeasurementInput
+                          label="Diámetro de cable (Diferencial)"
+                          value={
+                            diffMeasure.cableDiameter ??
+                            itm.diferencial.diametro_cable ??
+                            ''
+                          }
+                          onChange={val =>
+                            onCableChange(
+                              diffId,
+                              'cableDiameter',
+                              val,
+                              itm.diferencial.diametro_cable || '',
+                            )
+                          }
+                          placeholder={
+                            itm.diferencial.diametro_cable || 'Ej: 2.5mm'
+                          }
+                          keyboardType="default"
+                          showIncomplete={validationErrors[diffId]?.includes(
+                            'cableDiameter',
+                          )}
+                          errorMessage={
+                            validationErrors[diffId]?.includes('cableDiameter')
+                              ? 'Requerido'
+                              : undefined
+                          }
+                        />
+
+                        <MeasurementInput
+                          label="Tipo de cable (Diferencial)"
+                          value={
+                            diffMeasure.cableType ??
+                            itm.diferencial.tipo_cable ??
+                            ''
+                          }
+                          onChange={val =>
+                            onCableChange(
+                              diffId,
+                              'cableType',
+                              val,
+                              itm.diferencial.tipo_cable || '',
+                            )
+                          }
+                          placeholder={itm.diferencial.tipo_cable || 'Ej: THW'}
+                          keyboardType="default"
+                          showIncomplete={validationErrors[diffId]?.includes(
+                            'cableType',
+                          )}
+                          errorMessage={
+                            validationErrors[diffId]?.includes('cableType')
+                              ? 'Requerido'
+                              : undefined
+                          }
                         />
 
                         <ChecklistItem

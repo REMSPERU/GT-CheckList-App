@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -38,6 +39,11 @@ export default function MaintenanceChecklistScreen() {
     panelId || '',
   );
   const detail = panel?.equipment_detail;
+
+  // Validation errors state for inline validation
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string[]>
+  >({});
 
   const handleStatusChange = (itemId: string, status: boolean) => {
     if (!session) return;
@@ -93,6 +99,17 @@ export default function MaintenanceChecklistScreen() {
     if (field === 'amperage')
       updatedSession.measurements[itemId].isAmperageInRange = isValid;
 
+    // Clear validation error for this field if value is now filled
+    if (value) {
+      setValidationErrors(prev => {
+        const current = prev[itemId] || [];
+        return {
+          ...prev,
+          [itemId]: current.filter(f => f !== field),
+        };
+      });
+    }
+
     // Auto-update status if invalid
     if (!isValid) {
       // If INVALID, force status to false (Observation)
@@ -113,6 +130,54 @@ export default function MaintenanceChecklistScreen() {
         // Let's NOT auto-set to true to avoid overriding user intent (e.g. physical visual damage).
         // But we unblock them.
       }
+    }
+
+    updatedSession.lastUpdated = new Date().toISOString();
+    saveSession(updatedSession);
+  };
+
+  const handleCableChange = (
+    itemId: string,
+    field: 'cableDiameter' | 'cableType',
+    value: string,
+    originalValue: string,
+  ) => {
+    if (!session) return;
+    const updatedSession = { ...session };
+    if (!updatedSession.measurements) updatedSession.measurements = {};
+    if (!updatedSession.measurements[itemId]) {
+      updatedSession.measurements[itemId] = {};
+    }
+
+    // Store the cable value
+    updatedSession.measurements[itemId][field] = value;
+
+    // Store original value for comparison if not already stored
+    const originalFieldKey =
+      field === 'cableDiameter' ? 'originalCableDiameter' : 'originalCableType';
+    if (!updatedSession.measurements[itemId][originalFieldKey]) {
+      updatedSession.measurements[itemId][originalFieldKey] = originalValue;
+    }
+
+    // Clear validation error for this field if value is now filled
+    if (value) {
+      setValidationErrors(prev => {
+        const current = prev[itemId] || [];
+        return {
+          ...prev,
+          [itemId]: current.filter(f => f !== field),
+        };
+      });
+    }
+
+    // If cable value changed from original, force observation required
+    const storedOriginal =
+      updatedSession.measurements[itemId][originalFieldKey];
+    if (value && storedOriginal && value !== storedOriginal) {
+      updatedSession.checklist = {
+        ...updatedSession.checklist,
+        [itemId]: false, // Force to observation mode
+      };
     }
 
     updatedSession.lastUpdated = new Date().toISOString();
@@ -166,7 +231,7 @@ export default function MaintenanceChecklistScreen() {
   const takePhoto = async (itemId: string) => {
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: false,
         quality: 0.5,
       });
@@ -187,111 +252,86 @@ export default function MaintenanceChecklistScreen() {
   };
 
   const handleContinue = () => {
-    // Validate all items
+    // Validate all items and collect errors for inline display
+    const newErrors: Record<string, string[]> = {};
     const itgs = detail?.itgs || [];
     const components = detail?.componentes || [];
-    const conditions = detail?.condiciones_especiales || {};
-
-    let pending = false;
 
     // Check ITGs
     itgs.forEach((itg: any) => {
       itg.itms.forEach((itm: any) => {
         const id = `itg_${itg.id}_${itm.id}`;
+        const errors: string[] = [];
 
-        // Check Checklist Status
-        if (session?.checklist[id] === undefined) {
-          pending = true;
-        }
-
-        // Check Measurements (Voltage/Amperage required?)
-        // Assuming they are mandatory inputs now.
+        // Check Measurements (Voltage/Amperage/Cable required)
         const m = session?.measurements?.[id];
-        if (!m || !m.voltage || !m.amperage) {
-          // Only if "checklist" is not explicitly skipped? Assuming mandatory.
-          pending = true;
-        } else {
-          // If measurements invalid, check if Photo + Observation exists
+        if (!m?.voltage) errors.push('voltage');
+        if (!m?.amperage) errors.push('amperage');
+
+        // Cable fields - check if there's a value (either user-entered or use original)
+        const cableDiameter = m?.cableDiameter ?? itm.diametro_cable;
+        const cableType = m?.cableType ?? itm.tipo_cable;
+        if (!cableDiameter) errors.push('cableDiameter');
+        if (!cableType) errors.push('cableType');
+
+        // If measurements invalid, check if Photo + Observation exists
+        if (m) {
           const invalid =
             m.isVoltageInRange === false || m.isAmperageInRange === false;
           if (invalid) {
-            const obs = session.itemObservations[id];
-            if (!obs || !obs.photoUri || !obs.note) {
-              Alert.alert(
-                'Faltan Datos',
-                `En el circuito ${itm.id}, las mediciones están fuera de rango. Debe agregar foto y observación.`,
-              );
-              pending = true; // Block continue separate from generic pending
-              // Actually we return here to stop loop or just flagged.
-              // Let's rely on generic 'pending' flag logic or specific alerts?
-              // The loop continues, so we might overwrite pending=true, but once true stays true if (x || pending).
-            }
+            const obs = session?.itemObservations[id];
+            if (!obs?.photoUri) errors.push('photo');
+            if (!obs?.note) errors.push('observation');
           }
+        }
+
+        if (errors.length > 0) {
+          newErrors[id] = errors;
         }
 
         // Check Differential Switch if exists
         if (itm.diferencial && itm.diferencial.existe) {
           const diffId = `diff_itg_${itg.id}_${itm.id}`;
-
-          if (session?.checklist[diffId] === undefined) {
-            pending = true;
-          }
+          const diffErrors: string[] = [];
 
           const diffM = session?.measurements?.[diffId];
-          // If configuredVoltage is missing, maybe default validation?
-          // But strict generic validation:
-          if (!diffM || !diffM.voltage || !diffM.amperage) {
-            pending = true;
-          } else {
+          if (!diffM?.voltage) diffErrors.push('voltage');
+          if (!diffM?.amperage) diffErrors.push('amperage');
+
+          // Differential cable fields
+          const diffCableDiameter =
+            diffM?.cableDiameter ?? itm.diferencial.diametro_cable;
+          const diffCableType = diffM?.cableType ?? itm.diferencial.tipo_cable;
+          if (!diffCableDiameter) diffErrors.push('cableDiameter');
+          if (!diffCableType) diffErrors.push('cableType');
+
+          if (diffM) {
             const invalid =
               diffM.isVoltageInRange === false ||
               diffM.isAmperageInRange === false;
             if (invalid) {
-              const obs = session.itemObservations[diffId];
-              if (!obs || !obs.photoUri || !obs.note) {
-                Alert.alert(
-                  'Faltan Datos',
-                  `En el diferencial del circuito ${itm.id}, las mediciones están fuera de rango. Debe agregar foto y observación.`,
-                );
-                pending = true;
-              }
+              const obs = session?.itemObservations[diffId];
+              if (!obs?.photoUri) diffErrors.push('photo');
+              if (!obs?.note) diffErrors.push('observation');
             }
+          }
+
+          if (diffErrors.length > 0) {
+            newErrors[diffId] = diffErrors;
           }
         }
       });
     });
 
-    // Check Components
-    components.forEach((comp: any) => {
-      comp.items.forEach((item: any) => {
-        const id = `comp_${comp.tipo}_${item.codigo}`;
-        if (session?.checklist[id] === undefined) pending = true;
-      });
-    });
+    // Check Components - Skip validation since they default to OK in the UI
+    // The AuxiliaryChecklist component shows them as OK by default
 
-    // Check Conditions
-    Object.keys(conditions).forEach(key => {
-      // Only if mapped label exists (meaning it's a valid condition to check)
-      // We imported labels in component but here we don't have them easily.
-      // Assuming we check all keys that are true/present.
-      // Let's assume keys in conditions object are required.
-      const id = `cond_${key}`;
-      // Verify only if we rendered it. In ConditionsChecklist we filter by CONDITION_LABELS keys.
-      // We should loosely check or duplication logic.
-      // For now, let's enforce checklist has value.
-      // Actually, let's skip strict validation for conditions to avoid blocking if keys mismatch,
-      // unless we are sure.
-      // A safer check:
-      if (session?.checklist[id] === undefined) {
-        // pending = true; // Uncomment to enforce
-      }
-    });
+    // Update validation errors state
+    setValidationErrors(newErrors);
 
-    if (pending) {
-      Alert.alert(
-        'Incompleto',
-        'Por favor verifique todos los items y mediciones antes de continuar.',
-      );
+    // If there are errors, don't proceed
+    if (Object.keys(newErrors).length > 0) {
+      // No Alert needed - errors are shown inline
       return;
     }
 
@@ -328,9 +368,11 @@ export default function MaintenanceChecklistScreen() {
           itemObservations={session.itemObservations}
           onStatusChange={handleStatusChange}
           onMeasurementChange={handleMeasurementChange}
+          onCableChange={handleCableChange}
           onObservationChange={handleObservationChange}
           onPhotoPress={handlePhotoPress}
           configuredVoltage={detail?.detalle_tecnico?.voltaje}
+          validationErrors={validationErrors}
         />
 
         <AuxiliaryChecklist
