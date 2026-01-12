@@ -75,15 +75,27 @@ export class SupabaseElectricalPanelService {
    * Actualizar el detalle de equipamiento (JSONB)
    */
   async updateEquipmentDetail(id: string, detail: any): Promise<void> {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from(this.tableName)
       .update({
         equipment_detail: detail,
         config: true,
       })
-      .eq('id', id);
+      .eq('id', id)
+      .select(); // Add select to get the updated row back
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ [SUPABASE] Update failed:', error);
+      throw error;
+    }
+
+    console.log('✅ [SUPABASE] Update successful! Returned data:', data);
+    if (!data || data.length === 0) {
+      console.warn(
+        '⚠️ [SUPABASE] No rows returned - panel ID might not exist:',
+        id,
+      );
+    }
   }
 }
 

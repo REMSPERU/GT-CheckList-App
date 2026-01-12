@@ -118,8 +118,6 @@ export function usePanelConfiguration(
 
   const { trigger, getValues } = form;
 
-
-
   const validateCurrentStep = async (): Promise<boolean> => {
     let fieldsToValidate: (keyof PanelConfigurationFormValues)[] = [];
 
@@ -162,7 +160,9 @@ export function usePanelConfiguration(
     const currentIndex = getStepIndex(currentStepId);
     if (isLastStep(currentStepId)) {
       try {
+        console.log('🔵 [SAVE] Starting panel configuration save...');
         const values = getValues();
+        console.log('🔵 [SAVE] Form values:', JSON.stringify(values, null, 2));
 
         // Helper labels
         const PHASE_LABELS: Record<string, string> = {
@@ -272,7 +272,13 @@ export function usePanelConfiguration(
           },
         };
 
+        console.log(
+          '🔵 [SAVE] Mapped detail structure:',
+          JSON.stringify(newDetailMapping, null, 2),
+        );
+
         if (initialPanel?.id) {
+          console.log('🔵 [SAVE] Panel ID found:', initialPanel.id);
           // 1. Fetch current equipment_detail to avoid losing fields (merge)
           // For offline support, we should merge with what we have locally or just overwrite if critical.
           // Since we are moving to offline-first, relying on `initialPanel` which comes from local DB should be safer.
@@ -292,7 +298,6 @@ export function usePanelConfiguration(
             ...newDetailMapping,
           };
 
-          // SAVE LOCALLY (Offline First)
           await DatabaseService.saveOfflinePanelConfiguration(
             initialPanel.id,
             finalEquipmentDetail,
@@ -300,7 +305,10 @@ export function usePanelConfiguration(
 
           // Trigger background sync if possible, or let the periodic/auto sync handle it.
           syncService.pushData().catch(err => {
-            console.log('Background sync trigger failed (expected if offline)');
+            console.log(
+              '⚠️ [SAVE] Background sync trigger failed (expected if offline):',
+              err,
+            );
           });
 
           Alert.alert(
@@ -309,10 +317,14 @@ export function usePanelConfiguration(
             [{ text: 'OK', onPress: () => router.back() }],
           );
         } else {
+          console.log(
+            '❌ [SAVE] No panel ID found! initialPanel:',
+            initialPanel,
+          );
           throw new Error('ID de panel no encontrado');
         }
       } catch (error) {
-        console.error('Error saving panel configuration:', error);
+        console.error('❌ [SAVE] Error saving panel configuration:', error);
         Alert.alert(
           'Error',
           'No se pudo guardar la configuración. Por favor reintente.',
