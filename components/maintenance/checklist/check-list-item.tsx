@@ -7,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   Image,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -18,8 +19,10 @@ interface ChecklistItemProps {
   observation?: string;
   onObservationChange?: (text: string) => void;
   hasPhoto?: boolean;
-  photoUri?: string;
+  photoUri?: string; // Legacy single photo
+  photoUris?: string[]; // Multiple photos support
   onPhotoPress?: () => void;
+  onRemovePhoto?: (index: number) => void; // Remove specific photo by index
   style?: any;
 }
 
@@ -32,9 +35,16 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
   onObservationChange,
   hasPhoto,
   photoUri,
+  photoUris = [],
   onPhotoPress,
+  onRemovePhoto,
   style,
 }) => {
+  // Combine legacy photoUri with photoUris array for backward compatibility
+  const allPhotos = photoUri
+    ? [photoUri, ...photoUris.filter(uri => uri !== photoUri)]
+    : photoUris;
+
   return (
     <View style={[styles.container, style]}>
       <View style={styles.header}>
@@ -74,25 +84,27 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
           />
           {onPhotoPress && (
             <View style={styles.photoContainer}>
-              {photoUri ? (
-                <View>
-                  <Image
-                    source={{ uri: photoUri }}
-                    style={styles.previewImage}
-                  />
-                  <TouchableOpacity
-                    style={styles.removePhotoBtn}
-                    onPress={onPhotoPress}>
-                    <Ionicons name="close-circle" size={20} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-              ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.photosScroll}>
+                {allPhotos.map((uri, index) => (
+                  <View key={`photo_${index}`} style={styles.photoWrapper}>
+                    <Image source={{ uri }} style={styles.previewImage} />
+                    <TouchableOpacity
+                      style={styles.removePhotoBtn}
+                      onPress={() => onRemovePhoto?.(index)}>
+                      <Ionicons name="close-circle" size={20} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {/* Add photo button - always visible to allow adding more */}
                 <TouchableOpacity
                   onPress={onPhotoPress}
                   style={styles.cameraBtn}>
                   <Ionicons name="camera-outline" size={24} color="#6B7280" />
                 </TouchableOpacity>
-              )}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -178,5 +190,12 @@ const styles = StyleSheet.create({
     right: -6,
     backgroundColor: '#fff',
     borderRadius: 10,
+  },
+  photosScroll: {
+    gap: 8,
+    alignItems: 'center',
+  },
+  photoWrapper: {
+    position: 'relative',
   },
 });

@@ -54,15 +54,6 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
 
   const currentItg = itgs[activeTab];
 
-  const renderDetailRow = (label: string, value: string | number) => (
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <View style={styles.detailValueBox}>
-        <Text style={styles.detailValue}>{value}</Text>
-      </View>
-    </View>
-  );
-
   return (
     <View style={styles.container}>
       {/* Tabs */}
@@ -123,9 +114,36 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
             ? validateAmperage(measure.amperage)
             : undefined;
 
+          // Differential validation (calculate outside IIFE so it can be used in hasMeasurementIssue)
+          const diffId = `diff_itg_${currentItg.id}_${itm.id}`;
+          const diffMeasure = measurements[diffId] || {};
+          const diffRatedAmps = parseFloat(itm.diferencial?.amperaje) || 0;
+
+          const validateDiffAmperage = (val: string) => {
+            if (!val) return undefined;
+            const a = parseFloat(val);
+            if (isNaN(a)) return false;
+            return diffRatedAmps > 0 ? a <= diffRatedAmps : true;
+          };
+
+          const isDiffVoltValid = diffMeasure.voltage
+            ? validateVoltage(diffMeasure.voltage)
+            : undefined;
+          const isDiffAmpValid = diffMeasure.amperage
+            ? validateDiffAmperage(diffMeasure.amperage)
+            : undefined;
+
+          // Check if differential has measurement issues
+          const hasDiffMeasurementIssue =
+            itm.diferencial?.existe &&
+            (isDiffVoltValid === false || isDiffAmpValid === false);
+
           // Determine if we need to force "Observation" state
+          // Now includes both ITM and Differential measurement issues
           const hasMeasurementIssue =
-            isVoltValid === false || isAmpValid === false;
+            isVoltValid === false ||
+            isAmpValid === false ||
+            hasDiffMeasurementIssue;
 
           return (
             <View key={itemId} style={styles.card}>
@@ -233,33 +251,13 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                   <Text style={styles.subHeader}>
                     Interruptor diferencial ID : ID-{itm.id}
                   </Text>
-                  {renderDetailRow(
-                    'Amperaje Nominal',
-                    itm.diferencial.amperaje || '-',
-                  )}
 
                   {(() => {
-                    const diffId = `diff_itg_${currentItg.id}_${itm.id}`;
-                    const diffMeasure = measurements[diffId] || {};
-                    const diffStatus = checklist[diffId];
-                    const diffObs = itemObservations[diffId];
-
-                    const diffRatedAmps =
-                      parseFloat(itm.diferencial.amperaje) || 0;
-
-                    const validateDiffAmperage = (val: string) => {
-                      if (!val) return undefined;
-                      const a = parseFloat(val);
-                      if (isNaN(a)) return false;
-                      return diffRatedAmps > 0 ? a <= diffRatedAmps : true;
-                    };
-
-                    const isDiffVoltValid = diffMeasure.voltage
-                      ? validateVoltage(diffMeasure.voltage)
-                      : undefined;
-                    const isDiffAmpValid = diffMeasure.amperage
-                      ? validateDiffAmperage(diffMeasure.amperage)
-                      : undefined;
+                    // diffId, diffMeasure, validateDiffAmperage, isDiffVoltValid, isDiffAmpValid
+                    // are already defined above in the parent scope
+                    const testId = `test_itg_${currentItg.id}_${itm.id}`;
+                    const testStatus = checklist[testId];
+                    const testObs = itemObservations[testId];
 
                     return (
                       <View style={{ marginTop: 12, gap: 12 }}>
@@ -361,16 +359,17 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                         <ChecklistItem
                           label="Prueba Test"
                           status={
-                            typeof diffStatus === 'boolean' ? diffStatus : true
+                            typeof testStatus === 'boolean' ? testStatus : true
                           }
-                          onStatusChange={val => onStatusChange(diffId, val)}
-                          observation={diffObs?.note}
+                          onStatusChange={val => onStatusChange(testId, val)}
+                          observation={testObs?.note}
                           onObservationChange={text =>
-                            onObservationChange(diffId, text)
+                            onObservationChange(testId, text)
                           }
                           hasPhoto={true}
-                          photoUri={diffObs?.photoUri}
-                          onPhotoPress={() => onPhotoPress(diffId)}
+                          photoUri={testObs?.photoUri}
+                          photoUris={testObs?.photoUris}
+                          onPhotoPress={() => onPhotoPress(testId)}
                           style={{
                             borderWidth: 0,
                             shadowOpacity: 0,
@@ -392,30 +391,26 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                     : 'Estatus del circuito'
                 }
                 status={
-                  // If measurement issue, force status to false (Observation mode)
-                  // Else use checked status. If undefined, default to true (OK)
-                  // Handle potential string type from record by defaulting to true if not explicitly false boolean
-                  typeof status === 'boolean' ? status : true
+                  // Force status to false when measurement issue exists
+                  hasMeasurementIssue
+                    ? false
+                    : typeof status === 'boolean'
+                      ? status
+                      : true
                 }
                 onStatusChange={val => {
-                  // Prevent setting to OK if measurement issue exists
+                  // Block setting to OK if measurement issue exists
                   if (hasMeasurementIssue && val === true) {
-                    // Maybe alert user? For now just ignore or force update.
-                    // The parent handler can handle this logic too, but visual feedback here.
-                    // We will let the parent `handleStatusChange` decide, but we pass the intent.
-                    onStatusChange(itemId, val);
-                  } else {
-                    onStatusChange(itemId, val);
+                    return; // Do nothing - can't set OK when out of range
                   }
+                  onStatusChange(itemId, val);
                 }}
                 observation={obs?.note}
                 onObservationChange={text => onObservationChange(itemId, text)}
                 hasPhoto={true}
                 photoUri={obs?.photoUri}
+                photoUris={obs?.photoUris}
                 onPhotoPress={() => onPhotoPress(itemId)}
-                // Hide switch if mandatory validation failed? Or just show it as OFF (Obs).
-                // If hasMeasurementIssue is true, the user MUST put an observation/photo.
-                // We'll rely on the status being false to show the input fields.
                 style={{ borderWidth: 0, shadowOpacity: 0, elevation: 0 }}
               />
             </View>

@@ -16,6 +16,7 @@ export type MaintenanceStep =
 export interface ItemObservation {
   note: string;
   photoUri?: string;
+  photoUris?: string[]; // Support multiple photos
 }
 
 export interface ItemMeasurement {
