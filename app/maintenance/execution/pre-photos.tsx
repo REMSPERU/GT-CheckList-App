@@ -18,6 +18,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
+import { DatabaseService } from '@/services/database';
 import { PhotoItem } from '@/types/maintenance-session';
 
 export default function PreMaintenancePhotosScreen() {
@@ -34,11 +35,39 @@ export default function PreMaintenancePhotosScreen() {
     maintenanceId,
   );
 
+  // Panel type state for photo requirements
+  const [tipoTablero, setTipoTablero] = useState<string>('');
+  const [panelLoading, setPanelLoading] = useState(true);
+
   // Modal State
   const [modalVisible, setModalVisible] = useState(false);
   const [currentSection, setCurrentSection] = useState<
     'panel' | 'thermo' | null
   >(null);
+
+  // Load panel info from local DB
+  useEffect(() => {
+    const loadPanelInfo = async () => {
+      if (!panelId) {
+        setPanelLoading(false);
+        return;
+      }
+      try {
+        const panel = await DatabaseService.getEquipmentById(panelId);
+        if (panel?.equipment_detail?.tipo_tablero) {
+          setTipoTablero(panel.equipment_detail.tipo_tablero.toLowerCase());
+        }
+      } catch (e) {
+        console.error('Error loading panel info:', e);
+      } finally {
+        setPanelLoading(false);
+      }
+    };
+    loadPanelInfo();
+  }, [panelId]);
+
+  // Determine minimum photos based on panel type
+  const MIN_PHOTOS = tipoTablero === 'distribucion' ? 1 : 2;
 
   // Request permissions on mount
   useEffect(() => {
@@ -124,7 +153,7 @@ export default function PreMaintenancePhotosScreen() {
     });
   };
 
-  if (loading || !session) {
+  if (loading || panelLoading || !session) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#06B6D4" />
@@ -139,8 +168,7 @@ export default function PreMaintenancePhotosScreen() {
   );
   const thermoPhotos = session.prePhotos.filter(p => p.category === 'thermo');
 
-  // Validation: Min 2 photos each for consistency with previous logic
-  const MIN_PHOTOS = 2;
+  // Validation based on dynamic MIN_PHOTOS (1 for distribucion/autosoportado, 2 for others)
   const panelValid = panelPhotos.length >= MIN_PHOTOS;
   const thermoValid = thermoPhotos.length >= MIN_PHOTOS;
   const isFormValid = panelValid && thermoValid;
