@@ -1,4 +1,10 @@
-import React, { useState, useEffect, ReactNode } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  ReactNode,
+} from 'react';
 import {
   View,
   Text,
@@ -20,18 +26,15 @@ export interface EquipmentFilterModalProps {
   onApply: (filters: FilterState) => void;
   initialFilters: FilterState;
   title: string;
-  /** Building data for location filters */
-  building?: {
-    basement?: number;
-    floor?: number;
-  };
+  /** Array of available locations extracted from actual equipment data */
+  availableLocations?: string[];
   /** Optional additional filter content to render before location filters */
   additionalFilters?: ReactNode;
 }
 
 /**
  * Reusable filter modal for equipment screens.
- * Provides config status and location filters.
+ * Provides config status and location filters based on actual data.
  */
 export function EquipmentFilterModal({
   visible,
@@ -39,7 +42,7 @@ export function EquipmentFilterModal({
   onApply,
   initialFilters,
   title,
-  building,
+  availableLocations = [],
   additionalFilters,
 }: EquipmentFilterModalProps) {
   const [tempConfig, setTempConfig] = useState<boolean | null>(
@@ -57,17 +60,17 @@ export function EquipmentFilterModal({
     }
   }, [visible, initialFilters]);
 
-  const handleApply = () => {
+  const handleApply = useCallback(() => {
     onApply({ config: tempConfig, locations: tempLocations });
     onClose();
-  };
+  }, [onApply, onClose, tempConfig, tempLocations]);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     setTempConfig(null);
     setTempLocations([]);
-  };
+  }, []);
 
-  const toggleLocation = (loc: string) => {
+  const toggleLocation = useCallback((loc: string) => {
     setTempLocations(prev => {
       const newLocs = new Set(prev);
       if (newLocs.has(loc)) {
@@ -77,7 +80,65 @@ export function EquipmentFilterModal({
       }
       return Array.from(newLocs);
     });
-  };
+  }, []);
+
+  // Pre-compute and sort unique locations for faster rendering
+  const sortedLocations = useMemo(() => {
+    const uniqueLocations = [...new Set(availableLocations)].filter(Boolean);
+
+    // Sort locations naturally (Piso 1, Piso 2... Sótano 1, Sótano 2... Others)
+    return uniqueLocations.sort((a, b) => {
+      const getOrder = (loc: string) => {
+        if (loc.startsWith('Sótano')) return 0;
+        if (loc.startsWith('Piso')) return 1;
+        return 2;
+      };
+      const orderDiff = getOrder(a) - getOrder(b);
+      if (orderDiff !== 0) return orderDiff;
+
+      // Extract numbers for natural sort
+      const numA = parseInt(a.match(/\d+/)?.[0] || '0', 10);
+      const numB = parseInt(b.match(/\d+/)?.[0] || '0', 10);
+      return numA - numB || a.localeCompare(b);
+    });
+  }, [availableLocations]);
+
+  // Config status options - memoized
+  const configOptions = useMemo(
+    () => [
+      { label: 'Todos', value: null },
+      { label: 'Configurados', value: true },
+      { label: 'No Configurados', value: false },
+    ],
+    [],
+  );
+
+  // Memoized location item component for better performance
+  const LocationItem = useCallback(
+    ({ loc, isSelected }: { loc: string; isSelected: boolean }) => (
+      <TouchableOpacity
+        key={loc}
+        style={[
+          styles.locationCheckboxItem,
+          isSelected && styles.locationCheckboxSelected,
+        ]}
+        onPress={() => toggleLocation(loc)}>
+        <Ionicons
+          name={isSelected ? 'checkbox' : 'square-outline'}
+          size={20}
+          color={isSelected ? '#0891B2' : '#9CA3AF'}
+        />
+        <Text
+          style={[
+            styles.locationCheckboxText,
+            isSelected && styles.activeLocationCheckboxText,
+          ]}>
+          {loc}
+        </Text>
+      </TouchableOpacity>
+    ),
+    [toggleLocation],
+  );
 
   return (
     <Modal
@@ -101,11 +162,7 @@ export function EquipmentFilterModal({
             {/* Config Status Filter */}
             <Text style={styles.filterLabel}>Estado de Configuración</Text>
             <View style={styles.filterOptions}>
-              {[
-                { label: 'Todos', value: null },
-                { label: 'Configurados', value: true },
-                { label: 'No Configurados', value: false },
-              ].map(option => (
+              {configOptions.map(option => (
                 <TouchableOpacity
                   key={option.label}
                   style={[
@@ -126,7 +183,7 @@ export function EquipmentFilterModal({
               ))}
             </View>
 
-            {/* Location Filter */}
+            {/* Location Filter - Shows only locations from actual data */}
             <Text style={styles.filterLabel}>Ubicación</Text>
 
             <View style={styles.filterOptions}>
@@ -154,115 +211,24 @@ export function EquipmentFilterModal({
               </TouchableOpacity>
             </View>
 
-            {building?.basement && building.basement > 0 && (
-              <View style={{ marginBottom: 12 }}>
-                <Text style={[styles.detailLabel, { marginBottom: 8 }]}>
-                  Sótanos
-                </Text>
-                <View style={styles.locationGrid}>
-                  {Array.from(
-                    { length: building.basement },
-                    (_, i) => `Sótano ${i + 1}`,
-                  ).map(loc => {
-                    const isSelected = tempLocations.includes(loc);
-                    return (
-                      <TouchableOpacity
-                        key={loc}
-                        style={[
-                          styles.locationCheckboxItem,
-                          isSelected && styles.locationCheckboxSelected,
-                        ]}
-                        onPress={() => toggleLocation(loc)}>
-                        <Ionicons
-                          name={isSelected ? 'checkbox' : 'square-outline'}
-                          size={20}
-                          color={isSelected ? '#0891B2' : '#9CA3AF'}
-                        />
-                        <Text
-                          style={[
-                            styles.locationCheckboxText,
-                            isSelected && styles.activeLocationCheckboxText,
-                          ]}>
-                          {loc}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+            {/* Dynamic locations from actual data */}
+            {sortedLocations.length > 0 && (
+              <View style={styles.locationGrid}>
+                {sortedLocations.map(loc => (
+                  <LocationItem
+                    key={loc}
+                    loc={loc}
+                    isSelected={tempLocations.includes(loc)}
+                  />
+                ))}
               </View>
             )}
 
-            {building?.floor && building.floor > 0 && (
-              <View style={{ marginBottom: 12 }}>
-                <Text style={[styles.detailLabel, { marginBottom: 8 }]}>
-                  Pisos
-                </Text>
-                <View style={styles.locationGrid}>
-                  {Array.from(
-                    { length: building.floor },
-                    (_, i) => `Piso ${i + 1}`,
-                  ).map(loc => {
-                    const isSelected = tempLocations.includes(loc);
-                    return (
-                      <TouchableOpacity
-                        key={loc}
-                        style={[
-                          styles.locationCheckboxItem,
-                          isSelected && styles.locationCheckboxSelected,
-                        ]}
-                        onPress={() => toggleLocation(loc)}>
-                        <Ionicons
-                          name={isSelected ? 'checkbox' : 'square-outline'}
-                          size={20}
-                          color={isSelected ? '#0891B2' : '#9CA3AF'}
-                        />
-                        <Text
-                          style={[
-                            styles.locationCheckboxText,
-                            isSelected && styles.activeLocationCheckboxText,
-                          ]}>
-                          {loc}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
-            {/* Extras: Azotea */}
-            <View>
-              <Text style={[styles.detailLabel, { marginBottom: 8 }]}>
-                Otros
+            {sortedLocations.length === 0 && (
+              <Text style={styles.noLocationsText}>
+                No hay ubicaciones disponibles
               </Text>
-              <TouchableOpacity
-                style={[
-                  styles.locationCheckboxItem,
-                  tempLocations.includes('Azotea') &&
-                    styles.locationCheckboxSelected,
-                ]}
-                onPress={() => toggleLocation('Azotea')}>
-                <Ionicons
-                  name={
-                    tempLocations.includes('Azotea')
-                      ? 'checkbox'
-                      : 'square-outline'
-                  }
-                  size={20}
-                  color={
-                    tempLocations.includes('Azotea') ? '#0891B2' : '#9CA3AF'
-                  }
-                />
-                <Text
-                  style={[
-                    styles.locationCheckboxText,
-                    tempLocations.includes('Azotea') &&
-                      styles.activeLocationCheckboxText,
-                  ]}>
-                  Azotea
-                </Text>
-              </TouchableOpacity>
-            </View>
+            )}
           </ScrollView>
 
           <View style={styles.modalFooter}>
@@ -400,5 +366,11 @@ const styles = StyleSheet.create({
   },
   activeLocationCheckboxText: {
     color: '#0891B2',
+  },
+  noLocationsText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+    marginTop: 8,
   },
 });

@@ -8,7 +8,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import DefaultHeader from '@/components/default-header';
 import { EquipmentList } from '@/components/maintenance/EquipmentList';
@@ -110,6 +110,11 @@ export default function ElectricalPanelsScreen() {
       setIsRefreshing(false);
     }
   }, [loadData]);
+
+  // Extract unique locations from panels for filter options
+  const availableLocations = useMemo(() => {
+    return panels.map(panel => panel.ubicacion).filter(Boolean);
+  }, [panels]);
 
   // Multi-selection state
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -298,7 +303,7 @@ export default function ElectricalPanelsScreen() {
         onApply={handleApplyFilter}
         initialFilters={{ config: filterConfig, locations: filterLocations }}
         title="Filtrar Tableros"
-        building={building}
+        availableLocations={availableLocations}
         additionalFilters={PanelTypeFilter}
       />
     </SafeAreaView>
