@@ -6,6 +6,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Octicons from '@expo/vector-icons/Octicons';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 
 function HomeScreen() {
   const { user, logout } = useAuth();
@@ -154,7 +155,8 @@ function HomeScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Rol: {user?.user_metadata?.role || 'Personal'} • v1.0.0
+          {/* Rol: {user?.user_metadata?.role || 'Personal'} • v1.0.0 */}v
+          {Constants.expoConfig?.version || '1.0.0'}
         </Text>
       </View>
     </View>

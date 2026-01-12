@@ -109,14 +109,35 @@ export function useAppUpdate(): AppUpdateInfo {
 
 /**
  * Opens the download URL or releases page
+ * @returns true if URL was opened successfully, false otherwise
  */
-export async function openUpdateUrl(url: string): Promise<void> {
+export async function openUpdateUrl(url: string): Promise<boolean> {
+  if (!url) {
+    console.error('openUpdateUrl: URL is empty or null');
+    return false;
+  }
+
   try {
-    const canOpen = await Linking.canOpenURL(url);
-    if (canOpen) {
-      await Linking.openURL(url);
-    }
+    // Try to open directly without checking canOpenURL first
+    // canOpenURL can fail on Android due to manifest restrictions
+    await Linking.openURL(url);
+    return true;
   } catch (error) {
     console.error('Error opening URL:', error);
+
+    // Fallback: try with canOpenURL check
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+        return true;
+      } else {
+        console.error('Cannot open URL:', url);
+      }
+    } catch (fallbackError) {
+      console.error('Fallback also failed:', fallbackError);
+    }
+
+    return false;
   }
 }
