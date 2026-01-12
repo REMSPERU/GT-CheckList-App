@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { openUpdateUrl } from '@/hooks/use-app-update';
@@ -30,7 +31,19 @@ export default function UpdateRequiredModal({
   const handleUpdate = async () => {
     setIsDownloading(true);
     const url = downloadUrl || releaseUrl;
-    await openUpdateUrl(url);
+
+    console.log('Attempting to open URL:', url);
+
+    const success = await openUpdateUrl(url);
+
+    if (!success) {
+      Alert.alert(
+        'Error',
+        `No se pudo abrir el navegador. Por favor abre manualmente:\n\n${url}`,
+        [{ text: 'OK' }],
+      );
+    }
+
     // Keep spinner for a moment as the browser opens
     setTimeout(() => setIsDownloading(false), 2000);
   };

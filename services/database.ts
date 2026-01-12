@@ -334,6 +334,30 @@ export const DatabaseService = {
     return await db.getAllAsync('SELECT * FROM local_equipos');
   },
 
+  async getEquipmentById(id: string) {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+    const row = (await db.getFirstAsync(
+      'SELECT * FROM local_equipos WHERE id = ?',
+      [id],
+    )) as any;
+
+    if (!row) return null;
+
+    try {
+      return {
+        ...row,
+        equipment_detail: row.equipment_detail
+          ? JSON.parse(row.equipment_detail)
+          : null,
+        config: row.config === 1,
+      };
+    } catch (e) {
+      console.error('Error parsing equipment detail:', e);
+      return row;
+    }
+  },
+
   async getLocalProperties() {
     await this.ensureInitialized();
     const db = await dbPromise;
