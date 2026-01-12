@@ -3,6 +3,7 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
+  useRef,
   ReactNode,
 } from 'react';
 import {
@@ -10,10 +11,16 @@ import {
   Text,
   TouchableOpacity,
   Modal,
-  ScrollView,
   StyleSheet,
+  Dimensions,
+  ScrollView,
+  Animated,
+  PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const DISMISS_THRESHOLD = 120;
 
 export interface FilterState {
   config: boolean | null;
@@ -25,23 +32,16 @@ export interface EquipmentFilterModalProps {
   onClose: () => void;
   onApply: (filters: FilterState) => void;
   initialFilters: FilterState;
-  title: string;
-  /** Array of available locations extracted from actual equipment data */
+  title?: string;
   availableLocations?: string[];
-  /** Optional additional filter content to render before location filters */
   additionalFilters?: ReactNode;
 }
 
-/**
- * Reusable filter modal for equipment screens.
- * Provides config status and location filters based on actual data.
- */
 export function EquipmentFilterModal({
   visible,
   onClose,
   onApply,
   initialFilters,
-  title,
   availableLocations = [],
   additionalFilters,
 }: EquipmentFilterModalProps) {
@@ -51,8 +51,98 @@ export function EquipmentFilterModal({
   const [tempLocations, setTempLocations] = useState<string[]>(
     initialFilters.locations,
   );
+  const [modalVisible, setModalVisible] = useState(false);
 
-  // Sync temp state when modal opens
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const scrollOffset = useRef(0);
+  const isClosing = useRef(false);
+
+  // Pan responder - only for the handle area
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 5,
+      onPanResponderMove: (_, gesture) => {
+        if (gesture.dy > 0) {
+          translateY.setValue(gesture.dy);
+          const opacity = Math.max(0, 0.5 - gesture.dy / 400);
+          overlayOpacity.setValue(opacity);
+        }
+      },
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dy > DISMISS_THRESHOLD || gesture.vy > 0.5) {
+          closeModal();
+        } else {
+          // Smooth return
+          Animated.parallel([
+            Animated.timing(translateY, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+            Animated.timing(overlayOpacity, {
+              toValue: 0.5,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        }
+      },
+    }),
+  ).current;
+
+  const openModal = useCallback(() => {
+    isClosing.current = false;
+    setModalVisible(true);
+    translateY.setValue(SCREEN_HEIGHT);
+    overlayOpacity.setValue(0);
+
+    // Smooth slide up
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayOpacity, {
+        toValue: 0.5,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [translateY, overlayOpacity]);
+
+  const closeModal = useCallback(() => {
+    if (isClosing.current) return;
+    isClosing.current = true;
+
+    // Smooth slide down
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: SCREEN_HEIGHT,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setModalVisible(false);
+      onClose();
+    });
+  }, [translateY, overlayOpacity, onClose]);
+
+  useEffect(() => {
+    if (visible && !modalVisible) {
+      openModal();
+    } else if (!visible && modalVisible && !isClosing.current) {
+      closeModal();
+    }
+  }, [visible, modalVisible, openModal, closeModal]);
+
   useEffect(() => {
     if (visible) {
       setTempConfig(initialFilters.config);
@@ -62,8 +152,8 @@ export function EquipmentFilterModal({
 
   const handleApply = useCallback(() => {
     onApply({ config: tempConfig, locations: tempLocations });
-    onClose();
-  }, [onApply, onClose, tempConfig, tempLocations]);
+    closeModal();
+  }, [onApply, tempConfig, tempLocations, closeModal]);
 
   const handleReset = useCallback(() => {
     setTempConfig(null);
@@ -82,11 +172,8 @@ export function EquipmentFilterModal({
     });
   }, []);
 
-  // Pre-compute and sort unique locations for faster rendering
   const sortedLocations = useMemo(() => {
     const uniqueLocations = [...new Set(availableLocations)].filter(Boolean);
-
-    // Sort locations naturally (Piso 1, Piso 2... Sótano 1, Sótano 2... Others)
     return uniqueLocations.sort((a, b) => {
       const getOrder = (loc: string) => {
         if (loc.startsWith('Sótano')) return 0;
@@ -95,282 +182,335 @@ export function EquipmentFilterModal({
       };
       const orderDiff = getOrder(a) - getOrder(b);
       if (orderDiff !== 0) return orderDiff;
-
-      // Extract numbers for natural sort
       const numA = parseInt(a.match(/\d+/)?.[0] || '0', 10);
       const numB = parseInt(b.match(/\d+/)?.[0] || '0', 10);
       return numA - numB || a.localeCompare(b);
     });
   }, [availableLocations]);
 
-  // Config status options - memoized
   const configOptions = useMemo(
     () => [
       { label: 'Todos', value: null },
       { label: 'Configurados', value: true },
-      { label: 'No Configurados', value: false },
+      { label: 'Sin Configurar', value: false },
     ],
     [],
   );
 
-  // Memoized location item component for better performance
-  const LocationItem = useCallback(
-    ({ loc, isSelected }: { loc: string; isSelected: boolean }) => (
-      <TouchableOpacity
-        key={loc}
-        style={[
-          styles.locationCheckboxItem,
-          isSelected && styles.locationCheckboxSelected,
-        ]}
-        onPress={() => toggleLocation(loc)}>
-        <Ionicons
-          name={isSelected ? 'checkbox' : 'square-outline'}
-          size={20}
-          color={isSelected ? '#0891B2' : '#9CA3AF'}
-        />
-        <Text
-          style={[
-            styles.locationCheckboxText,
-            isSelected && styles.activeLocationCheckboxText,
-          ]}>
-          {loc}
-        </Text>
-      </TouchableOpacity>
-    ),
-    [toggleLocation],
-  );
+  if (!modalVisible) return null;
 
   return (
     <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#6B7280" />
-            </TouchableOpacity>
+      animationType="none"
+      transparent
+      visible={modalVisible}
+      onRequestClose={closeModal}
+      statusBarTranslucent>
+      <View style={styles.container}>
+        {/* Overlay */}
+        <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            onPress={closeModal}
+            activeOpacity={1}
+          />
+        </Animated.View>
+
+        {/* Modal */}
+        <Animated.View
+          style={[styles.modalContent, { transform: [{ translateY }] }]}>
+          {/* Draggable Handle Area */}
+          <View {...panResponder.panHandlers} style={styles.handleArea}>
+            <View style={styles.handle} />
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Filtros</Text>
+              <TouchableOpacity onPress={closeModal} style={styles.closeBtn}>
+                <View style={styles.closeBtnBg}>
+                  <Ionicons name="close" size={16} color="#6B7280" />
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <ScrollView style={styles.modalBody}>
-            {/* Additional Filters (e.g., Panel Type) */}
+          {/* Scrollable Content - Independent from drag */}
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            bounces={true}
+            scrollEventThrottle={16}
+            onScroll={e => {
+              scrollOffset.current = e.nativeEvent.contentOffset.y;
+            }}>
             {additionalFilters}
 
-            {/* Config Status Filter */}
-            <Text style={styles.filterLabel}>Estado de Configuración</Text>
-            <View style={styles.filterOptions}>
-              {configOptions.map(option => (
-                <TouchableOpacity
-                  key={option.label}
-                  style={[
-                    styles.filterOptionChip,
-                    tempConfig === option.value &&
-                      styles.activeFilterOptionChip,
-                  ]}
-                  onPress={() => setTempConfig(option.value)}>
-                  <Text
-                    style={[
-                      styles.filterOptionText,
-                      tempConfig === option.value &&
-                        styles.activeFilterOptionText,
-                    ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <Text style={styles.sectionLabel}>Estado</Text>
+            <View style={styles.chipRow}>
+              {configOptions.map(option => {
+                const isActive = tempConfig === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.label}
+                    style={[styles.chip, isActive && styles.chipActive]}
+                    onPress={() => setTempConfig(option.value)}
+                    activeOpacity={0.7}>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        isActive && styles.chipTextActive,
+                      ]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
-            {/* Location Filter - Shows only locations from actual data */}
-            <Text style={styles.filterLabel}>Ubicación</Text>
-
-            <View style={styles.filterOptions}>
+            <Text style={styles.sectionLabel}>Ubicación</Text>
+            <View style={styles.chipRow}>
               <TouchableOpacity
                 style={[
-                  styles.locationCheckboxItem,
-                  tempLocations.length === 0 && styles.locationCheckboxSelected,
+                  styles.locChip,
+                  tempLocations.length === 0 && styles.locChipActive,
                 ]}
-                onPress={() => setTempLocations([])}>
+                onPress={() => setTempLocations([])}
+                activeOpacity={0.7}>
                 <Ionicons
                   name={
-                    tempLocations.length === 0 ? 'checkbox' : 'square-outline'
+                    tempLocations.length === 0
+                      ? 'checkmark-circle'
+                      : 'ellipse-outline'
                   }
-                  size={20}
+                  size={16}
                   color={tempLocations.length === 0 ? '#0891B2' : '#9CA3AF'}
                 />
                 <Text
                   style={[
-                    styles.locationCheckboxText,
-                    tempLocations.length === 0 &&
-                      styles.activeLocationCheckboxText,
+                    styles.locChipText,
+                    tempLocations.length === 0 && styles.locChipTextActive,
                   ]}>
-                  Todos
+                  Todas
                 </Text>
               </TouchableOpacity>
+
+              {sortedLocations.map(loc => {
+                const isSelected = tempLocations.includes(loc);
+                return (
+                  <TouchableOpacity
+                    key={loc}
+                    style={[styles.locChip, isSelected && styles.locChipActive]}
+                    onPress={() => toggleLocation(loc)}
+                    activeOpacity={0.7}>
+                    <Ionicons
+                      name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={16}
+                      color={isSelected ? '#0891B2' : '#9CA3AF'}
+                    />
+                    <Text
+                      style={[
+                        styles.locChipText,
+                        isSelected && styles.locChipTextActive,
+                      ]}>
+                      {loc}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
-            {/* Dynamic locations from actual data */}
-            {sortedLocations.length > 0 && (
-              <View style={styles.locationGrid}>
-                {sortedLocations.map(loc => (
-                  <LocationItem
-                    key={loc}
-                    loc={loc}
-                    isSelected={tempLocations.includes(loc)}
-                  />
-                ))}
-              </View>
-            )}
-
             {sortedLocations.length === 0 && (
-              <Text style={styles.noLocationsText}>
-                No hay ubicaciones disponibles
-              </Text>
+              <Text style={styles.emptyText}>No hay ubicaciones</Text>
             )}
           </ScrollView>
 
-          <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-              <Text style={styles.resetButtonText}>Limpiar</Text>
+          {/* Footer */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={styles.resetBtn}
+              onPress={handleReset}
+              activeOpacity={0.7}>
+              <Ionicons name="refresh-outline" size={16} color="#6B7280" />
+              <Text style={styles.resetBtnText}>Limpiar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
-              <Text style={styles.applyButtonText}>Aplicar Filtros</Text>
+            <TouchableOpacity
+              style={styles.applyBtn}
+              onPress={handleApply}
+              activeOpacity={0.8}>
+              <Text style={styles.applyBtnText}>Aplicar</Text>
+              <Ionicons name="checkmark" size={16} color="#fff" />
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000',
+  },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 24,
-    maxHeight: '80%',
+    maxHeight: '75%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 16,
   },
-  modalHeader: {
+  handleArea: {
+    paddingTop: 8,
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 2,
+    marginBottom: 12,
+  },
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
-  modalTitle: {
-    fontSize: 20,
+  headerTitle: {
+    fontSize: 17,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1a1a1a',
   },
-  modalBody: {
-    marginBottom: 24,
+  closeBtn: {
+    padding: 4,
   },
-  filterLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  filterOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
-  },
-  filterOptionChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  activeFilterOptionChip: {
-    backgroundColor: '#0891B2',
-    borderColor: '#0891B2',
-  },
-  filterOptionText: {
-    fontSize: 14,
-    color: '#4B5563',
-  },
-  activeFilterOptionText: {
-    color: 'white',
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  resetButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+  closeBtnBg: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F5F5F5',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  resetButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4B5563',
+  scrollView: {
+    flexGrow: 0,
   },
-  applyButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: '#0891B2',
-    alignItems: 'center',
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
-  applyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-  },
-  detailLabel: {
+  sectionLabel: {
     fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 2,
+    fontWeight: '600',
+    color: '#888',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  locationGrid: {
+  chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginBottom: 20,
   },
-  locationCheckboxItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: '#F5F5F5',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    minWidth: '45%',
-    marginBottom: 4,
+    borderColor: '#E8E8E8',
   },
-  locationCheckboxSelected: {
-    backgroundColor: '#F0FDFA',
+  chipActive: {
+    backgroundColor: '#0891B2',
     borderColor: '#0891B2',
   },
-  locationCheckboxText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#4B5563',
+  chipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#555',
+  },
+  chipTextActive: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  locChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+  },
+  locChipActive: {
+    backgroundColor: '#E8F8FA',
+    borderColor: '#0891B2',
+  },
+  locChipText: {
+    fontSize: 13,
+    color: '#555',
     fontWeight: '500',
   },
-  activeLocationCheckboxText: {
+  locChipTextActive: {
     color: '#0891B2',
+    fontWeight: '600',
   },
-  noLocationsText: {
-    fontSize: 14,
-    color: '#9CA3AF',
+  emptyText: {
+    fontSize: 13,
+    color: '#aaa',
     fontStyle: 'italic',
-    marginTop: 8,
+  },
+  footer: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    paddingBottom: 28,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  resetBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#F5F5F5',
+  },
+  resetBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  applyBtn: {
+    flex: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#0891B2',
+  },
+  applyBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
