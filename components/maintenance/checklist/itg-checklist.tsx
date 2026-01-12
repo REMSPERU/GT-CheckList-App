@@ -224,7 +224,7 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                 />
 
                 <CableTypePicker
-                  label={`Tipo de cable (Ref: ${itm.tipo_cable === 'libre_halogeno' ? 'Libre Halógeno' : itm.tipo_cable === 'no_libre_halogeno' ? 'No Libre Halógeno' : '-'})`}
+                  label={`Tipo de cable (Ref: ${itm.tipo_cable})`}
                   value={measure.cableType || ''}
                   onChange={val =>
                     onCableChange(
