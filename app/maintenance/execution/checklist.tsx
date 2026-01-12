@@ -255,7 +255,7 @@ export default function MaintenanceChecklistScreen() {
     // Validate all items and collect errors for inline display
     const newErrors: Record<string, string[]> = {};
     const itgs = detail?.itgs || [];
-    const components = detail?.componentes || [];
+    // const components = detail?.componentes || [];
 
     // Check ITGs
     itgs.forEach((itg: any) => {

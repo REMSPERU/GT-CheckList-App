@@ -217,18 +217,18 @@ export default function ElectricalPanelsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header - Fixed at top */}
+      <DefaultHeader
+        title="Tableros eléctricos"
+        searchPlaceholder="Buscar por código o rótulo"
+        onSearch={setSearchTerm}
+        onFilterPress={handleOpenFilter}
+      />
+
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
         }>
-        {/* Header */}
-        <DefaultHeader
-          title="Tableros eléctricos"
-          searchPlaceholder="Buscar por código o rótulo"
-          onSearch={setSearchTerm}
-          onFilterPress={handleOpenFilter}
-        />
-
         {/* Building Info & Select All */}
         <View style={styles.buildingInfoRow}>
           <View style={styles.buildingInfo}>
