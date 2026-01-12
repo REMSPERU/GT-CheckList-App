@@ -228,10 +228,9 @@ export const DatabaseService = {
     await this.ensureInitialized();
     const db = await dbPromise;
     const jsonConfig = JSON.stringify(configurationData);
-
     await db.withTransactionAsync(async () => {
       // 1. Queue configuration for sync
-      await db.runAsync(
+      const insertResult = await db.runAsync(
         `INSERT INTO offline_panel_configurations (panel_id, configuration_data, status)
          VALUES (?, ?, 'pending')`,
         [panelId, jsonConfig],
@@ -239,12 +238,19 @@ export const DatabaseService = {
 
       // 2. Update local mirror immediately aka "optimistic update"
       // This ensures the user sees the panel as configured even if offline
-      await db.runAsync(
+      const updateResult = await db.runAsync(
         `UPDATE local_equipos
          SET equipment_detail = ?, config = 1, last_synced_at = ?
          WHERE id = ?`,
         [jsonConfig, new Date().toISOString(), panelId],
       );
+
+      if (updateResult.changes === 0) {
+        console.warn(
+          '⚠️ [DB] No rows updated! Panel ID might not exist in local_equipos:',
+          panelId,
+        );
+      }
     });
   },
 
