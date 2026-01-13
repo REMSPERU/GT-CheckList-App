@@ -6,11 +6,13 @@ import {
   Text,
   TouchableOpacity,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Ionicons } from '@expo/vector-icons';
-import DefaultHeader from '@/components/default-header';
+import { Ionicons, Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { Colors } from '@/constants/theme';
 import { EquipmentList } from '@/components/maintenance/EquipmentList';
 import {
   EquipmentFilterModal,
@@ -174,6 +176,7 @@ export default function ElectricalPanelsScreen() {
         count: selectedPanelIds.size,
         ids: Array.from(selectedPanelIds).join(','),
         buildingName: building?.name,
+        buildingImageUrl: building?.image_url,
       },
     });
   };
@@ -221,28 +224,77 @@ export default function ElectricalPanelsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header - Fixed at top */}
-      <DefaultHeader
-        title="Tableros eléctricos"
-        searchPlaceholder="Buscar por código o rótulo"
-        onSearch={setSearchTerm}
-        onFilterPress={handleOpenFilter}
-      />
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      {/* Header with Building Image */}
+      <View style={styles.headerContainer}>
+        {building?.image_url ? (
+          <Image
+            source={{ uri: building.image_url }}
+            style={styles.headerImage}
+            contentFit="cover"
+            cachePolicy="disk"
+            placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+            transition={300}
+          />
+        ) : (
+          <View style={styles.headerPlaceholder} />
+        )}
+        <View style={styles.headerOverlay} />
+        <SafeAreaView edges={['top']} style={styles.headerContent}>
+          <View style={styles.headerTopRow}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}>
+              <Ionicons name="chevron-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {building?.name || 'Tableros Eléctricos'}
+            </Text>
+            <View style={{ width: 40 }} />
+          </View>
+        </SafeAreaView>
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchBarContainer}>
+        <View style={styles.searchInputContainer}>
+          <Feather name="search" size={18} color={Colors.light.tint} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar por código o rótulo"
+            placeholderTextColor="#9CA3AF"
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+          />
+        </View>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            (filterConfig !== null ||
+              filterLocations.length > 0 ||
+              filterType) &&
+              styles.filterButtonActive,
+          ]}
+          onPress={handleOpenFilter}>
+          <Feather
+            name="filter"
+            size={18}
+            color={
+              filterConfig !== null || filterLocations.length > 0 || filterType
+                ? '#fff'
+                : '#4B5563'
+            }
+          />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
         }>
-        {/* Building Info & Select All */}
-        <View style={styles.buildingInfoRow}>
-          <View style={styles.buildingInfo}>
-            <Text style={styles.buildingName}>
-              {building ? building.name : 'Centro Empresarial Leuro'}
-            </Text>
-          </View>
-
-          {isSelectionMode && (
+        {/* Select All Row */}
+        {isSelectionMode && (
+          <View style={styles.selectAllRow}>
             <TouchableOpacity
               onPress={handleSelectAll}
               style={styles.selectAllButton}>
@@ -252,8 +304,8 @@ export default function ElectricalPanelsScreen() {
                   : 'Seleccionar todos'}
               </Text>
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
 
         {/* Panels List */}
         <View style={styles.panelsContainer}>
@@ -315,20 +367,109 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F3F4F6',
   },
-  buildingInfoRow: {
+  // Header styles
+  headerContainer: {
+    height: 130,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  headerImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  headerPlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#1F2937',
+  },
+  headerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  headerContent: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+  },
+  headerTopRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingRight: 20,
+    paddingHorizontal: 16,
   },
-  buildingInfo: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  buildingName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
+  headerTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  // Search Bar styles
+  searchBarContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  searchInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 48,
+    borderWidth: 1,
+    borderColor: Colors.light.tint,
+    shadowColor: Colors.light.tint,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 15,
+    color: Colors.light.text,
+  },
+  filterButton: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  filterButtonActive: {
+    backgroundColor: Colors.light.tint,
+    borderColor: Colors.light.tint,
+  },
+  // Select All Row
+  selectAllRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   selectAllButton: {
     padding: 8,
@@ -338,9 +479,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
+  // Panels list
   panelsContainer: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 100,
   },
   fabContainer: {

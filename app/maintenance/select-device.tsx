@@ -7,10 +7,12 @@ import {
   Text,
   RefreshControl,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
-import DefaultHeader from '@/components/default-header';
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import MaintenanceCard from '@/components/maintenance-card';
 import type { EquipamentoResponse } from '@/types/api';
 // import { useEquipamentosByPropertyQuery } from '@/hooks/use-equipments-by-property-query';
@@ -114,7 +116,7 @@ export default function SelectDeviceScreen() {
     // Map equipment abbreviations to icons
     const iconMap: Record<string, any> = {
       TBELEC: 'stats-chart-outline', // Tablero electrico
-      LUZ: 'flashlight-outline',     // Luces de Emergencia
+      LUZ: 'flashlight-outline', // Luces de Emergencia
       PT: 'construct-outline',
       ASC: 'arrow-up-outline',
     };
@@ -122,19 +124,47 @@ export default function SelectDeviceScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      {/* Header with Building Image */}
+      <View style={styles.headerContainer}>
+        {building?.image_url ? (
+          <Image
+            source={{ uri: building.image_url }}
+            style={styles.headerImage}
+            contentFit="cover"
+            cachePolicy="disk"
+            placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+            transition={300}
+          />
+        ) : (
+          <View style={styles.headerPlaceholder}>
+            <Ionicons name="business" size={40} color="rgba(255,255,255,0.3)" />
+          </View>
+        )}
+        <View style={styles.headerOverlay} />
+        <SafeAreaView edges={['top']} style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {building?.name || 'Seleccionar Equipo'}
+            </Text>
+            {building?.address && (
+              <Text style={styles.headerSubtitle} numberOfLines={1}>
+                {building.address}
+              </Text>
+            )}
+          </View>
+        </SafeAreaView>
+      </View>
+
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
         }>
-        {/* Header */}
-        <DefaultHeader
-          title={
-            building ? `Mantenimiento - ${building.name}` : 'Mantenimiento'
-          }
-          searchPlaceholder="Buscar equipos"
-        />
-
         {/* Content */}
         <View style={styles.listWrapper}>
           {isLoading && !isRefreshing ? (
@@ -173,9 +203,68 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F3F4F6',
   },
+  // Header styles
+  headerContainer: {
+    height: 180,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  headerImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  headerPlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#1F2937',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  headerContent: {
+    ...StyleSheet.absoluteFillObject,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    justifyContent: 'flex-end',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitleContainer: {
+    marginTop: 'auto',
+    paddingBottom: 8,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  // Content styles
   listWrapper: {
     paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingTop: 20,
     paddingBottom: 24,
   },
   centerContainer: {

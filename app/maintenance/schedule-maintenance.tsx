@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useState, useRef } from 'react';
 import { useTechnicians, useCreateMaintenance } from '@/hooks/use-maintenance';
 import { MaintenanceTypeEnum } from '@/types/api';
@@ -22,6 +23,9 @@ export default function ScheduleMaintenanceScreen() {
   const buildingName = params.buildingName
     ? (params.buildingName as string)
     : 'Centro Empresarial';
+  const buildingImageUrl = params.buildingImageUrl
+    ? (params.buildingImageUrl as string)
+    : null;
 
   // State
   const [date, setDate] = useState(new Date());
@@ -130,10 +134,30 @@ export default function ScheduleMaintenanceScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Banner */}
+        {/* Banner with Building Image */}
         <View style={styles.bannerContainer}>
+          {buildingImageUrl ? (
+            <Image
+              source={{ uri: buildingImageUrl }}
+              style={styles.bannerImage}
+              contentFit="cover"
+              cachePolicy="disk"
+              placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+              transition={300}
+            />
+          ) : (
+            <View style={styles.bannerPlaceholder}>
+              <Ionicons
+                name="business"
+                size={32}
+                color="rgba(255,255,255,0.5)"
+              />
+            </View>
+          )}
           <View style={styles.bannerOverlay} />
-          <Text style={styles.bannerText}>{buildingName}</Text>
+          <View style={styles.bannerContent}>
+            <Text style={styles.bannerText}>{buildingName}</Text>
+          </View>
         </View>
 
         {/* Selected Panels */}
@@ -491,25 +515,39 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   bannerContainer: {
-    height: 80,
-    backgroundColor: '#B91C1C', // Red color from image
-    justifyContent: 'center',
-    paddingHorizontal: 20,
+    height: 120,
+    backgroundColor: '#1F2937',
+    justifyContent: 'flex-end',
     position: 'relative',
     overflow: 'hidden',
   },
+  bannerImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  bannerPlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#374151',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   bannerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.1)', // subtle overlay
-    // Add gradient or image here if needed
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  bannerContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    zIndex: 1,
   },
   bannerText: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.25)',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
   },
   sectionTitle: {
     fontSize: 14,

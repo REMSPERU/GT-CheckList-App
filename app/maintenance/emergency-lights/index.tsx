@@ -147,6 +147,7 @@ export default function EmergencyLightsScreen() {
         count: selectedIds.size,
         ids: Array.from(selectedIds).join(','),
         buildingName: building?.name,
+        buildingImageUrl: building?.image_url,
       },
     });
   };
@@ -236,7 +237,6 @@ export default function EmergencyLightsScreen() {
         onApply={handleApplyFilter}
         initialFilters={{ config: filterConfig, locations: filterLocations }}
         title="Filtrar Luces"
-        building={building}
       />
     </SafeAreaView>
   );
