@@ -170,8 +170,8 @@ export const useMaintenanceByProperty = (propertyId: string) => {
             id,
             codigo,
             ubicacion,
-            ubicacion,
             id_property,
+            equipment_detail,
             equipamentos (
               nombre
             )

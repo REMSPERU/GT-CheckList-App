@@ -259,9 +259,16 @@ export default function EquipmentMaintenanceListScreen() {
                       }
                     }}>
                     <View style={styles.cardHeader}>
-                      <Text style={styles.cardCode}>
-                        {equipment.codigo || 'S/N'}
-                      </Text>
+                      <View style={styles.cardHeaderInfo}>
+                        {equipment.equipment_detail?.rotulo && (
+                          <Text style={styles.cardRotulo}>
+                            {equipment.equipment_detail.rotulo}
+                          </Text>
+                        )}
+                        <Text style={styles.cardCode}>
+                          {equipment.codigo || 'S/N'}
+                        </Text>
+                      </View>
                       <Ionicons
                         name="chevron-forward"
                         size={20}
@@ -505,10 +512,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  cardCode: {
-    fontSize: 18,
+  cardHeaderInfo: {
+    flex: 1,
+  },
+  cardRotulo: {
+    fontSize: 16,
     fontWeight: 'bold',
     color: Colors.light.text,
+    marginBottom: 2,
+  },
+  cardCode: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
   },
   statusBadge: {
     alignSelf: 'flex-start',
