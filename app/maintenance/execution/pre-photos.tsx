@@ -66,8 +66,8 @@ export default function PreMaintenancePhotosScreen() {
     loadPanelInfo();
   }, [panelId]);
 
-  // Determine minimum photos based on panel type
-  const MIN_PHOTOS = tipoTablero === 'distribucion' ? 1 : 2;
+  // Determine maximum photos based on panel type
+  const MAX_PHOTOS = tipoTablero === 'distribucion' ? 1 : 2;
 
   // Request permissions on mount
   useEffect(() => {
@@ -82,6 +82,22 @@ export default function PreMaintenancePhotosScreen() {
   }, []);
 
   const openSelectionModal = (section: 'panel' | 'thermo') => {
+    // Validate max photos before opening modal
+    const currentPhotos =
+      session?.prePhotos.filter(p =>
+        section === 'panel'
+          ? !p.category || p.category === 'visual'
+          : p.category === 'thermo',
+      ) || [];
+
+    if (currentPhotos.length >= MAX_PHOTOS) {
+      Alert.alert(
+        'Límite alcanzado',
+        `Ya has agregado el máximo de ${MAX_PHOTOS} foto(s) para esta sección.`,
+      );
+      return;
+    }
+
     setCurrentSection(section);
     setModalVisible(true);
   };
@@ -125,6 +141,22 @@ export default function PreMaintenancePhotosScreen() {
     section: 'panel' | 'thermo',
   ) => {
     if (!result.canceled && result.assets && result.assets.length > 0) {
+      // Validate max photos before adding
+      const currentPhotos =
+        session?.prePhotos.filter(p =>
+          section === 'panel'
+            ? !p.category || p.category === 'visual'
+            : p.category === 'thermo',
+        ) || [];
+
+      if (currentPhotos.length >= MAX_PHOTOS) {
+        Alert.alert(
+          'Límite alcanzado',
+          `Ya has agregado el máximo de ${MAX_PHOTOS} foto(s) para esta sección.`,
+        );
+        return;
+      }
+
       const asset = result.assets[0];
       const newPhoto: PhotoItem = {
         id: asset.uri, // Using URI as ID for now
@@ -168,10 +200,8 @@ export default function PreMaintenancePhotosScreen() {
   );
   const thermoPhotos = session.prePhotos.filter(p => p.category === 'thermo');
 
-  // Validation based on dynamic MIN_PHOTOS (1 for distribucion/autosoportado, 2 for others)
-  const panelValid = panelPhotos.length >= MIN_PHOTOS;
-  const thermoValid = thermoPhotos.length >= MIN_PHOTOS;
-  const isFormValid = panelValid && thermoValid;
+  // Validation - all sections must have at least 1 photo
+  const isFormValid = panelPhotos.length >= 1 && thermoPhotos.length >= 1;
 
   const PhotoBoxSection = ({
     title,
@@ -187,16 +217,42 @@ export default function PreMaintenancePhotosScreen() {
     return (
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{title}</Text>
-          <Text
-            style={[
-              styles.sectionCounter,
-              count >= MIN_PHOTOS
-                ? styles.counterSuccess
-                : styles.counterPending,
-            ]}>
-            ({count}/{MIN_PHOTOS} min)
-          </Text>
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>{title}</Text>
+            {count >= 1 && (
+              <View style={styles.checkBadge}>
+                <Ionicons name="checkmark" size={12} color="#fff" />
+              </View>
+            )}
+          </View>
+          <View style={styles.counterContainer}>
+            <View
+              style={[
+                styles.countBadge,
+                count >= 1
+                  ? styles.countBadgeSuccess
+                  : styles.countBadgePending,
+              ]}>
+              <Text
+                style={[
+                  styles.countBadgeText,
+                  count >= 1
+                    ? styles.countTextSuccess
+                    : styles.countTextPending,
+                ]}>
+                {count}
+              </Text>
+            </View>
+            <View style={styles.limitsContainer}>
+              <Text style={styles.limitLabel}>
+                <Text style={styles.limitValue}>1</Text> mín
+              </Text>
+              <Text style={styles.limitDivider}>•</Text>
+              <Text style={styles.limitLabel}>
+                <Text style={styles.limitValue}>{MAX_PHOTOS}</Text> máx
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Horizontal List of Photos */}
@@ -236,16 +292,21 @@ export default function PreMaintenancePhotosScreen() {
         <View style={styles.adderContainer}>
           <TouchableOpacity
             style={styles.addBtnContainer}
-            onPress={() => openSelectionModal(section)}>
-            <View style={styles.addBtn}>
+            onPress={() => openSelectionModal(section)}
+            disabled={count >= MAX_PHOTOS}>
+            <View
+              style={[
+                styles.addBtn,
+                count >= MAX_PHOTOS && styles.disabledBtn,
+              ]}>
               <Ionicons name="camera-outline" size={20} color="white" />
-              <Text style={styles.addBtnText}>Agregar Foto</Text>
+              <Text style={styles.addBtnText}>
+                {count >= MAX_PHOTOS ? 'Máximo alcanzado' : 'Agregar Foto'}
+              </Text>
             </View>
           </TouchableOpacity>
-          {count < MIN_PHOTOS && (
-            <Text style={styles.requirementText}>
-              Faltan {MIN_PHOTOS - count} foto(s)
-            </Text>
+          {count < 1 && (
+            <Text style={styles.requirementText}>Agregue al menos 1 foto</Text>
           )}
         </View>
       </View>
@@ -285,7 +346,7 @@ export default function PreMaintenancePhotosScreen() {
         </TouchableOpacity>
         {!isFormValid && (
           <Text style={styles.footerSubtext}>
-            Complete el mínimo de fotos requeridas.
+            Agregue al menos 1 foto en cada sección.
           </Text>
         )}
       </View>
@@ -351,13 +412,76 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
   },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#11181C',
+  },
+  checkBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#10B981',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  counterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  countBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  countBadgeSuccess: {
+    backgroundColor: '#DCFCE7',
+  },
+  countBadgePending: {
+    backgroundColor: '#FEE2E2',
+  },
+  countBadgeText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  countTextSuccess: {
+    color: '#10B981',
+  },
+  countTextPending: {
+    color: '#EF4444',
+  },
+  limitsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  limitLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  limitValue: {
+    fontWeight: '600',
+    color: '#374151',
+  },
+  limitDivider: {
+    fontSize: 10,
+    color: '#9CA3AF',
   },
   sectionCounter: {
     fontSize: 16,
