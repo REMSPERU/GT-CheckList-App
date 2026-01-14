@@ -20,11 +20,13 @@ export default function EquipmentDetailsScreen() {
   const params = useLocalSearchParams<{
     maintenanceId: string;
     panelId?: string;
+    equipmentType?: string;
   }>();
 
   // Retrieve the ID. Supporting both maintenanceId (if useful later) and panelId directly.
   // For this refactor, we expect 'panelId' to be passed.
   const panelId = params.panelId;
+  const equipmentType = params.equipmentType;
 
   const {
     data: panel,
@@ -35,14 +37,15 @@ export default function EquipmentDetailsScreen() {
 
   const handleStartMaintenance = () => {
     setIsMaintenanceLoading(true);
-    // Simulate loading for 1s then navigate
+    // Navigate to execution router which will redirect based on equipment type
     setTimeout(() => {
       setIsMaintenanceLoading(false);
       router.push({
-        pathname: '/maintenance/execution/pre-photos',
+        pathname: '/maintenance/execution',
         params: {
           panelId: panelId,
           maintenanceId: params.maintenanceId,
+          equipmentType: equipmentType,
         },
       });
     }, 1000);

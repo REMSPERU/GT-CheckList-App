@@ -238,7 +238,7 @@ export default function EquipmentMaintenanceListScreen() {
                       // index === 0 && activeTab === 'Preventivo' && styles.highlightedCard // Removed highlight logic for now
                     ]}
                     onPress={() => {
-                      // Navigate to response detail if finalized, otherwise to equipment details
+                      // Navigate to response detail if finalized, otherwise directly to execution
                       if (item.estatus === MaintenanceStatusEnum.FINALIZADO) {
                         router.push({
                           pathname:
@@ -249,11 +249,11 @@ export default function EquipmentMaintenanceListScreen() {
                         });
                       } else {
                         router.push({
-                          pathname:
-                            '/maintenance/scheduled_maintenance/equipment-details',
+                          pathname: '/maintenance/execution',
                           params: {
                             panelId: equipment.id,
                             maintenanceId: item.id,
+                            equipmentType: equipment.equipamentos?.nombre,
                           },
                         });
                       }
