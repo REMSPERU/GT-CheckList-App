@@ -41,7 +41,8 @@ export const DatabaseService = {
             username TEXT,
             email TEXT,
             first_name TEXT,
-            last_name TEXT
+            last_name TEXT,
+            role TEXT
           );
 
 
@@ -93,6 +94,18 @@ export const DatabaseService = {
             synced_at TEXT
           );
         `);
+
+      // === MIGRATIONS ===
+      // These run every time but only affect existing DBs that need changes
+
+      // Migration v1.1: Add role column to local_users (for users updating from older versions)
+      try {
+        await db.execAsync(`ALTER TABLE local_users ADD COLUMN role TEXT;`);
+        console.log('Migration: Added role column to local_users');
+      } catch {
+        // Column already exists - this is expected for new installs or already-migrated DBs
+      }
+
       console.log('Database initialized');
     })();
 
@@ -386,20 +399,27 @@ export const DatabaseService = {
     email: string;
     first_name?: string;
     last_name?: string;
+    role?: string;
   }) {
     await this.ensureInitialized();
     const db = await dbPromise;
     await db.runAsync(
-      'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name) VALUES (?, ?, ?, ?, ?)',
+      'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)',
       [
         user.id,
         user.username || user.email?.split('@')[0] || '',
         user.email,
         user.first_name || '',
         user.last_name || '',
+        user.role || '',
       ],
     );
-    console.log('Current user saved to local DB:', user.email);
+    console.log(
+      'Current user saved to local DB:',
+      user.email,
+      'Role:',
+      user.role || '',
+    );
   },
 
   async getLocalUserById(id: string) {

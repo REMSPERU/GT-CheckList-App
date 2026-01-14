@@ -60,7 +60,7 @@ class SyncService {
    */
   private async syncOnReconnect() {
     try {
-      console.log('🔄 Auto-sync triggered on reconnect...');
+      console.log('Auto-sync triggered on reconnect...');
 
       // 1. Push pending offline work first
       await this.pushData();
@@ -68,9 +68,9 @@ class SyncService {
       // 2. Pull fresh data from server
       await this.pullData();
 
-      console.log('✅ Auto-sync completed');
+      console.log('Auto-sync completed');
     } catch (error) {
-      console.error('❌ Auto-sync failed:', error);
+      console.error('Auto-sync failed:', error);
     }
   }
 
@@ -146,13 +146,11 @@ class SyncService {
     const pendingItems =
       (await DatabaseService.getPendingMaintenances()) as OfflineMaintenance[];
 
-    console.log(`🟢 [SYNC] Found ${pendingItems.length} pending maintenances`);
+    console.log(`[SYNC] Found ${pendingItems.length} pending maintenances`);
 
     // Process maintenances if any exist (but don't return early anymore!)
     if (pendingItems.length > 0) {
-      console.log(
-        `🟢 [SYNC] Processing ${pendingItems.length} maintenances...`,
-      );
+      console.log(`Processing ${pendingItems.length} maintenances...`);
 
       for (const item of pendingItems) {
         try {
@@ -266,7 +264,7 @@ class SyncService {
     } // Close the if (pendingItems.length > 0) block
 
     // --- SYNC PANEL CONFIGURATIONS ---
-    console.log('🟢 [SYNC] Checking for pending panel configurations...');
+    console.log('[SYNC] Checking for pending panel configurations...');
     const pendingConfigs =
       (await DatabaseService.getPendingPanelConfigurations()) as {
         id: number;
@@ -274,16 +272,10 @@ class SyncService {
         configuration_data: string;
       }[];
 
-    console.log(
-      '🟢 [SYNC] Found',
-      pendingConfigs.length,
-      'pending panel configs',
-    );
-
     if (pendingConfigs.length > 0) {
       for (const config of pendingConfigs) {
         console.log(
-          '🟢 [SYNC] Processing config ID:',
+          '[SYNC] Processing config ID:',
           config.id,
           'for panel:',
           config.panel_id,
@@ -295,21 +287,18 @@ class SyncService {
           );
 
           const detail = JSON.parse(config.configuration_data);
-          console.log(
-            '🟢 [SYNC] Parsed detail:',
-            JSON.stringify(detail, null, 2),
-          );
+          console.log('[SYNC] Parsed detail:', JSON.stringify(detail, null, 2));
 
           // Update in Supabase
           console.log(
-            '🟢 [SYNC] Calling supabaseElectricalPanelService.updateEquipmentDetail...',
+            '[SYNC] Calling supabaseElectricalPanelService.updateEquipmentDetail...',
           );
           await supabaseElectricalPanelService.updateEquipmentDetail(
             config.panel_id,
             detail,
           );
           console.log(
-            '✅ [SYNC] Supabase update completed for panel:',
+            '[SYNC] Supabase update completed for panel:',
             config.panel_id,
           );
 
@@ -317,10 +306,10 @@ class SyncService {
             config.id,
             'synced',
           );
-          console.log(`✅ [SYNC] Panel config ${config.id} marked as synced.`);
+          console.log(`[SYNC] Panel config ${config.id} marked as synced.`);
         } catch (error) {
           console.error(
-            `❌ [SYNC] Sync failed for panel config ${config.id}:`,
+            `[SYNC] Sync failed for panel config ${config.id}:`,
             error,
           );
           await DatabaseService.updatePanelConfigurationStatus(
@@ -331,7 +320,7 @@ class SyncService {
         }
       }
     } else {
-      console.log('🟢 [SYNC] No pending panel configurations to sync.');
+      console.log('[SYNC] No pending panel configurations to sync.');
     }
   }
 }

@@ -14,6 +14,7 @@ import {
   useRegister,
 } from '../hooks/use-auth-query';
 import { supabaseAuthService } from '../services/supabase-auth.service';
+import { supabase } from '../lib/supabase';
 import { DatabaseService } from '../services/database';
 import type { LoginRequest, RegisterRequest } from '../types/api';
 import type { User } from '@supabase/supabase-js';
@@ -77,16 +78,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (event === 'SIGNED_IN' && session) {
         setHasSession(true);
         await refetchUser();
-        
-        // Save user to local DB
+
+        // Save user to local DB with role from public.users
         if (session.user) {
           try {
+            // Fetch role from public.users table
+            const { data: publicUser } = await supabase
+              .from('users')
+              .select('role')
+              .eq('id', session.user.id)
+              .single();
+
+            const userRole = publicUser?.role || '';
             await DatabaseService.saveCurrentUser({
               id: session.user.id,
               email: session.user.email || '',
               username: session.user.user_metadata?.username,
               first_name: session.user.user_metadata?.first_name,
               last_name: session.user.user_metadata?.last_name,
+              role: userRole,
             });
           } catch (err) {
             console.error('Failed to save user to local DB:', err);
