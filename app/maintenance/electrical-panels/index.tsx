@@ -21,6 +21,7 @@ import {
 import type { TableroElectricoResponse } from '@/types/api';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
+import { useUserRole } from '@/hooks/use-user-role';
 
 export default function ElectricalPanelsScreen() {
   const router = useRouter();
@@ -44,6 +45,9 @@ export default function ElectricalPanelsScreen() {
   const [tempFilterType, setTempFilterType] = useState<string | undefined>(
     undefined,
   );
+
+  // Role-based permissions
+  const { canScheduleMaintenance } = useUserRole();
 
   useEffect(() => {
     if (buildingParam) {
@@ -125,6 +129,9 @@ export default function ElectricalPanelsScreen() {
   );
 
   const toggleSelection = (panelId: string) => {
+    // Only allow selection if user can schedule maintenance
+    if (!canScheduleMaintenance) return;
+
     const newSelected = new Set(selectedPanelIds);
     if (newSelected.has(panelId)) {
       newSelected.delete(panelId);
@@ -319,7 +326,9 @@ export default function ElectricalPanelsScreen() {
             emptyMessage="No hay tableros eléctricos disponibles con este filtro."
             loadingMessage="Cargando tableros eléctricos..."
             selectedIds={selectedPanelIds}
-            onToggleSelection={toggleSelection}
+            onToggleSelection={
+              canScheduleMaintenance ? toggleSelection : undefined
+            }
             onItemPress={handlePanelPress}
             renderLabel={panel =>
               panel.equipment_detail?.rotulo || panel.codigo || 'N/A'
@@ -329,24 +338,26 @@ export default function ElectricalPanelsScreen() {
         </View>
       </ScrollView>
 
-      {/* Floating Action Bar for Scheduling */}
-      {isSelectionMode && selectedPanelIds.size > 0 && (
-        <View style={styles.fabContainer}>
-          <TouchableOpacity
-            style={styles.fabButton}
-            onPress={handleScheduleMaintenance}>
-            <Text style={styles.fabText}>
-              Programar Mantenimiento ({selectedPanelIds.size})
-            </Text>
-            <Ionicons
-              name="calendar"
-              size={20}
-              color="white"
-              style={{ marginLeft: 8 }}
-            />
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Floating Action Bar for Scheduling - only for SUPERVISOR/SUPERADMIN */}
+      {canScheduleMaintenance &&
+        isSelectionMode &&
+        selectedPanelIds.size > 0 && (
+          <View style={styles.fabContainer}>
+            <TouchableOpacity
+              style={styles.fabButton}
+              onPress={handleScheduleMaintenance}>
+              <Text style={styles.fabText}>
+                Programar Mantenimiento ({selectedPanelIds.size})
+              </Text>
+              <Ionicons
+                name="calendar"
+                size={20}
+                color="white"
+                style={{ marginLeft: 8 }}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
 
       {/* Filter Modal */}
       <EquipmentFilterModal

@@ -44,15 +44,6 @@ export const useUserRole = () => {
   // Priority: user metadata (online) > local SQLite (offline)
   const role: UserRole = (user?.user_metadata?.role as UserRole) || localRole;
 
-  console.log(
-    '📋 [useUserRole] Current role:',
-    role,
-    '| From metadata:',
-    user?.user_metadata?.role,
-    '| From local:',
-    localRole,
-  );
-
   return {
     role,
     isLoaded,

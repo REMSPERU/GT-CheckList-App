@@ -17,7 +17,8 @@ export interface EquipmentListProps<T extends BaseEquipment> {
   emptyMessage?: string;
   loadingMessage?: string;
   selectedIds: Set<string>;
-  onToggleSelection: (id: string) => void;
+  /** Optional - if undefined, selection is disabled (users without permissions) */
+  onToggleSelection?: (id: string) => void;
   onItemPress: (item: T) => void;
   /** Custom function to extract display label from an item */
   renderLabel?: (item: T) => string;
@@ -107,22 +108,29 @@ export function EquipmentList<T extends BaseEquipment>({
       );
     }
 
-    // Configured: selection circle on the left, content area navigates
+    // Configured: selection circle on the left (if selection enabled), content area navigates
+    // If onToggleSelection is not provided, hide selection UI completely
+    const canSelect = !!onToggleSelection;
+
     return (
       <View
         key={item.id}
         style={[styles.itemCard, isSelected && styles.itemCardSelected]}>
-        <TouchableOpacity
-          style={styles.selectionArea}
-          onPress={() => onToggleSelection(item.id)}>
-          <View
-            style={[
-              styles.radioCircle,
-              isSelected && styles.radioCircleSelected,
-            ]}>
-            {isSelected && <View style={styles.radioInnerCircle} />}
-          </View>
-        </TouchableOpacity>
+        {canSelect ? (
+          <TouchableOpacity
+            style={styles.selectionArea}
+            onPress={() => onToggleSelection(item.id)}>
+            <View
+              style={[
+                styles.radioCircle,
+                isSelected && styles.radioCircleSelected,
+              ]}>
+              {isSelected && <View style={styles.radioInnerCircle} />}
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <View style={[styles.radioCircle, styles.radioCircleHidden]} />
+        )}
 
         <TouchableOpacity
           style={styles.itemContent}

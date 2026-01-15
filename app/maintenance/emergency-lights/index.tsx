@@ -19,6 +19,7 @@ import {
 import type { BaseEquipment } from '@/types/api';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
+import { useUserRole } from '@/hooks/use-user-role';
 
 export default function EmergencyLightsScreen() {
   const router = useRouter();
@@ -104,7 +105,13 @@ export default function EmergencyLightsScreen() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // Role-based permissions
+  const { canScheduleMaintenance } = useUserRole();
+
   const toggleSelection = (id: string) => {
+    // Only allow selection if user can schedule maintenance
+    if (!canScheduleMaintenance) return;
+
     const newSelected = new Set(selectedIds);
     if (newSelected.has(id)) {
       newSelected.delete(id);
@@ -204,15 +211,17 @@ export default function EmergencyLightsScreen() {
             emptyMessage="No hay luces de emergencia disponibles con este filtro."
             loadingMessage="Cargando luces de emergencia..."
             selectedIds={selectedIds}
-            onToggleSelection={toggleSelection}
+            onToggleSelection={
+              canScheduleMaintenance ? toggleSelection : undefined
+            }
             onItemPress={handleItemPress}
             renderLabel={item => item.codigo || 'N/A'}
           />
         </View>
       </ScrollView>
 
-      {/* Floating Action Bar for Scheduling */}
-      {isSelectionMode && selectedIds.size > 0 && (
+      {/* Floating Action Bar for Scheduling - only for SUPERVISOR/SUPERADMIN */}
+      {canScheduleMaintenance && isSelectionMode && selectedIds.size > 0 && (
         <View style={styles.fabContainer}>
           <TouchableOpacity
             style={styles.fabButton}

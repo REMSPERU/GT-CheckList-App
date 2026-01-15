@@ -12,8 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTechnicians, useCreateMaintenance } from '@/hooks/use-maintenance';
+import { useUserRole } from '@/hooks/use-user-role';
 import { MaintenanceTypeEnum } from '@/types/api';
 
 export default function ScheduleMaintenanceScreen() {
@@ -45,9 +46,48 @@ export default function ScheduleMaintenanceScreen() {
   // Prevent double submission
   const isSubmitting = useRef(false);
 
+  // Role check
+  const { canScheduleMaintenance, isLoaded: roleLoaded } = useUserRole();
+
+  // Redirect if user doesn't have permission
+  useEffect(() => {
+    if (roleLoaded && !canScheduleMaintenance) {
+      Alert.alert(
+        'Sin permisos',
+        'Solo usuarios con rol SUPERVISOR o SUPERADMIN pueden programar mantenimientos.',
+        [{ text: 'OK', onPress: () => router.back() }],
+      );
+    }
+  }, [roleLoaded, canScheduleMaintenance, router]);
+
   // Queries & Mutations
   const { data: technicians = [], isLoading: loadingTechs } = useTechnicians();
   const createMaintenanceMutation = useCreateMaintenance();
+
+  // Show nothing while checking permissions (or if no permission, will redirect)
+  if (!roleLoaded || !canScheduleMaintenance) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color="#0891B2" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Verificando permisos...</Text>
+        </View>
+        <View
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Ionicons name="lock-closed-outline" size={48} color="#9CA3AF" />
+          <Text style={{ color: '#6B7280', marginTop: 12 }}>
+            {roleLoaded
+              ? 'Sin permisos para acceder'
+              : 'Verificando permisos...'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Date Logic
   const handleDateConfirm = (selectedDate: Date) => {
@@ -297,18 +337,34 @@ export default function ScheduleMaintenanceScreen() {
           textAlignVertical="top"
         />
 
+        {/* Permission Warning */}
+        {!canScheduleMaintenance && (
+          <View style={styles.permissionWarning}>
+            <Ionicons name="warning-outline" size={20} color="#D97706" />
+            <Text style={styles.permissionWarningText}>
+              Solo usuarios con rol SUPERVISOR o SUPERADMIN pueden programar
+              mantenimientos.
+            </Text>
+          </View>
+        )}
+
         {/* Confirm Button */}
         <TouchableOpacity
           style={[
             styles.confirmButton,
-            createMaintenanceMutation.isPending && styles.disabledButton,
+            (createMaintenanceMutation.isPending || !canScheduleMaintenance) &&
+              styles.disabledButton,
           ]}
           onPress={handleCreate}
-          disabled={createMaintenanceMutation.isPending}>
+          disabled={
+            createMaintenanceMutation.isPending || !canScheduleMaintenance
+          }>
           <Text style={styles.confirmButtonText}>
             {createMaintenanceMutation.isPending
               ? 'Programando...'
-              : 'Confirmar Programación'}
+              : !canScheduleMaintenance
+                ? 'Sin permisos para programar'
+                : 'Confirmar Programación'}
           </Text>
         </TouchableOpacity>
 
@@ -726,6 +782,21 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     backgroundColor: '#9CA3AF',
+  },
+  permissionWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 16,
+    gap: 8,
+  },
+  permissionWarningText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#92400E',
   },
   // Modal Styles
   modalOverlay: {
