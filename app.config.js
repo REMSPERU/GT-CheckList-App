@@ -15,7 +15,7 @@ export default ({ config }) => {
 
     slug: 'alexpertochecklistapp',
 
-    version: '1.0.7',
+    version: '1.0.8',
     orientation: 'portrait',
 
     icon: './assets/images/icon.png',
