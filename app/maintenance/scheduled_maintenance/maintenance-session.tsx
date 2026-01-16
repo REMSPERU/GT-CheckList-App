@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,22 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/theme';
 import MaintenanceHeader from '@/components/maintenance-header';
+import PDFReportModal from '@/components/pdf-report-modal';
 import { useMaintenanceByProperty } from '@/hooks/use-maintenance';
 import { MaintenanceStatusEnum } from '@/types/api';
+import { supabase } from '@/lib/supabase';
+import {
+  pdfReportService,
+  SessionReportData,
+  ReportMaintenanceData,
+} from '@/services/pdf-report.service';
 
 interface MaintenanceSession {
   date: string;
@@ -31,6 +39,19 @@ export default function MaintenanceSessionScreen() {
     propertyId: string;
     propertyName?: string;
   }>();
+
+  // PDF Report State
+  const [pdfModalVisible, setPdfModalVisible] = useState(false);
+  const [pdfUri, setPdfUri] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState('');
+  const [reportSummary, setReportSummary] = useState<{
+    propertyName: string;
+    sessionDate: string;
+    totalEquipments: number;
+    totalOk: number;
+    totalIssues: number;
+  } | null>(null);
 
   // Fetch Data
   const {
@@ -125,9 +146,134 @@ export default function MaintenanceSessionScreen() {
     });
   };
 
-  const handleGenerateReport = (session: MaintenanceSession) => {
-    // TODO: Implement report generation
-    console.log('Generate report for session:', session.date);
+  const handleGenerateReport = async (session: MaintenanceSession) => {
+    setPdfModalVisible(true);
+    setIsGeneratingPdf(true);
+    setPdfUri(null);
+    setGenerationProgress('Obteniendo datos de mantenimiento...');
+
+    try {
+      // Fetch maintenance responses for all completed maintenances in this session
+      const maintenanceIds = session.maintenances
+        .filter((m: any) => m.estatus === MaintenanceStatusEnum.FINALIZADO)
+        .map((m: any) => m.id);
+
+      if (maintenanceIds.length === 0) {
+        Alert.alert(
+          'Sin datos',
+          'No hay mantenimientos finalizados para generar el informe.',
+        );
+        setPdfModalVisible(false);
+        setIsGeneratingPdf(false);
+        return;
+      }
+
+      setGenerationProgress('Cargando detalles de mantenimiento...');
+
+      // Fetch all maintenance_response records
+      const { data: responses, error } = await supabase
+        .from('maintenance_response')
+        .select(
+          `
+          id,
+          id_mantenimiento,
+          detail_maintenance,
+          date_created,
+          user:user_created (
+            first_name,
+            last_name
+          )
+        `,
+        )
+        .in('id_mantenimiento', maintenanceIds);
+
+      if (error) throw error;
+
+      setGenerationProgress('Generando PDF...');
+
+      // Build report data
+      const maintenancesData: ReportMaintenanceData[] = [];
+      let totalOkItems = 0;
+      let totalIssueItems = 0;
+
+      for (const maint of session.maintenances.filter(
+        (m: any) => m.estatus === MaintenanceStatusEnum.FINALIZADO,
+      )) {
+        const response = responses?.find(
+          (r: any) => r.id_mantenimiento === maint.id,
+        );
+        const detail = response?.detail_maintenance || {};
+        const userData = (response as any)?.users;
+
+        const checklist = detail.checklist || {};
+        totalOkItems += Object.values(checklist).filter(v => v === true).length;
+        totalIssueItems += Object.values(checklist).filter(
+          v => v === false,
+        ).length;
+
+        maintenancesData.push({
+          maintenanceId: maint.id,
+          equipmentCode: maint.equipos?.codigo || 'N/A',
+          equipmentLocation: maint.equipos?.ubicacion || 'N/A',
+          propertyName: propertyName || 'Propiedad',
+          scheduledDate: session.date,
+          completedAt:
+            detail.completedAt ||
+            response?.date_created ||
+            new Date().toISOString(),
+          technicianName: userData
+            ? `${userData.first_name || ''} ${userData.last_name || ''}`
+            : 'No especificado',
+          maintenanceType: maint.tipo_mantenimiento || 'Preventivo',
+          prePhotos: (detail.prePhotos || []).map((p: any) => ({
+            url: p.url || p.uri,
+            category: p.category,
+          })),
+          postPhotos: (detail.postPhotos || []).map((p: any) => ({
+            url: p.url || p.uri,
+          })),
+          checklist,
+          measurements: detail.measurements,
+          itemObservations: detail.itemObservations || {},
+          observations: detail.observations,
+        });
+      }
+
+      const sessionReportData: SessionReportData = {
+        propertyName: propertyName || 'Propiedad',
+        sessionDate: session.date,
+        generatedAt: new Date().toISOString(),
+        maintenances: maintenancesData,
+      };
+
+      // Generate PDF
+      const uri = await pdfReportService.generatePDF(sessionReportData);
+      setPdfUri(uri);
+
+      // Set summary for modal
+      setReportSummary({
+        propertyName: propertyName || 'Propiedad',
+        sessionDate: session.displayDate,
+        totalEquipments: maintenancesData.length,
+        totalOk: totalOkItems,
+        totalIssues: totalIssueItems,
+      });
+    } catch (error) {
+      console.error('Error generating report:', error);
+      Alert.alert(
+        'Error',
+        'No se pudo generar el informe. Intente nuevamente.',
+      );
+      setPdfModalVisible(false);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleClosePdfModal = () => {
+    setPdfModalVisible(false);
+    setPdfUri(null);
+    setReportSummary(null);
   };
 
   return (
@@ -246,6 +392,16 @@ export default function MaintenanceSessionScreen() {
           </ScrollView>
         )}
       </View>
+
+      {/* PDF Report Modal */}
+      <PDFReportModal
+        visible={pdfModalVisible}
+        onClose={handleClosePdfModal}
+        pdfUri={pdfUri}
+        isGenerating={isGeneratingPdf}
+        generationProgress={generationProgress}
+        reportSummary={reportSummary ?? undefined}
+      />
     </SafeAreaView>
   );
 }
