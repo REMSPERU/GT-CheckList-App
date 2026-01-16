@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
+import { Colors } from '@/constants/theme';
 import { pdfReportService } from '@/services/pdf-report.service';
 
 interface PDFReportModalProps {
@@ -33,6 +34,11 @@ interface PDFReportModalProps {
 const { height: windowHeight } = Dimensions.get('window');
 const STATUSBAR_HEIGHT =
   Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0;
+
+// Theme colors
+const PRIMARY = Colors.light.tint; // #06B6D4
+const TEXT = Colors.light.text; // #11181C
+const ICON = Colors.light.icon; // #6B7280
 
 export default function PDFReportModal({
   visible,
@@ -102,7 +108,7 @@ export default function PDFReportModal({
           <View style={styles.pdfContent}>
             {pdfLoadError ? (
               <View style={styles.pdfErrorContainer}>
-                <Ionicons name="document-outline" size={64} color="#9CA3AF" />
+                <Ionicons name="document-outline" size={64} color={ICON} />
                 <Text style={styles.pdfErrorText}>
                   No se puede mostrar el PDF en la app
                 </Text>
@@ -128,7 +134,7 @@ export default function PDFReportModal({
                 startInLoadingState={true}
                 renderLoading={() => (
                   <View style={styles.webviewLoading}>
-                    <ActivityIndicator size="large" color="#1F4E79" />
+                    <ActivityIndicator size="large" color={PRIMARY} />
                     <Text style={styles.webviewLoadingText}>
                       Cargando PDF...
                     </Text>
@@ -176,7 +182,7 @@ export default function PDFReportModal({
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#374151" />
+              <Ionicons name="close" size={24} color={ICON} />
             </TouchableOpacity>
             <Text style={styles.title}>Informe de Mantenimiento</Text>
             <View style={{ width: 32 }} />
@@ -187,7 +193,7 @@ export default function PDFReportModal({
             {isGenerating ? (
               <View style={styles.centerContent}>
                 <View style={styles.loadingIconContainer}>
-                  <ActivityIndicator size="large" color="#1F4E79" />
+                  <ActivityIndicator size="large" color={PRIMARY} />
                 </View>
                 <Text style={styles.loadingText}>{generationProgress}</Text>
                 <Text style={styles.loadingSubtext}>Por favor espere...</Text>
@@ -260,7 +266,7 @@ export default function PDFReportModal({
                 <TouchableOpacity
                   style={styles.actionButton}
                   onPress={handleViewPdf}>
-                  <Ionicons name="eye-outline" size={22} color="#1F4E79" />
+                  <Ionicons name="eye-outline" size={22} color={PRIMARY} />
                   <Text style={styles.actionButtonText}>Ver PDF</Text>
                 </TouchableOpacity>
 
@@ -348,7 +354,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F4E79',
+    color: TEXT,
   },
   content: {
     padding: 24,
@@ -363,7 +369,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#E8F4FD',
+    backgroundColor: '#E0F7FA',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -371,12 +377,12 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F4E79',
+    color: TEXT,
     marginBottom: 4,
   },
   loadingSubtext: {
     fontSize: 14,
-    color: '#6B7280',
+    color: ICON,
   },
 
   // Success State
@@ -389,31 +395,31 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: TEXT,
     marginBottom: 4,
   },
   successSubtext: {
     fontSize: 14,
-    color: '#6B7280',
+    color: ICON,
     marginBottom: 20,
   },
   summaryCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F0FDFA',
     borderRadius: 12,
     padding: 16,
     width: '100%',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#CCFBF1',
   },
   summaryTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1F4E79',
+    color: PRIMARY,
     marginBottom: 2,
   },
   summaryDate: {
     fontSize: 13,
-    color: '#64748B',
+    color: ICON,
     marginBottom: 16,
   },
   statsRow: {
@@ -426,11 +432,11 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1F4E79',
+    color: PRIMARY,
   },
   statLabel: {
     fontSize: 11,
-    color: '#64748B',
+    color: ICON,
     marginTop: 2,
   },
 
@@ -438,12 +444,12 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: TEXT,
     marginTop: 12,
   },
   errorSubtext: {
     fontSize: 14,
-    color: '#6B7280',
+    color: ICON,
     marginTop: 4,
   },
 
@@ -468,18 +474,18 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#E0F7FA',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#B2EBF2',
   },
   primaryButton: {
-    backgroundColor: '#1F4E79',
-    borderColor: '#1F4E79',
+    backgroundColor: PRIMARY,
+    borderColor: PRIMARY,
   },
   actionButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F4E79',
+    color: PRIMARY,
   },
   primaryButtonText: {
     color: '#fff',
@@ -490,18 +496,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E5E7EB',
   },
   closeBtnText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#64748B',
+    color: ICON,
   },
 
   // PDF Viewer Styles
   pdfViewerContainer: {
     flex: 1,
-    backgroundColor: '#1F4E79',
+    backgroundColor: PRIMARY,
   },
   pdfHeader: {
     flexDirection: 'row',
@@ -509,7 +515,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    backgroundColor: '#1F4E79',
+    backgroundColor: PRIMARY,
   },
   backButton: {
     padding: 8,
@@ -542,7 +548,7 @@ const styles = StyleSheet.create({
   webviewLoadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#6B7280',
+    color: ICON,
   },
   pdfErrorContainer: {
     flex: 1,
@@ -553,14 +559,14 @@ const styles = StyleSheet.create({
   },
   pdfErrorText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: ICON,
     textAlign: 'center',
   },
   openExternalBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#1F4E79',
+    backgroundColor: PRIMARY,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 10,
@@ -574,14 +580,14 @@ const styles = StyleSheet.create({
   pdfFooter: {
     padding: 16,
     paddingBottom: 32,
-    backgroundColor: '#1F4E79',
+    backgroundColor: PRIMARY,
   },
   pdfFooterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#0891B2',
     paddingVertical: 14,
     borderRadius: 12,
   },
