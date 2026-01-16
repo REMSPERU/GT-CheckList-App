@@ -2,6 +2,23 @@ import * as SQLite from 'expo-sqlite';
 
 const dbPromise = SQLite.openDatabaseAsync('offline_maintenance.db');
 
+// Simple mutex to prevent concurrent transactions
+let transactionLock: Promise<void> = Promise.resolve();
+
+const withLock = async <T>(fn: () => Promise<T>): Promise<T> => {
+  const previousLock = transactionLock;
+  let resolve: () => void;
+  transactionLock = new Promise(r => {
+    resolve = r;
+  });
+  try {
+    await previousLock;
+    return await fn();
+  } finally {
+    resolve!();
+  }
+};
+
 export const DatabaseService = {
   initializationPromise: null as Promise<void> | null,
 
@@ -139,59 +156,73 @@ export const DatabaseService = {
     equipamentos: any[] = [],
     equipamentosProperty: any[] = [],
   ) {
-    const db = await dbPromise;
+    return withLock(async () => {
+      const db = await dbPromise;
 
-    // Use transactions for bulk inserts
-    await db.withTransactionAsync(async () => {
-      // Equipos
-      for (const item of equipos) {
-        await db.runAsync(
-          'INSERT OR REPLACE INTO local_equipos (id, id_property, id_equipamento, codigo, ubicacion, estatus, equipment_detail, config, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [
-            item.id,
-            item.id_property,
-            item.id_equipamento,
-            item.codigo,
-            item.ubicacion,
-            item.estatus,
-            JSON.stringify(item.equipment_detail),
-            item.config ? 1 : 0,
-            new Date().toISOString(),
-          ],
-        );
-      }
+      // Use transactions for bulk inserts
+      await db.withTransactionAsync(async () => {
+        // Equipos
+        for (const item of equipos) {
+          await db.runAsync(
+            'INSERT OR REPLACE INTO local_equipos (id, id_property, id_equipamento, codigo, ubicacion, estatus, equipment_detail, config, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+              item.id,
+              item.id_property,
+              item.id_equipamento,
+              item.codigo,
+              item.ubicacion,
+              item.estatus,
+              JSON.stringify(item.equipment_detail),
+              item.config ? 1 : 0,
+              new Date().toISOString(),
+            ],
+          );
+        }
 
-      // Properties
-      for (const item of properties) {
-        await db.runAsync(
-          'INSERT OR REPLACE INTO local_properties (id, name, code, address, city) VALUES (?, ?, ?, ?, ?)',
-          [item.id, item.name, item.code, item.address || '', item.city || ''],
-        );
-      }
+        // Properties
+        for (const item of properties) {
+          await db.runAsync(
+            'INSERT OR REPLACE INTO local_properties (id, name, code, address, city) VALUES (?, ?, ?, ?, ?)',
+            [
+              item.id,
+              item.name,
+              item.code,
+              item.address || '',
+              item.city || '',
+            ],
+          );
+        }
 
-      // Users
-      for (const item of users) {
-        await db.runAsync(
-          'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name) VALUES (?, ?, ?, ?, ?)',
-          [item.id, item.username, item.email, item.first_name, item.last_name],
-        );
-      }
+        // Users
+        for (const item of users) {
+          await db.runAsync(
+            'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name) VALUES (?, ?, ?, ?, ?)',
+            [
+              item.id,
+              item.username,
+              item.email,
+              item.first_name,
+              item.last_name,
+            ],
+          );
+        }
 
-      // Equipamentos
-      for (const item of equipamentos) {
-        await db.runAsync(
-          'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura) VALUES (?, ?, ?)',
-          [item.id, item.nombre, item.abreviatura],
-        );
-      }
+        // Equipamentos
+        for (const item of equipamentos) {
+          await db.runAsync(
+            'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura) VALUES (?, ?, ?)',
+            [item.id, item.nombre, item.abreviatura],
+          );
+        }
 
-      // Equipamentos Property
-      for (const item of equipamentosProperty) {
-        await db.runAsync(
-          'INSERT OR REPLACE INTO local_equipamentos_property (id_equipamentos, id_property) VALUES (?, ?)',
-          [item.id_equipamentos, item.id_property],
-        );
-      }
+        // Equipamentos Property
+        for (const item of equipamentosProperty) {
+          await db.runAsync(
+            'INSERT OR REPLACE INTO local_equipamentos_property (id_equipamentos, id_property) VALUES (?, ?)',
+            [item.id_equipamentos, item.id_property],
+          );
+        }
+      });
     });
   },
 
@@ -206,64 +237,68 @@ export const DatabaseService = {
       observationKey?: string;
     }[],
   ) {
-    const db = await dbPromise;
-    let localId: number | null = null;
+    return withLock(async () => {
+      const db = await dbPromise;
+      let localId: number | null = null;
 
-    await db.withTransactionAsync(async () => {
-      // 1. Insert Maintenance Record
-      const result = await db.runAsync(
-        `INSERT INTO offline_maintenance_response (id_mantenimiento, user_created, detail_maintenance, status)
-         VALUES (?, ?, ?, 'pending')`,
-        [maintenanceId, userId, JSON.stringify(detailMaintenance)],
-      );
-      localId = result.lastInsertRowId;
-
-      // 2. Insert Photos
-      for (const photo of photos) {
-        await db.runAsync(
-          `INSERT INTO offline_photos (maintenance_local_id, local_uri, type, category, observation_key, status)
-           VALUES (?, ?, ?, ?, ?, 'pending')`,
-          [
-            localId,
-            photo.uri,
-            photo.type,
-            photo.category || null,
-            photo.observationKey || null,
-          ],
+      await db.withTransactionAsync(async () => {
+        // 1. Insert Maintenance Record
+        const result = await db.runAsync(
+          `INSERT INTO offline_maintenance_response (id_mantenimiento, user_created, detail_maintenance, status)
+           VALUES (?, ?, ?, 'pending')`,
+          [maintenanceId, userId, JSON.stringify(detailMaintenance)],
         );
-      }
-    });
+        localId = result.lastInsertRowId;
 
-    return localId;
+        // 2. Insert Photos
+        for (const photo of photos) {
+          await db.runAsync(
+            `INSERT INTO offline_photos (maintenance_local_id, local_uri, type, category, observation_key, status)
+             VALUES (?, ?, ?, ?, ?, 'pending')`,
+            [
+              localId,
+              photo.uri,
+              photo.type,
+              photo.category || null,
+              photo.observationKey || null,
+            ],
+          );
+        }
+      });
+
+      return localId;
+    });
   },
 
   async saveOfflinePanelConfiguration(panelId: string, configurationData: any) {
     await this.ensureInitialized();
-    const db = await dbPromise;
-    const jsonConfig = JSON.stringify(configurationData);
-    await db.withTransactionAsync(async () => {
-      // 1. Queue configuration for sync
-      const insertResult = await db.runAsync(
-        `INSERT INTO offline_panel_configurations (panel_id, configuration_data, status)
-         VALUES (?, ?, 'pending')`,
-        [panelId, jsonConfig],
-      );
-
-      // 2. Update local mirror immediately aka "optimistic update"
-      // This ensures the user sees the panel as configured even if offline
-      const updateResult = await db.runAsync(
-        `UPDATE local_equipos
-         SET equipment_detail = ?, config = 1, last_synced_at = ?
-         WHERE id = ?`,
-        [jsonConfig, new Date().toISOString(), panelId],
-      );
-
-      if (updateResult.changes === 0) {
-        console.warn(
-          '⚠️ [DB] No rows updated! Panel ID might not exist in local_equipos:',
-          panelId,
+    return withLock(async () => {
+      const db = await dbPromise;
+      const jsonConfig = JSON.stringify(configurationData);
+      await db.withTransactionAsync(async () => {
+        // 1. Queue configuration for sync
+        await db.runAsync(
+          `INSERT INTO offline_panel_configurations (panel_id, configuration_data, status)
+           VALUES (?, ?, 'pending')`,
+          [panelId, jsonConfig],
         );
-      }
+
+        // 2. Update local mirror immediately aka "optimistic update"
+        // This ensures the user sees the panel as configured even if offline
+        const updateResult = await db.runAsync(
+          `UPDATE local_equipos
+           SET equipment_detail = ?, config = 1, last_synced_at = ?
+           WHERE id = ?`,
+          [jsonConfig, new Date().toISOString(), panelId],
+        );
+
+        if (updateResult.changes === 0) {
+          console.warn(
+            '⚠️ [DB] No rows updated! Panel ID might not exist in local_equipos:',
+            panelId,
+          );
+        }
+      });
     });
   },
 
@@ -430,6 +465,15 @@ export const DatabaseService = {
       [id],
     );
     return result;
+  },
+
+  async updateLocalUserRole(userId: string, role: string) {
+    await this.ensureInitialized();
+    const db = await dbPromise;
+    await db.runAsync('UPDATE local_users SET role = ? WHERE id = ?', [
+      role,
+      userId,
+    ]);
   },
 
   async getElectricalPanelsByProperty(
