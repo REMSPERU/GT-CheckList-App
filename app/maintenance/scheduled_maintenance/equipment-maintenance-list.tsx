@@ -20,7 +20,11 @@ import { MaintenanceStatusEnum } from '@/types/api';
 
 export default function EquipmentMaintenanceListScreen() {
   const router = useRouter();
-  const { propertyId } = useLocalSearchParams<{ propertyId: string }>();
+  const { propertyId, scheduledDate, propertyName } = useLocalSearchParams<{
+    propertyId: string;
+    scheduledDate?: string;
+    propertyName?: string;
+  }>();
 
   // State
   const [activeTab, setActiveTab] = useState<'Preventivo' | 'Correctivo'>(
@@ -32,8 +36,9 @@ export default function EquipmentMaintenanceListScreen() {
   // Filter States
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  // When coming from session screen, show all statuses by default
   const [selectedStatus, setSelectedStatus] = useState<string>(
-    MaintenanceStatusEnum.NO_INICIADO,
+    scheduledDate ? '' : MaintenanceStatusEnum.NO_INICIADO,
   );
 
   // Fetch Data
@@ -50,6 +55,9 @@ export default function EquipmentMaintenanceListScreen() {
     const typs = new Set<string>();
 
     maintenanceData.forEach((item: any) => {
+      // Apply date filter for deriving filter options
+      if (scheduledDate && item.dia_programado !== scheduledDate) return;
+
       if (item.equipos?.ubicacion) locs.add(item.equipos.ubicacion);
       if (item.equipos?.equipamentos?.nombre)
         typs.add(item.equipos.equipamentos.nombre);
@@ -59,11 +67,14 @@ export default function EquipmentMaintenanceListScreen() {
       locations: Array.from(locs),
       types: Array.from(typs),
     };
-  }, [maintenanceData]);
+  }, [maintenanceData, scheduledDate]);
 
   // Filter Logic
   const filteredData = useMemo(() => {
     return maintenanceData.filter((item: any) => {
+      // 0. Filter by Scheduled Date (if provided from session screen)
+      if (scheduledDate && item.dia_programado !== scheduledDate) return false;
+
       // 1. Tab Filter (Tipo Mantenimiento)
       // Database stores 'Preventivo' or 'Correctivo' (case sensitive usually)
       if (item.tipo_mantenimiento !== activeTab) return false;
@@ -92,6 +103,7 @@ export default function EquipmentMaintenanceListScreen() {
     selectedLocation,
     selectedType,
     selectedStatus,
+    scheduledDate,
   ]);
 
   const getStatusColor = (status: string) => {
@@ -111,6 +123,32 @@ export default function EquipmentMaintenanceListScreen() {
     }
   };
 
+  // Format scheduled date for display
+  const displayScheduledDate = useMemo(() => {
+    if (!scheduledDate) return null;
+
+    // Parse date - handle both "YYYY-MM-DD" and ISO formats
+    let dateObj: Date;
+    if (typeof scheduledDate === 'string' && scheduledDate.includes('T')) {
+      dateObj = new Date(scheduledDate);
+    } else {
+      dateObj = new Date(scheduledDate + 'T12:00:00');
+    }
+
+    // Check if date is valid
+    if (isNaN(dateObj.getTime())) {
+      return scheduledDate; // fallback to raw string
+    }
+
+    const formatted = dateObj.toLocaleDateString('es-PE', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  }, [scheduledDate]);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -118,6 +156,18 @@ export default function EquipmentMaintenanceListScreen() {
           title="Mantenimiento programado"
           iconName="home-repair-service"
         />
+
+        {/* Date/Property Info Badge */}
+        {(displayScheduledDate || propertyName) && (
+          <View style={styles.infoBadgeContainer}>
+            {displayScheduledDate && (
+              <View style={styles.dateBadge}>
+                <Ionicons name="calendar-outline" size={16} color="#06B6D4" />
+                <Text style={styles.dateBadgeText}>{displayScheduledDate}</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Search & Filter Bar */}
         <View style={styles.searchBarContainer}>
@@ -687,5 +737,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  infoBadgeContainer: {
+    marginTop: 12,
+    gap: 8,
+  },
+  dateBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E0F7FA',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 8,
+  },
+  dateBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0891B2',
   },
 });

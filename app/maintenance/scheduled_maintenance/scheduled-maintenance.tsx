@@ -206,11 +206,14 @@ export default function ScheduledMaintenanceScreen() {
                   style={styles.card}
                   onPress={() => {
                     if (group.items.length > 0) {
-                      // Navigate to equipment list for this property
+                      // Navigate to maintenance sessions for this property
                       router.push({
                         pathname:
-                          '/maintenance/scheduled_maintenance/equipment-maintenance-list',
-                        params: { propertyId: group.propertyId },
+                          '/maintenance/scheduled_maintenance/maintenance-session',
+                        params: {
+                          propertyId: group.propertyId,
+                          propertyName: group.propertyName,
+                        },
                       });
                     }
                   }}>
