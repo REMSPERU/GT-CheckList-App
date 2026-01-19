@@ -1,6 +1,10 @@
 ﻿import { z } from 'zod';
 
-export const PanelTypeSchema = z.enum(['adosado', 'empotrado']);
+export const PanelTypeSchema = z.enum([
+  'adosado',
+  'empotrado',
+  'autosoportado',
+]);
 export const PhaseTypeSchema = z.enum(['mono_2w', 'tri_3w', 'tri_4w']);
 export const CableTypeSchema = z.enum(['libre_halogeno', 'no_libre_halogeno']);
 export const ExtraComponentTypeSchema = z.enum([

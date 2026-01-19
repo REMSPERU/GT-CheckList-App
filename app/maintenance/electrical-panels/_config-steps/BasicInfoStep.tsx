@@ -28,33 +28,47 @@ export default function BasicInfoStep({ panel }: BasicInfoStepProps) {
         control={control}
         name="panelType"
         render={({ field: { onChange, value } }) => (
-          <View style={styles.segmentContainer}>
+          <View style={styles.listButtons}>
             <TouchableOpacity
               style={[
-                styles.segment,
-                value === 'adosado' && styles.segmentActive,
+                styles.listButton,
+                value === 'adosado' && styles.listButtonActive,
               ]}
               onPress={() => onChange('adosado')}>
               <Text
                 style={[
-                  styles.segmentText,
-                  value === 'adosado' && styles.segmentTextActive,
+                  styles.listButtonText,
+                  value === 'adosado' && styles.listButtonTextActive,
                 ]}>
                 Adosado
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
-                styles.segment,
-                value === 'empotrado' && styles.segmentActive,
+                styles.listButton,
+                value === 'empotrado' && styles.listButtonActive,
               ]}
               onPress={() => onChange('empotrado')}>
               <Text
                 style={[
-                  styles.segmentText,
-                  value === 'empotrado' && styles.segmentTextActive,
+                  styles.listButtonText,
+                  value === 'empotrado' && styles.listButtonTextActive,
                 ]}>
                 Empotrado
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.listButton,
+                value === 'autosoportado' && styles.listButtonActive,
+              ]}
+              onPress={() => onChange('autosoportado')}>
+              <Text
+                style={[
+                  styles.listButtonText,
+                  value === 'autosoportado' && styles.listButtonTextActive,
+                ]}>
+                Autosoportado
               </Text>
             </TouchableOpacity>
           </View>
@@ -164,7 +178,7 @@ const styles = StyleSheet.create({
   },
   segmentContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
     justifyContent: 'center',
     marginBottom: 16,
   },
@@ -175,7 +189,9 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     borderRadius: 8,
     paddingVertical: 12,
+    paddingHorizontal: 8,
     alignItems: 'center',
+    minWidth: 0, // Allows flex items to shrink below content size
   },
   segmentActive: {
     backgroundColor: '#E0F2FE',
@@ -183,6 +199,8 @@ const styles = StyleSheet.create({
   },
   segmentText: {
     color: '#11181C',
+    fontSize: 13,
+    textAlign: 'center',
   },
   segmentTextActive: {
     color: '#0891B2',
