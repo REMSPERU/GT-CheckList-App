@@ -1,0 +1,97 @@
+name: Manual Dev Build (EAS Local)
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build from'
+        required: true
+        default: 'dev'
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Manual Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    concurrency:
+      group: manual-build-${{ github.ref }}
+      cancel-in-progress: true
+
+    env:
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx4g -XX:+HeapDumpOnOutOfMemoryError"'
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set build environment
+        id: env
+        run: |
+          echo "APP_ENV=development" >> $GITHUB_OUTPUT
+          echo "IS_RELEASE=false" >> $GITHUB_OUTPUT
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Get current version
+        id: current_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Expo Prebuild (clean)
+        run: |
+          echo "🏗️ Building profile: ${{ steps.env.outputs.APP_ENV }}"
+          APP_ENV=${{ steps.env.outputs.APP_ENV }} npx expo prebuild --platform android --clean --non-interactive
+
+      - name: Build APK
+        run: |
+          APP_ENV=${{ steps.env.outputs.APP_ENV }} eas build --platform android --profile ${{ steps.env.outputs.APP_ENV }} --local --non-interactive --output ./build-output.apk
+
+      - name: Rename APK
+        id: apk
+        run: |
+          VERSION="${{ steps.current_version.outputs.version }}"
+          DATE=$(date +%Y%m%d-%H%M)
+          FILENAME="GT-CheckList-manual-${VERSION}-${DATE}.apk"
+          mv build-output.apk "$FILENAME"
+          echo "apk_name=$FILENAME" >> $GITHUB_OUTPUT
+          echo "📦 APK: $FILENAME"
+
+      # Upload as artifact
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.apk_name }}
+          path: ${{ steps.apk.outputs.apk_name }}
+          retention-days: 14
