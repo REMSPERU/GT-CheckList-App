@@ -117,6 +117,10 @@ class SyncService {
       // 2. Update Local DB
       // We do NOT sync all users anymore for privacy/efficiency.
       // Current user is saved on login via AuthContext.
+
+      // First, clear mirror tables to remove records deleted in Supabase
+      await DatabaseService.clearMirrorTables();
+
       await DatabaseService.bulkInsertMirrorData(
         equipos || [],
         properties || [],
