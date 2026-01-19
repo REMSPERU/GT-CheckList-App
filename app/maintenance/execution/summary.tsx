@@ -6,17 +6,21 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Image,
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import NetInfo from '@react-native-community/netinfo';
 
 import MaintenanceHeader from '@/components/maintenance-header';
+import {
+  SaveFeedbackModal,
+  SaveFeedbackStatus,
+} from '@/components/SaveFeedbackModal';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
 import { PhotoItem } from '@/types/maintenance-session';
-import { supabase } from '@/lib/supabase'; // To get current user
+import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
 
@@ -35,11 +39,19 @@ export default function SummaryScreen() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
 
+  // Modal state
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalStatus, setModalStatus] = useState<SaveFeedbackStatus>('loading');
+  const [modalMessage, setModalMessage] = useState<string | undefined>();
+
   if (!session) return <ActivityIndicator />;
 
   const handleFinalize = async () => {
     setIsUploading(true);
-    setUploadProgress('Guardando localmente...');
+    setUploadProgress('Guardando...');
+    setModalVisible(true);
+    setModalStatus('loading');
+    setModalMessage('Guardando mantenimiento...');
 
     try {
       // 0. Get Current User
@@ -123,34 +135,57 @@ export default function SummaryScreen() {
 
       console.log('SUCCESS: Saved locally');
 
-      // 5. Trigger Sync (Background)
-      // We don't await this so the user can continue
-      syncService
-        .pushData()
-        .catch(err => console.error('Background sync failed:', err));
+      // 5. Check connectivity and sync
+      const netState = await NetInfo.fetch();
+      const isOnline = netState.isConnected && netState.isInternetReachable;
 
-      // 6. Clear Local Session & Navigate
+      if (isOnline) {
+        // Try to sync immediately
+        setModalMessage('Sincronizando con el servidor...');
+        try {
+          await syncService.pushData();
+          // Sync succeeded!
+          setModalStatus('success');
+          setModalMessage(
+            'El mantenimiento se ha guardado y sincronizado correctamente.',
+          );
+        } catch (syncError) {
+          console.error('Sync failed:', syncError);
+          // Saved locally but sync failed - show error
+          setModalStatus('error');
+          setModalMessage(
+            'Los datos se guardaron localmente pero hubo un error al sincronizar. Se reintentará automáticamente.',
+          );
+        }
+      } else {
+        // No internet - show offline message
+        setModalStatus('offline');
+        setModalMessage(undefined); // Use default offline message
+      }
+
+      // 6. Clear Local Session
       await clearSession();
-
-      Alert.alert(
-        'Guardado',
-        'Mantenimiento guardado en dispositivo. Se sincronizará cuando haya conexión.',
-        [
-          {
-            text: 'OK',
-            onPress: () =>
-              router.push({
-                pathname: '/maintenance',
-              }),
-          },
-        ],
-      );
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'Hubo un error al guardar localmente.');
+      setModalStatus('error');
+      setModalMessage(
+        'Hubo un error al guardar. Por favor intente nuevamente.',
+      );
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleModalClose = () => {
+    setModalVisible(false);
+    if (modalStatus === 'success' || modalStatus === 'offline') {
+      router.push({ pathname: '/maintenance' });
+    }
+  };
+
+  const handleRetry = () => {
+    setModalVisible(false);
+    handleFinalize();
   };
 
   const handleObservationsChange = (text: string) => {
@@ -337,6 +372,15 @@ export default function SummaryScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Save Feedback Modal */}
+      <SaveFeedbackModal
+        visible={modalVisible}
+        status={modalStatus}
+        message={modalMessage}
+        onClose={handleModalClose}
+        onRetry={handleRetry}
+      />
     </SafeAreaView>
   );
 }
