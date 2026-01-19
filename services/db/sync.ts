@@ -1,5 +1,8 @@
 import { dbPromise, withLock, ensureInitialized } from './connection';
 
+/**
+ * @deprecated Use smartSync instead. This clears all data causing UI flicker.
+ */
 export async function clearMirrorTables() {
   await ensureInitialized();
   const db = await dbPromise;
@@ -13,6 +16,64 @@ export async function clearMirrorTables() {
   `);
 }
 
+/**
+ * Smart sync helper that performs differential updates.
+ * Only deletes records that no longer exist remotely, then upserts the rest.
+ * This prevents UI flicker during sync.
+ */
+async function smartSyncTable<T extends { id?: string }>(
+  db: any,
+  tableName: string,
+  remoteData: T[],
+  pkField: string,
+  insertQuery: string,
+  paramsFn: (item: T) => any[],
+) {
+  if (remoteData.length === 0) {
+    // If no remote data, clear the table
+    await db.runAsync(`DELETE FROM ${tableName}`);
+    return;
+  }
+
+  // 1. Get all local IDs
+  const localRows = (await db.getAllAsync(
+    `SELECT ${pkField} as pk FROM ${tableName}`,
+  )) as { pk: string }[];
+  const localIds = new Set(localRows.map((r: { pk: string }) => r.pk));
+  const remoteIds = new Set(
+    remoteData.map((r: any) => String((r as any)[pkField])),
+  );
+
+  // 2. Identify records to delete (exist locally but not remotely)
+  const toDelete = [...localIds].filter((id: string) => !remoteIds.has(id));
+
+  // 3. Delete removed records in batches (SQLite has limits on IN clause)
+  if (toDelete.length > 0) {
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
+      const batch = toDelete.slice(i, i + BATCH_SIZE);
+      const placeholders = batch.map(() => '?').join(',');
+      await db.runAsync(
+        `DELETE FROM ${tableName} WHERE ${pkField} IN (${placeholders})`,
+        batch,
+      );
+    }
+    console.log(
+      `[SmartSync] Deleted ${toDelete.length} records from ${tableName}`,
+    );
+  }
+
+  // 4. Upsert all remote data (INSERT OR REPLACE handles updates)
+  for (const item of remoteData) {
+    await db.runAsync(insertQuery, paramsFn(item));
+  }
+}
+
+/**
+ * Bulk insert/update mirror data using smart sync strategy.
+ * This performs differential updates instead of clearing all data first,
+ * which prevents UI flicker during synchronization.
+ */
 export async function bulkInsertMirrorData(
   equipos: any[],
   properties: any[],
@@ -20,61 +81,87 @@ export async function bulkInsertMirrorData(
   equipamentos: any[] = [],
   equipamentosProperty: any[] = [],
 ) {
+  await ensureInitialized();
+
   return withLock(async () => {
     const db = await dbPromise;
 
-    // Use transactions for bulk inserts
     await db.withTransactionAsync(async () => {
-      // Equipos
-      for (const item of equipos) {
-        await db.runAsync(
-          'INSERT OR REPLACE INTO local_equipos (id, id_property, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus, equipment_detail, config, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [
-            item.id,
-            item.id_property,
-            item.id_equipamento,
-            item.codigo,
-            item.ubicacion,
-            item.detalle_ubicacion,
-            item.estatus,
-            JSON.stringify(item.equipment_detail),
-            item.config ? 1 : 0,
-            new Date().toISOString(),
-          ],
-        );
-      }
+      // --- Smart Sync for Equipos ---
+      await smartSyncTable(
+        db,
+        'local_equipos',
+        equipos,
+        'id',
+        'INSERT OR REPLACE INTO local_equipos (id, id_property, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus, equipment_detail, config, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        item => [
+          item.id,
+          item.id_property,
+          item.id_equipamento,
+          item.codigo,
+          item.ubicacion,
+          item.detalle_ubicacion,
+          item.estatus,
+          JSON.stringify(item.equipment_detail),
+          item.config ? 1 : 0,
+          new Date().toISOString(),
+        ],
+      );
 
-      // Properties
-      for (const item of properties) {
-        await db.runAsync(
-          'INSERT OR REPLACE INTO local_properties (id, name, code, address, city) VALUES (?, ?, ?, ?, ?)',
-          [item.id, item.name, item.code, item.address || '', item.city || ''],
-        );
-      }
+      // --- Smart Sync for Properties ---
+      await smartSyncTable(
+        db,
+        'local_properties',
+        properties,
+        'id',
+        'INSERT OR REPLACE INTO local_properties (id, name, code, address, city) VALUES (?, ?, ?, ?, ?)',
+        item => [
+          item.id,
+          item.name,
+          item.code,
+          item.address || '',
+          item.city || '',
+        ],
+      );
 
-      // Users
-      for (const item of users) {
-        await db.runAsync(
-          'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name) VALUES (?, ?, ?, ?, ?)',
-          [item.id, item.username, item.email, item.first_name, item.last_name],
-        );
-      }
+      // --- Smart Sync for Users ---
+      await smartSyncTable(
+        db,
+        'local_users',
+        users,
+        'id',
+        'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name) VALUES (?, ?, ?, ?, ?)',
+        item => [
+          item.id,
+          item.username,
+          item.email,
+          item.first_name,
+          item.last_name,
+        ],
+      );
 
-      // Equipamentos
-      for (const item of equipamentos) {
-        await db.runAsync(
-          'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura) VALUES (?, ?, ?)',
-          [item.id, item.nombre, item.abreviatura],
-        );
-      }
+      // --- Smart Sync for Equipamentos (Catalog) ---
+      await smartSyncTable(
+        db,
+        'local_equipamentos',
+        equipamentos,
+        'id',
+        'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura) VALUES (?, ?, ?)',
+        item => [item.id, item.nombre, item.abreviatura],
+      );
 
-      // Equipamentos Property
+      // --- Equipamentos Property (Composite Key - Full Replace) ---
+      // For junction tables with composite keys, it's simpler and fast enough
+      // to clear and re-insert within the same transaction
+      await db.runAsync('DELETE FROM local_equipamentos_property');
       for (const item of equipamentosProperty) {
         await db.runAsync(
-          'INSERT OR REPLACE INTO local_equipamentos_property (id_equipamentos, id_property) VALUES (?, ?)',
+          'INSERT INTO local_equipamentos_property (id_equipamentos, id_property) VALUES (?, ?)',
           [item.id_equipamentos, item.id_property],
         );
       }
     });
+
+    console.log('[SmartSync] Mirror data sync completed');
   });
 }

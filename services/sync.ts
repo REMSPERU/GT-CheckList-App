@@ -118,9 +118,8 @@ class SyncService {
       // We do NOT sync all users anymore for privacy/efficiency.
       // Current user is saved on login via AuthContext.
 
-      // First, clear mirror tables to remove records deleted in Supabase
-      await DatabaseService.clearMirrorTables();
-
+      // Smart sync: bulkInsertMirrorData now performs differential updates
+      // instead of clearing all data first, preventing UI flicker
       await DatabaseService.bulkInsertMirrorData(
         equipos || [],
         properties || [],
