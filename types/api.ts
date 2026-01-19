@@ -212,6 +212,7 @@ export interface BaseEquipment {
   id_equipamento?: string;
   codigo: string;
   ubicacion: string;
+  detalle_ubicacion: string;
   estatus: string;
   config: boolean;
   equipment_detail?: Record<string, any> | null;

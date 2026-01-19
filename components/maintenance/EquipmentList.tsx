@@ -69,7 +69,10 @@ export function EquipmentList<T extends BaseEquipment>({
                 color="#6B7280"
                 style={{ marginRight: 4 }}
               />
-              <Text style={styles.itemLocation}>{item.ubicacion}</Text>
+              <Text style={styles.itemLocation}>
+                {item.ubicacion}
+                {item.detalle_ubicacion ? ` - ${item.detalle_ubicacion}` : ''}
+              </Text>
             </View>
           </View>
 

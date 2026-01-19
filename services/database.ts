@@ -39,6 +39,7 @@ export const DatabaseService = {
             id_equipamento TEXT,
             codigo TEXT,
             ubicacion TEXT,
+            detalle_ubicacion TEXT,
             estatus TEXT,
             equipment_detail TEXT, -- JSON string
             config INTEGER,
@@ -123,6 +124,18 @@ export const DatabaseService = {
         // Column already exists - this is expected for new installs or already-migrated DBs
       }
 
+      // Migration v1.2: Add detalle_ubicacion column to local_equipos
+      try {
+        await db.execAsync(
+          `ALTER TABLE local_equipos ADD COLUMN detalle_ubicacion TEXT;`,
+        );
+        console.log(
+          'Migration: Added detalle_ubicacion column to local_equipos',
+        );
+      } catch {
+        // Column already exists - this is expected for new installs or already-migrated DBs
+      }
+
       console.log('Database initialized');
     })();
 
@@ -164,13 +177,14 @@ export const DatabaseService = {
         // Equipos
         for (const item of equipos) {
           await db.runAsync(
-            'INSERT OR REPLACE INTO local_equipos (id, id_property, id_equipamento, codigo, ubicacion, estatus, equipment_detail, config, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT OR REPLACE INTO local_equipos (id, id_property, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus, equipment_detail, config, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
               item.id,
               item.id_property,
               item.id_equipamento,
               item.codigo,
               item.ubicacion,
+              item.detalle_ubicacion,
               item.estatus,
               JSON.stringify(item.equipment_detail),
               item.config ? 1 : 0,
