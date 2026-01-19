@@ -18,11 +18,7 @@ import PDFReportModal from '@/components/pdf-report-modal';
 import { useMaintenanceByProperty } from '@/hooks/use-maintenance';
 import { MaintenanceStatusEnum } from '@/types/api';
 import { supabase } from '@/lib/supabase';
-import {
-  pdfReportService,
-  SessionReportData,
-  ReportMaintenanceData,
-} from '@/services/pdf-report.service';
+import { pdfReportService } from '@/services/pdf-report.service';
 
 interface MaintenanceSession {
   date: string;
@@ -189,10 +185,10 @@ export default function MaintenanceSessionScreen() {
 
       if (error) throw error;
 
-      setGenerationProgress('Generando PDF...');
+      setGenerationProgress('Generando informe...');
 
-      // Build report data
-      const maintenancesData: ReportMaintenanceData[] = [];
+      // Build report data in NEW format
+      const equipments: any[] = [];
       let totalOkItems = 0;
       let totalIssueItems = 0;
 
@@ -203,7 +199,6 @@ export default function MaintenanceSessionScreen() {
           (r: any) => r.id_mantenimiento === maint.id,
         );
         const detail = response?.detail_maintenance || {};
-        const userData = (response as any)?.users;
 
         const checklist = detail.checklist || {};
         totalOkItems += Object.values(checklist).filter(v => v === true).length;
@@ -211,50 +206,52 @@ export default function MaintenanceSessionScreen() {
           v => v === false,
         ).length;
 
-        maintenancesData.push({
-          maintenanceId: maint.id,
-          equipmentCode: maint.equipos?.codigo || 'N/A',
-          equipmentLocation: maint.equipos?.ubicacion || 'N/A',
-          propertyName: propertyName || 'Propiedad',
-          scheduledDate: session.date,
-          completedAt:
-            detail.completedAt ||
-            response?.date_created ||
-            new Date().toISOString(),
-          technicianName: userData
-            ? `${userData.first_name || ''} ${userData.last_name || ''}`
-            : 'No especificado',
-          maintenanceType: maint.tipo_mantenimiento || 'Preventivo',
-          prePhotos: (detail.prePhotos || []).map((p: any) => ({
-            url: p.url || p.uri,
-            category: p.category,
-          })),
+        const firstMeasurement = detail.measurements
+          ? (Object.values(detail.measurements)[0] as any)
+          : null;
+
+        // Map to new EquipmentMaintenanceData format
+        equipments.push({
+          code: maint.equipos?.codigo || 'N/A',
+          label: maint.equipos?.nombre || maint.equipos?.codigo || 'N/A',
+          type: maint.tipo_mantenimiento || 'Preventivo',
+          location: maint.equipos?.ubicacion || 'N/A',
+          voltage: firstMeasurement?.voltage,
+          amperage: firstMeasurement?.amperage,
+          cableSize: firstMeasurement?.cableDiameter,
+          circuits: detail.checklist ? Object.keys(detail.checklist).length : 0,
+          prePhotos: (detail.prePhotos || [])
+            .filter((p: any) => p.category !== 'thermo')
+            .map((p: any) => ({ url: p.url || p.uri })),
+          thermoPhotos: (detail.prePhotos || [])
+            .filter((p: any) => p.category === 'thermo')
+            .map((p: any) => ({ url: p.url || p.uri })),
           postPhotos: (detail.postPhotos || []).map((p: any) => ({
             url: p.url || p.uri,
           })),
-          checklist,
-          measurements: detail.measurements,
-          itemObservations: detail.itemObservations || {},
           observations: detail.observations,
         });
       }
 
-      const sessionReportData: SessionReportData = {
-        propertyName: propertyName || 'Propiedad',
-        sessionDate: session.date,
+      const sessionReportData: any = {
+        clientName: 'CORPORACION MG SAC', // Defaulting as per template
+        address: 'Av. Del Pinar 180, Surco', // Defaulting as per template
+        locationName: propertyName || 'Propiedad',
+        serviceDescription: 'MANTENIMIENTO PREVENTIVO DE TABLEROS ELÉCTRICOS',
+        serviceDate: session.date,
         generatedAt: new Date().toISOString(),
-        maintenances: maintenancesData,
+        equipments,
       };
 
-      // Generate PDF
-      const uri = await pdfReportService.generatePDF(sessionReportData);
+      // Generate PDF using NEW method
+      const uri = await pdfReportService.generateSessionPDF(sessionReportData);
       setPdfUri(uri);
 
       // Set summary for modal
       setReportSummary({
         propertyName: propertyName || 'Propiedad',
         sessionDate: session.displayDate,
-        totalEquipments: maintenancesData.length,
+        totalEquipments: equipments.length,
         totalOk: totalOkItems,
         totalIssues: totalIssueItems,
       });

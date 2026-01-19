@@ -8,11 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  StatusBar,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
 import { Colors } from '@/constants/theme';
 import { pdfReportService } from '@/services/pdf-report.service';
 
@@ -32,10 +29,6 @@ interface PDFReportModalProps {
 }
 
 const { height: windowHeight } = Dimensions.get('window');
-const STATUSBAR_HEIGHT =
-  Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0;
-
-// Theme colors
 const PRIMARY = Colors.light.tint; // #06B6D4
 const TEXT = Colors.light.text; // #11181C
 const ICON = Colors.light.icon; // #6B7280
@@ -49,15 +42,44 @@ export default function PDFReportModal({
   reportSummary,
 }: PDFReportModalProps) {
   const [isSharing, setIsSharing] = useState(false);
-  const [isViewingPdf, setIsViewingPdf] = useState(false);
-  const [pdfLoadError, setPdfLoadError] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!pdfUri) return;
+
+    setIsDownloading(true);
+    try {
+      // Construct a descriptive filename
+      const filename = reportSummary
+        ? `Informe_${reportSummary.propertyName}_${reportSummary.sessionDate.replace(
+            /\s+/g,
+            '_',
+          )}`
+        : 'Informe_Mantenimiento';
+
+      // Use openPDF instead of sharePDF for a more direct experience
+      await pdfReportService.openPDF(pdfUri, filename);
+    } catch (error) {
+      console.error('Error opening PDF:', error);
+      Alert.alert('Error', 'No se pudo abrir el informe');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleShare = async () => {
     if (!pdfUri) return;
 
     setIsSharing(true);
     try {
-      await pdfReportService.sharePDF(pdfUri);
+      const filename = reportSummary
+        ? `Informe_${reportSummary.propertyName}_${reportSummary.sessionDate.replace(
+            /\s+/g,
+            '_',
+          )}`
+        : 'Informe_Mantenimiento';
+
+      await pdfReportService.sharePDF(pdfUri, filename, 'Compartir Informe');
     } catch (error) {
       console.error('Error sharing PDF:', error);
       Alert.alert('Error', 'No se pudo compartir el informe');
@@ -66,106 +88,10 @@ export default function PDFReportModal({
     }
   };
 
-  const handleViewPdf = () => {
-    setIsViewingPdf(true);
-    setPdfLoadError(false);
-  };
-
-  const handleBackFromViewer = () => {
-    setIsViewingPdf(false);
-  };
-
   const handleClose = () => {
-    setIsViewingPdf(false);
     onClose();
   };
 
-  // PDF Viewer Mode
-  if (isViewingPdf && pdfUri) {
-    return (
-      <Modal
-        visible={visible}
-        animationType="slide"
-        onRequestClose={handleBackFromViewer}>
-        <View style={styles.pdfViewerContainer}>
-          {/* Header with padding for status bar */}
-          <View
-            style={[styles.pdfHeader, { paddingTop: STATUSBAR_HEIGHT + 10 }]}>
-            <TouchableOpacity
-              onPress={handleBackFromViewer}
-              style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.pdfHeaderTitle}>Vista Previa del Informe</Text>
-            <TouchableOpacity
-              onPress={handleShare}
-              style={styles.shareHeaderBtn}>
-              <Ionicons name="share-outline" size={22} color="#fff" />
-            </TouchableOpacity>
-          </View>
-
-          {/* PDF Content via WebView */}
-          <View style={styles.pdfContent}>
-            {pdfLoadError ? (
-              <View style={styles.pdfErrorContainer}>
-                <Ionicons name="document-outline" size={64} color={ICON} />
-                <Text style={styles.pdfErrorText}>
-                  No se puede mostrar el PDF en la app
-                </Text>
-                <TouchableOpacity
-                  style={styles.openExternalBtn}
-                  onPress={handleShare}>
-                  <Ionicons name="open-outline" size={20} color="#fff" />
-                  <Text style={styles.openExternalText}>
-                    Abrir con otra app
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <WebView
-                source={{ uri: pdfUri }}
-                style={styles.webview}
-                originWhitelist={['*']}
-                allowFileAccess={true}
-                allowFileAccessFromFileURLs={true}
-                allowUniversalAccessFromFileURLs={true}
-                onError={() => setPdfLoadError(true)}
-                onHttpError={() => setPdfLoadError(true)}
-                startInLoadingState={true}
-                renderLoading={() => (
-                  <View style={styles.webviewLoading}>
-                    <ActivityIndicator size="large" color={PRIMARY} />
-                    <Text style={styles.webviewLoadingText}>
-                      Cargando PDF...
-                    </Text>
-                  </View>
-                )}
-              />
-            )}
-          </View>
-
-          {/* Footer Actions */}
-          <View style={styles.pdfFooter}>
-            <TouchableOpacity
-              style={styles.pdfFooterBtn}
-              onPress={handleShare}
-              disabled={isSharing}>
-              {isSharing ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name="share-social" size={20} color="#fff" />
-                  <Text style={styles.pdfFooterBtnText}>Compartir</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    );
-  }
-
-  // Default Summary Mode
   return (
     <Modal
       visible={visible}
@@ -264,31 +190,38 @@ export default function PDFReportModal({
             <View style={styles.footer}>
               <View style={styles.actionButtonsRow}>
                 <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={handleViewPdf}>
-                  <Ionicons name="eye-outline" size={22} color={PRIMARY} />
-                  <Text style={styles.actionButtonText}>Ver PDF</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.primaryButton]}
+                  style={[styles.actionButton, styles.secondaryButton]}
                   onPress={handleShare}
-                  disabled={isSharing}>
+                  disabled={isSharing || isDownloading}>
                   {isSharing ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={PRIMARY} />
                   ) : (
                     <>
                       <Ionicons
                         name="share-social-outline"
                         size={22}
-                        color="#fff"
+                        color={PRIMARY}
                       />
+                      <Text style={styles.actionButtonText}>Compartir</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.primaryButton]}
+                  onPress={handleDownload}
+                  disabled={isDownloading || isSharing}>
+                  {isDownloading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="eye-outline" size={22} color="#fff" />
                       <Text
                         style={[
                           styles.actionButtonText,
                           styles.primaryButtonText,
                         ]}>
-                        Compartir
+                        Abrir Informe
                       </Text>
                     </>
                   )}
@@ -482,6 +415,10 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY,
     borderColor: PRIMARY,
   },
+  secondaryButton: {
+    backgroundColor: '#fff',
+    borderColor: PRIMARY,
+  },
   actionButtonText: {
     fontSize: 15,
     fontWeight: '600',
@@ -502,98 +439,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: ICON,
-  },
-
-  // PDF Viewer Styles
-  pdfViewerContainer: {
-    flex: 1,
-    backgroundColor: PRIMARY,
-  },
-  pdfHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: PRIMARY,
-  },
-  backButton: {
-    padding: 8,
-  },
-  pdfHeaderTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  shareHeaderBtn: {
-    padding: 8,
-  },
-  pdfContent: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  webview: {
-    flex: 1,
-  },
-  webviewLoading: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  webviewLoadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: ICON,
-  },
-  pdfErrorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-    padding: 32,
-  },
-  pdfErrorText: {
-    fontSize: 16,
-    color: ICON,
-    textAlign: 'center',
-  },
-  openExternalBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: PRIMARY,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 8,
-  },
-  openExternalText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  pdfFooter: {
-    padding: 16,
-    paddingBottom: 32,
-    backgroundColor: PRIMARY,
-  },
-  pdfFooterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#0891B2',
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  pdfFooterBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

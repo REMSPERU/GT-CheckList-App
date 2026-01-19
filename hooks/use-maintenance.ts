@@ -122,7 +122,6 @@ export const useScheduledMaintenances = () => {
           `
           id,
           dia_programado,
-          estatus,
           tipo_mantenimiento,
           observations,
           id_equipo,
@@ -141,7 +140,7 @@ export const useScheduledMaintenances = () => {
           )
         `,
         )
-        .eq('estatus', MaintenanceStatusEnum.NO_INICIADO)
+        //.eq('estatus', MaintenanceStatusEnum.NO_INICIADO)
         .order('dia_programado', { ascending: true });
 
       if (error) throw error;
