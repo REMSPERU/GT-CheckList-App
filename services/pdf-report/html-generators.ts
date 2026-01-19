@@ -169,7 +169,7 @@ function generatePhotosHTML(
   thermoPhotos.forEach((photo, idx) => {
     sections.push(`
       <div class="photo-container">
-        <span class="photo-header bg-blue">MEDICIÓN / TERMOGRAFÍA ${thermoPhotos.length > 1 ? `#${idx + 1}` : ''}</span>
+        <span class="photo-header bg-orange">MEDICIÓN / TERMOGRAFÍA ${thermoPhotos.length > 1 ? `#${idx + 1}` : ''}</span>
         <img src="${photo.url}" alt="Medición" />
         <p class="photo-caption">${photo.caption || 'Lectura de instrumentos'}</p>
       </div>
@@ -180,7 +180,7 @@ function generatePhotosHTML(
   postPhotos.forEach((photo, idx) => {
     sections.push(`
       <div class="photo-container full-width">
-        <span class="photo-header bg-green">DESPUÉS ${postPhotos.length > 1 ? `#${idx + 1}` : ''}</span>
+        <span class="photo-header bg-orange">DESPUÉS ${postPhotos.length > 1 ? `#${idx + 1}` : ''}</span>
         <img src="${photo.url}" alt="Estado final" />
         <p class="photo-caption">${photo.caption || 'Tablero limpio y cerrado'}</p>
       </div>

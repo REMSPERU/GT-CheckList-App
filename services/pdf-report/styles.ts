@@ -39,13 +39,13 @@ export function getReportStyles(): string {
 
     /* ENCABEZADOS */
     header {
-      border-bottom: 2px solid #0056b3;
+      border-bottom: 2px solid #ff6600;
       margin-bottom: 20px;
       padding-bottom: 10px;
     }
 
     h1 {
-      color: #0056b3;
+      color: #ff6600;
       font-size: 24px;
       text-transform: uppercase;
       margin: 0;
@@ -64,7 +64,7 @@ export function getReportStyles(): string {
 
     h3 {
       font-size: 14px;
-      color: #0056b3;
+      color: #ff6600;
       margin-top: 10px;
       text-align: center;
     }
@@ -106,7 +106,7 @@ export function getReportStyles(): string {
     }
 
     .data-grid th {
-      background-color: #0056b3;
+      background-color: #ff6600;
       color: white;
       width: 25%;
     }
@@ -122,13 +122,13 @@ export function getReportStyles(): string {
     }
 
     .summary-table th {
-      background-color: #0056b3;
+      background-color: #ff6600;
       color: white;
     }
 
     /* TABLA DE EQUIPOS */
     .equipment-table th {
-      background-color: #0056b3;
+      background-color: #ff6600;
       color: white;
       text-align: center;
       font-size: 11px;
@@ -190,14 +190,6 @@ export function getReportStyles(): string {
       background-color: #ff6600;
     }
 
-    .bg-blue {
-      background-color: #0056b3;
-    }
-
-    .bg-green {
-      background-color: #28a745;
-    }
-
     img {
       max-width: 100%;
       height: auto;
@@ -235,7 +227,7 @@ export function getReportStyles(): string {
       text-align: justify;
       background: #f9f9f9;
       padding: 10px;
-      border-left: 3px solid #0056b3;
+      border-left: 3px solid #ff6600;
       margin: 10px 0;
     }
 
