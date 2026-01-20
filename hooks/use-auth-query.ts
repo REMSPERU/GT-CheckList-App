@@ -26,10 +26,13 @@ export function useCurrentUser(
   return useQuery({
     queryKey: authKeys.currentUser(),
     queryFn: async () => {
+      console.log('[useCurrentUser] queryFn executing - fetching user');
       try {
         // 1. Try online fetch
-        return await supabaseAuthService.getCurrentUser();
-      } catch (error) {
+        const user = await supabaseAuthService.getCurrentUser();
+        console.log('[useCurrentUser] Online fetch result:', !!user);
+        return user;
+      } catch (_error) {
         console.log('Network auth check failed, checking local storage...');
 
         // 2. Fallback: Check if we have a valid session in AsyncStorage (handled by Supabase)

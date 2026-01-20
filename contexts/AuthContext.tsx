@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useState,
+  useRef,
 } from 'react';
 import { AuthLoadingScreen } from '../components/auth-loading-screen';
 import {
@@ -44,6 +45,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
   const segments = useSegments();
 
+  // Ref to track if we already fetched user during initialization
+  const hasInitialFetch = useRef(false);
+
   // React Query hooks
   const loginMutation = useLogin();
   const registerMutation = useRegister();
@@ -73,11 +77,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const {
       data: { subscription },
     } = supabaseAuthService.onAuthStateChange(async (event, session) => {
-      console.log('Supabase auth event:', event);
-
       if (event === 'SIGNED_IN' && session) {
         setHasSession(true);
-        await refetchUser();
+
+        // Skip refetch if we already did it during initialization
+        if (hasInitialFetch.current) {
+        } else {
+          await refetchUser();
+        }
 
         // Save user to local DB with role from public.users
         if (session.user) {
@@ -99,13 +106,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
               role: userRole,
             });
           } catch (err) {
-            console.error('Failed to save user to local DB:', err);
+            console.error(
+              '[AuthContext] Failed to save user to local DB:',
+              err,
+            );
           }
         }
       } else if (event === 'SIGNED_OUT') {
+        console.log('[AuthContext] SIGNED_OUT - clearing session');
         setHasSession(false);
+        hasInitialFetch.current = false;
       } else if (event === 'TOKEN_REFRESHED' && session) {
+        console.log('[AuthContext] TOKEN_REFRESHED');
         setHasSession(true);
+      } else if (event === 'INITIAL_SESSION') {
+        console.log(
+          '[AuthContext] INITIAL_SESSION event - hasSession:',
+          !!session,
+        );
       }
     });
 
@@ -139,11 +157,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setHasSession(!!session);
 
       if (session) {
-        // React Query will automatically fetch user data
+        hasInitialFetch.current = true; // Mark that we're doing the initial fetch
         await refetchUser();
       }
-    } catch (err) {
-      console.error('Failed to initialize auth:', err);
+    } catch (error) {
+      console.error('Error initializing auth:', error);
       setHasSession(false);
     } finally {
       setIsInitialized(true);
