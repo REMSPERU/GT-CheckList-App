@@ -50,6 +50,7 @@ export function generateHeaderPageHTML(data: MaintenanceSessionReport): string {
         <tr><td><span class="info-label">DIRECCIÓN:</span> ${data.address}</td></tr>
         <tr><td><span class="info-label">UBICACIÓN:</span> ${data.locationName}</td></tr>
         <tr><td><span class="info-label">MOTIVO:</span> ${data.serviceDescription}</td></tr>
+        ${data.sessionCode ? `<tr><td><span class="info-label">CÓDIGO:</span> ${data.sessionCode}</td></tr>` : ''}
       </table>
 
       <h2>1. PROCEDIMIENTO REALIZADO</h2>

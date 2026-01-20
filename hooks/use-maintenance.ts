@@ -48,14 +48,74 @@ export const useCreateMaintenance = () => {
         throw new Error('No authenticated user found');
       }
 
-      // 2. Create maintenance records
+      // 2. Generate maintenance code
+      // Format: {PROPERTY_ABBREV}-{EQUIP_TYPE}-{DATE}-{SEQ}
+      // Fetch property and equipment info from first panel
+      const { data: firstPanel, error: panelError } = await supabase
+        .from('equipos')
+        .select(
+          `
+          id,
+          properties (
+            name
+          ),
+          equipamentos (
+            abreviatura
+          )
+        `,
+        )
+        .eq('id', panel_ids[0])
+        .single();
+
+      if (panelError || !firstPanel) {
+        throw new Error('Failed to fetch panel information');
+      }
+
+      // Generate property abbreviation
+      const propertyName = (firstPanel.properties as any)?.name || 'PROPERTY';
+      const propertyWords = propertyName.toUpperCase().split(/\s+/).slice(0, 3);
+      const propertyAbbrev = propertyWords.join('_');
+
+      // Get equipment type abbreviation
+      const equipType =
+        (firstPanel.equipamentos as any)?.abreviatura?.toUpperCase() || 'EQ';
+
+      // Format date as YYYYMMDD
+      const dateObj = new Date(commonData.dia_programado);
+      const dateStr = `${dateObj.getFullYear()}${String(dateObj.getMonth() + 1).padStart(2, '0')}${String(dateObj.getDate()).padStart(2, '0')}`;
+
+      // Query existing codes for sequential numbering
+      const codePrefix = `${propertyAbbrev}-${equipType}-${dateStr}`;
+      const { data: existingCodes } = await supabase
+        .from('mantenimientos')
+        .select('codigo')
+        .like('codigo', `${codePrefix}%`)
+        .order('codigo', { ascending: false })
+        .limit(1);
+
+      let seqNum = 1;
+      if (existingCodes && existingCodes.length > 0) {
+        const lastCode = existingCodes[0].codigo;
+        if (lastCode) {
+          const match = lastCode.match(/-(\d{3})$/);
+          if (match) {
+            seqNum = parseInt(match[1], 10) + 1;
+          }
+        }
+      }
+
+      const codigo = `${codePrefix}-${String(seqNum).padStart(3, '0')}`;
+      console.log('Generated maintenance code:', codigo);
+
+      // 3. Create maintenance records
       const maintenanceInserts = panel_ids.map(panelId => ({
         id_equipo: panelId,
-        dia_programado: commonData.dia_programado, // Date type in DB
+        dia_programado: commonData.dia_programado,
         tipo_mantenimiento: commonData.tipo_mantenimiento,
         estatus: MaintenanceStatusEnum.NO_INICIADO,
-        id_user: user.id, // Creator
+        id_user: user.id,
         observations: commonData.observations,
+        codigo,
       }));
 
       console.log('Saving Maintenance:', maintenanceInserts);
@@ -165,6 +225,7 @@ export const useMaintenanceByProperty = (propertyId: string) => {
           dia_programado,
           estatus,
           tipo_mantenimiento,
+          codigo,
           equipos!inner (
             id,
             codigo,

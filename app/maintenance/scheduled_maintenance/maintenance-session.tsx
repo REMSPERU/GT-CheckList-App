@@ -27,6 +27,7 @@ interface MaintenanceSession {
   completed: number;
   inProgress: number;
   maintenances: any[];
+  codigo?: string;
 }
 
 export default function MaintenanceSessionScreen() {
@@ -97,6 +98,7 @@ export default function MaintenanceSessionScreen() {
           completed: 0,
           inProgress: 0,
           maintenances: [],
+          codigo: item.codigo, // Extract codigo from first maintenance
         };
       }
 
@@ -245,6 +247,7 @@ export default function MaintenanceSessionScreen() {
         serviceDescription: 'MANTENIMIENTO PREVENTIVO DE TABLEROS ELÉCTRICOS',
         serviceDate: session.date,
         generatedAt: new Date().toISOString(),
+        sessionCode: session.codigo, // Add maintenance code
         equipments,
       };
 
@@ -329,7 +332,14 @@ export default function MaintenanceSessionScreen() {
                       size={20}
                       color="#06B6D4"
                     />
-                    <Text style={styles.dateText}>{session.displayDate}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.dateText}>{session.displayDate}</Text>
+                      {session.codigo && (
+                        <Text style={styles.codigoText}>
+                          Código: {session.codigo}
+                        </Text>
+                      )}
+                    </View>
                   </View>
 
                   {/* Progress Bar */}
@@ -468,7 +478,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: Colors.light.text,
-    flex: 1,
+  },
+  codigoText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6B7280',
+    marginTop: 4,
   },
   progressContainer: {
     marginBottom: 16,

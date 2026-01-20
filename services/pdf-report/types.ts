@@ -40,6 +40,8 @@ export interface MaintenanceSessionReport {
   serviceDate: string;
   /** Date report was generated */
   generatedAt: string;
+  /** Maintenance session code */
+  sessionCode?: string;
   /** List of equipment maintenances */
   equipments: EquipmentMaintenanceData[];
   /** Procedure steps performed */

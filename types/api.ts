@@ -248,6 +248,7 @@ export interface MaintenanceCreateRequest {
   assigned_technicians: string[];
   observations?: string;
   id_user_created?: string;
+  codigo?: string;
 }
 
 export interface MaintenanceResponse {
@@ -257,6 +258,7 @@ export interface MaintenanceResponse {
   dia_programado: string | null;
   tipo_mantenimiento: string | null;
   id_equipo?: string;
+  codigo?: string;
 }
 
 export interface Technician extends User {}
