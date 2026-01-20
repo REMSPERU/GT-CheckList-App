@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
-// import * as IntentLauncher from 'expo-intent-launcher';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { MaintenanceSessionReport, SessionReportData } from './types';
 import { getReportStyles } from './styles';
 import {
@@ -124,16 +124,15 @@ class PDFReportService {
     if (Platform.OS === 'android') {
       try {
         const contentUri = await FileSystem.getContentUriAsync(uriToOpen);
-        // await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-        //   data: contentUri,
-        //   flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
-        //   type: 'application/pdf',
-        // });
-        await Sharing.shareAsync(uriToOpen);
+        await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+          data: contentUri,
+          flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+          type: 'application/pdf',
+        });
       } catch (error) {
         console.error('Error with IntentLauncher:', error);
         // Fallback to sharing if intent fails
-        await this.sharePDF(uriToOpen);
+        await this.sharePDF(uriToOpen, filename, 'Abrir Informe');
       }
     } else {
       // iOS doesn't have a direct equivalent to IntentLauncher for local files,
