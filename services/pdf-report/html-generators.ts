@@ -1,6 +1,11 @@
 // PDF Report HTML Generators - Corporate Template
 
-import { MaintenanceSessionReport, EquipmentMaintenanceData } from './types';
+import {
+  MaintenanceSessionReport,
+  EquipmentMaintenanceData,
+  SessionReportData,
+  ReportMaintenanceData,
+} from './types';
 
 /**
  * Format date to Spanish format (e.g., 16.11.2024)
@@ -230,8 +235,6 @@ export function generateEquipmentPhotoPageHTML(
 }
 
 // ============= LEGACY EXPORTS FOR BACKWARD COMPATIBILITY =============
-
-import { SessionReportData, ReportMaintenanceData } from './types';
 
 /**
  * @deprecated Use generateHeaderPageHTML instead
