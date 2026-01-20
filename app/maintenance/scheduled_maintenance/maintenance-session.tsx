@@ -211,10 +211,15 @@ export default function MaintenanceSessionScreen() {
           : null;
 
         // Map to new EquipmentMaintenanceData format
+        const panelType =
+          maint.equipos?.equipment_detail?.detalle_tecnico?.tipo_tablero ||
+          maint.tipo_mantenimiento ||
+          'Preventivo';
+
         equipments.push({
           code: maint.equipos?.codigo || 'N/A',
           label: maint.equipos?.nombre || maint.equipos?.codigo || 'N/A',
-          type: maint.tipo_mantenimiento || 'Preventivo',
+          type: panelType,
           location: maint.equipos?.ubicacion || 'N/A',
           voltage: firstMeasurement?.voltage,
           amperage: firstMeasurement?.amperage,

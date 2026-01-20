@@ -110,7 +110,7 @@ export function generateEquipmentSummaryPageHTML(
             .map(
               ([type, count]) => `
             <tr>
-              <td>TABLEROS ${type}</td>
+              <td>${type.startsWith('TABLEROS') ? type : `TABLERO ${type}`}</td>
               <td class="text-center">${count}</td>
             </tr>
           `,
