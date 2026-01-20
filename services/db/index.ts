@@ -25,6 +25,11 @@ import {
   getElectricalPanelsByProperty,
   getEquipmentByProperty,
 } from './queries';
+import {
+  createEquipment,
+  softDeleteEquipment,
+  generateEquipmentCode,
+} from './equipment';
 
 // Re-export all database functions from modular files
 export * from './connection';
@@ -34,6 +39,7 @@ export * from './panel-configuration';
 export * from './photos';
 export * from './users';
 export * from './queries';
+export * from './equipment';
 
 // Create DatabaseService object for backward compatibility
 export const DatabaseService = {
@@ -72,4 +78,9 @@ export const DatabaseService = {
   getEquipamentosByProperty,
   getElectricalPanelsByProperty,
   getEquipmentByProperty,
+
+  // Equipment CRUD
+  createEquipment,
+  softDeleteEquipment,
+  generateEquipmentCode,
 };

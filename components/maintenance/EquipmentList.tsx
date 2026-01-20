@@ -20,6 +20,8 @@ export interface EquipmentListProps<T extends BaseEquipment> {
   /** Optional - if undefined, selection is disabled (users without permissions) */
   onToggleSelection?: (id: string) => void;
   onItemPress: (item: T) => void;
+  /** Optional - triggered on long press for delete/edit actions */
+  onLongPress?: (item: T) => void;
   /** Custom function to extract display label from an item */
   renderLabel?: (item: T) => string;
   /** Custom function to extract secondary text (shown below label) */
@@ -40,6 +42,7 @@ export function EquipmentList<T extends BaseEquipment>({
   selectedIds,
   onToggleSelection,
   onItemPress,
+  onLongPress,
   renderLabel,
   renderSubtitle,
 }: EquipmentListProps<T>) {
@@ -104,6 +107,7 @@ export function EquipmentList<T extends BaseEquipment>({
           key={item.id}
           style={styles.itemCard}
           onPress={() => onItemPress(item)}
+          onLongPress={() => onLongPress?.(item)}
           activeOpacity={0.7}>
           <View style={[styles.radioCircle, styles.radioCircleHidden]} />
           <ItemContent />
@@ -137,7 +141,8 @@ export function EquipmentList<T extends BaseEquipment>({
 
         <TouchableOpacity
           style={styles.itemContent}
-          onPress={() => onItemPress(item)}>
+          onPress={() => onItemPress(item)}
+          onLongPress={() => onLongPress?.(item)}>
           <ItemContent />
         </TouchableOpacity>
       </View>

@@ -6,6 +6,7 @@ import {
   Text,
   TouchableOpacity,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
@@ -16,10 +17,20 @@ import {
   EquipmentFilterModal,
   FilterState,
 } from '@/components/maintenance/EquipmentFilterModal';
+import {
+  EmergencyLightModal,
+  EmergencyLightFormData,
+} from '@/components/maintenance/emergency-lights/EmergencyLightModal';
 import type { BaseEquipment } from '@/types/api';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
 import { useUserRole } from '@/hooks/use-user-role';
+import {
+  createEquipment,
+  softDeleteEquipment,
+  generateEquipmentCode,
+} from '@/services/db/equipment';
+import { supabase } from '@/lib/supabase';
 
 export default function EmergencyLightsScreen() {
   const router = useRouter();
@@ -37,6 +48,12 @@ export default function EmergencyLightsScreen() {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterConfig, setFilterConfig] = useState<boolean | null>(null);
   const [filterLocations, setFilterLocations] = useState<string[]>([]);
+
+  // Modal state
+  const [showLightModal, setShowLightModal] = useState(false);
+  const [editingLight, setEditingLight] = useState<BaseEquipment | null>(null);
+  const [initialCode, setInitialCode] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (buildingParam) {
@@ -143,8 +160,8 @@ export default function EmergencyLightsScreen() {
       return;
     }
 
-    // Navigate to detail screen (to be implemented)
-    console.log('Navigate to detail for:', item.id);
+    // Open edit modal for configured items
+    handleOpenEditModal(item);
   };
 
   const handleScheduleMaintenance = () => {
@@ -157,6 +174,93 @@ export default function EmergencyLightsScreen() {
         buildingImageUrl: building?.image_url,
       },
     });
+  };
+
+  const handleOpenCreateModal = async () => {
+    if (!building?.id || !equipamento?.id) return;
+    try {
+      const code = await generateEquipmentCode(building.id, 'LE');
+      setInitialCode(code);
+      setEditingLight(null);
+      setShowLightModal(true);
+    } catch (err) {
+      console.error('Error generating code:', err);
+      Alert.alert('Error', 'No se pudo generar el código');
+    }
+  };
+
+  const handleOpenEditModal = (item: BaseEquipment) => {
+    setEditingLight(item);
+    setShowLightModal(true);
+  };
+
+  const handleSaveLight = async (data: EmergencyLightFormData) => {
+    if (!building?.id || !equipamento?.id) return;
+    if (!data.codigo.trim() || !data.ubicacion.trim()) {
+      Alert.alert('Campos requeridos', 'Por favor complete todos los campos');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      if (editingLight) {
+        // Update existing light
+        const { error } = await supabase
+          .from('equipos')
+          .update({
+            ubicacion: data.ubicacion.trim(),
+            detalle_ubicacion: data.detalle_ubicacion?.trim() || null,
+          })
+          .eq('id', editingLight.id);
+        if (error) throw error;
+        Alert.alert('Éxito', 'Luz actualizada correctamente');
+      } else {
+        // Create new light
+        await createEquipment({
+          id_property: building.id,
+          id_equipamento: equipamento.id,
+          codigo: data.codigo.trim(),
+          ubicacion: data.ubicacion.trim(),
+          detalle_ubicacion: data.detalle_ubicacion?.trim() || undefined,
+          estatus: 'ACTIVO',
+        });
+        Alert.alert('Éxito', 'Luz de emergencia creada correctamente');
+      }
+
+      setShowLightModal(false);
+      await syncService.pullData();
+      await loadData();
+    } catch (err) {
+      console.error('Error saving light:', err);
+      Alert.alert('Error', 'No se pudo guardar la luz de emergencia');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteLight = (item: BaseEquipment) => {
+    Alert.alert(
+      'Desactivar Luz',
+      `¿Está seguro de desactivar "${item.codigo}"? Esta acción no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Desactivar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await softDeleteEquipment(item.id);
+              await syncService.pullData();
+              await loadData();
+              Alert.alert('Éxito', 'Luz desactivada correctamente');
+            } catch (err) {
+              console.error('Error deactivating light:', err);
+              Alert.alert('Error', 'No se pudo desactivar la luz');
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleApplyFilter = (filters: FilterState) => {
@@ -215,6 +319,7 @@ export default function EmergencyLightsScreen() {
               canScheduleMaintenance ? toggleSelection : undefined
             }
             onItemPress={handleItemPress}
+            onLongPress={handleDeleteLight}
             renderLabel={item => item.codigo || 'N/A'}
           />
         </View>
@@ -247,6 +352,25 @@ export default function EmergencyLightsScreen() {
         initialFilters={{ config: filterConfig, locations: filterLocations }}
         title="Filtrar Luces"
       />
+
+      {/* Create/Edit Light Modal */}
+      <EmergencyLightModal
+        visible={showLightModal}
+        onClose={() => setShowLightModal(false)}
+        onSave={handleSaveLight}
+        editItem={editingLight}
+        initialCode={initialCode}
+        isLoading={isSaving}
+      />
+
+      {/* Floating Add Button */}
+      {!isSelectionMode && (
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={handleOpenCreateModal}>
+          <Ionicons name="add" size={28} color="white" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
@@ -308,5 +432,21 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  addButton: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#0891B2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });

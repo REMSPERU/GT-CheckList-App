@@ -144,8 +144,9 @@ export async function getEquipmentByProperty(
   await ensureInitialized();
   const db = await dbPromise;
 
-  let query = 'SELECT * FROM local_equipos WHERE id_property = ?';
-  const params: any[] = [propertyId];
+  let query =
+    'SELECT * FROM local_equipos WHERE id_property = ? AND (estatus IS NULL OR estatus != ?)';
+  const params: any[] = [propertyId, 'INACTIVO'];
 
   if (filters?.equipamentoId) {
     query += ' AND id_equipamento = ?';
