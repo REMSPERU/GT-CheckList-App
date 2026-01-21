@@ -11,6 +11,11 @@ const STORAGE_KEY_PREFIX = 'maintenance_session_';
 export const useMaintenanceSession = (
   panelId: string,
   maintenanceId?: string,
+  initialContext?: {
+    building?: any;
+    maintenanceType?: string;
+    propertyId?: string;
+  },
 ) => {
   const [session, setSession] = useState<MaintenanceSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +49,10 @@ export const useMaintenanceSession = (
             observations: '',
             currentStep: 'pre-photos',
             isUploaded: false,
+            // Context
+            building: initialContext?.building,
+            maintenanceType: initialContext?.maintenanceType,
+            propertyId: initialContext?.propertyId,
           };
           setSession(newSession);
           await AsyncStorage.setItem(sessionId, JSON.stringify(newSession));
@@ -58,7 +67,13 @@ export const useMaintenanceSession = (
     if (panelId) {
       loadSession();
     }
-  }, [panelId, maintenanceId, sessionId]);
+  }, [
+    panelId,
+    maintenanceId,
+    sessionId,
+    initialContext?.building,
+    initialContext?.maintenanceType,
+  ]);
 
   // Persist session changes
   const saveSession = useCallback(

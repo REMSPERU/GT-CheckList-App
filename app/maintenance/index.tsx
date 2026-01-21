@@ -45,6 +45,12 @@ export default function MaintenanceScreen() {
   const { data, isLoading, isError, refetch } = useProperties();
   const hasSynced = useRef(false);
 
+  // Safety check for missing maintenance type
+  if (!maintenanceType) {
+    // If we somehow got here without a type, defaulted to preventive or redirect
+    // prevent infinite loading or broken state
+  }
+
   // Background sync - doesn't block UI
   useEffect(() => {
     if (hasSynced.current) return;

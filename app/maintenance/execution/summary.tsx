@@ -178,8 +178,55 @@ export default function SummaryScreen() {
 
   const handleModalClose = () => {
     setModalVisible(false);
+    console.log('handleModalClose: Closing modal. Status:', modalStatus);
+    console.log('Session Context:', {
+      maintenanceId: session?.maintenanceId,
+      building: session?.building,
+      maintenanceType: session?.maintenanceType,
+    });
+
     if (modalStatus === 'success' || modalStatus === 'offline') {
-      router.push({ pathname: '/maintenance' });
+      // Determine where to go based on session context
+      if (session?.maintenanceId && session.maintenanceId !== 'null') {
+        // Was valid scheduled maintenance
+        console.log(
+          'Navigating to Scheduled Maintenance List. Property:',
+          session.propertyId,
+        );
+
+        router.dismissAll();
+        // If we have propertyId, go to the equipment list, otherwise fallback to main scheduled list
+        if (session.propertyId) {
+          router.replace({
+            pathname:
+              '/maintenance/scheduled_maintenance/equipment-maintenance-list',
+            params: { propertyId: session.propertyId },
+          });
+        } else {
+          router.replace(
+            '/maintenance/scheduled_maintenance/scheduled-maintenance',
+          );
+        }
+      } else if (session?.building) {
+        // Was ad-hoc or corrective from device list
+        // Return to device selection list
+        console.log('Navigating to Select Device. Building:', session.building);
+        router.dismissAll();
+        router.replace({
+          pathname: '/maintenance/select-device',
+          params: {
+            building: JSON.stringify(session.building),
+          },
+        });
+      } else {
+        // Fallback if context missing
+        console.log('Fallback to Maintenance Home');
+        router.dismissAll();
+        router.replace({
+          pathname: '/maintenance',
+          params: { type: session?.maintenanceType || 'preventivo' },
+        });
+      }
     }
   };
 

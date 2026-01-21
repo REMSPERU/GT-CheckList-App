@@ -38,6 +38,11 @@ export interface MaintenanceSession {
   startTime: string;
   lastUpdated: string;
 
+  // Context for Navigation
+  building?: any; // To return to selection screen
+  maintenanceType?: string;
+  propertyId?: string; // For scheduled maintenance return
+
   // Data
   prePhotos: PhotoItem[];
   postPhotos: PhotoItem[];

@@ -25,16 +25,17 @@ export default function SelectDeviceScreen() {
   const [building, setBuilding] = useState<any>(null);
 
   useEffect(() => {
-    console.log('params.building:', params.building);
+    console.log('SelectDevice Params:', params);
     if (params.building) {
       try {
         const parsedBuilding = JSON.parse(params.building as string);
         setBuilding(parsedBuilding);
-        console.log('Parsed building:', parsedBuilding);
-        console.log('Building ID:', parsedBuilding.id);
+        console.log('SelectDevice: Parsed building ID:', parsedBuilding.id);
       } catch (e) {
-        console.error('Error parsing building param:', e);
+        console.error('SelectDevice: Error parsing building param:', e);
       }
+    } else {
+      console.warn('SelectDevice: No building param received!');
     }
   }, [params.building]);
 

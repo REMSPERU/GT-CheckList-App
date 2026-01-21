@@ -304,6 +304,8 @@ export default function EquipmentMaintenanceListScreen() {
                             panelId: equipment.id,
                             maintenanceId: item.id,
                             equipmentType: equipment.equipamentos?.nombre,
+                            propertyId: propertyId,
+                            maintenanceType: item.tipo_mantenimiento,
                           },
                         });
                       }

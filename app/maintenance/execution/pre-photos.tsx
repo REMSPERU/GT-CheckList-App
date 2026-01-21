@@ -26,13 +26,27 @@ export default function PreMaintenancePhotosScreen() {
   const params = useLocalSearchParams<{
     panelId: string;
     maintenanceId: string;
+    // Context
+    building?: string;
+    maintenanceType?: string;
+    propertyId?: string;
   }>();
   const panelId = params.panelId;
   const maintenanceId = params.maintenanceId;
 
+  // Deserialize building for context if present
+  const buildingData = params.building
+    ? JSON.parse(params.building as string)
+    : undefined;
+
   const { session, loading, addPhoto, removePhoto } = useMaintenanceSession(
     panelId || '',
     maintenanceId,
+    {
+      building: buildingData,
+      maintenanceType: params.maintenanceType,
+      propertyId: params.propertyId,
+    },
   );
 
   // Panel type state for photo requirements

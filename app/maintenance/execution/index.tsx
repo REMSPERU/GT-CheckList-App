@@ -20,9 +20,20 @@ export default function ExecutionRouter() {
     panelId: string;
     maintenanceId?: string;
     equipmentType?: string;
+    building?: string;
+    maintenanceType?: string;
   }>();
 
   const { panelId, maintenanceId, equipmentType } = params;
+
+  console.log('ExecutionRouter Params:', {
+    panelId,
+    maintenanceId,
+    equipmentType,
+    building: params.building ? 'Present' : 'Missing',
+    maintenanceType: params.maintenanceType,
+  });
+
   const routeConfig = getEquipmentRoute(equipmentType);
 
   useEffect(() => {
@@ -33,9 +44,20 @@ export default function ExecutionRouter() {
         panelId,
         maintenanceId,
         equipmentType,
+        building: params.building,
+        maintenanceType: params.maintenanceType, // Pass generic maintenance type
       },
     });
-  }, [panelId, maintenanceId, equipmentType, routeConfig.route, router]);
+  }, [
+    panelId,
+    maintenanceId,
+    equipmentType,
+    routeConfig.route,
+    router,
+    params.building,
+    params.maintenanceType,
+    params.propertyId,
+  ]);
 
   // Show loading while redirecting
   return (
