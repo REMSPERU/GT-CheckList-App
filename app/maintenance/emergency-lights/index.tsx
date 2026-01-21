@@ -203,6 +203,12 @@ export default function EmergencyLightsScreen() {
 
     setIsSaving(true);
     try {
+      // Build equipment_detail JSON with marca and modelo
+      const equipmentDetail = {
+        marca: data.marca?.trim() || null,
+        modelo: data.modelo?.trim() || null,
+      };
+
       if (editingLight) {
         // Update existing light
         const { error } = await supabase
@@ -210,6 +216,7 @@ export default function EmergencyLightsScreen() {
           .update({
             ubicacion: data.ubicacion.trim(),
             detalle_ubicacion: data.detalle_ubicacion?.trim() || null,
+            equipment_detail: equipmentDetail,
           })
           .eq('id', editingLight.id);
         if (error) throw error;
@@ -222,6 +229,7 @@ export default function EmergencyLightsScreen() {
           codigo: data.codigo.trim(),
           ubicacion: data.ubicacion.trim(),
           detalle_ubicacion: data.detalle_ubicacion?.trim() || undefined,
+          equipment_detail: equipmentDetail,
           estatus: 'ACTIVO',
         });
         Alert.alert('Éxito', 'Luz de emergencia creada correctamente');
