@@ -17,6 +17,7 @@ import {
   getLocalUserById,
   updateLocalUserRole,
 } from './users';
+import { saveSession, getSession, clearSession } from './session';
 import {
   getLocalEquipments,
   getEquipmentById,
@@ -38,6 +39,7 @@ export * from './maintenance';
 export * from './panel-configuration';
 export * from './photos';
 export * from './users';
+export * from './session';
 export * from './queries';
 export * from './equipment';
 
@@ -70,6 +72,11 @@ export const DatabaseService = {
   saveCurrentUser,
   getLocalUserById,
   updateLocalUserRole,
+
+  // Session
+  saveSession,
+  getSession,
+  clearSession,
 
   // Queries
   getLocalEquipments,

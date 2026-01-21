@@ -62,6 +62,15 @@ export async function initDatabase() {
           role TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS app_session (
+          user_id TEXT PRIMARY KEY,
+          access_token TEXT,
+          refresh_token TEXT,
+          user_metadata TEXT, -- JSON string
+          expires_at INTEGER,
+          last_active TEXT
+        );
+
 
         CREATE TABLE IF NOT EXISTS local_equipamentos (
           id TEXT PRIMARY KEY,

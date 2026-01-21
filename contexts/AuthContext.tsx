@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useState,
   useRef,
+  useCallback,
 } from 'react';
 import { AuthLoadingScreen } from '../components/auth-loading-screen';
 import {
@@ -41,6 +42,8 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasSession, setHasSession] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [localUser, setLocalUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const segments = useSegments();
@@ -53,18 +56,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const registerMutation = useRegister();
   const logoutMutation = useLogout();
   const {
-    data: user,
+    data: remoteUser,
     isLoading: isLoadingUser,
     refetch: refetchUser,
   } = useCurrentUser(hasSession);
 
+  // Computed user: prefer remote user (fresh), fallback to local user (offline)
+  const user = remoteUser || localUser;
+
   const isLoading =
     !isInitialized ||
-    isLoadingUser ||
+    (hasSession && isLoadingUser && !user) || // Only show loading if we have a session but no user data yet (neither local nor remote)
     loginMutation.isPending ||
     logoutMutation.isPending ||
     registerMutation.isPending;
-  const isAuthenticated = !!user && hasSession;
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -77,53 +82,51 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const {
       data: { subscription },
     } = supabaseAuthService.onAuthStateChange(async (event, session) => {
+      console.log(`[AuthContext] Auth event: ${event}`);
+
       if (event === 'SIGNED_IN' && session) {
         setHasSession(true);
+        setIsAuthenticated(true);
 
-        // Skip refetch if we already did it during initialization
-        if (hasInitialFetch.current) {
-        } else {
+        // Update local session
+        if (session.user) {
+          await DatabaseService.saveSession({
+            user_id: session.user.id,
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            user_metadata: session.user.user_metadata,
+            expires_at: session.expires_at || 0,
+            last_active: new Date().toISOString(),
+          });
+
+          // Also save as current user for role lookups
+          await saveUserToLocalDb(session.user);
+        }
+
+        // Fetch fresh data if needed
+        if (!hasInitialFetch.current) {
           await refetchUser();
         }
-
-        // Save user to local DB with role from public.users
-        if (session.user) {
-          try {
-            // Fetch role from public.users table
-            const { data: publicUser } = await supabase
-              .from('users')
-              .select('role')
-              .eq('id', session.user.id)
-              .single();
-
-            const userRole = publicUser?.role || '';
-            await DatabaseService.saveCurrentUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              username: session.user.user_metadata?.username,
-              first_name: session.user.user_metadata?.first_name,
-              last_name: session.user.user_metadata?.last_name,
-              role: userRole,
-            });
-          } catch (err) {
-            console.error(
-              '[AuthContext] Failed to save user to local DB:',
-              err,
-            );
-          }
-        }
       } else if (event === 'SIGNED_OUT') {
-        console.log('[AuthContext] SIGNED_OUT - clearing session');
         setHasSession(false);
+        setIsAuthenticated(false);
+        setLocalUser(null);
         hasInitialFetch.current = false;
+        await DatabaseService.clearSession();
       } else if (event === 'TOKEN_REFRESHED' && session) {
-        console.log('[AuthContext] TOKEN_REFRESHED');
         setHasSession(true);
-      } else if (event === 'INITIAL_SESSION') {
-        console.log(
-          '[AuthContext] INITIAL_SESSION event - hasSession:',
-          !!session,
-        );
+        setIsAuthenticated(true);
+        // Update tokens in local storage
+        if (session.user) {
+          await DatabaseService.saveSession({
+            user_id: session.user.id,
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            user_metadata: session.user.user_metadata,
+            expires_at: session.expires_at || 0,
+            last_active: new Date().toISOString(),
+          });
+        }
       }
     });
 
@@ -149,20 +152,102 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [isAuthenticated, segments, isInitialized, router]);
 
   /**
+   * Helper to save user to local DB
+   */
+  const saveUserToLocalDb = async (authUser: User) => {
+    try {
+      // 1. Try to fetch role from public.users table (if online)
+      let userRole = '';
+      try {
+        const { data: publicUser } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', authUser.id)
+          .single();
+        userRole = publicUser?.role || '';
+      } catch (e) {
+        // Ignore network errors, proceed with existing or empty role
+        console.log('Could not fetch remote role, continuing...');
+      }
+
+      // 2. Save/Update local user
+      await DatabaseService.saveCurrentUser({
+        id: authUser.id,
+        email: authUser.email || '',
+        username: authUser.user_metadata?.username,
+        first_name: authUser.user_metadata?.first_name,
+        last_name: authUser.user_metadata?.last_name,
+        role: userRole,
+      });
+    } catch (err) {
+      console.error('[AuthContext] Failed to save user to local DB:', err);
+    }
+  };
+
+  /**
    * Initialize authentication state
+   * OFFLINE-FIRST STRATEGY:
+   * 1. Check SQLite local_session first (fast, works offline)
+   * 2. If valid, set authenticated IMMEDIATELY
+   * 3. Sync with Supabase in background
    */
   const initializeAuth = async () => {
     try {
+      // 1. Check Local SQLite Session
+      const localSession = await DatabaseService.getSession();
+
+      if (localSession && localSession.access_token) {
+        console.log('[AuthContext] Found local session in SQLite');
+        setHasSession(true);
+        setIsAuthenticated(true);
+
+        // Construct a partial User object from local metadata for immediate UI rendering
+        // This stops the UI from flickering or showing "Loading..." while online check happens
+        const offlineUser: any = {
+          id: localSession.user_id,
+          aud: 'authenticated',
+          role: 'authenticated',
+          email: '', // We might need to store email in local_session if needed explicitly here
+          email_confirmed_at: '',
+          phone: '',
+          confirmed_at: '',
+          last_sign_in_at: localSession.last_active,
+          app_metadata: {},
+          user_metadata: localSession.user_metadata || {},
+          identities: [],
+          created_at: '',
+          updated_at: '',
+        };
+        setLocalUser(offlineUser as User);
+
+        // If we have a local session, we are "initialized" enough to show the app
+        setIsInitialized(true);
+      }
+
+      // 2. Background: Validate with Supabase (if online)
       const session = await supabaseAuthService.getSession();
-      setHasSession(!!session);
 
       if (session) {
-        hasInitialFetch.current = true; // Mark that we're doing the initial fetch
-        await refetchUser();
+        console.log('[AuthContext] Supabase session confirmed');
+        setHasSession(true);
+        setIsAuthenticated(true);
+        hasInitialFetch.current = true;
+        await refetchUser(); // Fetch full user profile including updated metadata
+      } else if (localSession) {
+        // Edge case: Local session exists but Supabase client says no (maybe token expired or cache cleared)
+        // We should probably try to refresh or trust Supabase and expire local session.
+        // For now, if Supabase explicitly says NULL, we trust it and clear local.
+        console.log(
+          '[AuthContext] Local session invalid by Supabase standards. Clearing.',
+        );
+        await handleAuthFailure();
       }
     } catch (error) {
       console.error('Error initializing auth:', error);
-      setHasSession(false);
+      // If error (e.g. SQLite failure), fallback to unauthenticated
+      if (!isAuthenticated) {
+        setHasSession(false);
+      }
     } finally {
       setIsInitialized(true);
     }
@@ -173,17 +258,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const handleAuthFailure = async () => {
     try {
-      // Clear local state
       setHasSession(false);
+      setIsAuthenticated(false);
+      setLocalUser(null);
       setError(null);
-
-      // Sign out from Supabase
+      await DatabaseService.clearSession();
       await supabaseAuthService.signOut();
 
-      // Mark as initialized to allow navigation
       setIsInitialized(true);
-
-      // Navigate to login
       router.replace('/auth/login');
     } catch (err) {
       console.error('Error handling auth failure:', err);
@@ -196,16 +278,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (credentials: LoginRequest) => {
     try {
       setError(null);
-
       await loginMutation.mutateAsync(credentials);
-      setHasSession(true);
-
-      // User data is automatically updated by React Query
+      // Success is handled by onAuthStateChange listener
     } catch (err) {
       const error = err as Error;
       const errorMessage =
         error.message || 'Error al iniciar sesión. Verifica tus credenciales.';
-
+      console.log('Login error:', errorMessage);
       setError(errorMessage);
       throw err;
     }
@@ -233,14 +312,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async () => {
     try {
       await logoutMutation.mutateAsync();
-      setHasSession(false);
-
-      // Navigation will be handled by the useEffect hook
+      await handleAuthFailure();
     } catch (err) {
       console.error('Logout error:', err);
-      // Clear session anyway
-      setHasSession(false);
-      await supabaseAuthService.signOut();
+      await handleAuthFailure();
     }
   };
 
@@ -252,8 +327,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await refetchUser();
     } catch (err) {
       console.error('Failed to refresh user:', err);
-      // If refresh fails, handle auth failure
-      await handleAuthFailure();
     }
   };
 
@@ -276,7 +349,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     register,
   };
 
-  // Show loading screen while initializing
+  // Show loading screen while initializing ONLY if we don't have a local session fallback
   if (!isInitialized) {
     return <AuthLoadingScreen />;
   }
