@@ -42,6 +42,7 @@ export interface MaintenanceSession {
   building?: any; // To return to selection screen
   maintenanceType?: string;
   propertyId?: string; // For scheduled maintenance return
+  propertyName?: string; // For scheduled maintenance return
 
   // Data
   prePhotos: PhotoItem[];

@@ -22,6 +22,8 @@ export default function ExecutionRouter() {
     equipmentType?: string;
     building?: string;
     maintenanceType?: string;
+    propertyId?: string;
+    propertyName?: string;
   }>();
 
   const { panelId, maintenanceId, equipmentType } = params;
@@ -46,6 +48,8 @@ export default function ExecutionRouter() {
         equipmentType,
         building: params.building,
         maintenanceType: params.maintenanceType, // Pass generic maintenance type
+        propertyId: params.propertyId,
+        propertyName: params.propertyName,
       },
     });
   }, [
@@ -57,6 +61,7 @@ export default function ExecutionRouter() {
     params.building,
     params.maintenanceType,
     params.propertyId,
+    params.propertyName,
   ]);
 
   // Show loading while redirecting

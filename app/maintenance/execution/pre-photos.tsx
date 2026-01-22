@@ -30,6 +30,7 @@ export default function PreMaintenancePhotosScreen() {
     building?: string;
     maintenanceType?: string;
     propertyId?: string;
+    propertyName?: string;
   }>();
   const panelId = params.panelId;
   const maintenanceId = params.maintenanceId;
@@ -46,6 +47,7 @@ export default function PreMaintenancePhotosScreen() {
       building: buildingData,
       maintenanceType: params.maintenanceType,
       propertyId: params.propertyId,
+      propertyName: params.propertyName,
     },
   );
 

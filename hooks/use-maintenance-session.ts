@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  MaintenanceSession,
-  PhotoItem,
-  MaintenanceStep,
-} from '../types/maintenance-session';
+import { MaintenanceSession, PhotoItem } from '../types/maintenance-session';
 
 const STORAGE_KEY_PREFIX = 'maintenance_session_';
 
@@ -15,6 +11,7 @@ export const useMaintenanceSession = (
     building?: any;
     maintenanceType?: string;
     propertyId?: string;
+    propertyName?: string;
   },
 ) => {
   const [session, setSession] = useState<MaintenanceSession | null>(null);
@@ -53,6 +50,7 @@ export const useMaintenanceSession = (
             building: initialContext?.building,
             maintenanceType: initialContext?.maintenanceType,
             propertyId: initialContext?.propertyId,
+            propertyName: initialContext?.propertyName,
           };
           setSession(newSession);
           await AsyncStorage.setItem(sessionId, JSON.stringify(newSession));
@@ -73,6 +71,8 @@ export const useMaintenanceSession = (
     sessionId,
     initialContext?.building,
     initialContext?.maintenanceType,
+    initialContext?.propertyId,
+    initialContext?.propertyName,
   ]);
 
   // Persist session changes

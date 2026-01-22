@@ -164,7 +164,7 @@ export default function SummaryScreen() {
       }
 
       // 6. Clear Local Session
-      await clearSession();
+      //await clearSession();
     } catch (e) {
       console.error(e);
       setModalStatus('error');
@@ -176,55 +176,63 @@ export default function SummaryScreen() {
     }
   };
 
-  const handleModalClose = () => {
-    setModalVisible(false);
-    console.log('handleModalClose: Closing modal. Status:', modalStatus);
-    console.log('Session Context:', {
-      maintenanceId: session?.maintenanceId,
-      building: session?.building,
-      maintenanceType: session?.maintenanceType,
-    });
+  const handleModalClose = async () => {
+    // Nota el async
+    // 1. Si es error, solo cerramos el modal para que reintenten
+    if (modalStatus === 'error') {
+      setModalVisible(false);
+      return;
+    }
 
     if (modalStatus === 'success' || modalStatus === 'offline') {
-      // Determine where to go based on session context
-      if (session?.maintenanceId && session.maintenanceId !== 'null') {
-        // Was valid scheduled maintenance
-        console.log(
-          'Navigating to Scheduled Maintenance List. Property:',
-          session.propertyId,
-        );
+      // 2. IMPORTANTE: Capturamos los datos de navegación ANTES de borrar la sesión
+      // Usamos variables locales porque 'session' va a dejar de existir en un momento
+      const nextRouteParams = {
+        isScheduled: session?.maintenanceId && session.maintenanceId !== 'null',
+        propertyId: session?.propertyId,
+        propertyName: session?.propertyName,
+        building: session?.building,
+        maintenanceType: session?.maintenanceType,
+      };
 
-        router.dismissAll();
-        // If we have propertyId, go to the equipment list, otherwise fallback to main scheduled list
-        if (session.propertyId) {
-          router.replace({
-            pathname:
-              '/maintenance/scheduled_maintenance/equipment-maintenance-list',
-            params: { propertyId: session.propertyId },
+      // 3. AHORA SÍ borramos la sesión.
+      // El modal sigue visible visualmente o el usuario ya pulsó el botón,
+      // así que no importa si hay un micro-parpadeo, ya nos vamos.
+      await clearSession();
+
+      // 4. Navegamos usando las variables locales (nextRouteParams)
+      // NO uses 'session.x' aquí abajo porque ya es null.
+
+      // Eliminamos router.dismissAll() para permitir 'navigate' hacia atrás en el stack.
+      // router.dismissAll();
+
+      if (nextRouteParams.isScheduled) {
+        // Mantenimiento Agendado
+        if (nextRouteParams.propertyId) {
+          // Regresar a la sesión de mantenimiento (agrupada por fechas)
+          router.navigate({
+            pathname: '/maintenance/scheduled_maintenance/maintenance-session',
+            params: {
+              propertyId: nextRouteParams.propertyId,
+              propertyName: nextRouteParams.propertyName,
+            },
           });
         } else {
-          router.replace(
+          router.navigate(
             '/maintenance/scheduled_maintenance/scheduled-maintenance',
           );
         }
-      } else if (session?.building) {
-        // Was ad-hoc or corrective from device list
-        // Return to device selection list
-        console.log('Navigating to Select Device. Building:', session.building);
-        router.dismissAll();
-        router.replace({
+      } else if (nextRouteParams.building) {
+        // Mantenimiento Correctivo / Ad-hoc
+        router.navigate({
           pathname: '/maintenance/select-device',
-          params: {
-            building: JSON.stringify(session.building),
-          },
+          params: { building: JSON.stringify(nextRouteParams.building) },
         });
       } else {
-        // Fallback if context missing
-        console.log('Fallback to Maintenance Home');
-        router.dismissAll();
-        router.replace({
+        // Fallback
+        router.navigate({
           pathname: '/maintenance',
-          params: { type: session?.maintenanceType || 'preventivo' },
+          params: { type: nextRouteParams.maintenanceType || 'preventivo' },
         });
       }
     }
