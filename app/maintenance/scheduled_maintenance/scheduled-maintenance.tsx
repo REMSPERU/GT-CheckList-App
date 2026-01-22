@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,36 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useScheduledMaintenances } from '@/hooks/use-maintenance';
 
 export default function ScheduledMaintenanceScreen() {
   const router = useRouter();
+  const { autoOpenPropertyId, autoOpenPropertyName } = useLocalSearchParams<{
+    autoOpenPropertyId?: string;
+    autoOpenPropertyName?: string;
+  }>();
+
+  useEffect(() => {
+    if (autoOpenPropertyId) {
+      // Clear params first to prevent loop on back navigation
+      router.setParams({
+        autoOpenPropertyId: undefined,
+        autoOpenPropertyName: undefined,
+      });
+
+      // Navigate to session
+      router.push({
+        pathname: '/maintenance/scheduled_maintenance/maintenance-session',
+        params: {
+          propertyId: autoOpenPropertyId,
+          propertyName: autoOpenPropertyName,
+        },
+      });
+    }
+  }, [autoOpenPropertyId, autoOpenPropertyName, router]);
+
   const [activeTab, setActiveTab] = useState<'Hoy' | 'Esta Semana' | 'Todos'>(
     'Todos',
   );

@@ -203,18 +203,20 @@ export default function SummaryScreen() {
       // 4. Navegamos usando las variables locales (nextRouteParams)
       // NO uses 'session.x' aquí abajo porque ya es null.
 
-      // Eliminamos router.dismissAll() para permitir 'navigate' hacia atrás en el stack.
-      // router.dismissAll();
+      // Eliminamos el stack actual para evitar volver a pantallas intermedias (como ExecutionRouter)
+      router.dismissAll();
 
       if (nextRouteParams.isScheduled) {
         // Mantenimiento Agendado
         if (nextRouteParams.propertyId) {
-          // Regresar a la sesión de mantenimiento (agrupada por fechas)
-          router.navigate({
-            pathname: '/maintenance/scheduled_maintenance/maintenance-session',
+          // Regresar a la lista de tareas programadas (Root) pero forzando la apertura de la sesión
+          // Esto limpia el stack: ScheduledMaintenance -> MaintenanceSession
+          router.push({
+            pathname:
+              '/maintenance/scheduled_maintenance/scheduled-maintenance',
             params: {
-              propertyId: nextRouteParams.propertyId,
-              propertyName: nextRouteParams.propertyName,
+              autoOpenPropertyId: nextRouteParams.propertyId,
+              autoOpenPropertyName: nextRouteParams.propertyName,
             },
           });
         } else {
