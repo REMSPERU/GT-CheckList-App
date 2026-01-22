@@ -125,10 +125,11 @@ export function EmergencyLightModal({
           <TextInput
             style={[styles.input, !isFieldEditable && styles.inputDisabled]}
             value={value}
-            onChangeText={onChangeText}
+            onChangeText={text => onChangeText(text.toUpperCase())}
             placeholder={placeholder}
             placeholderTextColor="#9CA3AF"
             editable={isFieldEditable}
+            autoCapitalize="characters"
           />
         )}
       </View>
@@ -154,7 +155,7 @@ export function EmergencyLightModal({
           <ScrollView
             style={styles.scrollContent}
             showsVerticalScrollIndicator={false}>
-            {renderField('Código', codigo, setCodigo, 'LE-001', false)}
+            {renderField('Código', codigo, setCodigo, 'LE-001', isCreateMode)}
             {renderField('Ubicación', ubicacion, setUbicacion, 'Ej: Piso 1')}
             {renderField(
               'Detalle Ubicación',
