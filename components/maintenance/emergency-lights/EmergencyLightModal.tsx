@@ -16,6 +16,7 @@ export interface EmergencyLightFormData {
   detalle_ubicacion: string;
   marca: string;
   modelo: string;
+  config?: boolean;
 }
 
 export interface EmergencyLightModalProps {
@@ -92,6 +93,7 @@ export function EmergencyLightModal({
       detalle_ubicacion: detalleUbicacion,
       marca,
       modelo,
+      config: editItem ? editItem.config : true,
     });
     setIsEditing(false);
   };

@@ -231,6 +231,7 @@ export default function EmergencyLightsScreen() {
           detalle_ubicacion: data.detalle_ubicacion?.trim() || undefined,
           equipment_detail: equipmentDetail,
           estatus: 'ACTIVO',
+          config: data.config,
         });
         Alert.alert('Éxito', 'Luz de emergencia creada correctamente');
       }
