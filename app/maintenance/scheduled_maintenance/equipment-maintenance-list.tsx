@@ -35,7 +35,6 @@ export default function EquipmentMaintenanceListScreen() {
 
   // Filter States
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<string | null>(null);
   // When coming from session screen, show all statuses by default
   const [selectedStatus, setSelectedStatus] = useState<string>(
     scheduledDate ? '' : MaintenanceStatusEnum.NO_INICIADO,
@@ -50,7 +49,7 @@ export default function EquipmentMaintenanceListScreen() {
   } = useMaintenanceByProperty(propertyId);
 
   // Derived Filters Options
-  const { locations, types } = useMemo(() => {
+  const { locations } = useMemo(() => {
     const locs = new Set<string>();
     const typs = new Set<string>();
 
@@ -65,7 +64,6 @@ export default function EquipmentMaintenanceListScreen() {
 
     return {
       locations: Array.from(locs),
-      types: Array.from(typs),
     };
   }, [maintenanceData, scheduledDate]);
 
@@ -91,8 +89,6 @@ export default function EquipmentMaintenanceListScreen() {
       // 4. Dynamic Filters
       if (selectedLocation && item.equipos?.ubicacion !== selectedLocation)
         return false;
-      if (selectedType && item.equipos?.equipamentos?.nombre !== selectedType)
-        return false;
 
       return true;
     });
@@ -101,7 +97,6 @@ export default function EquipmentMaintenanceListScreen() {
     activeTab,
     searchQuery,
     selectedLocation,
-    selectedType,
     selectedStatus,
     scheduledDate,
   ]);
@@ -189,13 +184,13 @@ export default function EquipmentMaintenanceListScreen() {
           <TouchableOpacity
             style={[
               styles.filterButton,
-              (selectedLocation || selectedType) && styles.filterButtonActive,
+              selectedLocation && styles.filterButtonActive,
             ]}
             onPress={() => setShowFilters(true)}>
             <Feather
               name="filter"
               size={20}
-              color={selectedLocation || selectedType ? '#fff' : '#4B5563'}
+              color={selectedLocation ? '#fff' : '#4B5563'}
             />
           </TouchableOpacity>
         </View>
@@ -230,7 +225,7 @@ export default function EquipmentMaintenanceListScreen() {
         </View>
 
         {/* Active Filters Display */}
-        {(selectedLocation || selectedType) && (
+        {selectedLocation && (
           <View
             style={{
               flexDirection: 'row',
@@ -243,14 +238,6 @@ export default function EquipmentMaintenanceListScreen() {
                 onPress={() => setSelectedLocation(null)}
                 style={styles.chip}>
                 <Text style={styles.chipText}>{selectedLocation}</Text>
-                <Feather name="x" size={14} color="#FFF" />
-              </TouchableOpacity>
-            )}
-            {selectedType && (
-              <TouchableOpacity
-                onPress={() => setSelectedType(null)}
-                style={styles.chip}>
-                <Text style={styles.chipText}>{selectedType}</Text>
                 <Feather name="x" size={14} color="#FFF" />
               </TouchableOpacity>
             )}
@@ -454,30 +441,6 @@ export default function EquipmentMaintenanceListScreen() {
                             styles.filterOptionTextActive,
                         ]}>
                         {loc}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <Text style={styles.filterSectionTitle}>Tipo de Equipo</Text>
-                <View style={styles.filterOptionsContainer}>
-                  {types.map(type => (
-                    <TouchableOpacity
-                      key={type}
-                      style={[
-                        styles.filterOption,
-                        selectedType === type && styles.filterOptionActive,
-                      ]}
-                      onPress={() =>
-                        setSelectedType(selectedType === type ? null : type)
-                      }>
-                      <Text
-                        style={[
-                          styles.filterOptionText,
-                          selectedType === type &&
-                            styles.filterOptionTextActive,
-                        ]}>
-                        {type}
                       </Text>
                     </TouchableOpacity>
                   ))}

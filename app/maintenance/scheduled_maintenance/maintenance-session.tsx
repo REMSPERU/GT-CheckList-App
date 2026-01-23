@@ -28,6 +28,8 @@ interface MaintenanceSession {
   inProgress: number;
   maintenances: any[];
   codigo?: string;
+  type?: string;
+  equipmentType?: string;
 }
 
 export default function MaintenanceSessionScreen() {
@@ -36,6 +38,7 @@ export default function MaintenanceSessionScreen() {
     propertyId: string;
     propertyName?: string;
   }>();
+  const [selectedType, setSelectedType] = useState<string | null>(null);
 
   // PDF Report State
   const [pdfModalVisible, setPdfModalVisible] = useState(false);
@@ -106,6 +109,8 @@ export default function MaintenanceSessionScreen() {
           inProgress: 0,
           maintenances: [],
           codigo: item.codigo, // Extract codigo from first maintenance
+          type: item.tipo_mantenimiento || 'Preventivo', // Extract type
+          equipmentType: item.equipos?.equipamentos?.nombre || 'Desconocido', // Extract equipment type
         };
       }
 
@@ -139,6 +144,21 @@ export default function MaintenanceSessionScreen() {
     if (session.total === 0) return 0;
     return (session.completed / session.total) * 100;
   };
+
+  const availableEquipmentTypes = useMemo(() => {
+    const types = new Set<string>();
+    maintenanceData.forEach((item: any) => {
+      if (item.equipos?.equipamentos?.nombre) {
+        types.add(item.equipos.equipamentos.nombre);
+      }
+    });
+    return ['Todos', ...Array.from(types)];
+  }, [maintenanceData]);
+
+  const filteredSessions = useMemo(() => {
+    if (!selectedType) return sessions;
+    return sessions.filter(s => s.equipmentType === selectedType);
+  }, [sessions, selectedType]);
 
   const handleSessionPress = (session: MaintenanceSession) => {
     router.push({
@@ -303,6 +323,36 @@ export default function MaintenanceSessionScreen() {
           </View>
         )}
 
+        {/* Filters */}
+        <View style={styles.filterContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterContentContainer}>
+            {availableEquipmentTypes.map(type => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.filterChip,
+                  (type === 'Todos' && !selectedType) || selectedType === type
+                    ? styles.filterChipActive
+                    : null,
+                ]}
+                onPress={() => setSelectedType(type === 'Todos' ? null : type)}>
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    (type === 'Todos' && !selectedType) || selectedType === type
+                      ? styles.filterChipTextActive
+                      : null,
+                  ]}>
+                  {type}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         {isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color="#06B6D4" />
@@ -321,7 +371,7 @@ export default function MaintenanceSessionScreen() {
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
             }>
-            {sessions.map(session => {
+            {filteredSessions.map(session => {
               const status = getSessionStatus(session);
               const progress = getProgressPercentage(session);
               const isComplete = session.completed === session.total;
@@ -333,18 +383,39 @@ export default function MaintenanceSessionScreen() {
                   onPress={() => handleSessionPress(session)}
                   activeOpacity={0.7}>
                   {/* Date Header */}
-                  <View style={styles.dateRow}>
-                    <Ionicons
-                      name="calendar-outline"
-                      size={20}
-                      color="#06B6D4"
-                    />
-                    <View style={{ flex: 1 }}>
+                  {/* Card Header & Info */}
+                  <View style={styles.cardHeader}>
+                    <View style={styles.dateRow}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={20}
+                        color="#06B6D4"
+                      />
                       <Text style={styles.dateText}>{session.displayDate}</Text>
-                      {session.codigo && (
-                        <Text style={styles.codigoText}>
-                          Código: {session.codigo}
-                        </Text>
+                    </View>
+
+                    {session.codigo && (
+                      <Text style={styles.codigoMainText}>
+                        {session.codigo}
+                      </Text>
+                    )}
+
+                    <View style={styles.badgesRow}>
+                      {session.type && (
+                        <View style={styles.typeBadge}>
+                          <Text style={styles.typeText}>{session.type}</Text>
+                        </View>
+                      )}
+                      {session.equipmentType && (
+                        <View
+                          style={[
+                            styles.typeBadge,
+                            { backgroundColor: '#E0E7FF' },
+                          ]}>
+                          <Text style={[styles.typeText, { color: '#3730A3' }]}>
+                            {session.equipmentType}
+                          </Text>
+                        </View>
                       )}
                     </View>
                   </View>
@@ -450,6 +521,33 @@ const styles = StyleSheet.create({
     marginTop: 16,
     gap: 8,
   },
+  filterContainer: {
+    marginTop: 16,
+  },
+  filterContentContainer: {
+    gap: 8,
+    paddingRight: 20,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterChipActive: {
+    backgroundColor: '#06B6D4',
+    borderColor: '#06B6D4',
+  },
+  filterChipText: {
+    fontSize: 14,
+    color: '#4B5563',
+    fontWeight: '500',
+  },
+  filterChipTextActive: {
+    color: '#fff',
+  },
   propertyName: {
     fontSize: 15,
     fontWeight: '600',
@@ -475,22 +573,43 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  cardHeader: {
+    marginBottom: 16,
+  },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 16,
+    gap: 8,
+    marginBottom: 4,
   },
   dateText: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.light.text,
+    color: '#1F2937', // Replaced Colors.light.text with hex code since Colors was unused warning
   },
-  codigoText: {
-    fontSize: 12,
-    fontWeight: '500',
+  codigoMainText: {
+    fontSize: 14,
     color: '#6B7280',
-    marginTop: 4,
+    fontWeight: '500',
+    marginBottom: 8,
+    marginLeft: 28, // Indent to align with text in dateRow
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginLeft: 28,
+  },
+  typeBadge: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  typeText: {
+    fontSize: 12,
+    color: '#4B5563',
+    fontWeight: '500',
   },
   progressContainer: {
     marginBottom: 16,
