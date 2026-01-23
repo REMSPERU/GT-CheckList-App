@@ -139,6 +139,41 @@ export default function EmergencyLightsChecklistScreen() {
       return;
     }
 
+    // Validate observations
+    const items = [
+      { key: 'lumenesItem', label: 'Lumenes' },
+      { key: 'tiempoDuracionItem', label: 'Tiempo de duración' },
+      { key: 'switchItem', label: 'Switch' },
+      { key: 'conectadoTomacorrienteItem', label: 'Conectado a Tomacorriente' },
+      { key: 'conexionDirectaItem', label: 'Conexión directa' },
+      {
+        key: 'conectadoCircuitoIluminacionItem',
+        label: 'Conectado al circuito de iluminación',
+      },
+    ];
+
+    for (const item of items) {
+      const itemData = data[
+        item.key as keyof EmergencyLightSession
+      ] as ChecklistItemData;
+      if (!itemData.status) {
+        if (!itemData.observation?.trim()) {
+          Alert.alert(
+            'Observación incompleta',
+            `Por favor ingrese una observación para "${item.label}"`,
+          );
+          return;
+        }
+        if (!itemData.photoUri) {
+          Alert.alert(
+            'Foto incompleta',
+            `Por favor tome una foto para la observación de "${item.label}"`,
+          );
+          return;
+        }
+      }
+    }
+
     router.push({
       pathname: '/maintenance/execution/emergency-lights/summary',
       params: { panelId, maintenanceId },
