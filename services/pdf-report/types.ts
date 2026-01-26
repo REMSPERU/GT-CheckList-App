@@ -25,6 +25,8 @@ export interface EquipmentMaintenanceData {
   postPhotos: { url: string; caption?: string }[];
   /** General observations for this equipment */
   observations?: string;
+  /** Item-specific observations with photos */
+  itemObservations?: Record<string, { note: string; photoUrl?: string }>;
 }
 
 export interface MaintenanceSessionReport {

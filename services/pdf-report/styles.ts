@@ -256,5 +256,50 @@ export function getReportStyles(): string {
         page-break-inside: avoid;
       }
     }
+
+    /* ESTILOS COMPACTOS (Para ajustar más contenido en una página) */
+    .compact .page {
+      padding: 5mm 0;
+    }
+
+    .compact h1 { font-size: 20px; margin-bottom: 5px; }
+    .compact h2 { font-size: 14px; margin-top: 15px; margin-bottom: 5px; }
+    .compact h3 { font-size: 12px; margin-top: 5px; }
+    
+    .compact .data-grid th, .compact .data-grid td {
+      padding: 4px;
+      font-size: 10px;
+    }
+
+    .grid-compact {
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .grid-compact .photo-container {
+      padding: 3px;
+    }
+
+    .grid-compact .photo-header {
+      padding: 3px 5px;
+      font-size: 9px;
+      margin-bottom: 4px;
+    }
+
+    .grid-compact .photo-caption {
+      margin-top: 2px;
+      font-size: 9px;
+    }
+
+    /* Imágenes más pequeñas para modo compacto */
+    .small-image img {
+      max-height: 140px;
+    }
+
+    /* Layout de tercios para optimizar espacio horizontal */
+    .thirds .photo-container {
+      flex: 1 1 calc(33.33% - 10px);
+      min-width: 150px;
+    }
   `;
 }

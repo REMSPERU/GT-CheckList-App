@@ -152,13 +152,20 @@ function generatePhotosHTML(
   prePhotos: { url: string; caption?: string }[],
   thermoPhotos: { url: string; caption?: string }[],
   postPhotos: { url: string; caption?: string }[],
+  itemObservations?: Record<string, { note: string; photoUrl?: string }>,
+  options: { isCompact?: boolean; isThirds?: boolean } = {},
 ): string {
+  const { isCompact, isThirds } = options;
+  console.log(
+    'generatePhotosHTML received itemObservations:',
+    JSON.stringify(itemObservations, null, 2),
+  );
   const sections: string[] = [];
 
   // Pre (Antes) photos
   prePhotos.forEach((photo, idx) => {
     sections.push(`
-      <div class="photo-container">
+      <div class="photo-container ${isCompact ? 'small-image' : ''}">
         <span class="photo-header bg-orange">ANTES ${prePhotos.length > 1 ? `#${idx + 1}` : ''}</span>
         <img src="${photo.url}" alt="Estado inicial" />
         <p class="photo-caption">${photo.caption || 'Estado inicial del tablero'}</p>
@@ -169,7 +176,7 @@ function generatePhotosHTML(
   // Thermo/Measurement photos
   thermoPhotos.forEach((photo, idx) => {
     sections.push(`
-      <div class="photo-container">
+      <div class="photo-container ${isCompact ? 'small-image' : ''}">
         <span class="photo-header bg-orange">MEDICIÓN / TERMOGRAFÍA ${thermoPhotos.length > 1 ? `#${idx + 1}` : ''}</span>
         <img src="${photo.url}" alt="Medición" />
         <p class="photo-caption">${photo.caption || 'Lectura de instrumentos'}</p>
@@ -179,8 +186,13 @@ function generatePhotosHTML(
 
   // Post (Después) photos - full width
   postPhotos.forEach((photo, idx) => {
+    // In compact mode, don't force full-width for post photos to save space
+    const containerClass = isCompact
+      ? 'photo-container small-image'
+      : 'photo-container full-width';
+
     sections.push(`
-      <div class="photo-container full-width">
+      <div class="${containerClass}">
         <span class="photo-header bg-orange">DESPUÉS ${postPhotos.length > 1 ? `#${idx + 1}` : ''}</span>
         <img src="${photo.url}" alt="Estado final" />
         <p class="photo-caption">${photo.caption || 'Tablero limpio y cerrado'}</p>
@@ -188,7 +200,35 @@ function generatePhotosHTML(
     `);
   });
 
-  return `<div class="photo-grid">${sections.join('')}</div>`;
+  // Observations (Photo + Note)
+  if (itemObservations) {
+    Object.entries(itemObservations).forEach(([key, obs], idx) => {
+      // Create a readable label from the key if possible, or just use generic "OBSERVACIÓN"
+      // Attempt to clean up key: "comp_RELAY_1" -> "RELAY 1", "itg_ITG-1_CN-1" -> "ITG-1 CN-1"
+      let label = key
+        .replace(/^(comp_|itg_|cond_)/, '')
+        .replace(/_/g, ' ')
+        .toUpperCase();
+
+      sections.push(`
+        <div class="photo-container ${isCompact ? 'small-image' : ''}">
+          <span class="photo-header bg-orange">OBSERVACIÓN: ${label}</span>
+          ${obs.photoUrl ? `<img src="${obs.photoUrl}" alt="Observación" />` : ''}
+          <p class="photo-caption">${obs.note}</p>
+        </div>
+      `);
+    });
+  }
+
+  const gridClasses = [
+    'photo-grid',
+    isCompact ? 'grid-compact' : '',
+    isThirds ? 'thirds' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return `<div class="${gridClasses}">${sections.join('')}</div>`;
 }
 
 /**
@@ -197,8 +237,25 @@ function generatePhotosHTML(
 export function generateEquipmentPhotoPageHTML(
   equipment: EquipmentMaintenanceData,
 ): string {
+  const obsCount = equipment.itemObservations
+    ? Object.keys(equipment.itemObservations).length
+    : 0;
+  const totalItems =
+    equipment.prePhotos.length +
+    equipment.thermoPhotos.length +
+    equipment.postPhotos.length +
+    obsCount;
+
+  // Layout logic:
+  // > 4 items: Use compact mode (smaller photos, tighter grid)
+  // > 6 items: Use thirds layout (3 items per row) for even more space efficiency
+  const isCompact = totalItems > 4;
+  const isThirds = totalItems > 6;
+
+  const pageClasses = isCompact ? 'page compact' : 'page';
+
   return `
-    <div class="page">
+    <div class="${pageClasses}">
       <header>
         <h1>REPORTE FOTOGRÁFICO</h1>
         <h3>TABLERO: ${equipment.label} (${equipment.type.toUpperCase()})</h3>
@@ -225,7 +282,13 @@ export function generateEquipmentPhotoPageHTML(
         </tr>
       </table>
 
-      ${generatePhotosHTML(equipment.prePhotos, equipment.thermoPhotos, equipment.postPhotos)}
+      ${generatePhotosHTML(
+        equipment.prePhotos,
+        equipment.thermoPhotos,
+        equipment.postPhotos,
+        equipment.itemObservations,
+        { isCompact, isThirds },
+      )}
     </div>
   `;
 }
@@ -256,6 +319,19 @@ export function generateMaintenanceHTML(
   data: ReportMaintenanceData,
   _index: number,
 ): string {
+  console.log(
+    'generateMaintenanceHTML input data:',
+    JSON.stringify(
+      {
+        id: data.maintenanceId,
+        itemObservations: data.itemObservations,
+        observations: data.observations,
+      },
+      null,
+      2,
+    ),
+  );
+
   // Convert legacy format to new format
   const equipment: EquipmentMaintenanceData = {
     code: data.maintenanceId,
@@ -279,6 +355,7 @@ export function generateMaintenanceHTML(
       .map(p => ({ url: p.url })),
     postPhotos: data.postPhotos.map(p => ({ url: p.url })),
     observations: data.observations,
+    itemObservations: data.itemObservations,
   };
   return generateEquipmentPhotoPageHTML(equipment);
 }

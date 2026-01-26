@@ -264,6 +264,7 @@ export default function MaintenanceSessionScreen() {
             url: p.url || p.uri,
           })),
           observations: detail.observations,
+          itemObservations: detail.itemObservations,
         });
       }
 
