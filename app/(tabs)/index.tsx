@@ -128,7 +128,9 @@ function HomeScreen() {
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
         </TouchableOpacity>
-        <View style={styles.optionCardContainer}>
+        <TouchableOpacity
+          style={styles.optionCardContainer}
+          onPress={() => router.push('/equipment-record')}>
           <Feather
             name="file-text"
             size={32}
@@ -150,7 +152,7 @@ function HomeScreen() {
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
-        </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>
