@@ -1,4 +1,5 @@
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,7 +30,7 @@ function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header with user info */}
       <View style={styles.header}>
         <View style={styles.userInfo}>
@@ -94,7 +95,7 @@ function HomeScreen() {
               Programar Mantenimiento
             </Text>
             <Text style={{ color: '#4B5563', fontSize: 14 }}>
-              Registre y resuelva los problemas inmediato del equipo
+              Registre problemas inmediato del equipo
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
@@ -161,7 +162,7 @@ function HomeScreen() {
           {Constants.expoConfig?.version || '1.0.0'}
         </Text>
       </View>
-    </View>
+    </SafeAreaView>
   );
   //
 }
@@ -171,7 +172,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F3F4F6',
     paddingHorizontal: 20,
-    paddingTop: 32,
     paddingBottom: 16,
   },
   header: {
@@ -179,7 +179,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 24,
-    marginTop: 10,
   },
   userInfo: {
     flexDirection: 'column',
@@ -220,7 +219,6 @@ const styles = StyleSheet.create({
   },
   optionCardContainer: {
     position: 'relative',
-    width: 342,
     height: 104,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -229,8 +227,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 2,
     elevation: 2,
-    marginLeft: 'auto',
-    marginRight: 'auto',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,

@@ -8,7 +8,10 @@ import {
   RefreshControl,
   TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -25,6 +28,7 @@ import { useUserRole } from '@/hooks/use-user-role';
 
 export default function ElectricalPanelsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { building: buildingParam, equipamento: equipamentoParam } =
     useLocalSearchParams();
   const [building, setBuilding] = useState<any>(null);
@@ -342,7 +346,7 @@ export default function ElectricalPanelsScreen() {
       {canScheduleMaintenance &&
         isSelectionMode &&
         selectedPanelIds.size > 0 && (
-          <View style={styles.fabContainer}>
+          <View style={[styles.fabContainer, { bottom: 24 + insets.bottom }]}>
             <TouchableOpacity
               style={styles.fabButton}
               onPress={handleScheduleMaintenance}>
