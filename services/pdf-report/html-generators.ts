@@ -61,21 +61,16 @@ export function generateHeaderPageHTML(data: MaintenanceSessionReport): string {
 
       <h2>2. NORMATIVA</h2>
       <div class="normativa">
-        <strong>CNE-U 010-010 Inspecciones Iniciales y Periódicas:</strong> "Todas las instalaciones eléctricas deben ser objeto de mantenimiento oportuno y apropiado, por personal calificado y acreditado... con la finalidad que se garantice el buen estado, el funcionamiento adecuado y seguro..."
+        <strong>CNE-U 010-010 Inspecciones Iniciales y Periódicas:</strong> "Todas las instalaciones eléctricas deben ser objeto de mantenimiento oportuno y apropiado, por personal calificado y acreditado por la respectiva Autoridad competente, con la finalidad que se garantice el buen estado, el funcionamiento adecuado y seguro de todas las partes de la instalación eléctrica, tales como las protecciones, los aislamientos, los sistemas de puesta a tierra, etc."
       </div>
 
-      ${
-        data.measurementInstrument
-          ? `
+
       <h2>3. INSTRUMENTOS DE MEDICIÓN</h2>
       <ul>
-        <li><strong>Equipo:</strong> ${data.measurementInstrument.name}</li>
-        <li><strong>Modelo:</strong> ${data.measurementInstrument.model}</li>
-        <li><strong>Serie:</strong> ${data.measurementInstrument.serial}</li>
+        <li><strong>Equipo:</strong> ${data.measurementInstrument ? data.measurementInstrument.name : '-'}</li>
+        <li><strong>Modelo:</strong> ${data.measurementInstrument ? data.measurementInstrument.model : '-'}</li>
+        <li><strong>Serie:</strong> ${data.measurementInstrument ? data.measurementInstrument.serial : '-'}</li>
       </ul>
-      `
-          : ''
-      }
     </div>
   `;
 }
