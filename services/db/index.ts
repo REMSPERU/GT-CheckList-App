@@ -1,5 +1,5 @@
 // Import all functions first (ESLint requires imports at top)
-import { initDatabase, ensureInitialized } from './connection';
+import { initDatabase, ensureInitialized, withLock } from './connection';
 import { clearMirrorTables, bulkInsertMirrorData } from './sync';
 import {
   saveOfflineMaintenance,
@@ -94,4 +94,7 @@ export const DatabaseService = {
   createEquipment,
   softDeleteEquipment,
   generateEquipmentCode,
+
+  // Utils
+  withLock,
 };

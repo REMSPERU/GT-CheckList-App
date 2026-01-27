@@ -186,7 +186,16 @@ export const useScheduledMaintenances = () => {
   return useQuery({
     queryKey: ['scheduled-maintenances'],
     queryFn: async () => {
-      return await DatabaseService.getLocalScheduledMaintenances();
+      console.log(
+        'DEBUG: useScheduledMaintenances hook calling getLocalScheduledMaintenances',
+      );
+      const data = await DatabaseService.getLocalScheduledMaintenances();
+      console.log(
+        'DEBUG: useScheduledMaintenances hook received:',
+        data?.length,
+        'items',
+      );
+      return data;
     },
     staleTime: 1000, // Always fresh from local DB perspective
   });
@@ -211,7 +220,18 @@ export const useMaintenanceByProperty = (propertyId: string) => {
     queryKey: ['maintenance-by-property', propertyId],
     queryFn: async () => {
       if (!propertyId) return [];
-      return await DatabaseService.getLocalMaintenancesByProperty(propertyId);
+      console.log(
+        'DEBUG: useMaintenanceByProperty calling getLocalMaintenancesByProperty for',
+        propertyId,
+      );
+      const data =
+        await DatabaseService.getLocalMaintenancesByProperty(propertyId);
+      console.log(
+        'DEBUG: useMaintenanceByProperty received:',
+        data?.length,
+        'items',
+      );
+      return data;
     },
     enabled: !!propertyId,
   });

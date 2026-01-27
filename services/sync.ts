@@ -25,6 +25,8 @@ interface OfflinePhoto {
 class SyncService {
   private isConnected = false;
   private netInfoUnsubscribe: (() => void) | null = null;
+  private isSyncing = false;
+  private currentSyncPromise: Promise<boolean> | null = null;
 
   constructor() {
     this.init();
@@ -60,6 +62,11 @@ class SyncService {
    */
   private async syncOnReconnect() {
     try {
+      if (this.isSyncing) {
+        console.log('Skipping auto-sync: Sync already in progress');
+        return;
+      }
+
       console.log('Auto-sync triggered on reconnect...');
 
       // 1. Push pending offline work first
@@ -78,62 +85,101 @@ class SyncService {
    * Pulls reference data from Supabase and updates local mirror tables.
    * This is a "Reset" sync for reference data.
    */
-  async pullData() {
+  async pullData(): Promise<boolean> {
     await DatabaseService.ensureInitialized();
-    try {
-      if (!this.isConnected) {
-        console.log('Cannot pull data: Offline');
-        // We could return false here, but throwing might be better for UI feedback
-        // throw new Error('No internet connection');
-        // Actually, let's just log and return.
-        return false;
-      }
 
-      console.log('Starting Down-Sync...');
-
-      // 1. Fetch Data
-      const { data: equipos, error: equipError } = await supabase
-        .from('equipos')
-        .select('*');
-      if (equipError) throw equipError;
-
-      const { data: properties, error: propError } = await supabase
-        .from('properties')
-        .select('*');
-      if (propError) throw propError;
-
-      // Equipamentos (Catalog)
-      const { data: equipamentos, error: eqError } = await supabase
-        .from('equipamentos')
-        .select('*');
-      if (eqError) throw eqError;
-
-      // Equipamentos Property (Relation)
-      const { data: equipamentosProperty, error: epError } = await supabase
-        .from('equipamentos_property')
-        .select('*');
-      if (epError) throw epError;
-
-      // 2. Update Local DB
-      // We do NOT sync all users anymore for privacy/efficiency.
-      // Current user is saved on login via AuthContext.
-
-      // Smart sync: bulkInsertMirrorData now performs differential updates
-      // instead of clearing all data first, preventing UI flicker
-      await DatabaseService.bulkInsertMirrorData(
-        equipos || [],
-        properties || [],
-        [], // Empty users array
-        equipamentos || [],
-        equipamentosProperty || [],
-      );
-
-      console.log('Down-Sync Completed: Data mirrored locally.');
-      return true;
-    } catch (error) {
-      console.error('Down-Sync Error:', error);
-      throw error;
+    // Deduplication logic
+    if (this.currentSyncPromise) {
+      console.log('Sync already in progress, joining existing request...');
+      return this.currentSyncPromise;
     }
+
+    if (!this.isConnected) {
+      console.log('Cannot pull data: Offline');
+      return false;
+    }
+
+    this.isSyncing = true;
+    this.currentSyncPromise = (async () => {
+      try {
+        console.log('Starting Down-Sync...');
+
+        // 1. Fetch Data
+        const { data: equipos, error: equipError } = await supabase
+          .from('equipos')
+          .select('*');
+        if (equipError) throw equipError;
+
+        const { data: properties, error: propError } = await supabase
+          .from('properties')
+          .select('*');
+        if (propError) throw propError;
+
+        // Equipamentos (Catalog)
+        const { data: equipamentos, error: eqError } = await supabase
+          .from('equipamentos')
+          .select('*');
+        if (eqError) throw eqError;
+
+        // Equipamentos Property (Relation)
+        const { data: equipamentosProperty, error: epError } = await supabase
+          .from('equipamentos_property')
+          .select('*');
+        if (epError) throw epError;
+
+        // Scheduled Maintenances (New)
+        // Fetch all future or recent maintenances. For now, fetching all relevant ones.
+        // Optimizing with a reasonable limit or date filter would be next step.
+        // Deep selecting necessary relations for offline use.
+        const { data: scheduledMaintenances, error: smError } = await supabase
+          .from('mantenimientos')
+          .select(
+            `
+            id,
+            dia_programado,
+            tipo_mantenimiento,
+            observations,
+            estatus,
+            codigo,
+            id_equipo,
+            user_maintenace (
+              id_user
+            )
+          `,
+          )
+          // Ideally filter by date >= today or similar if list is huge
+          // .gte('dia_programado', new Date().toISOString().split('T')[0])
+          .order('dia_programado', { ascending: true });
+
+        if (smError) throw smError;
+
+        // 2. Update Local DB
+        // We do NOT sync all users anymore for privacy/efficiency.
+        // Current user is saved on login via AuthContext.
+
+        // Smart sync: bulkInsertMirrorData now performs differential updates
+        // instead of clearing all data first, preventing UI flicker
+        await DatabaseService.bulkInsertMirrorData(
+          equipos || [],
+          properties || [],
+          [], // Empty users array
+          equipamentos || [],
+          equipamentosProperty || [],
+          scheduledMaintenances || [],
+        );
+
+        console.log('Down-Sync Completed: Data mirrored locally.');
+        return true;
+      } catch (error) {
+        console.error('Down-Sync Error:', error);
+        throw error;
+      } finally {
+        this.isSyncing = false;
+        this.currentSyncPromise = null;
+      }
+    })();
+
+    return this.currentSyncPromise;
   }
 
   /**
