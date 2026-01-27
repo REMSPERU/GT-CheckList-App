@@ -193,3 +193,95 @@ export async function getEquipmentByProperty(
       return true;
     });
 }
+
+/**
+ * Get scheduled maintenances from local mirror.
+ * Joins with Equipos and Properties to match Supabase structure.
+ */
+export async function getLocalScheduledMaintenances() {
+  await ensureInitialized();
+  const db = await dbPromise;
+
+  // Manual Join strategy for better control over JSON parsing
+  const maintenances = await db.getAllAsync(
+    'SELECT * FROM local_scheduled_maintenances ORDER BY dia_programado ASC',
+  );
+  if (!maintenances || maintenances.length === 0) return [];
+
+  // Fetch related data
+  // Optimization: We could do SQL joins, but let's reuse existing cached/local data or simple lookups
+  // For now, simpler SQL JOIN is probably best for performance if tables are indexed
+  const rows = await db.getAllAsync(`
+    SELECT 
+      m.*,
+      e.id as e_id, e.codigo as e_codigo, e.ubicacion as e_ubicacion, e.id_property as e_id_property,
+      p.id as p_id, p.name as p_name, p.address as p_address
+    FROM local_scheduled_maintenances m
+    LEFT JOIN local_equipos e ON m.id_equipo = e.id
+    LEFT JOIN local_properties p ON e.id_property = p.id
+    ORDER BY m.dia_programado ASC
+  `);
+
+  return rows.map((row: any) => ({
+    id: row.id,
+    dia_programado: row.dia_programado,
+    tipo_mantenimiento: row.tipo_mantenimiento,
+    observations: row.observations,
+    id_equipo: row.id_equipo,
+    // Construct nested objects
+    equipos: {
+      id: row.e_id,
+      codigo: row.e_codigo,
+      ubicacion: row.e_ubicacion,
+      properties: {
+        id: row.p_id,
+        name: row.p_name,
+        address: row.p_address,
+      },
+    },
+    // Map assigned technicians
+    user_maintenace: row.assigned_technicians
+      ? JSON.parse(row.assigned_technicians).map((id: string) => ({
+          id_user: id,
+        }))
+      : [],
+  }));
+}
+
+export async function getLocalMaintenancesByProperty(propertyId: string) {
+  await ensureInitialized();
+  const db = await dbPromise;
+
+  const rows = await db.getAllAsync(
+    `
+    SELECT 
+      m.*,
+      e.id as e_id, e.codigo as e_codigo, e.ubicacion as e_ubicacion, e.id_property as e_id_property, e.equipment_detail as e_detail,
+      eq.nombre as eq_nombre
+    FROM local_scheduled_maintenances m
+    JOIN local_equipos e ON m.id_equipo = e.id
+    LEFT JOIN local_equipamentos eq ON e.id_equipamento = eq.id
+    WHERE e.id_property = ?
+    ORDER BY m.dia_programado ASC
+  `,
+    [propertyId],
+  );
+
+  return rows.map((row: any) => ({
+    id: row.id,
+    dia_programado: row.dia_programado,
+    estatus: row.estatus,
+    tipo_mantenimiento: row.tipo_mantenimiento,
+    codigo: row.codigo,
+    equipos: {
+      id: row.e_id,
+      codigo: row.e_codigo,
+      ubicacion: row.e_ubicacion,
+      id_property: row.e_id_property,
+      equipment_detail: row.e_detail ? JSON.parse(row.e_detail) : null,
+      equipamentos: {
+        nombre: row.eq_nombre,
+      },
+    },
+  }));
+}

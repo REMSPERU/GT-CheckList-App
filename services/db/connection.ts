@@ -84,6 +84,18 @@ export async function initDatabase() {
           PRIMARY KEY (id_equipamentos, id_property)
         );
 
+        CREATE TABLE IF NOT EXISTS local_scheduled_maintenances (
+          id TEXT PRIMARY KEY,
+          dia_programado TEXT,
+          tipo_mantenimiento TEXT,
+          observations TEXT,
+          id_equipo TEXT,
+          estatus TEXT,
+          codigo TEXT,
+          assigned_technicians TEXT, -- JSON string of user IDs
+          last_synced_at TEXT
+        );
+
         -- Offline Work (Write-Sync)
         CREATE TABLE IF NOT EXISTS offline_maintenance_response (
           local_id INTEGER PRIMARY KEY AUTOINCREMENT,

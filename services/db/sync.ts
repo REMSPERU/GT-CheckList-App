@@ -80,6 +80,7 @@ export async function bulkInsertMirrorData(
   users: any[],
   equipamentos: any[] = [],
   equipamentosProperty: any[] = [],
+  scheduledMaintenances: any[] = [],
 ) {
   await ensureInitialized();
 
@@ -160,6 +161,28 @@ export async function bulkInsertMirrorData(
           [item.id_equipamentos, item.id_property],
         );
       }
+
+      // --- Smart Sync for Scheduled Maintenances ---
+      await smartSyncTable(
+        db,
+        'local_scheduled_maintenances',
+        scheduledMaintenances,
+        'id',
+        'INSERT OR REPLACE INTO local_scheduled_maintenances (id, dia_programado, tipo_mantenimiento, observations, id_equipo, estatus, codigo, assigned_technicians, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        item => [
+          item.id,
+          item.dia_programado,
+          item.tipo_mantenimiento,
+          item.observations,
+          item.id_equipo,
+          item.estatus,
+          item.codigo,
+          JSON.stringify(
+            item.user_maintenace?.map((um: any) => um.id_user) || [],
+          ),
+          new Date().toISOString(),
+        ],
+      );
     });
 
     console.log('[SmartSync] Mirror data sync completed');

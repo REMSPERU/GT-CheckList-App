@@ -1,5 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { DatabaseService } from '../services/db';
+import { syncService } from '@/services/sync';
 import {
   MaintenanceCreateRequest,
   MaintenanceStatusEnum,
@@ -169,80 +172,46 @@ export const useCreateMaintenance = () => {
   });
 };
 
-// Fetch Scheduled Maintenances
+// Fetch Scheduled Maintenances (Offline First)
 export const useScheduledMaintenances = () => {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // Trigger background sync when hook mounts
+    syncService.pullData().then(() => {
+      queryClient.invalidateQueries({ queryKey: ['scheduled-maintenances'] });
+    });
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ['scheduled-maintenances'],
     queryFn: async () => {
-      // Fetch maintenance with equipment, property, and technician count
-      // Note: We need deep joins: mantenimientos -> equipos -> properties
-      const { data, error } = await supabase
-        .from('mantenimientos')
-        .select(
-          `
-          id,
-          dia_programado,
-          tipo_mantenimiento,
-          observations,
-          id_equipo,
-          equipos (
-            id,
-            codigo,
-            ubicacion,
-            properties (
-              id,
-              name,
-              address
-            )
-          ),
-          user_maintenace (
-            id_user
-          )
-        `,
-        )
-        //.eq('estatus', MaintenanceStatusEnum.NO_INICIADO)
-        .order('dia_programado', { ascending: true });
-
-      if (error) throw error;
-      return data;
+      return await DatabaseService.getLocalScheduledMaintenances();
     },
-    retry: 0,
+    staleTime: 1000, // Always fresh from local DB perspective
   });
 };
 
-// Fetch Maintenances by Property ID
+// Fetch Maintenances by Property ID (Offline First)
 export const useMaintenanceByProperty = (propertyId: string) => {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (propertyId) {
+      // Trigger background sync when hook mounts
+      syncService.pullData().then(() => {
+        queryClient.invalidateQueries({
+          queryKey: ['maintenance-by-property', propertyId],
+        });
+      });
+    }
+  }, [propertyId, queryClient]);
+
   return useQuery({
     queryKey: ['maintenance-by-property', propertyId],
     queryFn: async () => {
       if (!propertyId) return [];
-
-      const { data, error } = await supabase
-        .from('mantenimientos')
-        .select(
-          `
-          id,
-          dia_programado,
-          estatus,
-          tipo_mantenimiento,
-          codigo,
-          equipos!inner (
-            id,
-            codigo,
-            ubicacion,
-            id_property,
-            equipment_detail,
-            equipamentos (
-              nombre
-            )
-          )
-        `,
-        )
-        .eq('equipos.id_property', propertyId)
-        .order('dia_programado', { ascending: true });
-
-      if (error) throw error;
-      return data;
+      return await DatabaseService.getLocalMaintenancesByProperty(propertyId);
     },
     enabled: !!propertyId,
   });
