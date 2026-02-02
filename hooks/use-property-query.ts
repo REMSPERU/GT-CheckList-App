@@ -11,7 +11,7 @@ import type {
   PropertyListResponse,
   PropertyResponse,
 } from '../types/api';
-import { DatabaseService } from '../services/database';
+import { getLocalProperties } from '../services/db/queries';
 
 // Query Keys
 export const propertyKeys = {
@@ -42,7 +42,40 @@ export function useProperty(
 }
 
 /**
+ * Helper para transformar datos locales a PropertyListResponse
+ */
+function transformLocalToPropertyList(localProps: any[]): PropertyListResponse {
+  const items = localProps.map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    code: p.code,
+    address: p.address,
+    city: p.city,
+    // defaults for missing fields in mirror
+    property_type: 'Unknown',
+    is_active: true,
+    maintenance_priority: 'Low',
+    country: '',
+    latitude: 0,
+    longitude: 0,
+    postal_code: '',
+    total_area_sqm: 0,
+    construction_year: 0,
+    created_at: '',
+    updated_at: '',
+  })) as unknown as PropertyResponse[];
+
+  return {
+    items: items,
+    total: items.length,
+    limit: items.length,
+    skip: 0,
+  };
+}
+
+/**
  * Hook para obtener lista de propiedades con filtros
+ * OFFLINE-FIRST: Carga datos locales primero, luego sincroniza con Supabase en background
  */
 export function useProperties(
   filters?: {
@@ -59,51 +92,58 @@ export function useProperties(
     'queryKey' | 'queryFn'
   >,
 ) {
+  const queryClient = useQueryClient();
+
   return useQuery({
     queryKey: propertyKeys.list(filters),
     queryFn: async () => {
+      // OFFLINE-FIRST: Start with local data immediately
+      const localProps = await getLocalProperties();
+      const localData = transformLocalToPropertyList(localProps);
+
+      // If we have local data, return it immediately and fetch remote in background
+      if (localData.items.length > 0) {
+        // Fetch from Supabase in background (non-blocking)
+        supabasePropertyService
+          .list(filters)
+          .then(remoteData => {
+            // Update the cache with fresh data from server
+            queryClient.setQueryData(propertyKeys.list(filters), remoteData);
+            console.log('Properties updated from server in background');
+          })
+          .catch(error => {
+            console.log(
+              'Background fetch from Supabase failed, using local data:',
+              error,
+            );
+          });
+
+        // Return local data immediately
+        return localData;
+      }
+
+      // No local data, try to fetch from Supabase with timeout
       try {
-        // Try fetching from API (Supabase)
-        return await supabasePropertyService.list(filters);
-      } catch (error) {
-        console.log(
-          'Network request failed, attempting local fallback for Properties...',
-          error,
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Request timeout')), 5000),
         );
 
-        // Fallback to SQLite
-        // Note: SQLite filters are basic here, you might want to expand filtering logic
-        const localProps = await DatabaseService.getLocalProperties();
+        const remoteData = await Promise.race([
+          supabasePropertyService.list(filters),
+          timeoutPromise,
+        ]);
 
-        // Transform local data to match PropertyListResponse structure
-        // Assuming localProps has columns matching what we need
-        // adapt this to match PropertyResponse interface
-        const items = localProps.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          code: p.code,
-          address: p.address,
-          city: p.city,
-          // defaults for missing fields in mirror
-          property_type: 'Unknown',
-          is_active: true,
-          maintenance_priority: 'Low',
-          country: '',
-          latitude: 0,
-          longitude: 0,
-          postal_code: '',
-          total_area_sqm: 0,
-          construction_year: 0,
-          created_at: '',
-          updated_at: '',
-        })) as unknown as PropertyResponse[]; // Cast or map properly
-
+        return remoteData;
+      } catch (error) {
+        console.log(
+          'Network request failed and no local data available:',
+          error,
+        );
+        // Return empty list as ultimate fallback
         return {
-          items: items,
-          total: items.length,
-          page: 1,
-          limit: items.length,
-          pages: 1,
+          items: [],
+          total: 0,
+          limit: 0,
           skip: 0,
         };
       }
