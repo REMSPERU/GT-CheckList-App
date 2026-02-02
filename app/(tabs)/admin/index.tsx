@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import React from 'react';
-import { Link } from 'expo-router';
-import { DefaultHeader } from '@/components/default-header';
+import { Link, type LinkProps } from 'expo-router';
+import DefaultHeader from '@/components/default-header';
 import { Feather } from '@expo/vector-icons';
 
 const AdminOption = ({
@@ -9,7 +9,7 @@ const AdminOption = ({
   title,
   icon,
 }: {
-  href: string;
+  href: LinkProps['href'];
   title: string;
   icon: keyof typeof Feather.glyphMap;
 }) => (

@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import React, { useState, useCallback } from 'react';
-import { DefaultHeader } from '@/components/default-header';
+import DefaultHeader from '@/components/default-header';
 import {
   supabaseUserService,
   UserProfile,
@@ -100,7 +100,7 @@ export default function AssignRolesScreen() {
   if (loading && users.length === 0) {
     return (
       <View style={styles.container}>
-        <DefaultHeader title="Asignar Roles" />
+        <DefaultHeader title="Asignar Roles" searchPlaceholder="" />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#0891B2" />
         </View>
@@ -110,7 +110,7 @@ export default function AssignRolesScreen() {
 
   return (
     <View style={styles.container}>
-      <DefaultHeader title="Asignar Roles" />
+      <DefaultHeader title="Asignar Roles" searchPlaceholder="" />
       <FlatList
         data={users}
         keyExtractor={item => item.id}

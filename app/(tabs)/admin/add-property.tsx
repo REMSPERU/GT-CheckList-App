@@ -10,11 +10,12 @@ import {
   Alert,
 } from 'react-native';
 import React from 'react';
-import { DefaultHeader } from '@/components/default-header';
+import DefaultHeader from '@/components/default-header';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AddPropertySchema, AddPropertyForm } from '@/schemas/property';
 import { supabasePropertyService } from '@/services/supabase-property.service';
+import type { PropertyCreateRequest } from '@/types/api';
 import { useRouter } from 'expo-router';
 
 // A simple reusable input component for the form
@@ -53,7 +54,7 @@ export default function AddPropertyScreen() {
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
-  } = useForm<AddPropertyForm>({
+  } = useForm({
     resolver: zodResolver(AddPropertySchema),
     defaultValues: {
       name: '',
@@ -70,12 +71,19 @@ export default function AddPropertyScreen() {
 
   const onSubmit: SubmitHandler<AddPropertyForm> = async data => {
     try {
-      await supabasePropertyService.create({
-        ...data,
-        // Ensure non-nullable fields from DB schema have default values if not in form
-        created_at: new Date().toISOString(),
-        is_active: true, // Assuming default active state
-      });
+      // Build payload matching PropertyCreateRequest (omit server-managed fields like created_at and is_active)
+      const payload: PropertyCreateRequest = {
+        code: data.code,
+        name: data.name,
+        description: data.description ?? null,
+        address: data.address,
+        city: data.city,
+        country: data.country || 'PE',
+        property_type: data.property_type || 'BUILDING',
+        maintenance_priority: data.maintenance_priority || 'MEDIUM',
+      };
+
+      await supabasePropertyService.create(payload);
 
       Alert.alert('Éxito', 'El inmueble ha sido creado correctamente.', [
         {

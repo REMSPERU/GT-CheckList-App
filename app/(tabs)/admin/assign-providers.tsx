@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import React, { useState, useEffect } from 'react';
-import { DefaultHeader } from '@/components/default-header';
+import DefaultHeader from '@/components/default-header';
 import {
   supabaseCompanyService,
   Company,

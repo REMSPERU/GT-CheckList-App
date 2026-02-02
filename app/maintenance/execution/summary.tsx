@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import NetInfo from '@react-native-community/netinfo';
+import * as Network from 'expo-network';
 
 import MaintenanceHeader from '@/components/maintenance-header';
 import {
@@ -135,9 +135,10 @@ export default function SummaryScreen() {
 
       console.log('SUCCESS: Saved locally');
 
-      // 5. Check connectivity and sync
-      const netState = await NetInfo.fetch();
-      const isOnline = netState.isConnected && netState.isInternetReachable;
+      // 5. Check connectivity and sync (using expo-network to avoid native module rebuild)
+      const netState = await Network.getNetworkStateAsync();
+      // expo-network may not expose isInternetReachable on some platforms — assume true if missing
+      const isOnline = netState.isConnected && (netState.isInternetReachable ?? true);
 
       if (isOnline) {
         // Try to sync immediately

@@ -15,6 +15,8 @@ import {
   saveOfflineGroundingWellChecklist,
   getPendingGroundingWellChecklists,
   updateGroundingWellChecklistStatus,
+  getPendingGroundingWellChecklistPhotos,
+  updateGroundingWellChecklistPhotoStatus,
 } from './grounding-well';
 import { getPendingPhotos, updatePhotoStatus } from './photos';
 import {

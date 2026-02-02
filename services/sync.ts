@@ -3,7 +3,7 @@ import { DatabaseService } from './database';
 import { supabaseMaintenanceService } from './supabase-maintenance.service';
 import { supabaseElectricalPanelService } from './supabase-electrical-panel.service';
 import { supabaseGroundingWellService } from './supabase-grounding-well.service';
-import NetInfo from '@react-native-community/netinfo';
+import * as Network from 'expo-network';
 
 interface OfflineMaintenance {
   local_id: number;
@@ -25,7 +25,7 @@ interface OfflinePhoto {
 
 class SyncService {
   private isConnected = false;
-  private netInfoUnsubscribe: (() => void) | null = null;
+  private pollIntervalId: NodeJS.Timer | null = null;
   private isSyncing = false;
   private currentSyncPromise: Promise<boolean> | null = null;
 
@@ -34,27 +34,22 @@ class SyncService {
   }
 
   init() {
-    // Listen for network changes
-    this.netInfoUnsubscribe = NetInfo.addEventListener(state => {
-      const wasConnected = this.isConnected;
-      this.isConnected = state.isConnected ?? false;
-
-      console.log('Network State Change. Connected:', this.isConnected);
-
-      if (this.isConnected && !wasConnected) {
-        // Reconnected -> Trigger bidirectional sync
-        this.syncOnReconnect();
-      }
-    });
+    // Use expo-network to check connectivity periodically to avoid native module dependency
+    // Initial check
+    this.checkNetworkAndMaybeSync();
+    // Poll every 15 seconds
+    this.pollIntervalId = setInterval(() => {
+      this.checkNetworkAndMaybeSync();
+    }, 15000);
   }
 
   /**
-   * Cleanup method to remove listeners
+   * Cleanup method to remove listeners / intervals
    */
   cleanup() {
-    if (this.netInfoUnsubscribe) {
-      this.netInfoUnsubscribe();
-      this.netInfoUnsubscribe = null;
+    if (this.pollIntervalId) {
+      clearInterval(this.pollIntervalId);
+      this.pollIntervalId = null;
     }
   }
 
@@ -86,6 +81,21 @@ class SyncService {
    * Pulls reference data from Supabase and updates local mirror tables.
    * This is a "Reset" sync for reference data.
    */
+  private async checkNetworkAndMaybeSync() {
+    try {
+      const netState = await Network.getNetworkStateAsync();
+      const wasConnected = this.isConnected;
+      this.isConnected = netState.isConnected ?? false;
+
+      if (this.isConnected && !wasConnected) {
+        // Reconnected -> Trigger bidirectional sync
+        this.syncOnReconnect();
+      }
+    } catch (err) {
+      console.warn('Network check failed:', err);
+    }
+  }
+
   async pullData(): Promise<boolean> {
     await DatabaseService.ensureInitialized();
 
