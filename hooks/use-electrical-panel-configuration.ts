@@ -1,8 +1,9 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PanelData } from '@/types/panel-configuration';
 import {
   PanelConfigurationSchema,
@@ -11,6 +12,9 @@ import {
 // import { supabaseElectricalPanelService } from '@/services/supabase-electrical-panel.service';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
+
+// Storage key prefix for configuration drafts
+const CONFIG_DRAFT_KEY_PREFIX = 'panel_config_draft_';
 
 // ============================================================================
 // STEP CONFIGURATION
@@ -79,6 +83,13 @@ export function usePanelConfiguration(
 ): UsePanelConfigurationReturn {
   const router = useRouter();
   const [currentStepId, setCurrentStepId] = useState<StepId>(STEP_ORDER[0]);
+  const [isLoadingDraft, setIsLoadingDraft] = useState(true);
+
+  // Generate storage key based on panel ID
+  const getStorageKey = useCallback(() => {
+    if (!initialPanel?.id) return null;
+    return `${CONFIG_DRAFT_KEY_PREFIX}${initialPanel.id}`;
+  }, [initialPanel?.id]);
 
   const form = useForm<PanelConfigurationFormValues>({
     resolver: zodResolver(PanelConfigurationSchema),
@@ -116,7 +127,123 @@ export function usePanelConfiguration(
     mode: 'onChange',
   });
 
-  const { trigger, getValues } = form;
+  const { trigger, getValues, reset, watch } = form;
+
+  // Debounce ref for auto-save
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load saved draft on mount
+  useEffect(() => {
+    const loadDraft = async () => {
+      const storageKey = getStorageKey();
+      if (!storageKey) {
+        setIsLoadingDraft(false);
+        return;
+      }
+
+      try {
+        const savedDraft = await AsyncStorage.getItem(storageKey);
+        if (savedDraft) {
+          const parsed = JSON.parse(savedDraft);
+          console.log('📂 [CONFIG] Loaded draft for panel:', initialPanel?.id);
+
+          // Restore form values
+          if (parsed.formValues) {
+            reset(parsed.formValues);
+          }
+
+          // Restore current step
+          if (
+            parsed.currentStepId &&
+            STEP_ORDER.includes(parsed.currentStepId)
+          ) {
+            setCurrentStepId(parsed.currentStepId);
+          }
+        }
+      } catch (error) {
+        console.error('❌ [CONFIG] Error loading draft:', error);
+      } finally {
+        setIsLoadingDraft(false);
+      }
+    };
+
+    loadDraft();
+  }, [getStorageKey, initialPanel?.id, reset]);
+
+  // Auto-save draft when form values change (with debounce)
+  useEffect(() => {
+    const subscription = watch(formValues => {
+      // Don't save while loading
+      if (isLoadingDraft) return;
+
+      const storageKey = getStorageKey();
+      if (!storageKey) return;
+
+      // Clear previous timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      // Debounce save by 1.5 seconds
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          const draft = {
+            formValues,
+            currentStepId,
+            lastUpdated: new Date().toISOString(),
+          };
+          await AsyncStorage.setItem(storageKey, JSON.stringify(draft));
+          console.log('💾 [CONFIG] Draft saved for panel:', initialPanel?.id);
+        } catch (error) {
+          console.error('❌ [CONFIG] Error saving draft:', error);
+        }
+      }, 1500);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [watch, getStorageKey, currentStepId, isLoadingDraft, initialPanel?.id]);
+
+  // Save step changes
+  useEffect(() => {
+    const saveStepChange = async () => {
+      if (isLoadingDraft) return;
+
+      const storageKey = getStorageKey();
+      if (!storageKey) return;
+
+      try {
+        const existingDraft = await AsyncStorage.getItem(storageKey);
+        if (existingDraft) {
+          const parsed = JSON.parse(existingDraft);
+          parsed.currentStepId = currentStepId;
+          parsed.lastUpdated = new Date().toISOString();
+          await AsyncStorage.setItem(storageKey, JSON.stringify(parsed));
+        }
+      } catch (error) {
+        console.error('❌ [CONFIG] Error saving step change:', error);
+      }
+    };
+
+    saveStepChange();
+  }, [currentStepId, getStorageKey, isLoadingDraft]);
+
+  // Function to clear draft after successful save
+  const clearDraft = useCallback(async () => {
+    const storageKey = getStorageKey();
+    if (storageKey) {
+      try {
+        await AsyncStorage.removeItem(storageKey);
+        console.log('🗑️ [CONFIG] Draft cleared for panel:', initialPanel?.id);
+      } catch (error) {
+        console.error('❌ [CONFIG] Error clearing draft:', error);
+      }
+    }
+  }, [getStorageKey, initialPanel?.id]);
 
   const validateCurrentStep = async (): Promise<boolean> => {
     let fieldsToValidate: (keyof PanelConfigurationFormValues)[] = [];
@@ -310,6 +437,9 @@ export function usePanelConfiguration(
               err,
             );
           });
+
+          // Clear the draft after successful save
+          await clearDraft();
 
           Alert.alert(
             'Configuración guardada',
