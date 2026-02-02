@@ -131,6 +131,30 @@ export async function initDatabase() {
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           synced_at TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS offline_grounding_well_checklist (
+          local_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          panel_id TEXT,
+          maintenance_id TEXT, -- Can be null for adhoc
+          user_created TEXT,
+          checklist_data TEXT, -- JSON string
+          status TEXT DEFAULT 'pending', -- pending, syncing, synced, error
+          error_message TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          synced_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS offline_grounding_well_photos (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          checklist_local_id INTEGER,
+          item_key TEXT, -- e.g., 'lidStatus', 'hasSignage', 'connectorsOk', 'hasAccess'
+          local_uri TEXT,
+          status TEXT DEFAULT 'pending', -- pending, syncing, synced, error
+          remote_url TEXT,
+          error_message TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(checklist_local_id) REFERENCES offline_grounding_well_checklist(local_id)
+        );
       `);
 
     // === MIGRATIONS ===

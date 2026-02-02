@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { DatabaseService } from './database';
 import { supabaseMaintenanceService } from './supabase-maintenance.service';
 import { supabaseElectricalPanelService } from './supabase-electrical-panel.service';
+import { supabaseGroundingWellService } from './supabase-grounding-well.service';
 import NetInfo from '@react-native-community/netinfo';
 
 interface OfflineMaintenance {
@@ -370,6 +371,105 @@ class SyncService {
       }
     } else {
       console.log('[SYNC] No pending panel configurations to sync.');
+    }
+
+    // --- SYNC GROUNDING WELL CHECKLISTS ---
+    console.log('[SYNC] Checking for pending grounding well checklists...');
+    const pendingGroundingWellChecklists =
+      (await DatabaseService.getPendingGroundingWellChecklists()) as {
+        local_id: number;
+        panel_id: string;
+        maintenance_id: string | null;
+        user_created: string;
+        checklist_data: string;
+      }[];
+
+    if (pendingGroundingWellChecklists.length > 0) {
+      for (const checklist of pendingGroundingWellChecklists) {
+        console.log('[SYNC] Processing grounding well checklist ID:', checklist.local_id);
+        try {
+          await DatabaseService.updateGroundingWellChecklistStatus(
+            checklist.local_id,
+            'syncing',
+          );
+
+          // 1. Upload Photos first
+          const photos = (await DatabaseService.getPendingGroundingWellChecklistPhotos(
+            checklist.local_id,
+          )) as { id: number; local_uri: string; item_key: string }[];
+          const photoUrlMap: Record<string, string> = {}; // localUri -> remoteUrl
+
+          for (const photo of photos) {
+            try {
+              const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
+                photo.local_uri,
+                'grounding-well', // Specific folder for grounding well photos
+              );
+
+              await DatabaseService.updateGroundingWellChecklistPhotoStatus(
+                photo.id,
+                'synced',
+                remoteUrl,
+              );
+              photoUrlMap[photo.local_uri] = remoteUrl;
+            } catch (pError) {
+              console.error(`Photo upload failed for grounding well photo ${photo.id}:`, pError);
+              await DatabaseService.updateGroundingWellChecklistPhotoStatus(
+                photo.id,
+                'error',
+                null,
+                String(pError),
+              );
+              throw new Error('Grounding well photo upload failed'); // Stop this checklist sync
+            }
+          }
+
+          // 2. Reconstruct checklist_data with remote URLs
+          const detail = JSON.parse(checklist.checklist_data);
+
+          // Helper to replace URIs
+          const replaceUri = (uri: string) => photoUrlMap[uri] || uri;
+
+          // Update lidStatusPhoto
+          if (detail.lidStatusPhoto) {
+            detail.lidStatusPhoto = replaceUri(detail.lidStatusPhoto);
+          }
+
+          // Update item photos
+          const checklistItemKeys: (keyof typeof detail)[] = ['hasSignage', 'connectorsOk', 'hasAccess'];
+          for (const key of checklistItemKeys) {
+            const item = detail[key];
+            if (item && item.photo) {
+              item.photo = replaceUri(item.photo);
+            }
+          }
+
+          await supabaseGroundingWellService.saveChecklistResponse(
+            checklist.panel_id,
+            checklist.maintenance_id,
+            detail,
+            checklist.user_created,
+          );
+
+          await DatabaseService.updateGroundingWellChecklistStatus(
+            checklist.local_id,
+            'synced',
+          );
+          console.log(`[SYNC] Grounding well checklist ${checklist.local_id} marked as synced.`);
+        } catch (error) {
+          console.error(
+            `[SYNC] Sync failed for grounding well checklist ${checklist.local_id}:`,
+            error,
+          );
+          await DatabaseService.updateGroundingWellChecklistStatus(
+            checklist.local_id,
+            'error',
+            String(error),
+          );
+        }
+      }
+    } else {
+      console.log('[SYNC] No pending grounding well checklists to sync.');
     }
   }
 }

@@ -11,6 +11,11 @@ import {
   getPendingPanelConfigurations,
   updatePanelConfigurationStatus,
 } from './panel-configuration';
+import {
+  saveOfflineGroundingWellChecklist,
+  getPendingGroundingWellChecklists,
+  updateGroundingWellChecklistStatus,
+} from './grounding-well';
 import { getPendingPhotos, updatePhotoStatus } from './photos';
 import {
   saveCurrentUser,
@@ -39,6 +44,7 @@ export * from './connection';
 export * from './sync';
 export * from './maintenance';
 export * from './panel-configuration';
+export * from './grounding-well';
 export * from './photos';
 export * from './users';
 export * from './session';
@@ -65,6 +71,13 @@ export const DatabaseService = {
   saveOfflinePanelConfiguration,
   getPendingPanelConfigurations,
   updatePanelConfigurationStatus,
+
+  // Grounding Well
+  saveOfflineGroundingWellChecklist,
+  getPendingGroundingWellChecklists,
+  updateGroundingWellChecklistStatus,
+  getPendingGroundingWellChecklistPhotos,
+  updateGroundingWellChecklistPhotoStatus,
 
   // Photos
   getPendingPhotos,
