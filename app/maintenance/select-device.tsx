@@ -119,6 +119,7 @@ export default function SelectDeviceScreen() {
       TBELEC: 'stats-chart-outline', // Tablero electrico
       LUZ: 'flashlight-outline', // Luces de Emergencia
       PT: 'construct-outline',
+      PAT: 'filter-outline', // Pozo a Tierra
       ASC: 'arrow-up-outline',
     };
     return iconMap[abreviatura] || 'cube-outline';
