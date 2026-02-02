@@ -1,19 +1,10 @@
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useFormContext, Controller } from 'react-hook-form';
 import { BasicInfoStepProps } from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 
 export default function BasicInfoStep({ panel }: BasicInfoStepProps) {
-  const {
-    control,
-    formState: { errors },
-  } = useFormContext<PanelConfigurationFormValues>();
+  const { control } = useFormContext<PanelConfigurationFormValues>();
 
   return (
     <View style={styles.contentWrapper}>
@@ -80,25 +71,50 @@ export default function BasicInfoStep({ panel }: BasicInfoStepProps) {
       <Controller
         control={control}
         name="voltage"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <View>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={[styles.input, errors.voltage && styles.inputError]}
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                keyboardType="numeric"
-                placeholder="220"
-                placeholderTextColor="#9CA3AF"
-              />
-              <View style={styles.unitWrapper}>
-                <Text style={styles.unitText}>V</Text>
-              </View>
-            </View>
-            {errors.voltage && (
-              <Text style={styles.errorText}>{errors.voltage.message}</Text>
-            )}
+        render={({ field: { onChange, value } }) => (
+          <View style={styles.voltageButtons}>
+            <TouchableOpacity
+              style={[
+                styles.voltageButton,
+                value === '220' && styles.voltageButtonActive,
+              ]}
+              onPress={() => onChange('220')}>
+              <Text
+                style={[
+                  styles.voltageButtonText,
+                  value === '220' && styles.voltageButtonTextActive,
+                ]}>
+                220V
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.voltageButton,
+                value === '380' && styles.voltageButtonActive,
+              ]}
+              onPress={() => onChange('380')}>
+              <Text
+                style={[
+                  styles.voltageButtonText,
+                  value === '380' && styles.voltageButtonTextActive,
+                ]}>
+                380V
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.voltageButton,
+                value === '440' && styles.voltageButtonActive,
+              ]}
+              onPress={() => onChange('440')}>
+              <Text
+                style={[
+                  styles.voltageButtonText,
+                  value === '440' && styles.voltageButtonTextActive,
+                ]}>
+                440V
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
       />
@@ -260,6 +276,32 @@ const styles = StyleSheet.create({
     color: '#11181C',
   },
   listButtonTextActive: {
+    color: '#0891B2',
+    fontWeight: '600',
+  },
+  voltageButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  voltageButton: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  voltageButtonActive: {
+    borderColor: '#0891B2',
+    backgroundColor: '#E0F2FE',
+  },
+  voltageButtonText: {
+    color: '#11181C',
+    fontWeight: '500',
+  },
+  voltageButtonTextActive: {
     color: '#0891B2',
     fontWeight: '600',
   },
