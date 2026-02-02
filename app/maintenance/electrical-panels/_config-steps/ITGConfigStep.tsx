@@ -74,7 +74,7 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
     <View style={styles.contentWrapper}>
       {/* Equipo */}
       <Text style={styles.equipmentLabel}>
-        Equipo {panel?.name || panel?.codigo || ''}
+        Equipo {panel?.equipment_detail?.rotulo || panel?.codigo || ''}
       </Text>
       <Text style={styles.stepTitleStrong}>
         Interruptor Termomagnetico general (IT-G)
@@ -131,4 +131,3 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
     </View>
   );
 }
-

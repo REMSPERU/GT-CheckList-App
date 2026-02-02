@@ -16,12 +16,10 @@ export interface CircuitConfig {
 }
 
 export interface PanelData {
-  name?: string;
   id?: string;
   codigo?: string;
-  rotulo?: string;
   id_property?: string;
-  equipment_detail?: any; // JSONB structure
+  equipment_detail?: any; // JSONB structure - contiene el rotulo
 }
 
 export interface BasicInfoStepProps {

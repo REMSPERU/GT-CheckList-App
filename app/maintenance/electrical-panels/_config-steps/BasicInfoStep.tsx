@@ -6,11 +6,17 @@ import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 export default function BasicInfoStep({ panel }: BasicInfoStepProps) {
   const { control } = useFormContext<PanelConfigurationFormValues>();
 
+  // Debug: ver el contenido del panel
+  console.log(
+    '🔍 [BasicInfoStep] Panel recibido:',
+    JSON.stringify(panel, null, 2),
+  );
+
   return (
     <View style={styles.contentWrapper}>
       {/* Equipo */}
       <Text style={styles.equipmentLabel}>
-        Equipo {panel?.name || panel?.codigo || ''}
+        Equipo {panel?.equipment_detail?.rotulo || panel?.codigo || ''}
       </Text>
 
       {/* Tipo de tablero */}

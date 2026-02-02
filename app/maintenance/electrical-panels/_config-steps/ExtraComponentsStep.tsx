@@ -126,7 +126,7 @@ export default function ExtraComponentsStep({
   return (
     <View style={styles.contentWrapper}>
       <Text style={styles.equipmentLabel}>
-        Equipo {panel?.name || panel?.codigo || ''}
+        Equipo {panel?.equipment_detail?.rotulo || panel?.codigo || ''}
       </Text>
       <Text style={styles.stepTitleStrong}>Componentes adicionales</Text>
 

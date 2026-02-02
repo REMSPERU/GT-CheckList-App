@@ -230,7 +230,7 @@ export default function CircuitsConfigStep({
     <View style={styles.contentWrapper}>
       {/* Equipo */}
       <Text style={styles.equipmentLabel}>
-        Equipo {panel?.name || panel?.codigo || ''}
+        Equipo {panel?.equipment_detail?.rotulo || panel?.codigo || ''}
       </Text>
 
       {/* Tabs for IT-G selection - Non-clickable, navigation via buttons */}

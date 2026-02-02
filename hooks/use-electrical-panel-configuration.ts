@@ -305,7 +305,10 @@ export function usePanelConfiguration(
 
         // Map form values to the requested JSONB structure
         const newDetailMapping = {
-          rotulo: initialPanel?.name || initialPanel?.codigo || 'Tablero',
+          rotulo:
+            initialPanel?.equipment_detail?.rotulo ||
+            initialPanel?.codigo ||
+            'Tablero',
           detalle_tecnico: {
             fases: PHASE_LABELS[values.phase] || values.phase,
             voltaje: Number(values.voltage),

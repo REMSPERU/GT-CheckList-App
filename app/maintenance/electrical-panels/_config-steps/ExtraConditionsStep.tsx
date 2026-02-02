@@ -47,7 +47,7 @@ export default function ExtraConditionsStep({
   return (
     <View style={styles.contentWrapper}>
       <Text style={styles.equipmentLabel}>
-        Equipo {panel?.name || panel?.codigo || ''}
+        Equipo {panel?.equipment_detail?.rotulo || panel?.codigo || ''}
       </Text>
       <Text style={styles.stepTitleStrong}>Condiciones adicionales</Text>
 

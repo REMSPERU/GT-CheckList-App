@@ -11,7 +11,7 @@ export default function ReviewStep({ panel }: ReviewStepProps) {
 
   // Map values to the structure expected by PanelDetailContent
   const mappedDetail = {
-    rotulo: values.panelName || panel?.rotulo || panel?.name || '',
+    rotulo: values.panelName || panel?.equipment_detail?.rotulo || '',
     tipo_tablero: values.panelType,
     detalle_tecnico: {
       fases: values.phase,
@@ -51,7 +51,7 @@ export default function ReviewStep({ panel }: ReviewStepProps) {
   return (
     <View style={styles.contentWrapper}>
       <Text style={styles.equipmentLabel}>
-        Equipo {panel?.name || panel?.codigo || ''}
+        Equipo {panel?.equipment_detail?.rotulo || panel?.codigo || ''}
       </Text>
       <Text style={styles.stepTitleStrong}>Resumen Final</Text>
 
