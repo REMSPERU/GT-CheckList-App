@@ -135,6 +135,20 @@ export default function BasicInfoStep({ panel }: BasicInfoStepProps) {
             <TouchableOpacity
               style={[
                 styles.listButton,
+                value === 'unipolar' && styles.listButtonActive,
+              ]}
+              onPress={() => onChange('unipolar')}>
+              <Text
+                style={[
+                  styles.listButtonText,
+                  value === 'unipolar' && styles.listButtonTextActive,
+                ]}>
+                Unipolar
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.listButton,
                 value === 'mono_2w' && styles.listButtonActive,
               ]}
               onPress={() => onChange('mono_2w')}>
