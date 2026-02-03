@@ -16,6 +16,10 @@ export interface PanelDetailProps {
       id: string;
       prefijo?: string;
       suministra?: string;
+      // IT-G specific fields
+      amperaje?: number | string;
+      diametro_cable?: string;
+      tipo_cable?: string;
       itms: {
         id: string;
         fases: string;
@@ -108,7 +112,7 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = ({ data }) => {
               <View style={styles.iconBox}>
                 <Text style={styles.iconText}>IG</Text>
               </View>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.itgId}>{itg.id}</Text>
                 {itg.suministra ? (
                   <Text style={styles.itgSupply}>
@@ -117,26 +121,55 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = ({ data }) => {
                 ) : null}
               </View>
             </View>
+
+            {/* IT-G Technical Details */}
+            {(itg.amperaje || itg.diametro_cable || itg.tipo_cable) && (
+              <View style={styles.itgTechDetails}>
+                {itg.amperaje && (
+                  <View style={styles.itgTechItem}>
+                    <Text style={styles.itgTechLabel}>Amperaje</Text>
+                    <Text style={styles.itgTechValue}>{itg.amperaje}A</Text>
+                  </View>
+                )}
+                {itg.diametro_cable && (
+                  <View style={styles.itgTechItem}>
+                    <Text style={styles.itgTechLabel}>Diámetro</Text>
+                    <Text style={styles.itgTechValue}>
+                      {itg.diametro_cable} mm²
+                    </Text>
+                  </View>
+                )}
+                {itg.tipo_cable && (
+                  <View style={styles.itgTechItem}>
+                    <Text style={styles.itgTechLabel}>Cable</Text>
+                    <Text style={styles.itgTechValue}>{itg.tipo_cable}</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           {/* ITMs List */}
           <View style={styles.circuitsContainer}>
             {itg.itms.map((itm, cIdx) => (
               <View key={cIdx} style={styles.circuitItem}>
-                <View style={styles.circuitMainInfo}>
+                {/* Circuit Row - Compact Layout */}
+                <View style={styles.circuitRow}>
                   <View style={styles.circuitIdBox}>
                     <Text style={styles.circuitIdText}>{itm.id}</Text>
                   </View>
-                  <View style={styles.circuitDetails}>
-                    <View style={styles.circuitRow}>
+                  <View style={styles.circuitContent}>
+                    <View style={styles.circuitTopRow}>
                       <Text style={styles.circuitAmps}>{itm.amperaje}A</Text>
-                      <Text style={styles.circuitPhase}>{itm.fases}</Text>
+                      <View style={styles.phaseBadge}>
+                        <Text style={styles.phaseText}>{itm.fases}</Text>
+                      </View>
                     </View>
-                    <Text style={styles.circuitSupply} numberOfLines={2}>
+                    <Text style={styles.circuitSupplyText} numberOfLines={1}>
                       {itm.suministra}
                     </Text>
-                    <Text style={styles.cableInfo}>
-                      {itm.tipo_cable} | {itm.diametro_cable} mm²
+                    <Text style={styles.cableInfoText}>
+                      {itm.tipo_cable} • {itm.diametro_cable} mm²
                     </Text>
                   </View>
                 </View>
@@ -346,45 +379,68 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
   },
+  itgTechDetails: {
+    flexDirection: 'row',
+    backgroundColor: '#F0F9FF',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+    gap: 16,
+    justifyContent: 'space-around',
+  },
+  itgTechItem: {
+    alignItems: 'center',
+  },
+  itgTechLabel: {
+    fontSize: 10,
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    marginBottom: 2,
+    fontWeight: '500',
+  },
+  itgTechValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
 
-  // Circuits (ITMs)
+  // Circuits (ITMs) - Compact Layout
   circuitsContainer: {
-    gap: 12,
+    gap: 8,
   },
   circuitItem: {
-    flexDirection: 'column',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
   },
-  circuitMainInfo: {
+  circuitRow: {
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'center',
+    gap: 10,
   },
   circuitIdBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFF',
-    borderWidth: 2,
-    borderColor: '#CBD5E1',
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1.5,
+    borderColor: '#0891B2',
     justifyContent: 'center',
     alignItems: 'center',
   },
   circuitIdText: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
-    color: '#475569',
+    color: '#0891B2',
   },
-  circuitDetails: {
+  circuitContent: {
     flex: 1,
-    justifyContent: 'center',
   },
-  circuitRow: {
+  circuitTopRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: 8,
     marginBottom: 2,
   },
@@ -392,6 +448,96 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#0F172A',
+  },
+  phaseBadge: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  phaseText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#0369A1',
+  },
+  circuitSupplyText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#334155',
+    marginBottom: 1,
+  },
+  cableInfoText: {
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  // Keep old styles for backward compatibility
+  circuitHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  circuitHeaderInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  circuitSupplySection: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  circuitSupplyLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+    textTransform: 'uppercase',
+    marginBottom: 4,
+    letterSpacing: 0.5,
+  },
+  circuitSupplyValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+    lineHeight: 20,
+  },
+  cableSpecsGrid: {
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 12,
+  },
+  cableSpecItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  cableSpecLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    marginBottom: 4,
+    letterSpacing: 0.5,
+  },
+  cableSpecValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+    textAlign: 'center',
+  },
+  cableSpecDivider: {
+    width: 1,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 8,
+  },
+  circuitMainInfo: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  circuitDetails: {
+    flex: 1,
+    justifyContent: 'center',
   },
   circuitPhase: {
     fontSize: 12,
