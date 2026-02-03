@@ -1,8 +1,45 @@
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { useFormContext, Controller, useWatch } from 'react-hook-form';
-import { ITGConfigStepProps } from '@/types/panel-configuration';
+import RNPickerSelect from 'react-native-picker-select';
+import { Ionicons } from '@expo/vector-icons';
+import { ITGConfigStepProps, CableType } from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 import { styles } from './_styles';
+
+const pickerSelectStyles = StyleSheet.create({
+  inputIOS: {
+    fontSize: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    color: '#11181C',
+    backgroundColor: '#FFFFFF',
+    paddingRight: 30,
+    height: 48,
+  },
+  inputAndroid: {
+    fontSize: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    color: '#11181C',
+    backgroundColor: '#FFFFFF',
+    paddingRight: 30,
+    height: 48,
+  },
+  placeholder: {
+    color: '#9CA3AF',
+  },
+});
+
+const CABLE_TYPE_OPTIONS: { key: CableType; label: string }[] = [
+  { key: 'libre_halogeno', label: 'Libre de Halógeno' },
+  { key: 'no_libre_halogeno', label: 'No libre de Halógeno' },
+];
 
 export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
   const {
@@ -55,6 +92,10 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
               supply: '',
             },
           ],
+          // New IT-G specific fields
+          amperajeITG: '',
+          diameterITG: '',
+          cableTypeITG: undefined,
         });
       }
       setValue('itgCircuits', newCircuits);
@@ -108,7 +149,84 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
         {itgDescriptions.map((_, idx) => (
           <View key={`itg-${idx}`} style={styles.itgCard}>
             <Text style={styles.itgTitle}>IT–G{idx + 1}</Text>
-            <Text style={styles.itgSubtitle}>
+
+            {/* Amperaje */}
+            <Text style={styles.cnLabel}>AMPERAJE:</Text>
+            <View style={styles.inputWithUnitWrapper}>
+              <Controller
+                control={control}
+                name={`itgCircuits.${idx}.amperajeITG`}
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={styles.itgInputWithUnit}
+                    value={value || ''}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    placeholder="Ingrese amperaje"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                  />
+                )}
+              />
+              <Text style={styles.unitText}>A</Text>
+            </View>
+
+            {/* Diámetro */}
+            <Text style={styles.cnLabel}>DIÁMETRO:</Text>
+            <View style={styles.inputWithUnitWrapper}>
+              <Controller
+                control={control}
+                name={`itgCircuits.${idx}.diameterITG`}
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={styles.itgInputWithUnit}
+                    value={value || ''}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    placeholder="Ingrese diámetro"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="numeric"
+                  />
+                )}
+              />
+              <Text style={styles.unitText}>mm²</Text>
+            </View>
+
+            {/* Tipo de Cable */}
+            <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
+            <Controller
+              control={control}
+              name={`itgCircuits.${idx}.cableTypeITG`}
+              render={({ field: { onChange, value } }) => (
+                <RNPickerSelect
+                  onValueChange={onChange}
+                  items={CABLE_TYPE_OPTIONS.map(opt => ({
+                    label: opt.label,
+                    value: opt.key,
+                  }))}
+                  placeholder={{
+                    label: 'Seleccione una opción',
+                    value: null,
+                    color: '#9CA3AF',
+                  }}
+                  value={value}
+                  style={{
+                    ...pickerSelectStyles,
+                    iconContainer: {
+                      top: 12,
+                      right: 12,
+                    },
+                  }}
+                  useNativeAndroidPickerStyle={false}
+                  Icon={() => (
+                    <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                  )}
+                />
+              )}
+            />
+
+            {/* Suministro eléctrico */}
+            <Text style={[styles.itgSubtitle, { marginTop: 12 }]}>
               ¿Qué suministra eléctricamente el IT-G?
             </Text>
             <Controller

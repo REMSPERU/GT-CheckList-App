@@ -74,6 +74,7 @@ const pickerErrorStyles = StyleSheet.create({
 });
 
 const PHASE_OPTIONS: { key: PhaseType; label: string }[] = [
+  { key: 'unipolar', label: 'Unipolar' },
   { key: 'mono_2w', label: 'Monofásico 2 hilos' },
   { key: 'tri_3w', label: 'Trifásico 3 hilos' },
   { key: 'tri_4w', label: 'Trifásico 4 hilos' },

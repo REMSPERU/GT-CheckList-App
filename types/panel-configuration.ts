@@ -1,5 +1,5 @@
 export type PanelType = 'adosado' | 'empotrado';
-export type PhaseType = 'mono_2w' | 'tri_3w' | 'tri_4w';
+export type PhaseType = 'mono_2w' | 'tri_3w' | 'tri_4w' | 'unipolar';
 export type CableType = 'libre_halogeno' | 'no_libre_halogeno';
 
 export interface CircuitConfig {

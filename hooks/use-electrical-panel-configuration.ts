@@ -104,6 +104,10 @@ export function usePanelConfiguration(
           cnPrefix: 'CN',
           circuitsCount: '1',
           circuits: [{ ...DEFAULT_CIRCUIT }],
+          // IT-G specific fields
+          amperajeITG: '',
+          diameterITG: '',
+          cableTypeITG: undefined,
         },
       ],
       enabledComponents: [],
@@ -293,6 +297,7 @@ export function usePanelConfiguration(
 
         // Helper labels
         const PHASE_LABELS: Record<string, string> = {
+          unipolar: 'Unipolar',
           mono_2w: 'Monofásico 2 hilos',
           tri_3w: 'Trifásico 3 hilos',
           tri_4w: 'Trifásico 4 hilos',
@@ -318,6 +323,12 @@ export function usePanelConfiguration(
             id: `ITG-${idx + 1}`,
             suministra: values.itgDescriptions[idx] || 'N/A',
             prefijo: itg.cnPrefix,
+            // IT-G specific fields
+            amperaje: itg.amperajeITG ? Number(itg.amperajeITG) : undefined,
+            diametro_cable: itg.diameterITG || undefined,
+            tipo_cable: itg.cableTypeITG
+              ? CABLE_TYPE_LABELS[itg.cableTypeITG] || itg.cableTypeITG
+              : undefined,
             itms: itg.circuits.map((circuit, cIdx) => ({
               id: `${itg.cnPrefix}-${cIdx + 1}`,
               fases: PHASE_LABELS[circuit.phaseITM] || circuit.phaseITM,
