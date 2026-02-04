@@ -154,6 +154,18 @@ export async function initDatabase() {
       // Column already exists - this is expected for new installs or already-migrated DBs
     }
 
+    // Migration v1.3: Add protocol column to offline_maintenance_response
+    try {
+      await db.execAsync(
+        `ALTER TABLE offline_maintenance_response ADD COLUMN protocol TEXT;`,
+      );
+      console.log(
+        'Migration: Added protocol column to offline_maintenance_response',
+      );
+    } catch {
+      // Column already exists
+    }
+
     console.log('Database initialized');
   })();
 

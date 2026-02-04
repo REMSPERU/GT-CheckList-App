@@ -24,6 +24,19 @@ import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
 
+const PROTOCOL_ITEMS = [
+  { key: 'tablero_sin_oxido', label: '1. Tablero sin óxido y pintura buen estado' },
+  { key: 'puerta_mandil_aterrados', label: '2. Puerta y mandil aterrados' },
+  { key: 'cables_libres_halogenos', label: '3. Cables libres de halógenos' },
+  { key: 'identificacion_fases', label: '4. Identificación de fases (L1 - L2 - L3 - N)' },
+  { key: 'interruptores_terminales', label: '5. Interruptores con terminales (No cable directo)' },
+  { key: 'linea_tierra_correcta', label: '6. Línea de tierra correcta' },
+  { key: 'diagrama_unifilar_actualizado', label: '7. Diagrama unifilar actualizado' },
+  { key: 'luz_emergencia', label: '8. Luz de emergencia operativa' },
+  { key: 'rotulado_circuitos', label: '9. Rotulado de circuitos' },
+  { key: 'interruptores_riel_din', label: '10. Interruptores fijados en riel din' },
+];
+
 export default function SummaryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -131,6 +144,7 @@ export default function SummaryScreen() {
         cleanMaintenanceId,
         detailMaintenance,
         allPhotos,
+        session.protocol,
       );
 
       console.log('SUCCESS: Saved locally');
@@ -401,6 +415,32 @@ export default function SummaryScreen() {
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.cardTitle}>Protocolo de Tablero</Text>
+          {session.protocol ? (
+            <View style={styles.protocolList}>
+              {PROTOCOL_ITEMS.map(item => (
+                <View key={item.key} style={styles.protocolItem}>
+                  <Text style={styles.protocolLabel}>{item.label}</Text>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      session.protocol?.[item.key]
+                        ? styles.statusOk
+                        : styles.statusIssue,
+                    ]}>
+                    <Text style={styles.statusText}>
+                      {session.protocol?.[item.key] ? 'OK' : 'NO OK'}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>No se registró protocolo.</Text>
+          )}
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.cardTitle}>
             Fotos Finales ({session.postPhotos.length})
           </Text>
@@ -583,4 +623,22 @@ const styles = StyleSheet.create({
   },
   disabledBtn: { backgroundColor: '#A5F3FC' },
   continueBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  // Protocol Styles
+  protocolList: {
+    marginTop: 8,
+  },
+  protocolItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  protocolLabel: {
+    fontSize: 13,
+    color: '#4B5563',
+    flex: 1,
+    paddingRight: 8,
+  },
 });

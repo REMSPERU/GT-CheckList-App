@@ -5,6 +5,7 @@ export interface MaintenanceResponse {
   id_mantenimiento?: string | null;
   user_created?: string;
   detail_maintenance: any;
+  protocol?: any;
 }
 
 export class SupabaseMaintenanceService {
@@ -66,6 +67,7 @@ export class SupabaseMaintenanceService {
       id_mantenimiento: response.id_mantenimiento,
       user_created: response.user_created,
       detail_maintenance: response.detail_maintenance,
+      protocol: response.protocol,
     });
 
     if (error) {
@@ -90,6 +92,24 @@ export class SupabaseMaintenanceService {
 
     if (error) {
       console.error('Error updating maintenance status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update protocol in maintenance_response table
+   */
+  async updateProtocol(
+    maintenanceId: string,
+    protocol: Record<string, boolean>,
+  ): Promise<void> {
+    const { error } = await supabase
+      .from(this.tableName)
+      .update({ protocol })
+      .eq('id_mantenimiento', maintenanceId);
+
+    if (error) {
+      console.error('Error updating maintenance protocol:', error);
       throw error;
     }
   }

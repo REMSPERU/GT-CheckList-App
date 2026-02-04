@@ -9,6 +9,7 @@ interface OfflineMaintenance {
   id_mantenimiento: string | null;
   user_created: string;
   detail_maintenance: string; // JSON string
+  protocol: string | null; // JSON string
   status: string;
 }
 
@@ -16,7 +17,7 @@ interface OfflinePhoto {
   id: number;
   maintenance_local_id: number;
   local_uri: string;
-  type: 'pre' | 'post' | 'observations';
+  type: 'pre' | 'post' | 'observation';
   category?: string;
   observation_key?: string;
   status: string;
@@ -276,13 +277,13 @@ class SyncService {
               }
             });
           }
-
           // 3. Insert into Supabase
           await supabaseMaintenanceService.saveMaintenanceResponse({
             id_mantenimiento: item.id_mantenimiento,
             user_created: item.user_created,
             detail_maintenance: detail,
-          });
+            protocol: item.protocol ? JSON.parse(item.protocol) : null,
+          } as any);
 
           // 3.5 Update maintenance status to FINALIZADO if it has an associated maintenance record
           if (item.id_mantenimiento) {
