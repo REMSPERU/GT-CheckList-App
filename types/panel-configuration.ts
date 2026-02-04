@@ -3,18 +3,35 @@ export type PhaseType = 'mono_2w' | 'tri_3w' | 'tri_4w' | 'unipolar';
 export type CableType = 'libre_halogeno' | 'no_libre_halogeno';
 export type InterruptorType = 'itm' | 'id';
 
-export interface CircuitConfig {
-  interruptorType: InterruptorType;
+// ITM hijo que vive dentro de un ID
+export interface SubITM {
   phaseITM: PhaseType;
   amperajeITM: string;
   diameter: string;
   cableType?: CableType;
+  supply: string;
+}
+
+export interface CircuitConfig {
+  interruptorType: InterruptorType;
+
+  // Campos del interruptor principal (ITM o ID)
+  phase: PhaseType;
+  amperaje: string;
+  diameter: string;
+  cableType?: CableType;
+  supply: string;
+
+  // Para ITM: toggle de ID opcional
   hasID: boolean;
   phaseID?: PhaseType;
   amperajeID?: string;
   diameterID?: string;
   cableTypeID?: CableType;
-  supply: string;
+
+  // Para ID: ITMs hijos (1-3)
+  subITMsCount: string;
+  subITMs: SubITM[];
 }
 
 export interface PanelData {

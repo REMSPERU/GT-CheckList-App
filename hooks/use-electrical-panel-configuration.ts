@@ -58,14 +58,18 @@ export function isFirstStep(stepId: StepId): boolean {
 
 const DEFAULT_CIRCUIT: any = {
   interruptorType: 'itm',
-  phaseITM: 'mono_2w',
-  amperajeITM: '',
+  phase: 'mono_2w',
+  amperaje: '',
   diameter: '',
   cableType: 'libre_halogeno',
-  hasID: false,
-  diameterID: '',
-  cableTypeID: undefined, // This one is optional in schema, so undefined is okay
   supply: '',
+  hasID: false,
+  phaseID: undefined,
+  amperajeID: '',
+  diameterID: '',
+  cableTypeID: undefined,
+  subITMsCount: '1',
+  subITMs: [],
 };
 
 // ============================================================================
@@ -366,28 +370,46 @@ export function usePanelConfiguration(
               : undefined,
             itms: itg.circuits.map((circuit, cIdx) => ({
               id: `${itg.cnPrefix}-${cIdx + 1}`,
-              fases: PHASE_LABELS[circuit.phaseITM] || circuit.phaseITM,
-              amperaje: Number(circuit.amperajeITM),
+              tipo: circuit.interruptorType === 'id' ? 'ID' : 'ITM',
+              fases: PHASE_LABELS[circuit.phase] || circuit.phase,
+              amperaje: Number(circuit.amperaje),
               tipo_cable: circuit.cableType
                 ? CABLE_TYPE_LABELS[circuit.cableType] || circuit.cableType
                 : undefined,
               diametro_cable: circuit.diameter,
-              diferencial: {
-                existe: circuit.hasID,
-                ...(circuit.hasID && {
-                  fases: circuit.phaseID
-                    ? PHASE_LABELS[circuit.phaseID] || circuit.phaseID
-                    : undefined,
-                  amperaje: circuit.amperajeID
-                    ? Number(circuit.amperajeID)
-                    : undefined,
-                  tipo_cable: circuit.cableTypeID
-                    ? CABLE_TYPE_LABELS[circuit.cableTypeID] ||
-                      circuit.cableTypeID
-                    : undefined,
-                  diametro_cable: circuit.diameterID,
+              // Para ITM: diferencial opcional
+              ...(circuit.interruptorType === 'itm' && {
+                diferencial: {
+                  existe: circuit.hasID,
+                  ...(circuit.hasID && {
+                    fases: circuit.phaseID
+                      ? PHASE_LABELS[circuit.phaseID] || circuit.phaseID
+                      : undefined,
+                    amperaje: circuit.amperajeID
+                      ? Number(circuit.amperajeID)
+                      : undefined,
+                    tipo_cable: circuit.cableTypeID
+                      ? CABLE_TYPE_LABELS[circuit.cableTypeID] ||
+                        circuit.cableTypeID
+                      : undefined,
+                    diametro_cable: circuit.diameterID,
+                  }),
+                },
+              }),
+              // Para ID: sub ITMs
+              ...(circuit.interruptorType === 'id' &&
+                circuit.subITMs && {
+                  sub_itms: circuit.subITMs.map((subItm, sIdx) => ({
+                    id: `${itg.cnPrefix}-${cIdx + 1}-${sIdx + 1}`,
+                    fases: PHASE_LABELS[subItm.phaseITM] || subItm.phaseITM,
+                    amperaje: Number(subItm.amperajeITM),
+                    tipo_cable: subItm.cableType
+                      ? CABLE_TYPE_LABELS[subItm.cableType] || subItm.cableType
+                      : undefined,
+                    diametro_cable: subItm.diameter,
+                    suministra: subItm.supply || 'N/A',
+                  })),
                 }),
-              },
               suministra: circuit.supply || 'N/A',
             })),
           })),

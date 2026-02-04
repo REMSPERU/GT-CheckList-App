@@ -13,14 +13,18 @@ import CircuitItem from './CircuitItem';
 
 const DEFAULT_CIRCUIT: CircuitConfig = {
   interruptorType: 'itm',
-  phaseITM: 'mono_2w',
-  amperajeITM: '',
+  phase: 'mono_2w',
+  amperaje: '',
   diameter: '',
   cableType: undefined,
+  supply: '',
   hasID: false,
+  phaseID: undefined,
+  amperajeID: '',
   diameterID: '',
   cableTypeID: undefined,
-  supply: '',
+  subITMsCount: '1',
+  subITMs: [],
 };
 
 export default function CircuitsConfigStep({

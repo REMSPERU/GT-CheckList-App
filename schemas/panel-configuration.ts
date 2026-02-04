@@ -22,18 +22,35 @@ export const ExtraComponentTypeSchema = z.enum([
 ]);
 export const InterruptorTypeSchema = z.enum(['itm', 'id']);
 
+// Esquema para ITM hijo dentro de un ID
+export const SubITMSchema = z.object({
+  phaseITM: PhaseTypeSchema,
+  amperajeITM: z.string().min(1, 'Amperaje requerido'),
+  diameter: z.string().min(1, 'Diámetro requerido'),
+  cableType: CableTypeSchema.optional(),
+  supply: z.string().optional(),
+});
+
 export const DefaultCircuitSchema = z.object({
   interruptorType: InterruptorTypeSchema,
-  phaseITM: PhaseTypeSchema,
-  amperajeITM: z.string().min(1, 'Campo requerido'),
-  diameter: z.string().min(1, 'Campo requerido'),
-  cableType: CableTypeSchema,
+
+  // Campos del interruptor principal (ITM o ID)
+  phase: PhaseTypeSchema,
+  amperaje: z.string().min(1, 'Amperaje requerido'),
+  diameter: z.string().min(1, 'Diámetro requerido'),
+  cableType: CableTypeSchema.optional(),
+  supply: z.string().optional(),
+
+  // Para ITM: toggle de ID opcional
   hasID: z.boolean(),
   phaseID: PhaseTypeSchema.optional(),
   amperajeID: z.string().optional(),
   diameterID: z.string().optional(),
   cableTypeID: CableTypeSchema.optional(),
-  supply: z.string().optional(),
+
+  // Para ID: ITMs hijos (1-3)
+  subITMsCount: z.string().optional(),
+  subITMs: z.array(SubITMSchema).optional(),
 });
 
 export const ITGCircuitDataSchema = z.object({

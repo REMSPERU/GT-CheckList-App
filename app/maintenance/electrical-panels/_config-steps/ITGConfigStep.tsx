@@ -113,14 +113,18 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
           circuits: [
             {
               interruptorType: 'itm',
-              phaseITM: 'mono_2w',
-              amperajeITM: '',
+              phase: 'mono_2w',
+              amperaje: '',
               diameter: '',
               cableType: 'libre_halogeno',
+              supply: '',
               hasID: false,
+              phaseID: undefined,
+              amperajeID: '',
               diameterID: '',
               cableTypeID: undefined,
-              supply: '',
+              subITMsCount: '1',
+              subITMs: [],
             },
           ],
           // New IT-G specific fields (required)

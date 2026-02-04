@@ -24,18 +24,33 @@ export default function ReviewStep({ panel }: ReviewStepProps) {
       prefijo: itg.cnPrefix,
       itms: itg.circuits.map((itm, cIdx) => ({
         id: `${itg.cnPrefix}${cIdx + 1}`,
-        amperaje: itm.amperajeITM,
-        fases: itm.phaseITM,
+        tipo: itm.interruptorType === 'id' ? 'ID' : 'ITM',
+        amperaje: itm.amperaje,
+        fases: itm.phase,
         tipo_cable: itm.cableType || 'no_libre_halogeno',
         diametro_cable: itm.diameter,
         suministra: itm.supply || '',
-        diferencial: {
-          existe: itm.hasID,
-          amperaje: itm.amperajeID || 0,
-          fases: itm.phaseID || '',
-          tipo_cable: itm.cableTypeID || '',
-          diametro_cable: itm.diameterID || '',
-        },
+        diferencial:
+          itm.interruptorType === 'itm'
+            ? {
+                existe: itm.hasID,
+                amperaje: itm.amperajeID || 0,
+                fases: itm.phaseID || '',
+                tipo_cable: itm.cableTypeID || '',
+                diametro_cable: itm.diameterID || '',
+              }
+            : undefined,
+        sub_itms:
+          itm.interruptorType === 'id' && itm.subITMs
+            ? itm.subITMs.map((sub, sIdx) => ({
+                id: `${itg.cnPrefix}${cIdx + 1}-${sIdx + 1}`,
+                amperaje: sub.amperajeITM,
+                fases: sub.phaseITM,
+                tipo_cable: sub.cableType || 'no_libre_halogeno',
+                diametro_cable: sub.diameter,
+                suministra: sub.supply || '',
+              }))
+            : undefined,
       })),
     })),
     componentes: values.enabledComponents.map(type => ({
