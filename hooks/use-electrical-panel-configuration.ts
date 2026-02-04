@@ -107,7 +107,7 @@ export function usePanelConfiguration(
           // IT-G specific fields
           amperajeITG: '',
           diameterITG: '',
-          cableTypeITG: undefined,
+          cableTypeITG: 'libre_halogeno',
         },
       ],
       enabledComponents: [],
@@ -257,7 +257,7 @@ export function usePanelConfiguration(
         fieldsToValidate = ['panelType', 'voltage', 'phase'];
         break;
       case STEP_IDS.ITG_CONFIG:
-        fieldsToValidate = ['itgCount', 'itgDescriptions'];
+        fieldsToValidate = ['itgCount', 'itgDescriptions', 'itgCircuits'];
         break;
       case STEP_IDS.CIRCUITS:
         fieldsToValidate = ['itgCircuits'];

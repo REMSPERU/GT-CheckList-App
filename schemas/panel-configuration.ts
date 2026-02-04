@@ -42,10 +42,10 @@ export const ITGCircuitDataSchema = z.object({
       message: 'Debe ser mayor a 0',
     }),
   circuits: z.array(DefaultCircuitSchema),
-  // IT-G specific fields
-  amperajeITG: z.string().optional(),
-  diameterITG: z.string().optional(),
-  cableTypeITG: CableTypeSchema.optional(),
+  // IT-G specific fields (required)
+  amperajeITG: z.string().min(1, 'Amperaje es requerido'),
+  diameterITG: z.string().min(1, 'Diámetro es requerido'),
+  cableTypeITG: CableTypeSchema,
 });
 
 export const ExtraComponentSchema = z.object({
