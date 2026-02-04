@@ -20,8 +20,10 @@ export const ExtraComponentTypeSchema = z.enum([
   'medidores',
   'timers',
 ]);
+export const InterruptorTypeSchema = z.enum(['itm', 'id']);
 
 export const DefaultCircuitSchema = z.object({
+  interruptorType: InterruptorTypeSchema,
   phaseITM: PhaseTypeSchema,
   amperajeITM: z.string().min(1, 'Campo requerido'),
   diameter: z.string().min(1, 'Campo requerido'),

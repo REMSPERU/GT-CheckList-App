@@ -112,6 +112,7 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
           circuitsCount: '1',
           circuits: [
             {
+              interruptorType: 'itm',
               phaseITM: 'mono_2w',
               amperajeITM: '',
               diameter: '',

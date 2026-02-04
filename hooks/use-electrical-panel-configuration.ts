@@ -57,6 +57,7 @@ export function isFirstStep(stepId: StepId): boolean {
 // ============================================================================
 
 const DEFAULT_CIRCUIT: any = {
+  interruptorType: 'itm',
   phaseITM: 'mono_2w',
   amperajeITM: '',
   diameter: '',

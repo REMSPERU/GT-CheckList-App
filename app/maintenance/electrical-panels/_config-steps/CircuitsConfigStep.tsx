@@ -12,6 +12,7 @@ import { styles } from './_styles';
 import CircuitItem from './CircuitItem';
 
 const DEFAULT_CIRCUIT: CircuitConfig = {
+  interruptorType: 'itm',
   phaseITM: 'mono_2w',
   amperajeITM: '',
   diameter: '',

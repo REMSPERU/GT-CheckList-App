@@ -1,8 +1,10 @@
 export type PanelType = 'adosado' | 'empotrado';
 export type PhaseType = 'mono_2w' | 'tri_3w' | 'tri_4w' | 'unipolar';
 export type CableType = 'libre_halogeno' | 'no_libre_halogeno';
+export type InterruptorType = 'itm' | 'id';
 
 export interface CircuitConfig {
+  interruptorType: InterruptorType;
   phaseITM: PhaseType;
   amperajeITM: string;
   diameter: string;
@@ -39,7 +41,7 @@ export interface ITGCircuitData {
 
 export interface CircuitsConfigStepProps {
   panel: PanelData | null;
-  navigationHandlers?: React.MutableRefObject<{
+  navigationHandlers?: React.RefObject<{
     handleNext: () => boolean | Promise<boolean>;
     handleBack: () => boolean;
   } | null>;

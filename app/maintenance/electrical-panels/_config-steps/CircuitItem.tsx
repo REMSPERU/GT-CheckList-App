@@ -10,7 +10,11 @@ import { Controller, useFormContext, useWatch } from 'react-hook-form';
 import RNPickerSelect from 'react-native-picker-select';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from './_styles';
-import { PhaseType, CableType } from '@/types/panel-configuration';
+import {
+  PhaseType,
+  CableType,
+  InterruptorType,
+} from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 
 const pickerSelectStyles = StyleSheet.create({
@@ -85,6 +89,15 @@ const CABLE_TYPE_OPTIONS: { key: CableType; label: string }[] = [
   { key: 'no_libre_halogeno', label: 'No libre de Halógeno' },
 ];
 
+const INTERRUPTOR_OPTIONS: {
+  key: InterruptorType;
+  label: string;
+  shortLabel: string;
+}[] = [
+  { key: 'itm', label: 'Interruptor Termomagnetico (ITM)', shortLabel: 'ITM' },
+  { key: 'id', label: 'Interruptor Diferencial (ID)', shortLabel: 'ID' },
+];
+
 interface CircuitItemProps {
   index: number;
   itgIndex: number;
@@ -111,6 +124,13 @@ const CircuitItem = ({
     control,
     name: `itgCircuits.${itgIndex}.circuits.${index}.hasID`,
   });
+
+  // Watch for interruptor type
+  const interruptorType =
+    useWatch({
+      control,
+      name: `itgCircuits.${itgIndex}.circuits.${index}.interruptorType`,
+    }) || 'itm';
 
   // Check if this circuit has any validation errors
   const circuitErrors = errors.itgCircuits?.[itgIndex]?.circuits?.[index];
@@ -159,9 +179,37 @@ const CircuitItem = ({
 
       {isExpanded && (
         <View>
-          {/* ITM */}
+          {/* Selector de tipo de interruptor */}
+          <Text style={styles.cnLabel}>TIPO DE INTERRUPTOR:</Text>
+          <View style={styles.segmentContainer}>
+            {INTERRUPTOR_OPTIONS.map(option => (
+              <TouchableOpacity
+                key={option.key}
+                style={[
+                  styles.segment,
+                  interruptorType === option.key && styles.segmentActive,
+                ]}
+                onPress={() =>
+                  setValue(
+                    `itgCircuits.${itgIndex}.circuits.${index}.interruptorType`,
+                    option.key,
+                  )
+                }>
+                <Text
+                  style={[
+                    styles.segmentText,
+                    interruptorType === option.key && styles.segmentTextActive,
+                  ]}>
+                  {option.shortLabel}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Título según el tipo seleccionado */}
           <Text style={styles.cnSectionTitle}>
-            Interruptor termomagnetico (ITM)
+            {INTERRUPTOR_OPTIONS.find(o => o.key === interruptorType)?.label ||
+              'Interruptor Termomagnetico (ITM)'}
           </Text>
           <Text style={styles.cnLabel}>FASES</Text>
           <Controller
