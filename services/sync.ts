@@ -3,6 +3,7 @@ import { DatabaseService } from './database';
 import { supabaseMaintenanceService } from './supabase-maintenance.service';
 import { supabaseElectricalPanelService } from './supabase-electrical-panel.service';
 import NetInfo from '@react-native-community/netinfo';
+import { syncQueue } from './sync-queue';
 
 interface OfflineMaintenance {
   local_id: number;
@@ -30,6 +31,47 @@ class SyncService {
 
   constructor() {
     this.init();
+    this.registerSyncHandlers();
+  }
+
+  /**
+   * Register sync queue handlers for different item types
+   */
+  private registerSyncHandlers() {
+    // Handler for panel configurations
+    syncQueue.registerHandler('panel_config', async (panelId: string) => {
+      console.log('[SYNC-HANDLER] Syncing panel config:', panelId);
+
+      const pendingConfigs =
+        (await DatabaseService.getPendingPanelConfigurations()) as {
+          id: number;
+          panel_id: string;
+          configuration_data: string;
+        }[];
+
+      const config = pendingConfigs.find(c => c.panel_id === panelId);
+      if (!config) {
+        console.log(
+          '[SYNC-HANDLER] No pending config found for panel:',
+          panelId,
+        );
+        return; // Already synced
+      }
+
+      await DatabaseService.updatePanelConfigurationStatus(
+        config.id,
+        'syncing',
+      );
+
+      const detail = JSON.parse(config.configuration_data);
+      await supabaseElectricalPanelService.updateEquipmentDetail(
+        panelId,
+        detail,
+      );
+
+      await DatabaseService.updatePanelConfigurationStatus(config.id, 'synced');
+      console.log('[SYNC-HANDLER] Panel config synced successfully:', panelId);
+    });
   }
 
   init() {

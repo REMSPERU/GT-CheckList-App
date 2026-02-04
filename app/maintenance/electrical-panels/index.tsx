@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import {
   ScrollView,
   View,
@@ -24,7 +24,11 @@ import {
 import type { TableroElectricoResponse } from '@/types/api';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
+import { syncQueue } from '@/services/sync-queue';
 import { useUserRole } from '@/hooks/use-user-role';
+
+// Constants
+const REFRESH_TIMEOUT_MS = 10000; // 10 seconds timeout for refresh
 
 export default function ElectricalPanelsScreen() {
   const router = useRouter();
@@ -49,6 +53,9 @@ export default function ElectricalPanelsScreen() {
   const [tempFilterType, setTempFilterType] = useState<string | undefined>(
     undefined,
   );
+
+  // Force re-render when sync queue changes
+  const [, setSyncQueueVersion] = useState(0);
 
   // Role-based permissions
   const { canScheduleMaintenance } = useUserRole();
@@ -105,18 +112,56 @@ export default function ElectricalPanelsScreen() {
     filterLocations,
   ]);
 
+  // Subscribe to sync queue changes to update UI when sync status changes
+  useEffect(() => {
+    const unsubscribe = syncQueue.subscribe(() => {
+      setSyncQueueVersion(v => v + 1);
+      // Data will reload via the loadData effect
+    });
+    return unsubscribe;
+  }, []);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  // Reload data when screen comes into focus (e.g., after configuration)
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData]),
+  );
+
+  /**
+   * Pull-to-refresh with timeout protection
+   * - Timeout after 10 seconds to prevent hanging on slow/unstable internet
+   * - Always loads from local DB regardless of sync success
+   */
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
+
     try {
-      await syncService.pullData();
-      await loadData();
-    } catch (err) {
-      console.error('Refresh failed:', err);
+      // Race between pullData and timeout
+      await Promise.race([
+        syncService.pullData(),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Refresh timeout')),
+            REFRESH_TIMEOUT_MS,
+          ),
+        ),
+      ]);
+      console.log('[REFRESH] Sync completed successfully');
+    } catch (err: any) {
+      // Timeout or network error - proceed with local data
+      if (err.message === 'Refresh timeout') {
+        console.log('[REFRESH] Timeout reached, using local data');
+      } else {
+        console.log('[REFRESH] Sync failed, using local data:', err.message);
+      }
     } finally {
+      // Always reload from local DB (single source of truth)
+      await loadData();
       setIsRefreshing(false);
     }
   }, [loadData]);
@@ -202,6 +247,32 @@ export default function ElectricalPanelsScreen() {
     setFilterLocations(filters.locations);
     setFilterType(tempFilterType);
   };
+
+  /**
+   * Manual retry sync for a specific panel
+   */
+  const handleRetrySync = useCallback(async (panelId: string) => {
+    console.log('[RETRY] Manual retry requested for panel:', panelId);
+    const success = await syncQueue.retryItem(panelId, 'panel_config');
+    if (success) {
+      console.log('[RETRY] Sync successful, reloading data...');
+    }
+    // Data will be reloaded via syncQueue subscription
+  }, []);
+
+  /**
+   * Check if panel is in auto-retry mode
+   */
+  const isAutoRetrying = useCallback((panelId: string): boolean => {
+    return syncQueue.isAutoRetrying(panelId, 'panel_config');
+  }, []);
+
+  /**
+   * Check if panel needs manual retry
+   */
+  const needsManualRetry = useCallback((panelId: string): boolean => {
+    return syncQueue.needsManualRetry(panelId, 'panel_config');
+  }, []);
 
   // Panel type filter chips (electrical panels specific)
   const PanelTypeFilter = (
@@ -338,6 +409,9 @@ export default function ElectricalPanelsScreen() {
               panel.equipment_detail?.rotulo || panel.codigo || 'N/A'
             }
             renderSubtitle={panel => panel.codigo || null}
+            onRetrySync={handleRetrySync}
+            isAutoRetrying={isAutoRetrying}
+            needsManualRetry={needsManualRetry}
           />
         </View>
       </ScrollView>

@@ -9,9 +9,8 @@ import {
   PanelConfigurationSchema,
   PanelConfigurationFormValues,
 } from '@/schemas/panel-configuration';
-// import { supabaseElectricalPanelService } from '@/services/supabase-electrical-panel.service';
 import { DatabaseService } from '@/services/database';
-import { syncService } from '@/services/sync';
+import { syncQueue } from '@/services/sync-queue';
 
 // Storage key prefix for configuration drafts
 const CONFIG_DRAFT_KEY_PREFIX = 'panel_config_draft_';
@@ -501,13 +500,9 @@ export function usePanelConfiguration(
             finalEquipmentDetail,
           );
 
-          // Trigger background sync if possible, or let the periodic/auto sync handle it.
-          syncService.pushData().catch(err => {
-            console.log(
-              '⚠️ [SAVE] Background sync trigger failed (expected if offline):',
-              err,
-            );
-          });
+          // Add to sync queue for automatic retry with exponential backoff
+          syncQueue.enqueue(initialPanel.id, 'panel_config');
+          console.log('📤 [SAVE] Added to sync queue:', initialPanel.id);
 
           // Clear the draft after successful save
           await clearDraft();

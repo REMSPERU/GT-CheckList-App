@@ -67,12 +67,21 @@ export async function getElectricalPanelsByProperty(
   await ensureInitialized();
   const db = await dbPromise;
 
-  // 1. Fetch panels for the property, optionally filtered by equipment type
-  let query = 'SELECT * FROM local_equipos WHERE id_property = ?';
+  // 1. Fetch panels with sync status from offline_panel_configurations
+  // Using LEFT JOIN to get the latest sync status for each panel
+  let query = `
+    SELECT e.*, 
+      (SELECT opc.status 
+       FROM offline_panel_configurations opc 
+       WHERE opc.panel_id = e.id 
+       ORDER BY opc.created_at DESC 
+       LIMIT 1) as sync_status
+    FROM local_equipos e
+    WHERE e.id_property = ?`;
   const params: any[] = [propertyId];
 
   if (filters?.equipamentoId) {
-    query += ' AND id_equipamento = ?';
+    query += ' AND e.id_equipamento = ?';
     params.push(filters.equipamentoId);
   }
 
@@ -82,6 +91,15 @@ export async function getElectricalPanelsByProperty(
   return rows
     .map(row => {
       try {
+        // Determine effective sync status:
+        // - If panel has pending/syncing/error config in queue -> use that status
+        // - If panel is configured (config=1) and no pending sync -> 'synced'
+        // - If not configured -> null
+        let syncStatus = row.sync_status;
+        if (!syncStatus && row.config === 1) {
+          syncStatus = 'synced';
+        }
+
         return {
           ...row,
           equipment_detail: row.equipment_detail
@@ -89,6 +107,7 @@ export async function getElectricalPanelsByProperty(
             : null,
           // Convert SQLite integer boolean (0/1) to true/false
           config: row.config === 1,
+          syncStatus,
         };
       } catch (e) {
         console.error('Error parsing panel detail:', e);

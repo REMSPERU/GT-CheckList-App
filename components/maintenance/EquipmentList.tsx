@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { BaseEquipment } from '@/types/api';
+import type { SyncStatus } from '@/services/sync-queue';
 
 export interface EquipmentListProps<T extends BaseEquipment> {
   items: T[];
@@ -26,6 +27,12 @@ export interface EquipmentListProps<T extends BaseEquipment> {
   renderLabel?: (item: T) => string;
   /** Custom function to extract secondary text (shown below label) */
   renderSubtitle?: (item: T) => string | null;
+  /** Optional - callback for manual sync retry */
+  onRetrySync?: (itemId: string) => void;
+  /** Optional - map to check if item is auto-retrying */
+  isAutoRetrying?: (itemId: string) => boolean;
+  /** Optional - map to check if item needs manual retry */
+  needsManualRetry?: (itemId: string) => boolean;
 }
 
 /**
@@ -45,6 +52,9 @@ export function EquipmentList<T extends BaseEquipment>({
   onLongPress,
   renderLabel,
   renderSubtitle,
+  onRetrySync,
+  isAutoRetrying,
+  needsManualRetry,
 }: EquipmentListProps<T>) {
   const getLabel = (item: T): string => {
     if (renderLabel) {
@@ -54,9 +64,115 @@ export function EquipmentList<T extends BaseEquipment>({
     return item.codigo || (item.equipment_detail as any)?.rotulo || 'N/A';
   };
 
+  const renderSyncStatusBadge = (item: T) => {
+    const syncStatus = (item as any).syncStatus as SyncStatus | null;
+    const itemNeedsManualRetry = needsManualRetry?.(item.id);
+    const itemIsAutoRetrying = isAutoRetrying?.(item.id);
+
+    // Priority: manual retry needed > auto-retrying > pending/syncing
+    if (itemNeedsManualRetry && onRetrySync) {
+      return (
+        <TouchableOpacity
+          style={styles.syncBadgeError}
+          onPress={() => onRetrySync(item.id)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons
+            name="alert-circle"
+            size={14}
+            color="#DC2626"
+            style={{ marginRight: 4 }}
+          />
+          <Text style={styles.syncBadgeErrorText}>Reintentar</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    if (itemIsAutoRetrying) {
+      return (
+        <View style={styles.syncBadgePending}>
+          <ActivityIndicator
+            size={12}
+            color="#D97706"
+            style={{ marginRight: 4 }}
+          />
+          <Text style={styles.syncBadgePendingText}>Reintentando...</Text>
+        </View>
+      );
+    }
+
+    if (syncStatus === 'syncing') {
+      return (
+        <View style={styles.syncBadgePending}>
+          <ActivityIndicator
+            size={12}
+            color="#0891B2"
+            style={{ marginRight: 4 }}
+          />
+          <Text style={styles.syncBadgeSyncingText}>Sincronizando...</Text>
+        </View>
+      );
+    }
+
+    if (syncStatus === 'pending') {
+      return (
+        <View style={styles.syncBadgePending}>
+          <Ionicons
+            name="cloud-upload-outline"
+            size={14}
+            color="#D97706"
+            style={{ marginRight: 4 }}
+          />
+          <Text style={styles.syncBadgePendingText}>Pendiente</Text>
+        </View>
+      );
+    }
+
+    if (syncStatus === 'error' || syncStatus === 'fatal_error') {
+      if (onRetrySync) {
+        return (
+          <TouchableOpacity
+            style={styles.syncBadgeError}
+            onPress={() => onRetrySync(item.id)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons
+              name="refresh"
+              size={14}
+              color="#DC2626"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.syncBadgeErrorText}>Reintentar</Text>
+          </TouchableOpacity>
+        );
+      }
+      return (
+        <View style={styles.syncBadgeError}>
+          <Ionicons
+            name="alert-circle"
+            size={14}
+            color="#DC2626"
+            style={{ marginRight: 4 }}
+          />
+          <Text style={styles.syncBadgeErrorText}>Error</Text>
+        </View>
+      );
+    }
+
+    // Synced: show green checkmark for configured items
+    if (syncStatus === 'synced') {
+      return (
+        <View style={styles.syncBadgeSynced}>
+          <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+        </View>
+      );
+    }
+
+    return null;
+  };
+
   const renderItem = (item: T) => {
     const isSelected = selectedIds.has(item.id);
     const isConfigured = item.config;
+    const syncStatus = (item as any).syncStatus as SyncStatus | null;
 
     const ItemContent = () => {
       const subtitle = renderSubtitle ? renderSubtitle(item) : null;
@@ -92,8 +208,11 @@ export function EquipmentList<T extends BaseEquipment>({
           )}
 
           {isConfigured && (
-            <View style={styles.actionIconContainer}>
-              <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+            <View style={styles.rightSection}>
+              {renderSyncStatusBadge(item)}
+              {syncStatus === 'synced' && (
+                <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+              )}
             </View>
           )}
         </>
@@ -282,6 +401,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textTransform: 'uppercase',
   },
+  rightSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   actionIconContainer: {
     paddingLeft: 8,
   },
@@ -295,5 +419,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#D97706',
     fontWeight: '600',
+  },
+  // Sync status badge styles
+  syncBadgePending: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  syncBadgePendingText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#D97706',
+  },
+  syncBadgeSyncingText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#0891B2',
+  },
+  syncBadgeError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  syncBadgeErrorText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#DC2626',
+  },
+  syncBadgeSynced: {
+    paddingHorizontal: 4,
   },
 });
