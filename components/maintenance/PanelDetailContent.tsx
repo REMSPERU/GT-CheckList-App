@@ -22,6 +22,7 @@ export interface PanelDetailProps {
       tipo_cable?: string;
       itms: {
         id: string;
+        tipo?: 'ITM' | 'ID';
         fases: string;
         amperaje: number | string;
         suministra: string;
@@ -34,6 +35,14 @@ export interface PanelDetailProps {
           tipo_cable?: string;
           diametro_cable?: string;
         };
+        sub_itms?: {
+          id: string;
+          fases: string;
+          amperaje: number | string;
+          suministra: string;
+          tipo_cable: string;
+          diametro_cable: string;
+        }[];
       }[];
     }[];
     componentes: {
@@ -155,26 +164,55 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = ({ data }) => {
               <View key={cIdx} style={styles.circuitItem}>
                 {/* Circuit Row - Compact Layout */}
                 <View style={styles.circuitRow}>
-                  <View style={styles.circuitIdBox}>
-                    <Text style={styles.circuitIdText}>{itm.id}</Text>
+                  <View
+                    style={[
+                      styles.circuitIdBox,
+                      itm.tipo === 'ID' && {
+                        backgroundColor: '#ECFEFF',
+                        borderColor: '#0891B2',
+                      },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.circuitIdText,
+                        itm.tipo === 'ID' && { color: '#0891B2' },
+                      ]}>
+                      {itm.id}
+                    </Text>
                   </View>
                   <View style={styles.circuitContent}>
                     <View style={styles.circuitTopRow}>
+                      {/* Badge de tipo */}
+                      <View
+                        style={[
+                          styles.typeBadge,
+                          itm.tipo === 'ID' && { backgroundColor: '#ECFEFF' },
+                        ]}>
+                        <Text
+                          style={[
+                            styles.typeText,
+                            itm.tipo === 'ID' && { color: '#0891B2' },
+                          ]}>
+                          {itm.tipo || 'ITM'}
+                        </Text>
+                      </View>
                       <Text style={styles.circuitAmps}>{itm.amperaje}A</Text>
                       <View style={styles.phaseBadge}>
                         <Text style={styles.phaseText}>{itm.fases}</Text>
                       </View>
                     </View>
-                    <Text style={styles.circuitSupplyText} numberOfLines={1}>
-                      {itm.suministra}
-                    </Text>
+                    {itm.tipo !== 'ID' && itm.suministra && (
+                      <Text style={styles.circuitSupplyText} numberOfLines={1}>
+                        {itm.suministra}
+                      </Text>
+                    )}
                     <Text style={styles.cableInfoText}>
                       {itm.tipo_cable} • {itm.diametro_cable} mm²
                     </Text>
                   </View>
                 </View>
 
-                {/* Differential Subsection */}
+                {/* Differential Subsection (solo para ITM) */}
                 {itm.diferencial?.existe && (
                   <View
                     style={[
@@ -209,6 +247,58 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = ({ data }) => {
                     )}
                   </View>
                 )}
+
+                {/* Sub-ITMs Section (solo para tipo ID) */}
+                {itm.tipo === 'ID' &&
+                  itm.sub_itms &&
+                  itm.sub_itms.length > 0 && (
+                    <View style={styles.subItmsContainer}>
+                      <View style={styles.subItmsHeader}>
+                        <Ionicons
+                          name="git-branch-outline"
+                          size={14}
+                          color="#0891B2"
+                        />
+                        <Text style={styles.subItmsTitle}>
+                          ITMs Asociados ({itm.sub_itms.length})
+                        </Text>
+                      </View>
+                      {itm.sub_itms.map((subItm, sIdx) => (
+                        <View key={sIdx} style={styles.subItmCard}>
+                          <View style={styles.subItmRow}>
+                            <View style={styles.subItmIdBox}>
+                              <Text style={styles.subItmIdText}>
+                                {subItm.id}
+                              </Text>
+                            </View>
+                            <View style={styles.subItmContent}>
+                              <View style={styles.subItmTopRow}>
+                                <Text style={styles.subItmAmps}>
+                                  {subItm.amperaje}A
+                                </Text>
+                                <View style={styles.subItmPhaseBadge}>
+                                  <Text style={styles.subItmPhaseText}>
+                                    {subItm.fases}
+                                  </Text>
+                                </View>
+                              </View>
+                              {subItm.suministra && (
+                                <Text
+                                  style={styles.subItmSupply}
+                                  numberOfLines={1}>
+                                  {subItm.suministra}
+                                </Text>
+                              )}
+                              <Text style={styles.subItmCable}>
+                                {subItm.tipo_cable} • {subItm.diametro_cable}{' '}
+                                mm²
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
               </View>
             ))}
           </View>
@@ -648,5 +738,107 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#0E7490', // Default active text
+  },
+
+  // Type Badge (ITM/ID)
+  typeBadge: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  typeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+
+  // Sub-ITMs Section (for ID type)
+  subItmsContainer: {
+    marginTop: 12,
+    backgroundColor: '#F0F9FF',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  subItmsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#BAE6FD',
+  },
+  subItmsTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0891B2',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  subItmCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E0F2FE',
+  },
+  subItmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  subItmIdBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+    backgroundColor: '#E0F2FE',
+    borderWidth: 1.5,
+    borderColor: '#0891B2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  subItmIdText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#0891B2',
+  },
+  subItmContent: {
+    flex: 1,
+  },
+  subItmTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
+  subItmAmps: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  subItmPhaseBadge: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  subItmPhaseText: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#0891B2',
+  },
+  subItmSupply: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#334155',
+    marginBottom: 1,
+  },
+  subItmCable: {
+    fontSize: 10,
+    color: '#94A3B8',
   },
 });

@@ -24,7 +24,7 @@ export default function ReviewStep({ panel }: ReviewStepProps) {
       prefijo: itg.cnPrefix,
       itms: itg.circuits.map((itm, cIdx) => ({
         id: `${itg.cnPrefix}${cIdx + 1}`,
-        tipo: itm.interruptorType === 'id' ? 'ID' : 'ITM',
+        tipo: (itm.interruptorType === 'id' ? 'ID' : 'ITM') as 'ITM' | 'ID',
         amperaje: itm.amperaje,
         fases: itm.phase,
         tipo_cable: itm.cableType || 'no_libre_halogeno',
