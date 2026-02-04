@@ -256,9 +256,43 @@ export function usePanelConfiguration(
       case STEP_IDS.BASIC_INFO:
         fieldsToValidate = ['panelType', 'voltage', 'phase'];
         break;
-      case STEP_IDS.ITG_CONFIG:
-        fieldsToValidate = ['itgCount', 'itgDescriptions', 'itgCircuits'];
-        break;
+      case STEP_IDS.ITG_CONFIG: {
+        // First validate basic fields
+        const basicResult = await trigger(['itgCount', 'itgDescriptions']);
+        if (!basicResult) return false;
+
+        // Manual validation for IT-G specific fields (amperaje, diameter, cableType)
+        // We can't use trigger for itgCircuits because it would also validate circuits inside
+        const itgCircuits = getValues('itgCircuits');
+        let hasErrors = false;
+
+        for (let i = 0; i < itgCircuits.length; i++) {
+          const itg = itgCircuits[i];
+          if (!itg.amperajeITG || itg.amperajeITG.trim() === '') {
+            form.setError(`itgCircuits.${i}.amperajeITG` as any, {
+              type: 'manual',
+              message: 'Amperaje es requerido',
+            });
+            hasErrors = true;
+          }
+          if (!itg.diameterITG || itg.diameterITG.trim() === '') {
+            form.setError(`itgCircuits.${i}.diameterITG` as any, {
+              type: 'manual',
+              message: 'Diámetro es requerido',
+            });
+            hasErrors = true;
+          }
+          if (!itg.cableTypeITG) {
+            form.setError(`itgCircuits.${i}.cableTypeITG` as any, {
+              type: 'manual',
+              message: 'Seleccione tipo de cable',
+            });
+            hasErrors = true;
+          }
+        }
+
+        return !hasErrors;
+      }
       case STEP_IDS.CIRCUITS:
         fieldsToValidate = ['itgCircuits'];
         break;
