@@ -55,11 +55,9 @@ export const DefaultCircuitSchema = z.object({
 
 export const ITGCircuitDataSchema = z.object({
   cnPrefix: z.string().min(1, 'Prefijo requerido'),
-  circuitsCount: z
-    .string()
-    .refine(val => !isNaN(Number(val)) && Number(val) > 0, {
-      message: 'Debe ser mayor a 0',
-    }),
+  circuitsCount: z.string().refine(val => !isNaN(Number(val)), {
+    message: 'Debe ser un numero',
+  }),
   circuits: z.array(DefaultCircuitSchema),
   // IT-G specific fields (required)
   amperajeITG: z.string().min(1, 'Amperaje es requerido'),
