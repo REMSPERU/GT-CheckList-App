@@ -157,22 +157,14 @@ export function EquipmentList<T extends BaseEquipment>({
       );
     }
 
-    // Synced: show green checkmark for configured items
-    if (syncStatus === 'synced') {
-      return (
-        <View style={styles.syncBadgeSynced}>
-          <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-        </View>
-      );
-    }
-
+    // For 'synced' or no sync status (already configured from DB) - show nothing special
+    // The chevron arrow will be shown as usual
     return null;
   };
 
   const renderItem = (item: T) => {
     const isSelected = selectedIds.has(item.id);
     const isConfigured = item.config;
-    const syncStatus = (item as any).syncStatus as SyncStatus | null;
 
     const ItemContent = () => {
       const subtitle = renderSubtitle ? renderSubtitle(item) : null;
@@ -210,9 +202,7 @@ export function EquipmentList<T extends BaseEquipment>({
           {isConfigured && (
             <View style={styles.rightSection}>
               {renderSyncStatusBadge(item)}
-              {syncStatus === 'synced' && (
-                <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
-              )}
+              <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
             </View>
           )}
         </>
