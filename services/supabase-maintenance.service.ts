@@ -19,20 +19,36 @@ export class SupabaseMaintenanceService {
    */
   async uploadPhoto(uri: string, folder: string): Promise<string> {
     try {
-      const response = await fetch(uri);
+      // Ensure file:// prefix for local URIs on mobile
+      const cleanUri =
+        uri.startsWith('http') || uri.startsWith('file://') || uri.startsWith('content://')
+          ? uri
+          : `file://${uri}`;
+
+      console.log(`[STORAGE] Fetching URI: ${cleanUri}`);
+      const response = await fetch(cleanUri);
+
+      if (!response.ok) {
+        throw new Error(`Fetch failed with status: ${response.status}`);
+      }
+
       const blob = await response.blob();
+      console.log(`[STORAGE] Blob created: ${blob.size} bytes`);
+
       const reader = new FileReader();
 
       return new Promise<string>((resolve, reject) => {
         reader.onload = async () => {
           if (reader.result) {
             try {
+              console.log('[STORAGE] Decoding base64...');
               const arrayBuffer = decode(
                 (reader.result as string).split(',')[1],
               );
               const fileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
               const filePath = `execution/${folder}/${fileName}`;
 
+              console.log(`[STORAGE] Uploading to Supabase: ${filePath}...`);
               const { data, error } = await supabase.storage
                 .from(this.bucketName)
                 .upload(filePath, arrayBuffer, {
@@ -40,21 +56,31 @@ export class SupabaseMaintenanceService {
                   upsert: false,
                 });
 
-              if (error) throw error;
+              if (error) {
+                console.error('[STORAGE] Supabase upload error:', error);
+                throw error;
+              }
 
               const {
                 data: { publicUrl },
               } = supabase.storage.from(this.bucketName).getPublicUrl(filePath);
+
+              console.log(`[STORAGE] Upload success: ${publicUrl}`);
               resolve(publicUrl);
             } catch (e) {
+              console.error('[STORAGE] Error in reader.onload:', e);
               reject(e);
             }
           }
         };
-        reader.onerror = e => reject(e);
+        reader.onerror = e => {
+          console.error('[STORAGE] FileReader error:', e);
+          reject(e);
+        };
         reader.readAsDataURL(blob);
       });
     } catch (e) {
+      console.error('[STORAGE] Critical upload error:', e);
       throw e;
     }
   }
@@ -63,12 +89,18 @@ export class SupabaseMaintenanceService {
    * Save maintenance response to Database
    */
   async saveMaintenanceResponse(response: MaintenanceResponse): Promise<void> {
-    const { error } = await supabase.from(this.tableName).insert({
+    const data: any = {
       id_mantenimiento: response.id_mantenimiento,
       user_created: response.user_created,
       detail_maintenance: response.detail_maintenance,
-      protocol: response.protocol,
-    });
+    };
+
+    // Only include protocol if it's provided, to be safer with older schemas
+    if (response.protocol) {
+      data.protocol = response.protocol;
+    }
+
+    const { error } = await supabase.from(this.tableName).insert(data);
 
     if (error) {
       console.error('Error saving maintenance response:', error);

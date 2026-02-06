@@ -9,6 +9,8 @@ export interface EquipmentMaintenanceData {
   type: string;
   /** Location (e.g., PISO 1) */
   location: string;
+  /** Equipment model */
+  model?: string;
   /** Voltage (e.g., 220) */
   voltage?: string;
   /** Amperage (e.g., 200) */
@@ -27,6 +29,8 @@ export interface EquipmentMaintenanceData {
   observations?: string;
   /** Item-specific observations with photos */
   itemObservations?: Record<string, { note: string; photoUrl?: string }>;
+  /** Protocol checklist data */
+  protocol?: Record<string, boolean>;
 }
 
 export interface MaintenanceSessionReport {
@@ -51,6 +55,7 @@ export interface MaintenanceSessionReport {
   /** Measurement instrument info */
   measurementInstrument?: {
     name: string;
+    brand?: string;
     model: string;
     serial: string;
   };
@@ -87,6 +92,7 @@ export interface ReportMaintenanceData {
     }
   >;
   observations?: string;
+  protocol?: Record<string, boolean>;
 }
 
 export interface SessionReportData {

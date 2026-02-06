@@ -19,6 +19,7 @@ interface PDFReportModalProps {
   pdfUri: string | null;
   isGenerating: boolean;
   generationProgress?: string;
+  title?: string;
   reportSummary?: {
     propertyName: string;
     sessionDate: string;
@@ -39,6 +40,7 @@ export default function PDFReportModal({
   pdfUri,
   isGenerating,
   generationProgress = 'Generando informe...',
+  title = 'Informe de Mantenimiento',
   reportSummary,
 }: PDFReportModalProps) {
   const [isSharing, setIsSharing] = useState(false);
@@ -52,9 +54,9 @@ export default function PDFReportModal({
       // Construct a descriptive filename
       const filename = reportSummary
         ? `Informe_${reportSummary.propertyName}_${reportSummary.sessionDate.replace(
-            /\s+/g,
-            '_',
-          )}`
+          /\s+/g,
+          '_',
+        )}`
         : 'Informe_Mantenimiento';
 
       // Use openPDF instead of sharePDF for a more direct experience
@@ -74,9 +76,9 @@ export default function PDFReportModal({
     try {
       const filename = reportSummary
         ? `Informe_${reportSummary.propertyName}_${reportSummary.sessionDate.replace(
-            /\s+/g,
-            '_',
-          )}`
+          /\s+/g,
+          '_',
+        )}`
         : 'Informe_Mantenimiento';
 
       await pdfReportService.sharePDF(pdfUri, filename, 'Compartir Informe');
@@ -110,7 +112,7 @@ export default function PDFReportModal({
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={ICON} />
             </TouchableOpacity>
-            <Text style={styles.title}>Informe de Mantenimiento</Text>
+            <Text style={styles.title}>{title}</Text>
             <View style={{ width: 32 }} />
           </View>
 

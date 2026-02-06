@@ -225,10 +225,12 @@ class SyncService {
                     ? 'post'
                     : 'observations';
 
+              console.log(`[SYNC] Uploading photo ${photo.id}: ${photo.local_uri} to /${folder}`);
               const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
                 photo.local_uri,
                 folder,
               );
+              console.log(`[SYNC] Photo ${photo.id} uploaded: ${remoteUrl}`);
 
               await DatabaseService.updatePhotoStatus(
                 photo.id,
