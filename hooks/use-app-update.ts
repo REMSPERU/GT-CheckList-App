@@ -50,6 +50,16 @@ export function useAppUpdate(): AppUpdateInfo {
 
   useEffect(() => {
     const checkForUpdates = async () => {
+      // Skip update check in development mode
+      if (__DEV__) {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: null,
+        }));
+        return;
+      }
+
       try {
         const response = await fetch(GITHUB_API_URL, {
           headers: {
