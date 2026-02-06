@@ -12,6 +12,10 @@ export const useMaintenanceSession = (
     maintenanceType?: string;
     propertyId?: string;
     propertyName?: string;
+    // Session context for last equipment detection
+    sessionTotal?: number;
+    sessionCompleted?: number;
+    sessionDate?: string;
   },
 ) => {
   const [session, setSession] = useState<MaintenanceSession | null>(null);
@@ -44,6 +48,8 @@ export const useMaintenanceSession = (
             checklist: {},
             itemObservations: {},
             observations: '',
+            recommendations: '',
+            conclusions: '',
             currentStep: 'pre-photos',
             isUploaded: false,
             // Context
@@ -51,6 +57,10 @@ export const useMaintenanceSession = (
             maintenanceType: initialContext?.maintenanceType,
             propertyId: initialContext?.propertyId,
             propertyName: initialContext?.propertyName,
+            // Session context for last equipment detection
+            sessionTotal: initialContext?.sessionTotal,
+            sessionCompleted: initialContext?.sessionCompleted,
+            sessionDate: initialContext?.sessionDate,
           };
           setSession(newSession);
           await AsyncStorage.setItem(sessionId, JSON.stringify(newSession));
@@ -73,6 +83,9 @@ export const useMaintenanceSession = (
     initialContext?.maintenanceType,
     initialContext?.propertyId,
     initialContext?.propertyName,
+    initialContext?.sessionTotal,
+    initialContext?.sessionCompleted,
+    initialContext?.sessionDate,
   ]);
 
   // Persist session changes

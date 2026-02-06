@@ -31,6 +31,10 @@ export default function PreMaintenancePhotosScreen() {
     maintenanceType?: string;
     propertyId?: string;
     propertyName?: string;
+    // Session context for last equipment detection
+    sessionTotal?: string;
+    sessionCompleted?: string;
+    sessionDate?: string;
   }>();
   const panelId = params.panelId;
   const maintenanceId = params.maintenanceId;
@@ -48,6 +52,14 @@ export default function PreMaintenancePhotosScreen() {
       maintenanceType: params.maintenanceType,
       propertyId: params.propertyId,
       propertyName: params.propertyName,
+      // Session context
+      sessionTotal: params.sessionTotal
+        ? parseInt(params.sessionTotal)
+        : undefined,
+      sessionCompleted: params.sessionCompleted
+        ? parseInt(params.sessionCompleted)
+        : undefined,
+      sessionDate: params.sessionDate,
     },
   );
 

@@ -101,6 +101,20 @@ export default function EquipmentMaintenanceListScreen() {
     scheduledDate,
   ]);
 
+  // Calculate session totals for determining if this is the last equipment
+  const sessionTotals = useMemo(() => {
+    if (!scheduledDate) return { total: 0, completed: 0 };
+
+    const sessionItems = maintenanceData.filter(
+      (item: any) => item.dia_programado === scheduledDate,
+    );
+    const completed = sessionItems.filter(
+      (item: any) => item.estatus === MaintenanceStatusEnum.FINALIZADO,
+    ).length;
+
+    return { total: sessionItems.length, completed };
+  }, [maintenanceData, scheduledDate]);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case MaintenanceStatusEnum.NO_INICIADO:
@@ -294,6 +308,11 @@ export default function EquipmentMaintenanceListScreen() {
                             propertyId: propertyId,
                             propertyName: propertyName,
                             maintenanceType: item.tipo_mantenimiento,
+                            // Session context for last equipment detection
+                            sessionTotal: sessionTotals.total.toString(),
+                            sessionCompleted:
+                              sessionTotals.completed.toString(),
+                            sessionDate: scheduledDate || '',
                           },
                         });
                       }

@@ -23,6 +23,7 @@ import { PhotoItem } from '@/types/maintenance-session';
 import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
+import { saveSessionNotes } from '@/services/supabase-session-notes.service';
 
 export default function SummaryScreen() {
   const router = useRouter();
@@ -45,6 +46,14 @@ export default function SummaryScreen() {
   const [modalMessage, setModalMessage] = useState<string | undefined>();
 
   if (!session) return <ActivityIndicator />;
+
+  // Determine if this is the last equipment in the session
+  const isLastEquipment = (() => {
+    const total = session.sessionTotal ?? 1;
+    const completed = session.sessionCompleted ?? 0;
+    // We're completing this one, so if completed + 1 >= total, it's the last
+    return completed + 1 >= total;
+  })();
 
   const handleFinalize = async () => {
     setIsUploading(true);
@@ -98,6 +107,8 @@ export default function SummaryScreen() {
         measurements: session.measurements,
         itemObservations: itemObservationsFinal,
         observations: session.observations,
+        recommendations: session.recommendations || '',
+        conclusions: session.conclusions || '',
         completedAt: new Date().toISOString(),
       };
 
@@ -144,6 +155,23 @@ export default function SummaryScreen() {
         setModalMessage('Sincronizando con el servidor...');
         try {
           await syncService.pushData();
+
+          // Save session notes if this is the last equipment
+          if (isLastEquipment && session.propertyId && session.sessionDate) {
+            try {
+              await saveSessionNotes(
+                session.propertyId,
+                session.sessionDate,
+                session.recommendations || '',
+                session.conclusions || '',
+              );
+              console.log('Session notes saved to Supabase');
+            } catch (notesError) {
+              console.error('Error saving session notes:', notesError);
+              // Don't fail the whole operation, just log
+            }
+          }
+
           // Sync succeeded!
           setModalStatus('success');
           setModalMessage(
@@ -250,6 +278,24 @@ export default function SummaryScreen() {
     saveSession({
       ...session,
       observations: text,
+      lastUpdated: new Date().toISOString(),
+    });
+  };
+
+  const handleRecommendationsChange = (text: string) => {
+    if (!session) return;
+    saveSession({
+      ...session,
+      recommendations: text,
+      lastUpdated: new Date().toISOString(),
+    });
+  };
+
+  const handleConclusionsChange = (text: string) => {
+    if (!session) return;
+    saveSession({
+      ...session,
+      conclusions: text,
       lastUpdated: new Date().toISOString(),
     });
   };
@@ -386,6 +432,37 @@ export default function SummaryScreen() {
           <Text style={styles.cardTitle}>Detalle de Verificación</Text>
           {renderChecklistDetails()}
         </View>
+
+        {/* Show recommendations and conclusions only for the last equipment */}
+        {isLastEquipment && (
+          <>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Recomendaciones</Text>
+              <TextInput
+                style={styles.observationsInput}
+                placeholder="Ingrese las recomendaciones para el cliente..."
+                value={session.recommendations}
+                onChangeText={handleRecommendationsChange}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Conclusiones</Text>
+              <TextInput
+                style={styles.observationsInput}
+                placeholder="Ingrese las conclusiones del mantenimiento..."
+                value={session.conclusions}
+                onChangeText={handleConclusionsChange}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+          </>
+        )}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Comentarios Generales</Text>

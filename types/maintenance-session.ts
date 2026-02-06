@@ -43,6 +43,10 @@ export interface MaintenanceSession {
   maintenanceType?: string;
   propertyId?: string; // For scheduled maintenance return
   propertyName?: string; // For scheduled maintenance return
+  // Session context for last equipment detection
+  sessionTotal?: number;
+  sessionCompleted?: number;
+  sessionDate?: string;
 
   // Data
   prePhotos: PhotoItem[];
@@ -51,6 +55,8 @@ export interface MaintenanceSession {
   measurements?: Record<string, ItemMeasurement>; // itemId -> measurement
   itemObservations: Record<string, ItemObservation>;
   observations: string;
+  recommendations: string; // Recomendaciones del técnico
+  conclusions: string; // Conclusiones del mantenimiento
 
   // Progress
   currentStep: MaintenanceStep;

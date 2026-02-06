@@ -24,6 +24,10 @@ export default function ExecutionRouter() {
     maintenanceType?: string;
     propertyId?: string;
     propertyName?: string;
+    // Session context for last equipment detection
+    sessionTotal?: string;
+    sessionCompleted?: string;
+    sessionDate?: string;
   }>();
 
   const { panelId, maintenanceId, equipmentType } = params;
@@ -47,9 +51,13 @@ export default function ExecutionRouter() {
         maintenanceId,
         equipmentType,
         building: params.building,
-        maintenanceType: params.maintenanceType, // Pass generic maintenance type
+        maintenanceType: params.maintenanceType,
         propertyId: params.propertyId,
         propertyName: params.propertyName,
+        // Session context
+        sessionTotal: params.sessionTotal,
+        sessionCompleted: params.sessionCompleted,
+        sessionDate: params.sessionDate,
       },
     });
   }, [
@@ -62,6 +70,9 @@ export default function ExecutionRouter() {
     params.maintenanceType,
     params.propertyId,
     params.propertyName,
+    params.sessionTotal,
+    params.sessionCompleted,
+    params.sessionDate,
   ]);
 
   // Show loading while redirecting

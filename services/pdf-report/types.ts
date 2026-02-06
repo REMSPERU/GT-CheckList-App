@@ -54,6 +54,10 @@ export interface MaintenanceSessionReport {
     model: string;
     serial: string;
   };
+  /** Session-level recommendations */
+  recommendations?: string;
+  /** Session-level conclusions */
+  conclusions?: string;
 }
 
 // Legacy types for backward compatibility
