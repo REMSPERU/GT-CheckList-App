@@ -8,6 +8,61 @@ import {
 } from './types';
 
 /**
+ * Generate the recommendations and conclusions page
+ */
+export function generateRecommendationsPageHTML(
+  data: MaintenanceSessionReport,
+): string {
+  // Only generate if there are recommendations or conclusions
+  if (!data.recommendations && !data.conclusions) {
+    return '';
+  }
+
+  return `
+    <div class="page">
+      <header>
+        <h1>CONCLUSIONES Y RECOMENDACIONES</h1>
+      </header>
+
+      ${
+        data.conclusions
+          ? `
+        <h2>CONCLUSIONES</h2>
+        <div class="recommendations-box">
+          <p>${data.conclusions.replace(/\n/g, '<br/>')}</p>
+        </div>
+      `
+          : ''
+      }
+
+      ${
+        data.recommendations
+          ? `
+        <h2>RECOMENDACIONES</h2>
+        <div class="recommendations-box">
+          <p>${data.recommendations.replace(/\n/g, '<br/>')}</p>
+        </div>
+      `
+          : ''
+      }
+
+      <div class="signatures-section">
+        <div class="sig-grid">
+          <div class="sig-block">
+            <p><strong>TÉCNICO RESPONSABLE</strong></p>
+            <div class="sig-line"></div>
+          </div>
+          <div class="sig-block">
+            <p><strong>CLIENTE</strong></p>
+            <div class="sig-line"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
  * Format date to Spanish format (e.g., 16.11.2024)
  */
 function formatDate(dateStr: string): string {

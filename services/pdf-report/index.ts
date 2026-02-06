@@ -1,6 +1,6 @@
 // PDF Report Module - Re-exports
 
-// Types
+// Types (including ReportType enum)
 export * from './types';
 
 // Styles
@@ -11,7 +11,11 @@ export {
   generateHeaderPageHTML,
   generateEquipmentSummaryPageHTML,
   generateEquipmentPhotoPageHTML,
+  generateRecommendationsPageHTML,
 } from './html-generators';
+
+// Operability Certificate Generator
+export { generateOperabilityCertificateHTML } from './operability-generator';
 
 // HTML Generators (Legacy - deprecated)
 export {

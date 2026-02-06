@@ -1,5 +1,35 @@
 // PDF Report Types
 
+/**
+ * Available report types
+ */
+export enum ReportType {
+  TECHNICAL = 'technical',
+  OPERABILITY = 'operability',
+}
+
+export interface ReportTypeOption {
+  type: ReportType;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+export const REPORT_TYPE_OPTIONS: ReportTypeOption[] = [
+  {
+    type: ReportType.TECHNICAL,
+    name: 'Informe Técnico',
+    description: 'Incluye fotos, mediciones y observaciones',
+    icon: 'document-text',
+  },
+  {
+    type: ReportType.OPERABILITY,
+    name: 'Certificado de Operatividad',
+    description: 'Solo equipos sin observaciones',
+    icon: 'shield-checkmark',
+  },
+];
+
 export interface EquipmentMaintenanceData {
   /** Equipment code/ID (e.g., #1234) */
   code: string;

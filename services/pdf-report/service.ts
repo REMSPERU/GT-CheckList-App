@@ -5,7 +5,11 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
-import { MaintenanceSessionReport, SessionReportData } from './types';
+import {
+  MaintenanceSessionReport,
+  SessionReportData,
+  ReportType,
+} from './types';
 import { getReportStyles } from './styles';
 import {
   generateHeaderPageHTML,
@@ -13,7 +17,9 @@ import {
   generateEquipmentPhotoPageHTML,
   generateCoverPageHTML,
   generateMaintenanceHTML,
+  generateRecommendationsPageHTML,
 } from './html-generators';
+import { generateOperabilityCertificateHTML } from './operability-generator';
 
 /**
  * PDF Report Generation Service
@@ -40,9 +46,45 @@ class PDFReportService {
   ${generateHeaderPageHTML(data)}
   ${generateEquipmentSummaryPageHTML(data)}
   ${data.equipments.map(eq => generateEquipmentPhotoPageHTML(eq)).join('')}
+  ${generateRecommendationsPageHTML(data)}
 </body>
 </html>
     `;
+  }
+
+  /**
+   * Generate operability certificate HTML
+   */
+  generateOperabilityCertificateHTML(data: MaintenanceSessionReport): string {
+    return generateOperabilityCertificateHTML(data);
+  }
+
+  /**
+   * Generate PDF based on report type
+   * @returns URI of the generated PDF file
+   */
+  async generateReport(
+    type: ReportType,
+    data: MaintenanceSessionReport,
+  ): Promise<string> {
+    let html: string;
+
+    switch (type) {
+      case ReportType.OPERABILITY:
+        html = this.generateOperabilityCertificateHTML(data);
+        break;
+      case ReportType.TECHNICAL:
+      default:
+        html = this.generateSessionReportHTML(data);
+        break;
+    }
+
+    const { uri } = await Print.printToFileAsync({
+      html,
+      base64: false,
+    });
+
+    return uri;
   }
 
   /**

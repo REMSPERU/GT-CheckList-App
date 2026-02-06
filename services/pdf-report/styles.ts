@@ -301,5 +301,47 @@ export function getReportStyles(): string {
       flex: 1 1 calc(33.33% - 10px);
       min-width: 150px;
     }
+
+    /* RECOMMENDATIONS AND CONCLUSIONS SECTION */
+    .recommendations-box {
+      background: #f9f9f9;
+      border-left: 4px solid #ff6600;
+      padding: 15px;
+      margin: 10px 0 20px 0;
+      font-size: 12px;
+      text-align: justify;
+    }
+
+    .recommendations-box p {
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    /* SIGNATURES SECTION */
+    .signatures-section {
+      margin-top: 60px;
+      page-break-inside: avoid;
+    }
+
+    .sig-grid {
+      display: flex;
+      justify-content: space-around;
+      gap: 40px;
+    }
+
+    .sig-block {
+      text-align: center;
+      min-width: 200px;
+    }
+
+    .sig-block p {
+      margin-bottom: 40px;
+    }
+
+    .sig-line {
+      border-top: 1px solid #333;
+      width: 200px;
+      margin: 0 auto;
+    }
   `;
 }
