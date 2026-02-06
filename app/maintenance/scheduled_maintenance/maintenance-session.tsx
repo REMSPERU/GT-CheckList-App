@@ -138,8 +138,11 @@ export default function MaintenanceSessionScreen() {
   }, [maintenanceData]);
 
   const filteredSessions = useMemo(() => {
-    if (!selectedType) return sessions;
-    return sessions.filter(s => s.equipmentType === selectedType);
+    // Filter out completed sessions (where all equipment is finalized)
+    const pendingSessions = sessions.filter(s => s.completed < s.total);
+
+    if (!selectedType) return pendingSessions;
+    return pendingSessions.filter(s => s.equipmentType === selectedType);
   }, [sessions, selectedType]);
 
   const handleSessionPress = (session: MaintenanceSession) => {
