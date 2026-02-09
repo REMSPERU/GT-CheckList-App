@@ -14,10 +14,15 @@ import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaintenanceHeader from '@/components/maintenance-header';
 import PDFReportModal from '@/components/pdf-report-modal';
+import { ReportTypeModal } from '@/components/ReportTypeModal';
 import { useMaintenanceByProperty } from '@/hooks/use-maintenance';
 import { MaintenanceStatusEnum } from '@/types/api';
 import { supabase } from '@/lib/supabase';
-import { pdfReportService } from '@/services/pdf-report.service';
+import {
+  pdfReportService as newPdfReportService,
+  ReportType,
+  MaintenanceSessionReport,
+} from '@/services/pdf-report';
 
 interface SessionHistoryItem {
   date: string;
@@ -48,6 +53,11 @@ export default function SessionHistoryScreen() {
     totalOk: number;
     totalIssues: number;
   } | null>(null);
+
+  // Report Type Selection State
+  const [reportTypeModalVisible, setReportTypeModalVisible] = useState(false);
+  const [selectedSession, setSelectedSession] =
+    useState<SessionHistoryItem | null>(null);
 
   // Fetch Data (reusing maintenance hook)
   const {
@@ -120,14 +130,24 @@ export default function SessionHistoryScreen() {
     );
   }, [maintenanceData]);
 
-  const handleGenerateReport = async (session: SessionHistoryItem) => {
+  // Step 1: Show report type selection modal
+  const handleShowReportOptions = (session: SessionHistoryItem) => {
+    setSelectedSession(session);
+    setReportTypeModalVisible(true);
+  };
+
+  // Step 2: Handle report type selection and generate report
+  const handleReportTypeSelect = async (type: ReportType) => {
+    if (!selectedSession) return;
+
+    setReportTypeModalVisible(false);
     setPdfModalVisible(true);
     setIsGeneratingPdf(true);
     setPdfUri(null);
     setGenerationProgress('Obteniendo datos de mantenimiento...');
 
     try {
-      const maintenanceIds = session.maintenances
+      const maintenanceIds = selectedSession.maintenances
         .filter((m: any) => m.estatus === MaintenanceStatusEnum.FINALIZADO)
         .map((m: any) => m.id);
 
@@ -167,7 +187,7 @@ export default function SessionHistoryScreen() {
       let totalOkItems = 0;
       let totalIssueItems = 0;
 
-      for (const maint of session.maintenances.filter(
+      for (const maint of selectedSession.maintenances.filter(
         (m: any) => m.estatus === MaintenanceStatusEnum.FINALIZADO,
       )) {
         const response = responses?.find(
@@ -213,23 +233,25 @@ export default function SessionHistoryScreen() {
         });
       }
 
-      const sessionReportData: any = {
+      // Build report data
+      const reportData: MaintenanceSessionReport = {
         clientName: 'CORPORACION MG SAC',
         address: 'Av. Del Pinar 180, Surco',
         locationName: propertyName || 'Propiedad',
         serviceDescription: 'MANTENIMIENTO PREVENTIVO DE TABLEROS ELÉCTRICOS',
-        serviceDate: session.date,
+        serviceDate: selectedSession.date,
         generatedAt: new Date().toISOString(),
-        sessionCode: session.codigo,
+        sessionCode: selectedSession.codigo,
         equipments,
       };
 
-      const uri = await pdfReportService.generateSessionPDF(sessionReportData);
+      // Generate report based on selected type
+      const uri = await newPdfReportService.generateReport(type, reportData);
       setPdfUri(uri);
 
       setReportSummary({
         propertyName: propertyName || 'Propiedad',
-        sessionDate: session.displayDate,
+        sessionDate: selectedSession.displayDate,
         totalEquipments: equipments.length,
         totalOk: totalOkItems,
         totalIssues: totalIssueItems,
@@ -329,7 +351,7 @@ export default function SessionHistoryScreen() {
                   {isComplete ? (
                     <TouchableOpacity
                       style={styles.reportButton}
-                      onPress={() => handleGenerateReport(session)}
+                      onPress={() => handleShowReportOptions(session)}
                       activeOpacity={0.8}>
                       <Ionicons
                         name="document-text-outline"
@@ -354,6 +376,13 @@ export default function SessionHistoryScreen() {
           </ScrollView>
         )}
       </View>
+
+      <ReportTypeModal
+        visible={reportTypeModalVisible}
+        onClose={() => setReportTypeModalVisible(false)}
+        onSelectType={handleReportTypeSelect}
+        isGenerating={isGeneratingPdf}
+      />
 
       <PDFReportModal
         visible={pdfModalVisible}

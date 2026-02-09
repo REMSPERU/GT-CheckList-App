@@ -7,20 +7,13 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaintenanceHeader from '@/components/maintenance-header';
-import { ReportTypeModal } from '@/components/ReportTypeModal';
 import { useMaintenanceByProperty } from '@/hooks/use-maintenance';
 import { MaintenanceStatusEnum } from '@/types/api';
-import {
-  pdfReportService,
-  ReportType,
-  MaintenanceSessionReport,
-} from '@/services/pdf-report';
 
 interface MaintenanceSession {
   date: string;
@@ -41,10 +34,6 @@ export default function MaintenanceSessionScreen() {
     propertyName?: string;
   }>();
   const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [selectedSession, setSelectedSession] =
-    useState<MaintenanceSession | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   // Fetch Data
   const {
@@ -156,11 +145,6 @@ export default function MaintenanceSessionScreen() {
     return pendingSessions.filter(s => s.equipmentType === selectedType);
   }, [sessions, selectedType]);
 
-  // Completed sessions for report generation
-  const completedSessions = useMemo(() => {
-    return sessions.filter(s => s.completed === s.total && s.total > 0);
-  }, [sessions]);
-
   const handleSessionPress = (session: MaintenanceSession) => {
     router.push({
       pathname: '/maintenance/scheduled_maintenance/equipment-maintenance-list',
@@ -170,61 +154,6 @@ export default function MaintenanceSessionScreen() {
         propertyName,
       },
     });
-  };
-
-  const handleGenerateReport = (session: MaintenanceSession) => {
-    setSelectedSession(session);
-    setReportModalVisible(true);
-  };
-
-  const handleReportTypeSelect = async (type: ReportType) => {
-    if (!selectedSession) return;
-
-    setIsGenerating(true);
-    try {
-      // Build report data from session maintenances
-      const reportData: MaintenanceSessionReport = {
-        clientName: propertyName || 'Cliente',
-        address: selectedSession.maintenances[0]?.propiedades?.direccion || '',
-        locationName: propertyName || '',
-        serviceDescription: 'MANTENIMIENTO PREVENTIVO DE TABLEROS ELÉCTRICOS',
-        serviceDate: selectedSession.date,
-        generatedAt: new Date().toISOString(),
-        equipments: selectedSession.maintenances.map((m: any) => ({
-          code: m.equipos?.codigo || '',
-          label: m.equipos?.rotulo || m.equipos?.codigo || '',
-          type: m.equipos?.equipamentos?.nombre || 'DISTRIBUCIÓN',
-          location: m.equipos?.location || m.equipos?.edificio?.nombre || '',
-          voltage: m.detalle?.measurements?.ITG?.voltage,
-          prePhotos: (m.detalle?.prePhotos || [])
-            .filter((p: any) => p.category !== 'thermo')
-            .map((p: any) => ({ url: p.url })),
-          thermoPhotos: (m.detalle?.prePhotos || [])
-            .filter((p: any) => p.category === 'thermo')
-            .map((p: any) => ({ url: p.url })),
-          postPhotos: (m.detalle?.postPhotos || []).map((p: any) => ({
-            url: p.url,
-          })),
-          observations: m.detalle?.observations || '',
-          itemObservations: m.detalle?.itemObservations,
-        })),
-      };
-
-      const pdfUri = await pdfReportService.generateReport(type, reportData);
-      setReportModalVisible(false);
-
-      // Open or share the PDF
-      const filename = `${type === ReportType.OPERABILITY ? 'Certificado_Operatividad' : 'Informe_Tecnico'}_${selectedSession.date}`;
-      await pdfReportService.sharePDF(pdfUri, filename);
-    } catch (error) {
-      console.error('Error generating report:', error);
-      Alert.alert(
-        'Error',
-        'No se pudo generar el informe. Intente nuevamente.',
-      );
-    } finally {
-      setIsGenerating(false);
-    }
   };
 
   return (
@@ -379,54 +308,10 @@ export default function MaintenanceSessionScreen() {
                 </TouchableOpacity>
               );
             })}
-            <View style={{ height: 20 }} />
-
-            {/* Completed Sessions Section */}
-            {completedSessions.length > 0 && (
-              <View style={styles.completedSection}>
-                <Text style={styles.sectionTitle}>Sesiones Finalizadas</Text>
-                {completedSessions.map(session => (
-                  <View
-                    key={`completed-${session.date}`}
-                    style={styles.completedCard}>
-                    <View style={styles.completedCardInfo}>
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={20}
-                        color="#10B981"
-                      />
-                      <View style={styles.completedCardText}>
-                        <Text style={styles.completedDate}>
-                          {session.displayDate}
-                        </Text>
-                        <Text style={styles.completedCount}>
-                          {session.total} equipos
-                        </Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.reportBtn}
-                      onPress={() => handleGenerateReport(session)}>
-                      <Ionicons name="document-text" size={18} color="#fff" />
-                      <Text style={styles.reportBtnText}>Informe</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-
             <View style={{ height: 40 }} />
           </ScrollView>
         )}
       </View>
-
-      {/* Report Type Selection Modal */}
-      <ReportTypeModal
-        visible={reportModalVisible}
-        onClose={() => setReportModalVisible(false)}
-        onSelectType={handleReportTypeSelect}
-        isGenerating={isGenerating}
-      />
     </SafeAreaView>
   );
 }
@@ -578,60 +463,5 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '700',
-  },
-  // Completed Sessions Section
-  completedSection: {
-    marginTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 12,
-  },
-  completedCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F0FDF4',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#D1FAE5',
-  },
-  completedCardInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  completedCardText: {
-    gap: 2,
-  },
-  completedDate: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  completedCount: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  reportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ff6600',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
-  },
-  reportBtnText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
   },
 });
