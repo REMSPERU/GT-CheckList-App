@@ -42,7 +42,7 @@ export function ReportTypeModal({
                   <Ionicons
                     name={option.icon as any}
                     size={32}
-                    color="#ff6600"
+                    color="#0a7ea4"
                   />
                 </View>
                 <View style={styles.optionText}>
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#fff3e6',
+    backgroundColor: '#ffffffff',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
