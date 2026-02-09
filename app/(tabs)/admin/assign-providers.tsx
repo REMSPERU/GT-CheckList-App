@@ -15,6 +15,7 @@ import {
 } from '@/services/supabase-company.service';
 import RNPickerSelect from 'react-native-picker-select';
 import { PropertyResponse } from '@/types/api';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface CompanyListItem extends Company {
   isAssigned: boolean;
@@ -43,7 +44,7 @@ export default function AssignProvidersScreen() {
         ]);
         setProperties(props);
         setCompanies(comps);
-      } catch (error) {
+      } catch {
         Alert.alert('Error', 'No se pudieron cargar los datos iniciales.');
       } finally {
         setLoading(false);
@@ -67,7 +68,7 @@ export default function AssignProvidersScreen() {
             selectedProperty,
           );
         setAssignedCompanies(new Set(assignedIds));
-      } catch (error) {
+      } catch {
         Alert.alert(
           'Error',
           'No se pudieron cargar las asignaciones para este inmueble.',
@@ -109,7 +110,7 @@ export default function AssignProvidersScreen() {
           selectedProperty,
         );
       }
-    } catch (error) {
+    } catch {
       // Revert on error
       setAssignedCompanies(originalAssignments);
       Alert.alert('Error', 'No se pudo actualizar la asignación.');
@@ -129,7 +130,7 @@ export default function AssignProvidersScreen() {
   }));
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <DefaultHeader title="Asignar Proveedores" />
       <View style={styles.pickerContainer}>
         <RNPickerSelect
@@ -166,10 +167,12 @@ export default function AssignProvidersScreen() {
 
       {!loading && !selectedProperty && (
         <View style={styles.centered}>
-          <Text>Por favor, seleccione un inmueble para ver los proveedores.</Text>
+          <Text>
+            Por favor, seleccione un inmueble para ver los proveedores.
+          </Text>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 

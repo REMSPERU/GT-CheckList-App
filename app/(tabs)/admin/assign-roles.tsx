@@ -18,6 +18,7 @@ import { useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import RNPickerSelect from 'react-native-picker-select';
 import { UserRole } from '@/contexts/UserRoleContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const UserCard = ({
   user,
@@ -109,7 +110,7 @@ export default function AssignRolesScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <DefaultHeader title="Asignar Roles" searchPlaceholder="" />
       <FlatList
         data={users}
@@ -159,7 +160,7 @@ export default function AssignRolesScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

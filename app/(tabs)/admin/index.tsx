@@ -3,6 +3,7 @@ import React from 'react';
 import { Link, type LinkProps } from 'expo-router';
 import DefaultHeader from '@/components/default-header';
 import { Feather } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const AdminOption = ({
   href,
@@ -24,26 +25,26 @@ const AdminOption = ({
 
 export default function AdminScreen() {
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <DefaultHeader title="Administración" />
       <View style={styles.optionsContainer}>
         <AdminOption
-          href="/(tabs)/admin/add-property"
+          href="/admin/add-property"
           title="Añadir Inmueble"
           icon="plus-circle"
         />
         <AdminOption
-          href="/(tabs)/admin/assign-roles"
+          href="/admin/assign-roles"
           title="Asignar Roles de Usuario"
           icon="users"
         />
         <AdminOption
-          href="/(tabs)/admin/assign-providers"
+          href="/admin/assign-providers"
           title="Asignar Proveedores"
           icon="briefcase"
         />
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 

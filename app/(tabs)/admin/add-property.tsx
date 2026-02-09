@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
 import DefaultHeader from '@/components/default-header';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
@@ -90,7 +91,7 @@ export default function AddPropertyScreen() {
           text: 'OK',
           onPress: () => {
             reset();
-            router.push('/(tabs)/admin');
+            router.push('/admin' as any);
           },
         },
       ]);
@@ -105,7 +106,7 @@ export default function AddPropertyScreen() {
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <DefaultHeader title="Añadir Inmueble" />
         <ScrollView contentContainerStyle={styles.scrollContainer}>
           <FormInput
@@ -140,23 +141,18 @@ export default function AddPropertyScreen() {
             name="country"
             label="País"
             control={control}
-            placeholder="Ej: Mi País"
             error={errors.country}
           />
-          {/* TODO: Convert to a Picker component */}
           <FormInput
             name="property_type"
             label="Tipo de Inmueble"
             control={control}
-            placeholder="Ej: Comercial, Residencial"
             error={errors.property_type}
           />
-          {/* TODO: Convert to a Picker component */}
           <FormInput
             name="maintenance_priority"
             label="Prioridad de Mantenimiento"
             control={control}
-            placeholder="Ej: Alta, Media, Baja"
             error={errors.maintenance_priority}
           />
           <FormInput
@@ -177,7 +173,7 @@ export default function AddPropertyScreen() {
             </Text>
           </TouchableOpacity>
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </KeyboardAvoidingView>
   );
 }
