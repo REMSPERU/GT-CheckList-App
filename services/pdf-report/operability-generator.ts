@@ -20,7 +20,12 @@ function formatDateSpanish(dateStr: string): string {
     'noviembre',
     'diciembre',
   ];
-  const date = new Date(dateStr + 'T12:00:00');
+  let date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    // Try appending time if it's just a date string to avoid timezone issues
+    date = new Date(dateStr + 'T12:00:00');
+  }
+
   const day = date.getDate();
   const month = months[date.getMonth()];
   const year = date.getFullYear();
@@ -28,95 +33,177 @@ function formatDateSpanish(dateStr: string): string {
 }
 
 /**
- * Get operability certificate styles
+ * Get operability certificate styles based on adf.html
  */
 export function getOperabilityStyles(): string {
   return `
-    body {
-      font-family: Arial, sans-serif;
-      font-size: 12px;
-      color: #333;
-      line-height: 1.4;
+    /* Configuración General */
+    @page {
+      size: A4;
       margin: 0;
-      padding: 20px;
     }
-    .container {
-      max-width: 850px;
-      margin: 0 auto;
-      background-color: white;
-      padding: 40px;
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      color: #000;
+      background: #fff;
+      margin: 0;
+      padding: 0;
     }
-    .header {
+
+    /* Estructura de Página */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 20mm;
+      position: relative;
+      box-sizing: border-box;
+      page-break-after: always;
       display: flex;
-      justify-content: space-between;
-      border-bottom: 2px solid #000;
+      flex-direction: column;
+    }
+
+    /* Encabezado (Header) */
+    .header {
+      border-bottom: 2px solid #333;
       padding-bottom: 10px;
       margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
     }
-    .company-info h2 {
-      margin: 0;
-      color: #000;
-      font-size: 16px;
-    }
-    .contact-info {
-      text-align: right;
-      font-size: 11px;
-    }
-    .doc-title {
-      text-align: center;
-      text-transform: uppercase;
+    .header-logo {
       font-weight: bold;
-      font-size: 16px;
-      margin: 20px 0;
+      font-size: 14px;
+      color: #2c3e50;
+    }
+    .header-info {
+      text-align: right;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    /* Títulos */
+    .cover-content {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .cover-title {
+      font-size: 24px; 
+      text-align: center; 
+      margin-bottom: 40px;
+      font-weight: bold;
+    }
+    .cover-address {
+      text-align: center; 
+      font-size: 14px; 
+      margin-bottom: 60px;
+    }
+    .main-title {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      margin-top: 50px;
+      margin-bottom: 20px;
       text-decoration: underline;
     }
-    .cert-text {
-      text-align: justify;
-      margin-bottom: 20px;
-      font-size: 13px;
+    .sub-title {
+      text-align: center;
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      text-transform: uppercase;
     }
+
+    /* Contenido de Texto */
+    .content-block {
+      margin-bottom: 15px;
+      line-height: 1.5;
+      text-align: justify;
+    }
+    .center-text {
+      text-align: center;
+    }
+
+    /* Tablas */
     table {
       width: 100%;
       border-collapse: collapse;
+      font-size: 9px;
       margin-bottom: 20px;
-      font-size: 11px;
+      page-break-inside: auto;
+    }
+    tr {
+      page-break-inside: avoid;
+      page-break-after: auto;
     }
     th, td {
       border: 1px solid #000;
-      padding: 5px;
+      padding: 4px;
       text-align: center;
+      vertical-align: middle;
+    }
+    thead {
+      display: table-header-group;
     }
     th {
-      background-color: #e0e0e0;
+      background-color: #f0f0f0;
       font-weight: bold;
     }
-    .text-left {
-      text-align: left;
+    tbody {
+      display: table-row-group;
     }
-    .summary-table {
-      width: 50%;
-      margin-left: auto;
-    }
-    .footer-note {
+
+    /* Sección de Resumen */
+    .summary-section {
+      width: 50%; 
       margin-top: 20px;
-      font-style: italic;
+      margin-bottom: 20px;
+      page-break-inside: avoid;
+    }
+    .summary-table td, .summary-table th {
+      border: 2px solid #000;
+    }
+    .total-row td {
+      background-color: #ddd;
       font-weight: bold;
-      text-align: center;
     }
-    .signatures {
+
+    /* Sección de Firmas */
+    .signature-section {
+      margin-top: 40px;
       display: flex;
-      justify-content: space-between;
-      margin-top: 60px;
+      justify-content: space-around;
       text-align: center;
+      margin-bottom: 30px;
+      page-break-inside: avoid;
     }
-    .sig-block {
-      width: 45%;
+    .signature-box {
+      width: 40%;
       border-top: 1px solid #000;
-      padding-top: 10px;
+      padding-top: 5px;
     }
-    @media print {
-      body { padding: 0; }
-      .container { box-shadow: none; }
+    .signature-details {
+      font-size: 10px;
+      line-height: 1.3;
+    }
+
+    /* Footer */
+    .footer-note {
+      text-align: center;
+      font-weight: bold;
+      font-size: 12px;
+      border-top: 1px solid #ccc;
+      padding-top: 10px;
+      margin-top: 10px;
+    }
+    .cover-footer {
+      text-align: right; 
+      margin-top: auto; 
+      margin-bottom: 50px;
     }
   `;
 }
@@ -153,7 +240,7 @@ function generateEquipmentRows(equipments: EquipmentMaintenanceData[]): string {
       <td>${eq.type || 'DISTRIBUCION'}</td>
       <td>${eq.label || eq.code}</td>
       <td>${eq.location}</td>
-      <td>${eq.type?.includes('AUTOSOPORTADO') ? 'AUTOSOPORTADO' : 'ADOSADO'}</td>
+      <td>${eq.type?.toUpperCase().includes('AUTOSOPORTADO') ? 'AUTOSOPORTADO' : 'ADOSADO'}</td>
       <td>1</td>
     </tr>
   `,
@@ -173,91 +260,156 @@ export function generateOperabilityCertificateHTML(
   const autosoportados = operativeEquipments.filter(eq =>
     eq.type?.toUpperCase().includes('AUTOSOPORTADO'),
   ).length;
+  // If not autosoportado, assume 'EMP/ADO' (Empotrado/Adosado)
   const adosados = operativeEquipments.length - autosoportados;
+
+  const styles = getOperabilityStyles();
+  const dateFormatted = formatDateSpanish(data.serviceDate);
+
+  // Common Header HTML
+  const headerHtml = `
+      <div class="header">
+        <div class="header-logo">
+          PROPIEDAD ELITE S.R.L <br />
+          DIVISIÓN ELÉCTRICA
+        </div>
+        <div class="header-info">
+          RUC: 20538436209<br />
+          Teléfono: (511) 979351357<br />
+          Correo: Gianmarco.isique@rems.pe
+        </div>
+      </div>
+  `;
 
   return `
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Certificado de Operatividad - ${data.clientName}</title>
+  <title>Certificado de Operatividad</title>
   <style>
-    ${getOperabilityStyles()}
+    ${styles}
   </style>
 </head>
 <body>
 
-<div class="container">
-  <div class="header">
-    <div class="company-info">
-      <h2>PROPIEDAD ELITE S.R.L</h2>
-      <div>DIVISIÓN ELÉCTRICA</div>
+  <!-- PAGE 1: COVER -->
+  <div class="page">
+    ${headerHtml}
+
+    <div class="cover-content">
+      <div class="cover-title">
+        EDIFICIO ${data.clientName.toUpperCase()}
+      </div>
+
+      <div class="cover-address">
+        ${data.address}
+      </div>
+
+      <h2 class="main-title">
+        CERTIFICADO DE OPERATIVIDAD<br />TABLEROS ELÉCTRICOS
+      </h2>
     </div>
-    <div class="contact-info">
-      <div><strong>RUC:</strong> 20538436209</div>
-      <div><strong>Teléfono:</strong> (511) 979351357</div>
-      <div><strong>Correo:</strong> Gianmarco.Isique@rems.pe</div>
-      <div>San Isidro, ${formatDateSpanish(data.serviceDate)}</div>
-    </div>
-  </div>
 
-  <div class="doc-title">CERTIFICADO DE OPERATIVIDAD TABLEROS ELÉCTRICOS</div>
-
-  <div class="cert-text">
-    <p>Mediante el presente documento la empresa <strong>PROPIEDAD ELITE S.R.L.</strong>, en cumplimiento con lo establecido en el Código Nacional de Electricidad (CNE) y la norma NFPA70B, certifica que se ha realizado el mantenimiento preventivo a los tableros eléctricos del edificio <strong>${data.clientName.toUpperCase()}</strong>, ubicado en ${data.address}.</p>
-  </div>
-
-  <h3>RELACIÓN DE TABLEROS ELÉCTRICOS</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>TIPO</th>
-        <th>DENOMINACIÓN</th>
-        <th>UBICACIÓN / NIVEL</th>
-        <th>MODELO</th>
-        <th>CANT.</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${generateEquipmentRows(operativeEquipments)}
-    </tbody>
-  </table>
-
-  <table class="summary-table">
-    <tr>
-      <th>AUTOSOPORTADOS</th>
-      <td>${autosoportados}</td>
-    </tr>
-    <tr>
-      <th>EMP / ADO</th>
-      <td>${adosados}</td>
-    </tr>
-    <tr>
-      <th>TOTAL TABLEROS</th>
-      <td>${operativeEquipments.length}</td>
-    </tr>
-  </table>
-
-  <p>El certificado de operatividad se mantiene vigente durante 6 meses mientras no se realicen cambios Y/O reparaciones en los tableros eléctricos.</p>
-  <p class="footer-note">EL PRESENTE CERTIFICADO TIENE VIGENCIA DE 6 MESES</p>
-
-  <div class="signatures">
-    <div class="sig-block">
-      <strong>CONTROL DE CALIDAD</strong><br><br><br>
-      __________________________<br>
-      <strong>GABRIEL ENRIQUE FLORES MEZA</strong><br>
-      INGENIERO ELECTRICISTA<br>
-      CIP N° 75828
-    </div>
-    <div class="sig-block">
-      <strong>SUPERVISADO POR:</strong><br><br><br>
-      __________________________<br>
-      <strong>GIANMARCO ISIQUE NECIOSUP</strong><br>
-      JEFE DE SERVICIOS ELÉCTRICOS
+    <div class="cover-footer">
+      <p><strong>Preparado por:</strong><br />PROPIEDAD ELITE S.R.L.</p>
+      <p>${dateFormatted}</p>
     </div>
   </div>
-</div>
+
+  <!-- PAGE 2+: CERTIFICATE & TABLE -->
+  <div class="page">
+    ${headerHtml}
+
+    <h3 class="sub-title">
+      CERTIFICADO DE MANTENIMIENTO DE TABLEROS ELÉCTRICOS
+    </h3>
+
+    <div class="content-block">
+      Mediante el presente documento la empresa PROPIEDAD ELITE S.R.L., en
+      cumplimiento con lo establecido en el código nacional de electricidad
+      (CNE) y la norma NFPA70B, certifica que se ha realizado el mantenimiento
+      preventivo a los tableros eléctricos del edificio ${data.clientName.toUpperCase()},
+      ubicado en ${data.address}.
+    </div>
+
+    <p class="center-text"><strong>RELACION TABLEROS ELECTRICOS</strong></p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>TIPO</th>
+          <th>DENOMINACION</th>
+          <th>UBICACIÓN / NIVEL</th>
+          <th>MODELO</th>
+          <th>CANTIDAD</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${generateEquipmentRows(operativeEquipments)}
+      </tbody>
+    </table>
+
+    <div class="summary-section">
+      <table class="summary-table">
+        <tr>
+          <td><strong>AUTOSOPORTADOS</strong></td>
+          <td>${autosoportados}</td>
+        </tr>
+        <tr>
+          <td><strong>EMP/ADO</strong></td>
+          <td>${adosados}</td>
+        </tr>
+        <tr class="total-row">
+          <td><strong>TOTAL TABLEROS</strong></td>
+          <td><strong>${operativeEquipments.length}</strong></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="content-block">
+      <p>
+        El certificado de operatividad se mantiene vigente durante 6 meses
+        mientras no se realicen cambios Y/O reparaciones en los tableros
+        eléctricos.
+      </p>
+      <p>Se expide el presente certificado para los fines convenientes.</p>
+      <p>Atentamente.</p>
+    </div>
+
+    <div class="signature-section">
+      <div class="signature-box">
+        <div class="signature-details">
+          <strong>CONTROL DE CALIDAD</strong><br /><br /><br />
+          ___________________________<br />
+          <strong>GABRIEL ENRIQUE FLORES MEZA</strong><br />
+          INGENIERO ELECTRICISTA<br />
+          Reg CIP N 75828
+        </div>
+      </div>
+
+      <div class="signature-box">
+        <div class="signature-details">
+          <strong>SUPERVISADO POR:</strong><br /><br /><br />
+          ___________________________<br />
+          <strong>GIANMARCO ISIQUE NECIOSUP</strong><br />
+          Jefe de Servicios Eléctricos
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 20px; font-size: 10px;">
+      <p>
+        <strong>TRABAJO REALIZADO POR:</strong><br />
+        Tec. Sandro Geldres / Tec. Antony Huamalies
+      </p>
+    </div>
+
+    <div class="footer-note">
+      EL PRESENTE CERTIFICADO TIENE VIGENCIA DE 6 MESES
+    </div>
+
+  </div>
 
 </body>
 </html>
