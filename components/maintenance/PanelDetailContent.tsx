@@ -202,7 +202,7 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = ({ data }) => {
                       </View>
                     </View>
                     {itm.tipo !== 'ID' && itm.suministra && (
-                      <Text style={styles.circuitSupplyText} numberOfLines={1}>
+                      <Text style={styles.circuitSupplyText}>
                         {itm.suministra}
                       </Text>
                     )}
@@ -283,9 +283,7 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = ({ data }) => {
                                 </View>
                               </View>
                               {subItm.suministra && (
-                                <Text
-                                  style={styles.subItmSupply}
-                                  numberOfLines={1}>
+                                <Text style={styles.subItmSupply}>
                                   {subItm.suministra}
                                 </Text>
                               )}
