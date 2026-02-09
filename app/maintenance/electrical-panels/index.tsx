@@ -329,7 +329,7 @@ export default function ElectricalPanelsScreen() {
               onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={24} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle} numberOfLines={1}>
+            <Text style={styles.headerTitle}>
               {building?.name || 'Tableros Eléctricos'}
             </Text>
             <View style={{ width: 40 }} />
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
   },
   // Header styles
   headerContainer: {
-    height: 130,
+    minHeight: 130,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -483,6 +483,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   backButton: {
     width: 40,

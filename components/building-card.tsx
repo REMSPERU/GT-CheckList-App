@@ -30,7 +30,7 @@ export default function BuildingCard({
 
 const styles = StyleSheet.create({
   container: {
-    height: 60,
+    minHeight: 60,
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
     marginBottom: 5,
@@ -38,6 +38,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
+    paddingVertical: 12,
     shadowColor: '#171a1f',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.08,
@@ -45,8 +46,10 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   contentWrapper: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 10,
   },
   avatar: {
     width: 40,
@@ -63,6 +66,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   nameText: {
+    flex: 1,
     fontSize: 16,
     color: '#1F2937',
   },
