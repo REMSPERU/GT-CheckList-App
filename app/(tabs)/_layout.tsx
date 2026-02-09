@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { useUserRole } from '@/hooks/use-user-role';
 
 import { Colors } from '@/constants/theme';
 import Feather from '@expo/vector-icons/Feather';
@@ -7,6 +8,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function TabLayout() {
+  const { isAdmin } = useUserRole();
+
   return (
     <Tabs
       screenOptions={{
@@ -64,6 +67,17 @@ export default function TabLayout() {
           ),
         }}
       />
+      {isAdmin && (
+        <Tabs.Screen
+          name="admin"
+          options={{
+            title: 'Admin',
+            tabBarIcon: ({ color }) => (
+              <Feather name="settings" size={24} color={color} />
+            ),
+          }}
+        />
+      )}
     </Tabs>
   );
 }

@@ -1,15 +1,17 @@
 import { supabase } from '@/lib/supabase';
-import { DatabaseService } from './database';
+import { DatabaseService } from './db';
 import { supabaseMaintenanceService } from './supabase-maintenance.service';
 import { supabaseElectricalPanelService } from './supabase-electrical-panel.service';
+import { supabaseGroundingWellService } from './supabase-grounding-well.service';
 import NetInfo from '@react-native-community/netinfo';
 import { syncQueue } from './sync-queue';
 
+// --- Interfaces ---
 interface OfflineMaintenance {
   local_id: number;
   id_mantenimiento: string | null;
   user_created: string;
-  detail_maintenance: string; // JSON string
+  detail_maintenance: string;
   status: string;
 }
 
@@ -23,9 +25,11 @@ interface OfflinePhoto {
   status: string;
 }
 
+// --- Class Definition ---
 class SyncService {
   private isConnected = false;
-  private netInfoUnsubscribe: (() => void) | null = null;
+  // Use 'any' to avoid NodeJS.Timer vs number conflicts in React Native
+  private pollIntervalId: any = null;
   private isSyncing = false;
   private currentSyncPromise: Promise<boolean> | null = null;
 
@@ -34,89 +38,57 @@ class SyncService {
     this.registerSyncHandlers();
   }
 
-  /**
-   * Register sync queue handlers for different item types
-   */
-  private registerSyncHandlers() {
-    // Handler for panel configurations
-    syncQueue.registerHandler('panel_config', async (panelId: string) => {
-      console.log('[SYNC-HANDLER] Syncing panel config:', panelId);
-
-      const pendingConfigs =
-        (await DatabaseService.getPendingPanelConfigurations()) as {
-          id: number;
-          panel_id: string;
-          configuration_data: string;
-        }[];
-
-      const config = pendingConfigs.find(c => c.panel_id === panelId);
-      if (!config) {
-        console.log(
-          '[SYNC-HANDLER] No pending config found for panel:',
-          panelId,
-        );
-        return; // Already synced
-      }
-
-      await DatabaseService.updatePanelConfigurationStatus(
-        config.id,
-        'syncing',
-      );
-
-      const detail = JSON.parse(config.configuration_data);
-      await supabaseElectricalPanelService.updateEquipmentDetail(
-        panelId,
-        detail,
-      );
-
-      await DatabaseService.updatePanelConfigurationStatus(config.id, 'synced');
-      console.log('[SYNC-HANDLER] Panel config synced successfully:', panelId);
-    });
-  }
-
   init() {
-    // Listen for network changes
-    this.netInfoUnsubscribe = NetInfo.addEventListener(state => {
+    // Initial check
+    this.checkNetworkAndMaybeSync();
+
+    // Polling safety check every 15s
+    this.pollIntervalId = setInterval(() => {
+      this.checkNetworkAndMaybeSync();
+    }, 15000);
+
+    // Network event listener
+    NetInfo.addEventListener((state: any) => {
       const wasConnected = this.isConnected;
       this.isConnected = state.isConnected ?? false;
-
-      console.log('Network State Change. Connected:', this.isConnected);
-
       if (this.isConnected && !wasConnected) {
-        // Reconnected -> Trigger bidirectional sync
         this.syncOnReconnect();
       }
     });
   }
 
-  /**
-   * Cleanup method to remove listeners
-   */
   cleanup() {
-    if (this.netInfoUnsubscribe) {
-      this.netInfoUnsubscribe();
-      this.netInfoUnsubscribe = null;
+    if (this.pollIntervalId) {
+      clearInterval(this.pollIntervalId);
+      this.pollIntervalId = null;
     }
   }
 
-  /**
-   * Sync both ways when reconnecting
-   */
+  private registerSyncHandlers() {
+    if (typeof syncQueue !== 'undefined') {
+      syncQueue.registerHandler('panel_config', async (panelId: string) => {
+        console.log('[SYNC-HANDLER] Triggered for:', panelId);
+        await this.syncPendingPanelConfigs(panelId);
+      });
+    }
+  }
+
+  private async checkNetworkAndMaybeSync() {
+    const state = await NetInfo.fetch();
+    const wasConnected = this.isConnected;
+    this.isConnected = state.isConnected ?? false;
+
+    if (this.isConnected && !wasConnected) {
+      this.syncOnReconnect();
+    }
+  }
+
   private async syncOnReconnect() {
+    if (this.isSyncing) return;
+    console.log('Auto-sync triggered on reconnect...');
     try {
-      if (this.isSyncing) {
-        console.log('Skipping auto-sync: Sync already in progress');
-        return;
-      }
-
-      console.log('Auto-sync triggered on reconnect...');
-
-      // 1. Push pending offline work first
-      await this.pushData();
-
-      // 2. Pull fresh data from server
-      await this.pullData();
-
+      await this.pushData(); // Upload local changes
+      await this.pullData(); // Download new data
       console.log('Auto-sync completed');
     } catch (error) {
       console.error('Auto-sync failed:', error);
@@ -124,97 +96,291 @@ class SyncService {
   }
 
   /**
-   * Pulls reference data from Supabase and updates local mirror tables.
-   * This is a "Reset" sync for reference data.
+   * MAIN UPLOAD ORCHESTRATOR
+   * Executes sub-tasks sequentially.
    */
+  async pushData() {
+    await DatabaseService.ensureInitialized();
+    if (!this.isConnected) return;
+
+    console.log('[SYNC] Starting Batch Upload...');
+
+    // 1. Sync Maintenances
+    await this.syncPendingMaintenances();
+
+    // 2. Sync Panel Configurations
+    await this.syncPendingPanelConfigs();
+
+    // 3. Sync Grounding Wells
+    await this.syncPendingGroundingWells();
+
+    console.log('[SYNC] Batch Upload Finished.');
+  }
+
+  // ----------------------------------------------------------------
+  // SUB-ROUTINE 1: MAINTENANCES
+  // ----------------------------------------------------------------
+  private async syncPendingMaintenances() {
+    const pendingItems =
+      (await DatabaseService.getPendingMaintenances()) as OfflineMaintenance[];
+    if (pendingItems.length === 0) return;
+
+    console.log(`[SYNC-MAIN] Found ${pendingItems.length} pending items`);
+
+    for (const item of pendingItems) {
+      try {
+        await DatabaseService.updateMaintenanceStatus(item.local_id, 'syncing');
+
+        // A. Upload Photos
+        const photos = (await DatabaseService.getPendingPhotos(
+          item.local_id,
+        )) as OfflinePhoto[];
+        const photoUrlMap: Record<string, string> = {};
+
+        for (const photo of photos) {
+          const folder =
+            photo.type === 'pre'
+              ? 'pre'
+              : photo.type === 'post'
+                ? 'post'
+                : 'observations';
+          const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
+            photo.local_uri,
+            folder,
+          );
+          await DatabaseService.updatePhotoStatus(
+            photo.id,
+            'synced',
+            remoteUrl,
+          );
+          photoUrlMap[photo.local_uri] = remoteUrl;
+        }
+
+        // B. Reconstruct JSON with remote URLs
+        const detail = JSON.parse(item.detail_maintenance);
+        const replaceUri = (uri: string) => photoUrlMap[uri] || uri;
+
+        if (detail.prePhotos)
+          detail.prePhotos = detail.prePhotos.map((p: any) => ({
+            ...p,
+            url: replaceUri(p.url || p.uri),
+          }));
+        if (detail.postPhotos)
+          detail.postPhotos = detail.postPhotos.map((p: any) => ({
+            ...p,
+            url: replaceUri(p.url || p.uri),
+          }));
+        if (detail.itemObservations) {
+          Object.keys(detail.itemObservations).forEach(key => {
+            const obs = detail.itemObservations[key];
+            if (obs?.photoUrl) obs.photoUrl = replaceUri(obs.photoUrl);
+          });
+        }
+
+        // C. Save to Supabase
+        await supabaseMaintenanceService.saveMaintenanceResponse({
+          id_mantenimiento: item.id_mantenimiento,
+          user_created: item.user_created,
+          detail_maintenance: detail,
+        });
+
+        if (item.id_mantenimiento) {
+          await supabaseMaintenanceService.updateMaintenanceStatus(
+            item.id_mantenimiento,
+            'FINALIZADO',
+          );
+        }
+
+        await DatabaseService.updateMaintenanceStatus(item.local_id, 'synced');
+      } catch (error) {
+        console.error(`[SYNC-MAIN] Failed for ${item.local_id}:`, error);
+        await DatabaseService.updateMaintenanceStatus(
+          item.local_id,
+          'error',
+          String(error),
+        );
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // SUB-ROUTINE 2: PANELS
+  // ----------------------------------------------------------------
+  private async syncPendingPanelConfigs(specificPanelId?: string) {
+    const pendingConfigs =
+      (await DatabaseService.getPendingPanelConfigurations()) as any[];
+
+    // Filter if looking for a specific one (from handler) or all
+    const configsToSync = specificPanelId
+      ? pendingConfigs.filter(c => c.panel_id === specificPanelId)
+      : pendingConfigs;
+
+    if (configsToSync.length === 0) return;
+
+    console.log(`[SYNC-PANEL] Syncing ${configsToSync.length} configs`);
+
+    for (const config of configsToSync) {
+      try {
+        await DatabaseService.updatePanelConfigurationStatus(
+          config.id,
+          'syncing',
+        );
+        const detail = JSON.parse(config.configuration_data);
+
+        await supabaseElectricalPanelService.updateEquipmentDetail(
+          config.panel_id,
+          detail,
+        );
+
+        await DatabaseService.updatePanelConfigurationStatus(
+          config.id,
+          'synced',
+        );
+      } catch (error) {
+        console.error(`[SYNC-PANEL] Failed for ${config.id}:`, error);
+        await DatabaseService.updatePanelConfigurationStatus(
+          config.id,
+          'error',
+          String(error),
+        );
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // SUB-ROUTINE 3: GROUNDING WELLS
+  // ----------------------------------------------------------------
+  private async syncPendingGroundingWells() {
+    const pendingChecklists =
+      (await DatabaseService.getPendingGroundingWellChecklists()) as any[];
+    if (pendingChecklists.length === 0) return;
+
+    console.log(`[SYNC-GROUND] Syncing ${pendingChecklists.length} checklists`);
+
+    for (const checklist of pendingChecklists) {
+      try {
+        await DatabaseService.updateGroundingWellChecklistStatus(
+          checklist.local_id,
+          'syncing',
+        );
+
+        // A. Upload Photos
+        const photos =
+          (await DatabaseService.getPendingGroundingWellChecklistPhotos(
+            checklist.local_id,
+          )) as { id: number; local_uri: string; item_key: string }[];
+        const photoUrlMap: Record<string, string> = {};
+
+        for (const photo of photos) {
+          const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
+            photo.local_uri,
+            'grounding-well',
+          );
+          await DatabaseService.updateGroundingWellChecklistPhotoStatus(
+            photo.id,
+            'synced',
+            remoteUrl,
+          );
+          photoUrlMap[photo.local_uri] = remoteUrl;
+        }
+
+        // B. Replace URLs in JSON
+        const detail = JSON.parse(checklist.checklist_data);
+        const replaceUri = (uri: string) => photoUrlMap[uri] || uri;
+
+        if (detail.lidStatusPhoto)
+          detail.lidStatusPhoto = replaceUri(detail.lidStatusPhoto);
+        ['hasSignage', 'connectorsOk', 'hasAccess'].forEach(key => {
+          if (detail[key]?.photo)
+            detail[key].photo = replaceUri(detail[key].photo);
+        });
+
+        // C. Save
+        await supabaseGroundingWellService.saveChecklistResponse(
+          checklist.panel_id,
+          checklist.maintenance_id,
+          detail,
+          checklist.user_created,
+        );
+
+        await DatabaseService.updateGroundingWellChecklistStatus(
+          checklist.local_id,
+          'synced',
+        );
+      } catch (error) {
+        console.error(`[SYNC-GROUND] Failed for ${checklist.local_id}:`, error);
+        await DatabaseService.updateGroundingWellChecklistStatus(
+          checklist.local_id,
+          'error',
+          String(error),
+        );
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // PULL DATA
+  // ----------------------------------------------------------------
   async pullData(): Promise<boolean> {
     await DatabaseService.ensureInitialized();
-
-    // Deduplication logic
-    if (this.currentSyncPromise) {
-      console.log('Sync already in progress, joining existing request...');
-      return this.currentSyncPromise;
-    }
-
-    if (!this.isConnected) {
-      console.log('Cannot pull data: Offline');
-      return false;
-    }
+    if (this.currentSyncPromise) return this.currentSyncPromise;
+    if (!this.isConnected) return false;
 
     this.isSyncing = true;
     this.currentSyncPromise = (async () => {
       try {
         console.log('Starting Down-Sync...');
 
-        // 1. Fetch Data
-        const { data: equipos, error: equipError } = await supabase
-          .from('equipos')
-          .select('*');
-        if (equipError) throw equipError;
-
-        const { data: properties, error: propError } = await supabase
-          .from('properties')
-          .select('*');
-        if (propError) throw propError;
-
-        // Equipamentos (Catalog)
-        const { data: equipamentos, error: eqError } = await supabase
-          .from('equipamentos')
-          .select('*');
-        if (eqError) throw eqError;
-
-        // Equipamentos Property (Relation)
-        const { data: equipamentosProperty, error: epError } = await supabase
-          .from('equipamentos_property')
-          .select('*');
-        if (epError) throw epError;
-
-        // Scheduled Maintenances (New)
-        // Fetch all future or recent maintenances. For now, fetching all relevant ones.
-        // Optimizing with a reasonable limit or date filter would be next step.
-        // Deep selecting necessary relations for offline use.
-        const { data: scheduledMaintenances, error: smError } = await supabase
-          .from('mantenimientos')
-          .select(
-            `
-            id,
-            dia_programado,
-            tipo_mantenimiento,
-            observations,
-            estatus,
-            codigo,
-            id_equipo,
-            user_maintenace (
-              id_user
+        // Execute promises in parallel for better network speed
+        const [
+          equipos,
+          properties,
+          equipamentos,
+          equipamentosProperty,
+          scheduledMaintenances,
+        ] = await Promise.all([
+          supabase
+            .from('equipos')
+            .select('*')
+            .then(r => r.data),
+          supabase
+            .from('properties')
+            .select('*')
+            .then(r => r.data),
+          supabase
+            .from('equipamentos')
+            .select('*')
+            .then(r => r.data),
+          supabase
+            .from('equipamentos_property')
+            .select('*')
+            .then(r => r.data),
+          supabase
+            .from('mantenimientos')
+            .select(
+              `
+                id, dia_programado, tipo_mantenimiento, observations, estatus, codigo, id_equipo,
+                user_maintenace ( id_user )
+             `,
             )
-          `,
-          )
-          // Ideally filter by date >= today or similar if list is huge
-          // .gte('dia_programado', new Date().toISOString().split('T')[0])
-          .order('dia_programado', { ascending: true });
+            .order('dia_programado', { ascending: true })
+            .then(r => r.data),
+        ]);
 
-        if (smError) throw smError;
-
-        // 2. Update Local DB
-        // We do NOT sync all users anymore for privacy/efficiency.
-        // Current user is saved on login via AuthContext.
-
-        // Smart sync: bulkInsertMirrorData now performs differential updates
-        // instead of clearing all data first, preventing UI flicker
         await DatabaseService.bulkInsertMirrorData(
           equipos || [],
           properties || [],
-          [], // Empty users array
+          [],
           equipamentos || [],
           equipamentosProperty || [],
           scheduledMaintenances || [],
         );
 
-        console.log('Down-Sync Completed: Data mirrored locally.');
+        console.log('Down-Sync Completed.');
         return true;
       } catch (error) {
         console.error('Down-Sync Error:', error);
-        throw error;
+        return false;
       } finally {
         this.isSyncing = false;
         this.currentSyncPromise = null;
@@ -222,197 +388,6 @@ class SyncService {
     })();
 
     return this.currentSyncPromise;
-  }
-
-  /**
-   * Pushes pending offline work to Supabase.
-   */
-  async pushData() {
-    await DatabaseService.ensureInitialized();
-
-    if (!this.isConnected) {
-      return;
-    }
-
-    const pendingItems =
-      (await DatabaseService.getPendingMaintenances()) as OfflineMaintenance[];
-
-    console.log(`[SYNC] Found ${pendingItems.length} pending maintenances`);
-
-    // Process maintenances if any exist (but don't return early anymore!)
-    if (pendingItems.length > 0) {
-      console.log(`Processing ${pendingItems.length} maintenances...`);
-
-      for (const item of pendingItems) {
-        try {
-          await DatabaseService.updateMaintenanceStatus(
-            item.local_id,
-            'syncing',
-          );
-
-          // 1. Upload Photos first
-          const photos = (await DatabaseService.getPendingPhotos(
-            item.local_id,
-          )) as OfflinePhoto[];
-          const photoUrlMap: Record<string, string> = {}; // localUri -> remoteUrl
-
-          for (const photo of photos) {
-            try {
-              // Determine folder based on type
-              const folder =
-                photo.type === 'pre'
-                  ? 'pre'
-                  : photo.type === 'post'
-                    ? 'post'
-                    : 'observations';
-
-              const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
-                photo.local_uri,
-                folder,
-              );
-
-              await DatabaseService.updatePhotoStatus(
-                photo.id,
-                'synced',
-                remoteUrl,
-              );
-              photoUrlMap[photo.local_uri] = remoteUrl;
-            } catch (pError) {
-              console.error(`Photo upload failed for ${photo.id}:`, pError);
-              await DatabaseService.updatePhotoStatus(
-                photo.id,
-                'error',
-                null,
-                String(pError),
-              );
-              throw new Error('Photo upload failed'); // Stop this maintenance sync
-            }
-          }
-
-          // 2. Reconstruct detail_maintenance with remote URLs
-          const detail = JSON.parse(item.detail_maintenance);
-
-          // Helper to replace URIs
-          const replaceUri = (uri: string) => photoUrlMap[uri] || uri;
-
-          // Update PrePhotos
-          if (detail.prePhotos) {
-            detail.prePhotos = detail.prePhotos.map((p: any) => ({
-              ...p,
-              url: replaceUri(p.url || p.uri),
-            }));
-          }
-          // Update PostPhotos
-          if (detail.postPhotos) {
-            detail.postPhotos = detail.postPhotos.map((p: any) => ({
-              ...p,
-              url: replaceUri(p.url || p.uri),
-            }));
-          }
-          // Update Item Observations
-          if (detail.itemObservations) {
-            Object.keys(detail.itemObservations).forEach(key => {
-              const obs = detail.itemObservations[key];
-              if (obs && obs.photoUrl) {
-                obs.photoUrl = replaceUri(obs.photoUrl);
-              }
-            });
-          }
-
-          // 3. Insert into Supabase
-          await supabaseMaintenanceService.saveMaintenanceResponse({
-            id_mantenimiento: item.id_mantenimiento,
-            user_created: item.user_created,
-            detail_maintenance: detail,
-          });
-
-          // 3.5 Update maintenance status to FINALIZADO if it has an associated maintenance record
-          if (item.id_mantenimiento) {
-            await supabaseMaintenanceService.updateMaintenanceStatus(
-              item.id_mantenimiento,
-              'FINALIZADO',
-            );
-            console.log(
-              `Maintenance ${item.id_mantenimiento} status updated to FINALIZADO`,
-            );
-          }
-
-          // 4. Mark Synced
-          await DatabaseService.updateMaintenanceStatus(
-            item.local_id,
-            'synced',
-          );
-          console.log(`Maintenance ${item.local_id} synced successfully.`);
-        } catch (error) {
-          console.error(`Sync failed for maintenance ${item.local_id}:`, error);
-          await DatabaseService.updateMaintenanceStatus(
-            item.local_id,
-            'error',
-            String(error),
-          );
-        }
-      }
-    } // Close the if (pendingItems.length > 0) block
-
-    // --- SYNC PANEL CONFIGURATIONS ---
-    console.log('[SYNC] Checking for pending panel configurations...');
-    const pendingConfigs =
-      (await DatabaseService.getPendingPanelConfigurations()) as {
-        id: number;
-        panel_id: string;
-        configuration_data: string;
-      }[];
-
-    if (pendingConfigs.length > 0) {
-      for (const config of pendingConfigs) {
-        console.log(
-          '[SYNC] Processing config ID:',
-          config.id,
-          'for panel:',
-          config.panel_id,
-        );
-        try {
-          await DatabaseService.updatePanelConfigurationStatus(
-            config.id,
-            'syncing',
-          );
-
-          const detail = JSON.parse(config.configuration_data);
-          console.log('[SYNC] Parsed detail:', JSON.stringify(detail, null, 2));
-
-          // Update in Supabase
-          console.log(
-            '[SYNC] Calling supabaseElectricalPanelService.updateEquipmentDetail...',
-          );
-          await supabaseElectricalPanelService.updateEquipmentDetail(
-            config.panel_id,
-            detail,
-          );
-          console.log(
-            '[SYNC] Supabase update completed for panel:',
-            config.panel_id,
-          );
-
-          await DatabaseService.updatePanelConfigurationStatus(
-            config.id,
-            'synced',
-          );
-          console.log(`[SYNC] Panel config ${config.id} marked as synced.`);
-        } catch (error) {
-          console.error(
-            `[SYNC] Sync failed for panel config ${config.id}:`,
-            error,
-          );
-          await DatabaseService.updatePanelConfigurationStatus(
-            config.id,
-            'error',
-            String(error),
-          );
-        }
-      }
-    } else {
-      console.log('[SYNC] No pending panel configurations to sync.');
-    }
   }
 }
 

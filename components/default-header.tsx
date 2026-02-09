@@ -12,7 +12,7 @@ import {
 
 interface DefaultHeaderProps {
   title: string;
-  searchPlaceholder: string;
+  searchPlaceholder?: string;
   shouldShowBackButton?: boolean;
   onSearch?: (text: string) => void;
   onFilterPress?: () => void;
@@ -20,7 +20,7 @@ interface DefaultHeaderProps {
 
 export default function DefaultHeader({
   title,
-  searchPlaceholder,
+  searchPlaceholder = '',
   shouldShowBackButton = true,
   onSearch,
   onFilterPress,

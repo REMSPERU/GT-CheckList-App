@@ -30,6 +30,10 @@ export const EQUIPMENT_ROUTES: Record<string, EquipmentRouteConfig> = {
     route: '/maintenance/execution/emergency-lights/checklist',
     implemented: true,
   },
+  'Pozo a Tierra': {
+    route: '/maintenance/execution/grounding-well/checklist',
+    implemented: true,
+  },
 };
 
 /**
