@@ -125,7 +125,7 @@ export default function MaintenanceScreen() {
 
         {/* Lista de inmuebles */}
         <View style={styles.listWrapper}>
-          {data?.items.map(building => (
+          {(data?.items ?? []).map(building => (
             <View key={building.id} style={styles.cardMargin}>
               <BuildingCard
                 initial={building.name.charAt(0).toUpperCase()}

@@ -60,8 +60,8 @@ export class SupabasePropertyService {
     const limit = filters?.limit || 50;
     query = query.range(skip, skip + limit - 1);
 
-    // Ordenar por fecha de creación descendente
-    query = query.order('created_at', { ascending: false });
+    // Ordenar por nombre ascendente (Server-side)
+    query = query.order('name', { ascending: true });
 
     const { data, error, count } = await query;
 

@@ -35,7 +35,9 @@ export async function getEquipmentById(id: string) {
 export async function getLocalProperties() {
   await ensureInitialized();
   const db = await dbPromise;
-  return await db.getAllAsync('SELECT * FROM local_properties');
+  return await db.getAllAsync(
+    'SELECT * FROM local_properties ORDER BY name ASC',
+  );
 }
 
 export async function getEquipamentosByProperty(propertyId: string) {
