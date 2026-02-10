@@ -131,17 +131,11 @@ export default function SessionHistoryScreen() {
     );
   }, [maintenanceData]);
 
-  const handleGenerateReport = async (
-    session: SessionHistoryItem,
-    reportType: 'technical' | 'protocol' = 'technical',
-  ) => {
-  // Step 1: Show report type selection modal
   const handleShowReportOptions = (session: SessionHistoryItem) => {
     setSelectedSession(session);
     setReportTypeModalVisible(true);
   };
 
-  // Step 2: Handle report type selection and generate report
   const handleReportTypeSelect = async (type: ReportType) => {
     if (!selectedSession) return;
 
@@ -149,14 +143,27 @@ export default function SessionHistoryScreen() {
     setPdfModalVisible(true);
     setIsGeneratingPdf(true);
     setPdfUri(null);
-    setPdfModalTitle(
-      reportType === 'technical'
-        ? 'Informe Técnico'
-        : 'Protocolo de Mantenimiento',
-    );
-    setGenerationProgress(
-      `Generando ${reportType === 'technical' ? 'informe técnico' : 'protocolo'}...`,
-    );
+
+    let title = '';
+    let progress = '';
+
+    switch (type) {
+      case ReportType.TECHNICAL:
+        title = 'Informe Técnico';
+        progress = 'Generando informe técnico...';
+        break;
+      case ReportType.PROTOCOL:
+        title = 'Protocolo de Mantenimiento';
+        progress = 'Generando protocolo...';
+        break;
+      case ReportType.OPERABILITY:
+        title = 'Certificado de Operatividad';
+        progress = 'Generando certificado...';
+        break;
+    }
+
+    setPdfModalTitle(title);
+    setGenerationProgress(progress);
 
     try {
       const maintenanceIds = selectedSession.maintenances
@@ -194,7 +201,7 @@ export default function SessionHistoryScreen() {
 
       if (error) throw error;
 
-      setGenerationProgress('Generando informe...');
+      setGenerationProgress('Procesando datos del informe...');
 
       const equipments: any[] = [];
       let totalOkItems = 0;
@@ -209,9 +216,11 @@ export default function SessionHistoryScreen() {
         const detail = response?.detail_maintenance || {};
 
         const checklist = detail.checklist || {};
-        totalOkItems += Object.values(checklist).filter(v => v === true).length;
+        totalOkItems += Object.values(checklist).filter(
+          (v: any) => v === true,
+        ).length;
         totalIssueItems += Object.values(checklist).filter(
-          v => v === false,
+          (v: any) => v === false,
         ).length;
 
         const firstMeasurement = detail.measurements
@@ -264,16 +273,11 @@ export default function SessionHistoryScreen() {
           name: 'PINZA MULTIMÉTRICA',
           brand: 'FLUKE',
           model: '376FC',
-          serial: 'VERIFICAR', // O un valor por defecto si existe
+          serial: 'VERIFICAR',
         },
       };
 
-      const uri =
-        reportType === 'technical'
-          ? await pdfReportService.generateSessionPDF(sessionReportData)
-          : await pdfReportService.generateProtocolPDF(sessionReportData);
-
-      // Generate report based on selected type
+      setGenerationProgress('Generando archivo PDF...');
       const uri = await newPdfReportService.generateReport(type, reportData);
       setPdfUri(uri);
 
@@ -377,30 +381,6 @@ export default function SessionHistoryScreen() {
                   </View>
 
                   {isComplete ? (
-                    <View style={styles.actionRow}>
-                      <TouchableOpacity
-                        style={[styles.reportButton, { flex: 1.2 }]}
-                        onPress={() => handleGenerateReport(session, 'technical')}
-                        activeOpacity={0.8}>
-                        <Ionicons
-                          name="document-text-outline"
-                          size={18}
-                          color="#fff"
-                        />
-                        <Text style={styles.reportButtonText}>Técnico</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[
-                          styles.reportButton,
-                          { flex: 1, backgroundColor: '#F97316' },
-                        ]}
-                        onPress={() => handleGenerateReport(session, 'protocol')}
-                        activeOpacity={0.8}>
-                        <Ionicons name="list-outline" size={18} color="#fff" />
-                        <Text style={styles.reportButtonText}>Protocolo</Text>
-                      </TouchableOpacity>
-                    </View>
                     <TouchableOpacity
                       style={styles.reportButton}
                       onPress={() => handleShowReportOptions(session)}

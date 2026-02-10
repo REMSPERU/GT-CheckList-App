@@ -13,7 +13,6 @@ interface OfflineMaintenance {
   user_created: string;
   detail_maintenance: string; // JSON string
   protocol: string | null; // JSON string
-  detail_maintenance: string;
   status: string;
 }
 
@@ -139,113 +138,68 @@ class SyncService {
         )) as OfflinePhoto[];
         const photoUrlMap: Record<string, string> = {};
 
-          for (const photo of photos) {
-            try {
-              // Determine folder based on type
-              const folder =
-                photo.type === 'pre'
-                  ? 'pre'
-                  : photo.type === 'post'
-                    ? 'post'
-                    : 'observations';
-
-              console.log(`[SYNC] Uploading photo ${photo.id}: ${photo.local_uri} to /${folder}`);
-              const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
-                photo.local_uri,
-                folder,
-              );
-              console.log(`[SYNC] Photo ${photo.id} uploaded: ${remoteUrl}`);
-
-              await DatabaseService.updatePhotoStatus(
-                photo.id,
-                'synced',
-                remoteUrl,
-              );
-              photoUrlMap[photo.local_uri] = remoteUrl;
-            } catch (pError) {
-              console.error(`Photo upload failed for ${photo.id}:`, pError);
-              await DatabaseService.updatePhotoStatus(
-                photo.id,
-                'error',
-                null,
-                String(pError),
-              );
-              throw new Error('Photo upload failed'); // Stop this maintenance sync
-            }
-          }
-
-          // 2. Reconstruct detail_maintenance with remote URLs
-          const detail = JSON.parse(item.detail_maintenance);
-
-          // Helper to replace URIs
-          const replaceUri = (uri: string) => photoUrlMap[uri] || uri;
         for (const photo of photos) {
-          const folder =
-            photo.type === 'pre'
-              ? 'pre'
-              : photo.type === 'post'
-                ? 'post'
-                : 'observations';
-          const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
-            photo.local_uri,
-            folder,
-          );
-          await DatabaseService.updatePhotoStatus(
-            photo.id,
-            'synced',
-            remoteUrl,
-          );
-          photoUrlMap[photo.local_uri] = remoteUrl;
+          try {
+            // Determine folder based on type
+            const folder =
+              photo.type === 'pre'
+                ? 'pre'
+                : photo.type === 'post'
+                  ? 'post'
+                  : 'observations';
+
+            console.log(
+              `[SYNC] Uploading photo ${photo.id}: ${photo.local_uri} to /${folder}`,
+            );
+            const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
+              photo.local_uri,
+              folder,
+            );
+            console.log(`[SYNC] Photo ${photo.id} uploaded: ${remoteUrl}`);
+
+            await DatabaseService.updatePhotoStatus(
+              photo.id,
+              'synced',
+              remoteUrl,
+            );
+            photoUrlMap[photo.local_uri] = remoteUrl;
+          } catch (pError) {
+            console.error(`Photo upload failed for ${photo.id}:`, pError);
+            await DatabaseService.updatePhotoStatus(
+              photo.id,
+              'error',
+              null,
+              String(pError),
+            );
+            throw new Error('Photo upload failed'); // Stop this maintenance sync
+          }
         }
 
         // B. Reconstruct JSON with remote URLs
         const detail = JSON.parse(item.detail_maintenance);
         const replaceUri = (uri: string) => photoUrlMap[uri] || uri;
 
-          // Update PrePhotos
-          if (detail.prePhotos) {
-            detail.prePhotos = detail.prePhotos.map((p: any) => ({
-              ...p,
-              url: replaceUri(p.url || p.uri),
-            }));
-          }
-          // Update PostPhotos
-          if (detail.postPhotos) {
-            detail.postPhotos = detail.postPhotos.map((p: any) => ({
-              ...p,
-              url: replaceUri(p.url || p.uri),
-            }));
-          }
-          // Update Item Observations
-          if (detail.itemObservations) {
-            Object.keys(detail.itemObservations).forEach(key => {
-              const obs = detail.itemObservations[key];
-              if (obs && obs.photoUrl) {
-                obs.photoUrl = replaceUri(obs.photoUrl);
-              }
-            });
-          }
-          // 3. Insert into Supabase
-          await supabaseMaintenanceService.saveMaintenanceResponse({
-            id_mantenimiento: item.id_mantenimiento,
-            user_created: item.user_created,
-            detail_maintenance: detail,
-            protocol: item.protocol ? JSON.parse(item.protocol) : null,
-          } as any);
-        if (detail.prePhotos)
+        // Update PrePhotos
+        if (detail.prePhotos) {
           detail.prePhotos = detail.prePhotos.map((p: any) => ({
             ...p,
             url: replaceUri(p.url || p.uri),
           }));
-        if (detail.postPhotos)
+        }
+        // Update PostPhotos
+        if (detail.postPhotos) {
           detail.postPhotos = detail.postPhotos.map((p: any) => ({
             ...p,
             url: replaceUri(p.url || p.uri),
           }));
+        }
+        // Update Item Observations
         if (detail.itemObservations) {
           Object.keys(detail.itemObservations).forEach(key => {
             const obs = detail.itemObservations[key];
-            if (obs?.photoUrl) obs.photoUrl = replaceUri(obs.photoUrl);
+            if (obs && obs.photoUrl) {
+              obs.photoUrl = replaceUri(obs.photoUrl);
+            }
           });
         }
 
@@ -254,7 +208,8 @@ class SyncService {
           id_mantenimiento: item.id_mantenimiento,
           user_created: item.user_created,
           detail_maintenance: detail,
-        });
+          protocol: item.protocol ? JSON.parse(item.protocol) : null,
+        } as any);
 
         if (item.id_mantenimiento) {
           await supabaseMaintenanceService.updateMaintenanceStatus(

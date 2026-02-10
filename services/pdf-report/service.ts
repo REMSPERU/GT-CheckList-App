@@ -95,6 +95,9 @@ class PDFReportService {
       case ReportType.OPERABILITY:
         html = this.generateOperabilityCertificateHTML(data);
         break;
+      case ReportType.PROTOCOL:
+        html = this.generateProtocolReportHTML(data);
+        break;
       case ReportType.TECHNICAL:
       default:
         html = this.generateSessionReportHTML(data);
@@ -110,34 +113,7 @@ class PDFReportService {
   }
 
   /**
-   * Generate operability certificate HTML
-   */
-  generateOperabilityCertificateHTML(data: MaintenanceSessionReport): string {
-    return generateOperabilityCertificateHTML(data);
-  }
-
-  /**
-   * Generate PDF based on report type
-   * @returns URI of the generated PDF file
-   */
-  async generateSessionPDF(data: MaintenanceSessionReport): Promise<string> {
-    const html = this.generateSessionReportHTML(data);
-    const { uri } = await Print.printToFileAsync({ html, base64: false });
-    return uri;
-  }
-
-  /**
-   * Generate Protocol PDF
-   */
-  async generateProtocolPDF(data: MaintenanceSessionReport): Promise<string> {
-    const html = this.generateProtocolReportHTML(data);
-    const { uri } = await Print.printToFileAsync({ html, base64: false });
-    return uri;
-  }
-
-  /**
-   * Generate PDF from session data (NEW FORMAT)
-   * @returns URI of the generated PDF file
+   * Generate PDF from session data (TECHNICAL)
    */
   async generateSessionPDF(data: MaintenanceSessionReport): Promise<string> {
     const html = this.generateSessionReportHTML(data);

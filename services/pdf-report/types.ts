@@ -6,6 +6,7 @@
 export enum ReportType {
   TECHNICAL = 'technical',
   OPERABILITY = 'operability',
+  PROTOCOL = 'protocol',
 }
 
 export interface ReportTypeOption {
@@ -21,6 +22,12 @@ export const REPORT_TYPE_OPTIONS: ReportTypeOption[] = [
     name: 'Informe Técnico',
     description: 'Incluye fotos, mediciones y observaciones',
     icon: 'document-text',
+  },
+  {
+    type: ReportType.PROTOCOL,
+    name: 'Protocolo de Mantenimiento',
+    description: 'Detalle de pruebas y verificaciones realizadas',
+    icon: 'list-circle',
   },
   {
     type: ReportType.OPERABILITY,
