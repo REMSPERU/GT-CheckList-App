@@ -166,6 +166,7 @@ jobs:
           files: ${{ steps.apk.outputs.apk_name }}
           draft: false
           prerelease: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

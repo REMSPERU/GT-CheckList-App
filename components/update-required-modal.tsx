@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { openUpdateUrl } from '@/hooks/use-app-update';
@@ -17,6 +18,7 @@ interface UpdateRequiredModalProps {
   latestVersion: string;
   downloadUrl: string | null;
   releaseUrl: string;
+  releaseNotes?: string | null;
 }
 
 export default function UpdateRequiredModal({
@@ -25,6 +27,7 @@ export default function UpdateRequiredModal({
   latestVersion,
   downloadUrl,
   releaseUrl,
+  releaseNotes,
 }: UpdateRequiredModalProps) {
   const [isDownloading, setIsDownloading] = React.useState(false);
 
@@ -65,13 +68,21 @@ export default function UpdateRequiredModal({
           <Text style={styles.title}>Actualización Disponible</Text>
 
           {/* Description */}
-          <Text style={styles.description}>
-            Una nueva versión de la aplicación está disponible. Por favor
-            actualiza para continuar usando la app.
+          <Text style={styles.message}>
+            Una nueva versión de la aplicación está disponible. Por favor,
+            actualiza para continuar usando todas las funcionalidades.
           </Text>
 
-          {/* Version info */}
-          <View style={styles.versionContainer}>
+          {releaseNotes && (
+            <View style={styles.notesContainer}>
+              <Text style={styles.notesTitle}>Novedades de esta versión:</Text>
+              <ScrollView style={styles.notesScroll}>
+                <Text style={styles.notesText}>{releaseNotes}</Text>
+              </ScrollView>
+            </View>
+          )}
+
+          <View style={styles.buttonContainer}>
             <View style={styles.versionRow}>
               <Text style={styles.versionLabel}>Versión instalada:</Text>
               <Text style={styles.versionValueOld}>v{currentVersion}</Text>
@@ -144,14 +155,38 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
   },
-  description: {
+  message: {
+    // Renamed from description
     fontSize: 15,
     color: '#6B7280',
     textAlign: 'center',
+    marginBottom: 24, // Updated marginBottom
     lineHeight: 22,
-    marginBottom: 20,
   },
-  versionContainer: {
+  notesContainer: {
+    width: '100%',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 24,
+    maxHeight: 150,
+  },
+  notesTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  notesScroll: {
+    maxHeight: 100,
+  },
+  notesText: {
+    fontSize: 13,
+    color: '#4b5563',
+    lineHeight: 20,
+  },
+  buttonContainer: {
+    // New style for wrapping version info
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
     padding: 16,

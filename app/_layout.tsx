@@ -46,6 +46,7 @@ export default function RootLayout() {
                 latestVersion={updateInfo.latestVersion}
                 downloadUrl={updateInfo.downloadUrl}
                 releaseUrl={updateInfo.releaseUrl}
+                releaseNotes={updateInfo.releaseNotes}
               />
             )}
           </ThemeProvider>

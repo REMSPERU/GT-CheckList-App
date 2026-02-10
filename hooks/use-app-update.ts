@@ -15,6 +15,7 @@ export interface AppUpdateInfo {
   releaseUrl: string;
   isLoading: boolean;
   error: string | null;
+  releaseNotes: string | null;
 }
 
 /**
@@ -46,6 +47,7 @@ export function useAppUpdate(): AppUpdateInfo {
     releaseUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`,
     isLoading: true,
     error: null,
+    releaseNotes: null,
   });
 
   useEffect(() => {
