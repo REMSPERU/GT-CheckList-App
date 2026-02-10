@@ -11,6 +11,7 @@ export type MaintenanceStep =
   | 'pre-photos'
   | 'checklist'
   | 'post-photos'
+  | 'protocol-checklist'
   | 'summary';
 
 export interface ItemObservation {
@@ -55,6 +56,7 @@ export interface MaintenanceSession {
   measurements?: Record<string, ItemMeasurement>; // itemId -> measurement
   itemObservations: Record<string, ItemObservation>;
   observations: string;
+  protocol?: Record<string, boolean>;
   recommendations: string; // Recomendaciones del técnico
   conclusions: string; // Conclusiones del mantenimiento
 

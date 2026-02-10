@@ -94,7 +94,7 @@ export default function PostMaintenancePhotosScreen() {
 
   const handleContinue = () => {
     router.push({
-      pathname: '/maintenance/execution/summary',
+      pathname: '/maintenance/execution/protocol-checklist',
       params: { panelId, maintenanceId },
     });
   };

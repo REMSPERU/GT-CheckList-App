@@ -302,6 +302,147 @@ export function getReportStyles(): string {
       min-width: 150px;
     }
 
+    /* ESTILOS PROTOCOLO (RESUMEN TABLEROS) */
+    @page {
+      size: landscape;
+      margin: 5mm;
+    }
+    
+    .protocol-page {
+      padding: 0;
+      width: 100%;
+      background-color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    
+    .landscape-container {
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .protocol-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 20px;
+      border-bottom: 3px solid #ff6600;
+      padding-bottom: 10px;
+    }
+    .brand-title {
+      font-weight: bold;
+      font-size: 22px;
+      color: #ff6600;
+    }
+    .brand-sub {
+      font-size: 16px;
+      color: #333;
+      font-weight: bold;
+    }
+    .protocol-contact {
+      font-size: 11px;
+      text-align: right;
+      color: #444;
+    }
+    .protocol-band {
+      background-color: #ff6600;
+      color: #fff;
+      padding: 15px;
+      text-align: center;
+      margin-bottom: 25px;
+      border-radius: 4px;
+    }
+    .protocol-band-text {
+      font-weight: bold;
+      font-size: 18px;
+      line-height: 1.2;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .protocol-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 25px;
+      background-color: #fef2e8;
+      padding: 15px;
+      border: 1px solid #ff6600;
+      border-radius: 4px;
+    }
+    .meta-left { width: 65%; }
+    .meta-right { width: 30%; }
+    .meta-left div, .meta-right div { margin-bottom: 6px; }
+    
+    .protocol-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7.5px; /* Ajuste para landscape */
+      margin-bottom: 40px;
+      border: 2px solid #ff6600;
+    }
+    .protocol-table th {
+      background-color: #ff6600;
+      color: #ffffff;
+      font-weight: bold;
+      text-align: center;
+      padding: 8px 3px;
+      vertical-align: middle;
+      border: 1px solid #ffffff; /* Separadores blancos para el encabezado naranja */
+      text-transform: uppercase;
+    }
+    .protocol-table td {
+      padding: 6px 3px;
+      border: 1px solid #ff6600; /* Líneas de separación naranjas */
+      text-align: center;
+    }
+    .protocol-table td:nth-child(2),
+    .protocol-table td:nth-child(4),
+    .protocol-table td:last-child {
+      text-align: left; /* Nombres y ubicaciones a la izquierda */
+      padding-left: 5px;
+    }
+    .protocol-table tr:nth-child(even) {
+      background-color: #fff5ed;
+    }
+    
+    .protocol-signatures {
+      margin-top: 40px;
+    }
+    .sig-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .sig-table th {
+      background-color: #ff6600;
+      color: #fff;
+      font-size: 11px;
+      padding: 10px;
+      border: 1px solid #ffffff;
+    }
+    .sig-table td {
+      border: 1px solid #ff6600;
+      padding: 10px;
+      text-align: center;
+    }
+    .sig-name {
+      font-weight: bold;
+      font-size: 12px;
+      color: #ff6600;
+    }
+    .sig-role {
+      font-size: 10px;
+      color: #666;
+    }
+    .sig-validity {
+      margin-top: 15px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 12px;
+      border: 2px solid #ff6600;
+      padding: 8px;
+      color: #ff6600;
+      background-color: #fff5ed;
+    }
+
     /* RECOMMENDATIONS AND CONCLUSIONS SECTION */
     .recommendations-box {
       background: #f9f9f9;

@@ -53,6 +53,7 @@ export default function SessionHistoryScreen() {
     totalOk: number;
     totalIssues: number;
   } | null>(null);
+  const [pdfModalTitle, setPdfModalTitle] = useState('');
 
   // Report Type Selection State
   const [reportTypeModalVisible, setReportTypeModalVisible] = useState(false);
@@ -130,6 +131,10 @@ export default function SessionHistoryScreen() {
     );
   }, [maintenanceData]);
 
+  const handleGenerateReport = async (
+    session: SessionHistoryItem,
+    reportType: 'technical' | 'protocol' = 'technical',
+  ) => {
   // Step 1: Show report type selection modal
   const handleShowReportOptions = (session: SessionHistoryItem) => {
     setSelectedSession(session);
@@ -144,7 +149,14 @@ export default function SessionHistoryScreen() {
     setPdfModalVisible(true);
     setIsGeneratingPdf(true);
     setPdfUri(null);
-    setGenerationProgress('Obteniendo datos de mantenimiento...');
+    setPdfModalTitle(
+      reportType === 'technical'
+        ? 'Informe Técnico'
+        : 'Protocolo de Mantenimiento',
+    );
+    setGenerationProgress(
+      `Generando ${reportType === 'technical' ? 'informe técnico' : 'protocolo'}...`,
+    );
 
     try {
       const maintenanceIds = selectedSession.maintenances
@@ -170,6 +182,7 @@ export default function SessionHistoryScreen() {
           id,
           id_mantenimiento,
           detail_maintenance,
+          protocol,
           date_created,
           user:user_created (
             first_name,
@@ -214,6 +227,9 @@ export default function SessionHistoryScreen() {
           code: maint.equipos?.codigo || 'N/A',
           label: maint.equipos?.nombre || maint.equipos?.codigo || 'N/A',
           type: panelType,
+          model:
+            maint.equipos?.equipment_detail?.detalle_tecnico?.modelo ||
+            'ADOSADO',
           location: maint.equipos?.ubicacion || 'N/A',
           voltage: firstMeasurement?.voltage,
           amperage: firstMeasurement?.amperage,
@@ -230,6 +246,7 @@ export default function SessionHistoryScreen() {
           })),
           observations: detail.observations,
           itemObservations: detail.itemObservations,
+          protocol: response?.protocol || detail.protocol,
         });
       }
 
@@ -243,7 +260,18 @@ export default function SessionHistoryScreen() {
         generatedAt: new Date().toISOString(),
         sessionCode: selectedSession.codigo,
         equipments,
+        measurementInstrument: {
+          name: 'PINZA MULTIMÉTRICA',
+          brand: 'FLUKE',
+          model: '376FC',
+          serial: 'VERIFICAR', // O un valor por defecto si existe
+        },
       };
+
+      const uri =
+        reportType === 'technical'
+          ? await pdfReportService.generateSessionPDF(sessionReportData)
+          : await pdfReportService.generateProtocolPDF(sessionReportData);
 
       // Generate report based on selected type
       const uri = await newPdfReportService.generateReport(type, reportData);
@@ -349,6 +377,30 @@ export default function SessionHistoryScreen() {
                   </View>
 
                   {isComplete ? (
+                    <View style={styles.actionRow}>
+                      <TouchableOpacity
+                        style={[styles.reportButton, { flex: 1.2 }]}
+                        onPress={() => handleGenerateReport(session, 'technical')}
+                        activeOpacity={0.8}>
+                        <Ionicons
+                          name="document-text-outline"
+                          size={18}
+                          color="#fff"
+                        />
+                        <Text style={styles.reportButtonText}>Técnico</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.reportButton,
+                          { flex: 1, backgroundColor: '#F97316' },
+                        ]}
+                        onPress={() => handleGenerateReport(session, 'protocol')}
+                        activeOpacity={0.8}>
+                        <Ionicons name="list-outline" size={18} color="#fff" />
+                        <Text style={styles.reportButtonText}>Protocolo</Text>
+                      </TouchableOpacity>
+                    </View>
                     <TouchableOpacity
                       style={styles.reportButton}
                       onPress={() => handleShowReportOptions(session)}
@@ -387,6 +439,7 @@ export default function SessionHistoryScreen() {
       <PDFReportModal
         visible={pdfModalVisible}
         onClose={handleClosePdfModal}
+        title={pdfModalTitle}
         pdfUri={pdfUri}
         isGenerating={isGeneratingPdf}
         generationProgress={generationProgress}
@@ -487,6 +540,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#1F2937',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
   reportButton: {
     flexDirection: 'row',

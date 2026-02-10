@@ -10,6 +10,7 @@ export async function saveOfflineMaintenance(
     category?: string;
     observationKey?: string;
   }[],
+  protocol?: any,
 ) {
   return withLock(async () => {
     const db = await dbPromise;
@@ -18,9 +19,14 @@ export async function saveOfflineMaintenance(
     await db.withTransactionAsync(async () => {
       // 1. Insert Maintenance Record
       const result = await db.runAsync(
-        `INSERT INTO offline_maintenance_response (id_mantenimiento, user_created, detail_maintenance, status)
-         VALUES (?, ?, ?, 'pending')`,
-        [maintenanceId, userId, JSON.stringify(detailMaintenance)],
+        `INSERT INTO offline_maintenance_response (id_mantenimiento, user_created, detail_maintenance, protocol, status)
+         VALUES (?, ?, ?, ?, 'pending')`,
+        [
+          maintenanceId,
+          userId,
+          JSON.stringify(detailMaintenance),
+          protocol ? JSON.stringify(protocol) : null,
+        ],
       );
       localId = result.lastInsertRowId;
 

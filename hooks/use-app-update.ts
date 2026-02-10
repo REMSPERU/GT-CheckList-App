@@ -49,6 +49,16 @@ export function useAppUpdate(): AppUpdateInfo {
   });
 
   useEffect(() => {
+    // Skip update check in development mode
+    if (__DEV__) {
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        needsUpdate: false,
+      }));
+      return;
+    }
+
     const checkForUpdates = async () => {
       // Skip update check in development mode
       if (__DEV__) {

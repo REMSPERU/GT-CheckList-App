@@ -15,6 +15,7 @@ import {
   generateHeaderPageHTML,
   generateEquipmentSummaryPageHTML,
   generateEquipmentPhotoPageHTML,
+  generateProtocolPageHTML,
   generateCoverPageHTML,
   generateMaintenanceHTML,
   generateRecommendationsPageHTML,
@@ -27,8 +28,7 @@ import { generateOperabilityCertificateHTML } from './operability-generator';
  */
 class PDFReportService {
   /**
-   * Generate full HTML for the maintenance session report (NEW FORMAT)
-   * Uses corporate template matching plantilla.html
+   * Generate full HTML for the maintenance session report (TECHNICAL REPORT)
    */
   generateSessionReportHTML(data: MaintenanceSessionReport): string {
     return `
@@ -47,6 +47,28 @@ class PDFReportService {
   ${generateEquipmentSummaryPageHTML(data)}
   ${data.equipments.map(eq => generateEquipmentPhotoPageHTML(eq)).join('')}
   ${generateRecommendationsPageHTML(data)}
+</body>
+</html>
+    `;
+  }
+
+  /**
+   * Generate full HTML for the Protocol Certificate (PROTOCOL REPORT)
+   */
+  generateProtocolReportHTML(data: MaintenanceSessionReport): string {
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protocolo de Mantenimiento - ${data.clientName}</title>
+  <style>
+    ${getReportStyles()}
+  </style>
+</head>
+<body>
+  ${generateProtocolPageHTML(data)}
 </body>
 </html>
     `;
@@ -88,17 +110,47 @@ class PDFReportService {
   }
 
   /**
+   * Generate operability certificate HTML
+   */
+  generateOperabilityCertificateHTML(data: MaintenanceSessionReport): string {
+    return generateOperabilityCertificateHTML(data);
+  }
+
+  /**
+   * Generate PDF based on report type
+   * @returns URI of the generated PDF file
+   */
+  async generateSessionPDF(data: MaintenanceSessionReport): Promise<string> {
+    const html = this.generateSessionReportHTML(data);
+    const { uri } = await Print.printToFileAsync({ html, base64: false });
+    return uri;
+  }
+
+  /**
+   * Generate Protocol PDF
+   */
+  async generateProtocolPDF(data: MaintenanceSessionReport): Promise<string> {
+    const html = this.generateProtocolReportHTML(data);
+    const { uri } = await Print.printToFileAsync({ html, base64: false });
+    return uri;
+  }
+
+  /**
    * Generate PDF from session data (NEW FORMAT)
    * @returns URI of the generated PDF file
    */
   async generateSessionPDF(data: MaintenanceSessionReport): Promise<string> {
     const html = this.generateSessionReportHTML(data);
+    const { uri } = await Print.printToFileAsync({ html, base64: false });
+    return uri;
+  }
 
-    const { uri } = await Print.printToFileAsync({
-      html,
-      base64: false,
-    });
-
+  /**
+   * Generate Protocol PDF
+   */
+  async generateProtocolPDF(data: MaintenanceSessionReport): Promise<string> {
+    const html = this.generateProtocolReportHTML(data);
+    const { uri } = await Print.printToFileAsync({ html, base64: false });
     return uri;
   }
 
