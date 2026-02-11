@@ -15,11 +15,13 @@ import {
   generateHeaderPageHTML,
   generateEquipmentSummaryPageHTML,
   generateEquipmentPhotoPageHTML,
-  generateProtocolPageHTML,
+  generateRecommendationsPageHTML,
+} from './technical-generator';
+import { generateProtocolPageHTML } from './protocol-generator';
+import {
   generateCoverPageHTML,
   generateMaintenanceHTML,
-  generateRecommendationsPageHTML,
-} from './html-generators';
+} from './legacy-generator';
 import { generateOperabilityCertificateHTML } from './operability-generator';
 
 /**

@@ -6,13 +6,16 @@ export * from './types';
 // Styles
 export { getReportStyles } from './styles';
 
-// HTML Generators (New)
+// HTML Generators (Technical Report)
 export {
   generateHeaderPageHTML,
   generateEquipmentSummaryPageHTML,
   generateEquipmentPhotoPageHTML,
   generateRecommendationsPageHTML,
-} from './html-generators';
+} from './technical-generator';
+
+// HTML Generators (Protocol Report)
+export { generateProtocolPageHTML } from './protocol-generator';
 
 // Operability Certificate Generator
 export { generateOperabilityCertificateHTML } from './operability-generator';
@@ -23,7 +26,7 @@ export {
   generateMaintenanceHTML,
   generateSummaryHTML,
   generateSignaturesHTML,
-} from './html-generators';
+} from './legacy-generator';
 
 // Service
 export { pdfReportService } from './service';
