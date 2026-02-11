@@ -313,134 +313,185 @@ export function getReportStyles(): string {
       width: 100%;
       background-color: #fff;
       font-family: Arial, sans-serif;
+      height: 100vh; /* Para asegurar que ocupe toda la hoja */
+      display: flex;
+      flex-direction: column;
     }
     
     .landscape-container {
       width: 100%;
+      height: 100%;
       margin: 0 auto;
+      display: flex;
+      flex-direction: column;
     }
 
     .protocol-top {
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      margin-bottom: 20px;
-      border-bottom: 3px solid #FC5126;
-      padding-bottom: 10px;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #FC5126;
+      padding-bottom: 5px;
     }
     .brand-title {
       font-weight: bold;
-      font-size: 22px;
+      font-size: 18px;
       color: #FC5126;
     }
     .brand-sub {
-      font-size: 16px;
+      font-size: 12px;
       color: #333;
       font-weight: bold;
     }
     .protocol-contact {
-      font-size: 11px;
+      font-size: 9px;
       text-align: right;
       color: #444;
+      line-height: 1.2;
     }
+
     .protocol-band {
       background-color: #FC5126;
       color: #fff;
-      padding: 15px;
+      padding: 5px;
       text-align: center;
-      margin-bottom: 25px;
-      border-radius: 4px;
+      margin-bottom: 10px;
+      border-radius: 2px;
     }
     .protocol-band-text {
       font-weight: bold;
-      font-size: 18px;
+      font-size: 14px;
       line-height: 1.2;
       text-transform: uppercase;
       letter-spacing: 1px;
     }
-    .protocol-meta {
+
+    /* Meta Info Compacta */
+    .compact-meta {
+      display: flex;
+      flex-direction: column;
+      font-size: 10px;
+      margin-bottom: 10px;
+      gap: 3px;
+      border: 1px solid #ddd;
+      padding: 5px;
+      background: #f9f9f9;
+    }
+
+    .meta-row {
       display: flex;
       justify-content: space-between;
-      font-size: 12px;
-      margin-bottom: 25px;
-      background-color: #fef2e8;
-      padding: 15px;
-      border: 1px solid #FC5126;
-      border-radius: 4px;
     }
-    .meta-left { width: 65%; }
-    .meta-right { width: 30%; }
-    .meta-left div, .meta-right div { margin-bottom: 6px; }
     
+    /* Contenedor de la tabla para ocupar el espacio central */
+    .table-container {
+      flex-grow: 1;
+    }
+
     .protocol-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 7.5px; /* Ajuste para landscape */
-      margin-bottom: 40px;
-      border: 2px solid #FC5126;
+      font-size: 8px; /* Fuente pequeña para que entre todo */
+      border: 1px solid #FC5126;
+      table-layout: fixed; /* Ayuda a controlar anchos */
     }
     .protocol-table th {
       background-color: #FC5126;
       color: #ffffff;
       font-weight: bold;
       text-align: center;
-      padding: 8px 3px;
+      padding: 1px;
       vertical-align: middle;
-      border: 1px solid #ffffff; /* Separadores blancos para el encabezado naranja */
-      text-transform: uppercase;
+      border: 1px solid #ffffff;
+      /* text-transform: uppercase; REMOVED */
+      font-size: 4.5px; 
+      overflow: hidden; /* Changed back to hidden to clip if needed, but wrap should handle it */
+      white-space: normal; 
+      word-break: break-word; /* Important for long words */
+      line-height: 1.1;
+      height: 30px; /* Slightly taller to fit wrapped text */
     }
     .protocol-table td {
-      padding: 6px 3px;
-      border: 1px solid #FC5126; /* Líneas de separación naranjas */
+      padding: 2px 1px;
+      border: 1px solid #ffdccc; 
       text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 7px;
     }
-    .protocol-table td:nth-child(2),
-    .protocol-table td:nth-child(4),
-    .protocol-table td:last-child {
-      text-align: left; /* Nombres y ubicaciones a la izquierda */
-      padding-left: 5px;
+    .protocol-table td.text-left {
+      text-align: left;
+      padding-left: 4px;
+    }
+    .protocol-table td.text-xs {
+      font-size: 7px;
+      white-space: normal; /* Permitir wrap en observaciones */
     }
     .protocol-table tr:nth-child(even) {
       background-color: #fff5ed;
     }
+    .protocol-table tr.empty-row {
+      background-color: transparent !important;
+    }
+    .protocol-table tr.empty-row td {
+      border: 1px solid transparent;
+      color: transparent;
+    }
     
+    /* Footer fijo al fondo del contenedor flex */
+    .protocol-footer {
+      margin-top: auto;
+      padding-top: 10px;
+    }
+
     .protocol-signatures {
-      margin-top: 40px;
+      border-top: 1px solid #eee;
+      padding-top: 10px;
     }
     .sig-table {
       width: 100%;
       border-collapse: collapse;
+      margin-bottom: 5px;
     }
     .sig-table th {
       background-color: #FC5126;
       color: #fff;
-      font-size: 11px;
-      padding: 10px;
+      font-size: 9px;
+      padding: 4px;
       border: 1px solid #ffffff;
     }
     .sig-table td {
       border: 1px solid #FC5126;
-      padding: 10px;
+      padding: 4px;
       text-align: center;
     }
     .sig-name {
       font-weight: bold;
-      font-size: 12px;
+      font-size: 10px;
       color: #FC5126;
     }
     .sig-role {
-      font-size: 10px;
+      font-size: 8px;
       color: #666;
     }
+    
     .sig-validity {
-      margin-top: 15px;
       text-align: center;
       font-weight: bold;
-      font-size: 12px;
-      border: 2px solid #FC5126;
-      padding: 8px;
+      font-size: 10px;
+      border: 1px solid #FC5126;
+      padding: 4px;
       color: #FC5126;
       background-color: #fff5ed;
+      margin-bottom: 5px;
+    }
+
+    .page-number {
+      text-align: right;
+      font-size: 8px;
+      color: #888;
     }
 
     /* RECOMMENDATIONS AND CONCLUSIONS SECTION */
@@ -458,7 +509,7 @@ export function getReportStyles(): string {
       line-height: 1.6;
     }
 
-    /* SIGNATURES SECTION */
+    /* SIGNATURES SECTION (Technical Report) */
     .signatures-section {
       margin-top: 60px;
       page-break-inside: avoid;
