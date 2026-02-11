@@ -49,6 +49,8 @@ export interface MaintenanceSession {
     fullData?: any;
   };
 
+  protocol?: Record<string, boolean>;
+
   // Context (for display)
   building?: {
     id: string;

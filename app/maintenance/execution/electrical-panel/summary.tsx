@@ -438,7 +438,7 @@ export default function SummaryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <MaintenanceHeader title="Resumen Final" iconName="document-text" />
+      <MaintenanceHeader title="Resumen Final" iconName="description" />
 
       <ScrollView style={styles.content}>
         <View style={styles.card}>

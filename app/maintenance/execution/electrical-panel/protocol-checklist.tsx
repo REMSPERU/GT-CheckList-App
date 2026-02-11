@@ -138,7 +138,7 @@ export default function ProtocolChecklistScreen() {
     <SafeAreaView style={styles.safeArea}>
       <MaintenanceHeader
         title="Protocolo de Tablero Eléctrico"
-        iconName="list-check"
+        iconName="fact-check"
         iconFamily="MaterialIcons"
       />
 

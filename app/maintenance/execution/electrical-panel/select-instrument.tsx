@@ -65,7 +65,6 @@ export default function SelectInstrumentScreen() {
     try {
       const data =
         await DatabaseService.getInstrumentsByEquipmentType(equipmentTypeId);
-      console.log('Loaded instruments:', JSON.stringify(data, null, 2));
       setInstruments(data as Instrument[]);
     } catch (error) {
       console.error('Failed to load instruments:', error);
