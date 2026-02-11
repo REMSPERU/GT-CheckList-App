@@ -235,23 +235,26 @@ export function getOperabilityStyles(): string {
 }
 
 /**
- * Filter equipment without observations (operative equipment)
+ * Filter equipment based on protocol validation (operative equipment)
+ * All protocol items must be true (OK).
  */
 function filterOperativeEquipment(
   equipments: EquipmentMaintenanceData[],
 ): EquipmentMaintenanceData[] {
   return equipments.filter(eq => {
-    // No general observations
-    const hasGeneralObs = eq.observations && eq.observations.trim().length > 0;
+    // Helper to check if protocol is valid (all true)
+    // If protocol is missing or empty, we assume it's NOT valid for certification?
+    // User said: "check if everything is true".
+    // If protocol is missing, we can't certify it. So we require it to exist.
+    if (!eq.protocol) {
+      return false;
+    }
 
-    // No item-specific observations
-    const hasItemObs =
-      eq.itemObservations &&
-      Object.values(eq.itemObservations).some(
-        obs => obs.note && obs.note.trim().length > 0,
-      );
+    // Check if any item in the protocol is false
+    const hasFailures = Object.values(eq.protocol).some(val => val === false);
 
-    return !hasGeneralObs && !hasItemObs;
+    // If there are failures (false items), exclude it
+    return !hasFailures;
   });
 }
 
