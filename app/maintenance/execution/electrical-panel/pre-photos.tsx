@@ -205,7 +205,7 @@ export default function PreMaintenancePhotosScreen() {
   const handleContinue = () => {
     // Navigate to checklist
     router.push({
-      pathname: '/maintenance/execution/checklist',
+      pathname: '/maintenance/execution/electrical-panel/checklist' as any,
       params: {
         panelId: panelId,
         maintenanceId: maintenanceId,

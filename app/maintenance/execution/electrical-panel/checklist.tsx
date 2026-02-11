@@ -336,7 +336,7 @@ export default function MaintenanceChecklistScreen() {
     }
 
     router.push({
-      pathname: '/maintenance/execution/post-photos',
+      pathname: '/maintenance/execution/electrical-panel/post-photos' as any,
       params: { panelId, maintenanceId },
     });
   };

@@ -23,7 +23,7 @@ export interface EquipmentRouteConfig {
  */
 export const EQUIPMENT_ROUTES: Record<string, EquipmentRouteConfig> = {
   'Tablero Electrico': {
-    route: '/maintenance/execution/pre-photos',
+    route: '/maintenance/execution/electrical-panel/pre-photos',
     implemented: true,
   },
   'Luces de Emergencia': {
@@ -41,7 +41,7 @@ export const EQUIPMENT_ROUTES: Record<string, EquipmentRouteConfig> = {
  * Falls back to the electrical panel flow.
  */
 export const DEFAULT_EQUIPMENT_ROUTE: EquipmentRouteConfig = {
-  route: '/maintenance/execution/pre-photos',
+  route: '/maintenance/execution/electrical-panel/pre-photos',
   implemented: false,
 };
 

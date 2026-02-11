@@ -18,16 +18,31 @@ import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
 import { supabaseMaintenanceService } from '@/services/supabase-maintenance.service';
 
 const PROTOCOL_ITEMS = [
-  { key: 'tablero_sin_oxido', label: '1. Tablero sin óxido y pintura buen estado' },
+  {
+    key: 'tablero_sin_oxido',
+    label: '1. Tablero sin óxido y pintura buen estado',
+  },
   { key: 'puerta_mandil_aterrados', label: '2. Puerta y mandil aterrados' },
   { key: 'cables_libres_halogenos', label: '3. Cables libres de halógenos' },
-  { key: 'identificacion_fases', label: '4. Identificación de fases (L1 - L2 - L3 - N)' },
-  { key: 'interruptores_terminales', label: '5. Interruptores con terminales (No cable directo)' },
+  {
+    key: 'identificacion_fases',
+    label: '4. Identificación de fases (L1 - L2 - L3 - N)',
+  },
+  {
+    key: 'interruptores_terminales',
+    label: '5. Interruptores con terminales (No cable directo)',
+  },
   { key: 'linea_tierra_correcta', label: '6. Línea de tierra correcta' },
-  { key: 'diagrama_unifilar_actualizado', label: '7. Diagrama unifilar actualizado' },
+  {
+    key: 'diagrama_unifilar_actualizado',
+    label: '7. Diagrama unifilar actualizado',
+  },
   { key: 'luz_emergencia', label: '8. Luz de emergencia operativa' },
   { key: 'rotulado_circuitos', label: '9. Rotulado de circuitos' },
-  { key: 'interruptores_riel_din', label: '10. Interruptores fijados en riel din' },
+  {
+    key: 'interruptores_riel_din',
+    label: '10. Interruptores fijados en riel din',
+  },
 ];
 
 export default function ProtocolChecklistScreen() {
@@ -86,16 +101,22 @@ export default function ProtocolChecklistScreen() {
         try {
           // This might fail if the record hasn't been created yet in summary.tsx
           // But we follow the user request to attempt update.
-          await supabaseMaintenanceService.updateProtocol(maintenanceId, protocol);
+          await supabaseMaintenanceService.updateProtocol(
+            maintenanceId,
+            protocol,
+          );
           console.log('Protocol updated in Supabase');
         } catch (e) {
-          console.log('Online update failed (likely record not created yet):', e);
+          console.log(
+            'Online update failed (likely record not created yet):',
+            e,
+          );
         }
       }
 
       // 3. Navigate to Summary
       router.push({
-        pathname: '/maintenance/execution/summary',
+        pathname: '/maintenance/execution/electrical-panel/summary' as any,
         params: { panelId, maintenanceId },
       });
     } catch (error) {
@@ -115,13 +136,22 @@ export default function ProtocolChecklistScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <MaintenanceHeader title="Protocolo de Tablero Eléctrico" iconName="list-check" iconFamily="MaterialIcons" />
+      <MaintenanceHeader
+        title="Protocolo de Tablero Eléctrico"
+        iconName="list-check"
+        iconFamily="MaterialIcons"
+      />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.infoCard}>
-          <Ionicons name="information-circle-outline" size={20} color="#0E7490" />
+          <Ionicons
+            name="information-circle-outline"
+            size={20}
+            color="#0E7490"
+          />
           <Text style={styles.infoText}>
-            Verifique el estado de los siguientes puntos del protocolo del tablero.
+            Verifique el estado de los siguientes puntos del protocolo del
+            tablero.
           </Text>
         </View>
 
@@ -132,11 +162,14 @@ export default function ProtocolChecklistScreen() {
               style={[
                 styles.itemRow,
                 index === PROTOCOL_ITEMS.length - 1 && styles.lastItem,
-              ]}
-            >
+              ]}>
               <Text style={styles.itemLabel}>{item.label}</Text>
               <View style={styles.switchContainer}>
-                <Text style={[styles.statusLabel, protocol[item.key] ? styles.okLabel : styles.noOkLabel]}>
+                <Text
+                  style={[
+                    styles.statusLabel,
+                    protocol[item.key] ? styles.okLabel : styles.noOkLabel,
+                  ]}>
                   {protocol[item.key] ? 'OK' : 'NO OK'}
                 </Text>
                 <Switch
@@ -157,8 +190,7 @@ export default function ProtocolChecklistScreen() {
         <TouchableOpacity
           style={[styles.continueBtn, isSaving && styles.disabledBtn]}
           onPress={handleContinue}
-          disabled={isSaving}
-        >
+          disabled={isSaving}>
           {isSaving ? (
             <ActivityIndicator color="white" />
           ) : (
