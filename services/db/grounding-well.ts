@@ -49,9 +49,10 @@ export async function getPendingGroundingWellChecklistPhotos(
 ) {
   await ensureInitialized();
   const db = await dbPromise;
-  const rows = await db.getAllAsync(`
+  const rows = await db.getAllAsync(
+    `
     SELECT * FROM offline_grounding_well_photos WHERE checklist_local_id = ? AND status = 'pending'`,
-    [checklistLocalId]
+    [checklistLocalId],
   );
   return rows;
 }
