@@ -311,3 +311,12 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
     }));
   });
 }
+
+export async function getInstrumentsByEquipmentType(equipmentTypeId: string) {
+  await ensureInitialized();
+  const db = await dbPromise;
+  return await db.getAllAsync(
+    'SELECT * FROM local_instrumentos WHERE equipamento = ?',
+    [equipmentTypeId],
+  );
+}

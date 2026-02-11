@@ -203,9 +203,10 @@ export default function PreMaintenancePhotosScreen() {
   };
 
   const handleContinue = () => {
-    // Navigate to checklist
+    // Navigate to instrument selection
     router.push({
-      pathname: '/maintenance/execution/electrical-panel/checklist' as any,
+      pathname:
+        '/maintenance/execution/electrical-panel/select-instrument' as any,
       params: {
         panelId: panelId,
         maintenanceId: maintenanceId,

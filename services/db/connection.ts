@@ -78,6 +78,15 @@ export async function initDatabase() {
           abreviatura TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS local_instrumentos (
+          id TEXT PRIMARY KEY,
+          instrumento TEXT,
+          marca TEXT,
+          modelo TEXT,
+          serie TEXT,
+          equipamento TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS local_equipamentos_property (
           id_equipamentos TEXT,
           id_property TEXT,

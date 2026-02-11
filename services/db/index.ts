@@ -34,6 +34,7 @@ import {
   getEquipmentByProperty,
   getLocalScheduledMaintenances,
   getLocalMaintenancesByProperty,
+  getInstrumentsByEquipmentType,
 } from './queries';
 import {
   createEquipment,
@@ -104,6 +105,7 @@ export const DatabaseService = {
   getEquipmentByProperty,
   getLocalScheduledMaintenances,
   getLocalMaintenancesByProperty,
+  getInstrumentsByEquipmentType,
 
   // Equipment CRUD
   createEquipment,

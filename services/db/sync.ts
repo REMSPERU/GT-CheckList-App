@@ -74,10 +74,16 @@ async function smartSyncTable<T extends { id?: string }>(
  * This performs differential updates instead of clearing all data first,
  * which prevents UI flicker during synchronization.
  */
+/**
+ * Bulk insert/update mirror data using smart sync strategy.
+ * This performs differential updates instead of clearing all data first,
+ * which prevents UI flicker during synchronization.
+ */
 export async function bulkInsertMirrorData(
   equipos: any[],
   properties: any[],
   users: any[],
+  instrumentos: any[] = [],
   equipamentos: any[] = [],
   equipamentosProperty: any[] = [],
   scheduledMaintenances: any[] = [],
@@ -138,6 +144,23 @@ export async function bulkInsertMirrorData(
           item.email,
           item.first_name,
           item.last_name,
+        ],
+      );
+
+      // --- Smart Sync for Instrumentos ---
+      await smartSyncTable(
+        db,
+        'local_instrumentos',
+        instrumentos,
+        'id',
+        'INSERT OR REPLACE INTO local_instrumentos (id, instrumento, marca, modelo, serie, equipamento) VALUES (?, ?, ?, ?, ?, ?)',
+        item => [
+          item.id,
+          item.instrumento,
+          item.marca,
+          item.modelo,
+          item.serie,
+          item.equipamento,
         ],
       );
 

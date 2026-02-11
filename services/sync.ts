@@ -362,6 +362,7 @@ class SyncService {
         const [
           equipos,
           properties,
+          instrumentos,
           equipamentos,
           equipamentosProperty,
           scheduledMaintenances,
@@ -372,6 +373,10 @@ class SyncService {
             .then(r => r.data),
           supabase
             .from('properties')
+            .select('*')
+            .then(r => r.data),
+          supabase
+            .from('instrumentos')
             .select('*')
             .then(r => r.data),
           supabase
@@ -398,6 +403,7 @@ class SyncService {
           equipos || [],
           properties || [],
           [],
+          instrumentos || [],
           equipamentos || [],
           equipamentosProperty || [],
           scheduledMaintenances || [],
