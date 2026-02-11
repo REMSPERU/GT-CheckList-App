@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import NetInfo from '@react-native-community/netinfo';
 
 import MaintenanceHeader from '@/components/maintenance-header';
@@ -137,6 +138,9 @@ export default function SummaryScreen() {
         observations: session.observations,
         recommendations: session.recommendations || '',
         conclusions: session.conclusions || '',
+        extraConditions: session.extraConditions,
+        protocol: session.protocol,
+        selectedInstruments: session.selectedInstruments,
         completedAt: new Date().toISOString(),
       };
 
@@ -442,6 +446,34 @@ export default function SummaryScreen() {
 
       <ScrollView style={styles.content}>
         <View style={styles.card}>
+          <Text style={styles.cardTitle}>Instrumentos Utilizados</Text>
+          {session.selectedInstruments &&
+          session.selectedInstruments.length > 0 ? (
+            <View style={styles.instrumentsList}>
+              {session.selectedInstruments.map(inst => (
+                <View key={inst.id} style={styles.instrumentItem}>
+                  <View style={styles.instrumentIcon}>
+                    <Ionicons name="build" size={20} color="#06B6D4" />
+                  </View>
+                  <View style={styles.instrumentInfo}>
+                    <Text style={styles.instrumentName}>
+                      {inst.instrumento}
+                    </Text>
+                    <Text style={styles.instrumentMeta}>
+                      {inst.marca} {inst.modelo} • S/N: {inst.serie}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>
+              No se seleccionaron instrumentos.
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.cardTitle}>Fotos Previas (Visual)</Text>
           {renderPhotoGrid(
             session.prePhotos.filter(
@@ -732,5 +764,42 @@ const styles = StyleSheet.create({
     color: '#4B5563',
     flex: 1,
     paddingRight: 8,
+  },
+  instrumentsList: {
+    gap: 12,
+  },
+  instrumentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F0FDFA',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CCFBF1',
+  },
+  instrumentIcon: {
+    backgroundColor: '#fff',
+    padding: 8,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  instrumentInfo: {
+    flex: 1,
+  },
+  instrumentName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  instrumentMeta: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
   },
 });

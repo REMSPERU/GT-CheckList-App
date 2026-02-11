@@ -41,15 +41,18 @@ export interface MaintenanceSession {
   currentStep: string; // 'pre-photos', 'checklist', 'post-photos', 'summary'
   isUploaded: boolean;
 
-  // Selected Instrument
-  selectedInstrument?: {
+  // Selected Instruments
+  selectedInstruments?: {
     id: string;
-    alias: string; // We'll map 'instrumento' or brand/model here
-    // Store full object if needed
-    fullData?: any;
-  };
+    instrumento: string;
+    marca: string;
+    modelo: string;
+    serie: string;
+    [key: string]: any; // Allow other fields if needed
+  }[];
 
   protocol?: Record<string, boolean>;
+  extraConditions?: Record<string, boolean>;
 
   // Context (for display)
   building?: {

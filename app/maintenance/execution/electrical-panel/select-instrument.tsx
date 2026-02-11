@@ -46,7 +46,7 @@ export default function SelectInstrumentScreen() {
 
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [isLoadingInstruments, setIsLoadingInstruments] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (panel?.id_equipamento) {
@@ -55,8 +55,8 @@ export default function SelectInstrumentScreen() {
   }, [panel?.id_equipamento]);
 
   useEffect(() => {
-    if (session?.selectedInstrument) {
-      setSelectedId(session.selectedInstrument.id);
+    if (session?.selectedInstruments) {
+      setSelectedIds(session.selectedInstruments.map(i => i.id));
     }
   }, [session]);
 
@@ -75,39 +75,51 @@ export default function SelectInstrumentScreen() {
   };
 
   const handleSelect = (instrument: Instrument) => {
-    setSelectedId(instrument.id);
+    setSelectedIds(prev => {
+      // Find instruments of DIFFERENT types
+      const otherTypeIds = prev.filter(id => {
+        const item = instruments.find(i => i.id === id);
+        return item && item.instrumento !== instrument.instrumento;
+      });
+
+      // Toggling
+      if (prev.includes(instrument.id)) {
+        return otherTypeIds; // Remove if already selected
+      }
+
+      // Add (replacing same type)
+      return [...otherTypeIds, instrument.id];
+    });
   };
 
   const handleContinue = () => {
-    if (!selectedId) {
+    if (selectedIds.length === 0) {
       Alert.alert(
         'Selección requerida',
-        'Por favor seleccione un instrumento.',
+        'Por favor seleccione al menos un instrumento.',
       );
       return;
     }
 
     if (session) {
-      const instrument = instruments.find(i => i.id === selectedId);
-      if (instrument) {
-        const updatedSession = {
-          ...session,
-          selectedInstrument: {
-            id: instrument.id,
-            alias: `${instrument.instrumento} - ${instrument.marca} ${instrument.modelo}`,
-            fullData: instrument,
-          },
-          lastUpdated: new Date().toISOString(),
-        };
-        saveSession(updatedSession);
+      const selectedInstrumentsData = selectedIds
+        .map(id => {
+          const inst = instruments.find(i => i.id === id);
+          return inst || null;
+        })
+        .filter((item): item is Instrument => item !== null);
 
-        // Navigate to next screen (Checklist)
-        // Adjust path if needed. Assuming checklist is next.
-        router.push({
-          pathname: '/maintenance/execution/electrical-panel/checklist' as any,
-          params: { panelId, maintenanceId },
-        });
-      }
+      const updatedSession = {
+        ...session,
+        selectedInstruments: selectedInstrumentsData,
+        lastUpdated: new Date().toISOString(),
+      };
+      saveSession(updatedSession as any);
+
+      router.push({
+        pathname: '/maintenance/execution/electrical-panel/checklist' as any,
+        params: { panelId, maintenanceId },
+      });
     }
   };
 
@@ -149,18 +161,18 @@ export default function SelectInstrumentScreen() {
             <TouchableOpacity
               style={[
                 styles.card,
-                selectedId === item.id && styles.cardSelected,
+                selectedIds.includes(item.id) && styles.cardSelected,
               ]}
               onPress={() => handleSelect(item)}>
               <View style={styles.cardHeader}>
                 <Text
                   style={[
                     styles.instrumentName,
-                    selectedId === item.id && styles.textSelected,
+                    selectedIds.includes(item.id) && styles.textSelected,
                   ]}>
                   {item.instrumento}
                 </Text>
-                {selectedId === item.id && (
+                {selectedIds.includes(item.id) && (
                   <Ionicons
                     name="checkmark-circle"
                     size={24}
@@ -171,21 +183,21 @@ export default function SelectInstrumentScreen() {
               <Text
                 style={[
                   styles.instrumentDetail,
-                  selectedId === item.id && styles.textSelected,
+                  selectedIds.includes(item.id) && styles.textSelected,
                 ]}>
                 Marca: {item.marca}
               </Text>
               <Text
                 style={[
                   styles.instrumentDetail,
-                  selectedId === item.id && styles.textSelected,
+                  selectedIds.includes(item.id) && styles.textSelected,
                 ]}>
                 Modelo: {item.modelo}
               </Text>
               <Text
                 style={[
                   styles.instrumentDetail,
-                  selectedId === item.id && styles.textSelected,
+                  selectedIds.includes(item.id) && styles.textSelected,
                 ]}>
                 Serie: {item.serie}
               </Text>
@@ -198,10 +210,10 @@ export default function SelectInstrumentScreen() {
         <TouchableOpacity
           style={[
             styles.continueBtn,
-            !selectedId && styles.continueBtnDisabled,
+            selectedIds.length === 0 && styles.continueBtnDisabled,
           ]}
           onPress={handleContinue}
-          disabled={!selectedId}>
+          disabled={selectedIds.length === 0}>
           <Text style={styles.continueBtnText}>Continuar</Text>
         </TouchableOpacity>
       </View>
