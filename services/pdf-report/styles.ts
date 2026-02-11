@@ -39,13 +39,13 @@ export function getReportStyles(): string {
 
     /* ENCABEZADOS */
     header {
-      border-bottom: 2px solid #ff6600;
+      border-bottom: 2px solid #FC5126;
       margin-bottom: 20px;
       padding-bottom: 10px;
     }
 
     h1 {
-      color: #ff6600;
+      color: #FC5126;
       font-size: 24px;
       text-transform: uppercase;
       margin: 0;
@@ -64,7 +64,7 @@ export function getReportStyles(): string {
 
     h3 {
       font-size: 14px;
-      color: #ff6600;
+      color: #FC5126;
       margin-top: 10px;
       text-align: center;
     }
@@ -106,7 +106,7 @@ export function getReportStyles(): string {
     }
 
     .data-grid th {
-      background-color: #ff6600;
+      background-color: #FC5126;
       color: white;
       width: 25%;
     }
@@ -122,13 +122,13 @@ export function getReportStyles(): string {
     }
 
     .summary-table th {
-      background-color: #ff6600;
+      background-color: #FC5126;
       color: white;
     }
 
     /* TABLA DE EQUIPOS */
     .equipment-table th {
-      background-color: #ff6600;
+      background-color: #FC5126;
       color: white;
       text-align: center;
       font-size: 11px;
@@ -187,7 +187,7 @@ export function getReportStyles(): string {
     }
 
     .bg-orange {
-      background-color: #ff6600;
+      background-color: #FC5126;
     }
 
     img {
@@ -227,7 +227,7 @@ export function getReportStyles(): string {
       text-align: justify;
       background: #f9f9f9;
       padding: 10px;
-      border-left: 3px solid #ff6600;
+      border-left: 3px solid #FC5126;
       margin: 10px 0;
     }
 
@@ -325,13 +325,13 @@ export function getReportStyles(): string {
       justify-content: space-between;
       align-items: flex-end;
       margin-bottom: 20px;
-      border-bottom: 3px solid #ff6600;
+      border-bottom: 3px solid #FC5126;
       padding-bottom: 10px;
     }
     .brand-title {
       font-weight: bold;
       font-size: 22px;
-      color: #ff6600;
+      color: #FC5126;
     }
     .brand-sub {
       font-size: 16px;
@@ -344,7 +344,7 @@ export function getReportStyles(): string {
       color: #444;
     }
     .protocol-band {
-      background-color: #ff6600;
+      background-color: #FC5126;
       color: #fff;
       padding: 15px;
       text-align: center;
@@ -365,7 +365,7 @@ export function getReportStyles(): string {
       margin-bottom: 25px;
       background-color: #fef2e8;
       padding: 15px;
-      border: 1px solid #ff6600;
+      border: 1px solid #FC5126;
       border-radius: 4px;
     }
     .meta-left { width: 65%; }
@@ -377,10 +377,10 @@ export function getReportStyles(): string {
       border-collapse: collapse;
       font-size: 7.5px; /* Ajuste para landscape */
       margin-bottom: 40px;
-      border: 2px solid #ff6600;
+      border: 2px solid #FC5126;
     }
     .protocol-table th {
-      background-color: #ff6600;
+      background-color: #FC5126;
       color: #ffffff;
       font-weight: bold;
       text-align: center;
@@ -391,7 +391,7 @@ export function getReportStyles(): string {
     }
     .protocol-table td {
       padding: 6px 3px;
-      border: 1px solid #ff6600; /* Líneas de separación naranjas */
+      border: 1px solid #FC5126; /* Líneas de separación naranjas */
       text-align: center;
     }
     .protocol-table td:nth-child(2),
@@ -412,21 +412,21 @@ export function getReportStyles(): string {
       border-collapse: collapse;
     }
     .sig-table th {
-      background-color: #ff6600;
+      background-color: #FC5126;
       color: #fff;
       font-size: 11px;
       padding: 10px;
       border: 1px solid #ffffff;
     }
     .sig-table td {
-      border: 1px solid #ff6600;
+      border: 1px solid #FC5126;
       padding: 10px;
       text-align: center;
     }
     .sig-name {
       font-weight: bold;
       font-size: 12px;
-      color: #ff6600;
+      color: #FC5126;
     }
     .sig-role {
       font-size: 10px;
@@ -437,16 +437,16 @@ export function getReportStyles(): string {
       text-align: center;
       font-weight: bold;
       font-size: 12px;
-      border: 2px solid #ff6600;
+      border: 2px solid #FC5126;
       padding: 8px;
-      color: #ff6600;
+      color: #FC5126;
       background-color: #fff5ed;
     }
 
     /* RECOMMENDATIONS AND CONCLUSIONS SECTION */
     .recommendations-box {
       background: #f9f9f9;
-      border-left: 4px solid #ff6600;
+      border-left: 4px solid #FC5126;
       padding: 15px;
       margin: 10px 0 20px 0;
       font-size: 12px;

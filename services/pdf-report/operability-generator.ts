@@ -45,7 +45,7 @@ export function getOperabilityStyles(): string {
     body {
       font-family: Arial, Helvetica, sans-serif;
       font-size: 11px;
-      color: #000;
+      color: #333;
       background: #fff;
       margin: 0;
       padding: 0;
@@ -65,7 +65,7 @@ export function getOperabilityStyles(): string {
 
     /* Encabezado (Header) */
     .header {
-      border-bottom: 2px solid #333;
+      border-bottom: 2px solid #FC5126;
       padding-bottom: 10px;
       margin-bottom: 20px;
       display: flex;
@@ -81,6 +81,7 @@ export function getOperabilityStyles(): string {
       text-align: right;
       font-size: 10px;
       line-height: 1.4;
+      color: #555;
     }
 
     /* Títulos */
@@ -96,11 +97,14 @@ export function getOperabilityStyles(): string {
       text-align: center; 
       margin-bottom: 40px;
       font-weight: bold;
+      color: #FC5126;
+      text-transform: uppercase;
     }
     .cover-address {
       text-align: center; 
       font-size: 14px; 
       margin-bottom: 60px;
+      color: #555;
     }
     .main-title {
       text-align: center;
@@ -108,7 +112,11 @@ export function getOperabilityStyles(): string {
       font-weight: bold;
       margin-top: 50px;
       margin-bottom: 20px;
-      text-decoration: underline;
+      color: #333;
+      text-transform: uppercase;
+      border-bottom: 2px solid #FC5126;
+      display: inline-block;
+      padding-bottom: 5px;
     }
     .sub-title {
       text-align: center;
@@ -116,6 +124,7 @@ export function getOperabilityStyles(): string {
       font-weight: bold;
       margin-bottom: 15px;
       text-transform: uppercase;
+      color: #FC5126;
     }
 
     /* Contenido de Texto */
@@ -123,16 +132,20 @@ export function getOperabilityStyles(): string {
       margin-bottom: 15px;
       line-height: 1.5;
       text-align: justify;
+      font-size: 12px;
     }
     .center-text {
       text-align: center;
+      margin-bottom: 10px;
+      color: #FC5126;
+      font-weight: bold;
     }
 
     /* Tablas */
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 9px;
+      font-size: 10px;
       margin-bottom: 20px;
       page-break-inside: auto;
     }
@@ -141,8 +154,8 @@ export function getOperabilityStyles(): string {
       page-break-after: auto;
     }
     th, td {
-      border: 1px solid #000;
-      padding: 4px;
+      border: 1px solid #FC5126;
+      padding: 6px;
       text-align: center;
       vertical-align: middle;
     }
@@ -150,8 +163,13 @@ export function getOperabilityStyles(): string {
       display: table-header-group;
     }
     th {
-      background-color: #f0f0f0;
+      background-color: #FC5126;
+      color: white;
       font-weight: bold;
+      text-transform: uppercase;
+    }
+    tbody tr:nth-child(even) {
+      background-color: #fff5ed;
     }
     tbody {
       display: table-row-group;
@@ -159,22 +177,22 @@ export function getOperabilityStyles(): string {
 
     /* Sección de Resumen */
     .summary-section {
-      width: 50%; 
-      margin-top: 20px;
-      margin-bottom: 20px;
+      width: 60%; 
+      margin: 20px auto;
       page-break-inside: avoid;
     }
     .summary-table td, .summary-table th {
-      border: 2px solid #000;
+      border: 1px solid #FC5126;
     }
     .total-row td {
-      background-color: #ddd;
+      background-color: #FC5126;
+      color: white;
       font-weight: bold;
     }
 
     /* Sección de Firmas */
     .signature-section {
-      margin-top: 40px;
+      margin-top: 50px;
       display: flex;
       justify-content: space-around;
       text-align: center;
@@ -183,27 +201,35 @@ export function getOperabilityStyles(): string {
     }
     .signature-box {
       width: 40%;
-      border-top: 1px solid #000;
-      padding-top: 5px;
+      border-top: 1px solid #FC5126;
+      padding-top: 10px;
     }
     .signature-details {
       font-size: 10px;
       line-height: 1.3;
+      color: #333;
     }
 
     /* Footer */
     .footer-note {
       text-align: center;
       font-weight: bold;
-      font-size: 12px;
-      border-top: 1px solid #ccc;
+      font-size: 11px;
+      border-top: 1px solid #FC5126;
       padding-top: 10px;
       margin-top: 10px;
+      color: #FC5126;
     }
     .cover-footer {
       text-align: right; 
       margin-top: auto; 
       margin-bottom: 50px;
+      color: #555;
+      font-size: 11px;
+    }
+    
+    strong {
+      color: #000;
     }
   `;
 }
