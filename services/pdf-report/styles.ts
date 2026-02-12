@@ -4,13 +4,17 @@
  * Corporate style CSS for PDF reports
  * Blue (#0056b3) and Orange (#ff6600) color scheme
  */
-export function getReportStyles(): string {
+export function getReportStyles(
+  orientation: 'portrait' | 'landscape' = 'portrait',
+): string {
+  const pageRule =
+    orientation === 'landscape'
+      ? `@page { size: landscape; margin: 5mm; }`
+      : `@page { size: A4; margin: 15mm; }`;
+
   return `
+    ${pageRule}
     /* ESTILOS GENERALES (FORMATO A4) */
-    @page {
-      size: A4;
-      margin: 15mm;
-    }
 
     * {
       margin: 0;
@@ -303,10 +307,6 @@ export function getReportStyles(): string {
     }
 
     /* ESTILOS PROTOCOLO (RESUMEN TABLEROS) */
-    @page {
-      size: landscape;
-      margin: 5mm;
-    }
     
     .protocol-page {
       padding: 0;

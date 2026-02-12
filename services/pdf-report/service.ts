@@ -41,7 +41,7 @@ class PDFReportService {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Informe Técnico - ${data.clientName}</title>
   <style>
-    ${getReportStyles()}
+    ${getReportStyles('portrait')}
   </style>
 </head>
 <body>
@@ -66,7 +66,7 @@ class PDFReportService {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Protocolo de Mantenimiento - ${data.clientName}</title>
   <style>
-    ${getReportStyles()}
+    ${getReportStyles('landscape')}
   </style>
 </head>
 <body>
@@ -147,7 +147,7 @@ class PDFReportService {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Informe de Mantenimiento</title>
   <style>
-    ${getReportStyles()}
+    ${getReportStyles('portrait')}
   </style>
 </head>
 <body>
