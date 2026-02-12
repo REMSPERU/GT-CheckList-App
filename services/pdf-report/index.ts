@@ -15,6 +15,12 @@ export {
 } from './electrical-panels/technical-generator';
 
 // HTML Generators (Protocol Report)
+export {
+  generateHeaderPageHTML as generateELHeaderPageHTML,
+  generateSummaryAndObservationsHTML as generateELSummaryPageHTML,
+  generateEquipmentPhotoPageHTML as generateELEquipmentPhotoPageHTML,
+} from './emergency-lights/technical-generator';
+
 export { generateProtocolPageHTML } from './electrical-panels/protocol-generator';
 
 // Operability Certificate Generator

@@ -23,6 +23,11 @@ import {
   generateMaintenanceHTML,
 } from './electrical-panels/legacy-generator';
 import { generateOperabilityCertificateHTML } from './electrical-panels/operability-generator';
+import {
+  generateHeaderPageHTML as generateELHeader,
+  generateSummaryAndObservationsHTML as generateELSummary,
+  generateEquipmentPhotoPageHTML as generateELEquipmentPhoto,
+} from './emergency-lights/technical-generator';
 
 /**
  * PDF Report Generation Service
@@ -84,6 +89,31 @@ class PDFReportService {
   }
 
   /**
+   * Generate emergency lights report HTML
+   */
+  generateEmergencyLightsReportHTML(data: MaintenanceSessionReport): string {
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Informe Técnico - Luces de Emergencia - ${data.clientName}</title>
+  <style>
+    ${getReportStyles('portrait')}
+  </style>
+</head>
+<body>
+  ${generateELHeader(data)}
+  ${generateELSummary(data)}
+  ${data.equipments.map(eq => generateELEquipmentPhoto(eq)).join('')}
+  ${generateRecommendationsPageHTML(data)}
+</body>
+</html>
+    `;
+  }
+
+  /**
    * Generate PDF based on report type
    * @returns URI of the generated PDF file
    */
@@ -99,6 +129,9 @@ class PDFReportService {
         break;
       case ReportType.PROTOCOL:
         html = this.generateProtocolReportHTML(data);
+        break;
+      case ReportType.EMERGENCY_LIGHTS:
+        html = this.generateEmergencyLightsReportHTML(data);
         break;
       case ReportType.TECHNICAL:
       default:

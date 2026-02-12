@@ -11,6 +11,7 @@ interface ReportTypeModalProps {
   onClose: () => void;
   onSelectType: (type: ReportType) => void;
   isGenerating?: boolean;
+  equipmentType?: string;
 }
 
 export function ReportTypeModal({
@@ -18,7 +19,26 @@ export function ReportTypeModal({
   onClose,
   onSelectType,
   isGenerating = false,
+  equipmentType,
 }: ReportTypeModalProps) {
+  // Filter options based on equipment type
+  const filteredOptions = React.useMemo(() => {
+    const isEmergencyLight = equipmentType
+      ?.toLowerCase()
+      .includes('emergencia');
+
+    if (isEmergencyLight) {
+      return REPORT_TYPE_OPTIONS.filter(
+        opt => opt.type === ReportType.EMERGENCY_LIGHTS,
+      );
+    } else {
+      // Default to "Electrical Panel" reports (exclude Emergency Lights)
+      return REPORT_TYPE_OPTIONS.filter(
+        opt => opt.type !== ReportType.EMERGENCY_LIGHTS,
+      );
+    }
+  }, [equipmentType]);
+
   return (
     <Modal
       visible={visible}
@@ -35,7 +55,7 @@ export function ReportTypeModal({
           </View>
 
           <View style={styles.options}>
-            {REPORT_TYPE_OPTIONS.map(option => (
+            {filteredOptions.map(option => (
               <TouchableOpacity
                 key={option.type}
                 style={styles.optionCard}
