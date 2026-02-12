@@ -26,7 +26,6 @@ import { generateOperabilityCertificateHTML } from './electrical-panels/operabil
 import {
   generateHeaderPageHTML as generateELHeader,
   generateSummaryAndObservationsHTML as generateELSummary,
-  generateEquipmentPhotoPageHTML as generateELEquipmentPhoto,
 } from './emergency-lights/technical-generator';
 
 /**
