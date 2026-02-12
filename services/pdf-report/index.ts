@@ -18,7 +18,6 @@ export {
 export {
   generateHeaderPageHTML as generateELHeaderPageHTML,
   generateSummaryAndObservationsHTML as generateELSummaryPageHTML,
-  generateEquipmentPhotoPageHTML as generateELEquipmentPhotoPageHTML,
 } from './emergency-lights/technical-generator';
 
 export { generateProtocolPageHTML } from './electrical-panels/protocol-generator';

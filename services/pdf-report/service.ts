@@ -106,7 +106,6 @@ class PDFReportService {
 <body>
   ${generateELHeader(data)}
   ${generateELSummary(data)}
-  ${data.equipments.map(eq => generateELEquipmentPhoto(eq)).join('')}
   ${generateRecommendationsPageHTML(data)}
 </body>
 </html>

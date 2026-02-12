@@ -13,7 +13,7 @@ export function generateHeaderPageHTML(data: MaintenanceSessionReport): string {
   return `
     <div class="page">
       <header>
-        <h1>INFORME TÉCNICO - LUCES DE EMERGENCIA</h1>
+        <h1>INFORME TÉCNICO DEL SERVICIOA</h1>
         <div class="date-header">FECHA: ${serviceDate}</div>
       </header>
 
@@ -48,13 +48,6 @@ export function generateHeaderPageHTML(data: MaintenanceSessionReport): string {
           <li>NTP (APARTADO 22.11.1). «Las conexiones eléctricas deben ser permanentes o tener una provisión para prevenir toda desconexión accidental»</li>
         </ul>
       </div>
-
-      <h2>3. INSTRUMENTOS DE MEDICIÓN</h2>
-      <ul>
-        <li><strong>Equipo:</strong> ${data.measurementInstrument ? data.measurementInstrument.name : '-'}</li>
-        <li><strong>Modelo:</strong> ${data.measurementInstrument ? data.measurementInstrument.model : '-'}</li>
-        <li><strong>Serie:</strong> ${data.measurementInstrument ? data.measurementInstrument.serial : '-'}</li>
-      </ul>
     </div>
   `;
 }
@@ -147,106 +140,6 @@ export function generateSummaryAndObservationsHTML(
         <span style="display: inline-block; width: 10px; height: 10px; background-color: #4CAF50; margin-right: 5px;"></span>Operativas (${operativeCount})
         <span style="display: inline-block; width: 10px; height: 10px; background-color: #F44336; margin-left: 15px; margin-right: 5px;"></span>Con Observaciones (${criticalCount})
       </div>
-    </div>
-  `;
-}
-
-/**
- * Generate photo grid HTML (Helper)
- */
-function generatePhotosHTML(
-  prePhotos: { url: string; caption?: string }[],
-  postPhotos: { url: string; caption?: string }[],
-  options: { isCompact?: boolean; isThirds?: boolean } = {},
-): string {
-  const { isCompact, isThirds } = options;
-  const sections: string[] = [];
-
-  // Pre (Antes) photos
-  prePhotos.forEach((photo, idx) => {
-    sections.push(`
-      <div class="photo-container ${isCompact ? 'small-image' : ''}">
-        <span class="photo-header bg-orange">ANTES ${prePhotos.length > 1 ? `#${idx + 1}` : ''}</span>
-        <img src="${photo.url}" alt="Estado inicial" />
-        <p class="photo-caption">${photo.caption || 'Estado inicial'}</p>
-      </div>
-    `);
-  });
-
-  // Post (Después) photos
-  postPhotos.forEach((photo, idx) => {
-    sections.push(`
-      <div class="photo-container ${isCompact ? 'small-image' : ''}">
-        <span class="photo-header bg-orange">DESPUÉS ${postPhotos.length > 1 ? `#${idx + 1}` : ''}</span>
-        <img src="${photo.url}" alt="Estado final" />
-        <p class="photo-caption">${photo.caption || 'Estado final'}</p>
-      </div>
-    `);
-  });
-
-  const gridClasses = [
-    'photo-grid',
-    isCompact ? 'grid-compact' : '',
-    isThirds ? 'thirds' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  return `<div class="${gridClasses}">${sections.join('')}</div>`;
-}
-
-/**
- * Generate a single equipment photo report page
- */
-export function generateEquipmentPhotoPageHTML(
-  equipment: EquipmentMaintenanceData,
-): string {
-  const totalItems = equipment.prePhotos.length + equipment.postPhotos.length;
-
-  const isCompact = totalItems > 4;
-  const isThirds = totalItems > 6;
-  const pageClasses = isCompact ? 'page compact' : 'page';
-
-  return `
-    <div class="${pageClasses}">
-      <header>
-        <h1>REPORTE FOTOGRÁFICO</h1>
-        <h3>LUZ DE EMERGENCIA: ${equipment.label}</h3>
-        <div style="text-align:center; font-size: 10px; color: #666;">${equipment.location}</div>
-      </header>
-
-      <table class="data-grid" style="margin-top: 10px;">
-        <tr>
-          <th>MARCA</th>
-          <td>${equipment.brand || '-'}</td>
-          <th>MODELO</th>
-          <td>${equipment.model || '-'}</td>
-        </tr>
-        <tr>
-          <th>UBICACIÓN</th>
-          <td>${equipment.location}</td>
-          <th>TIPO</th>
-          <td>${equipment.type || 'ADOSADO'}</td>
-        </tr>
-        <tr>
-          <th>ESTADO</th>
-          <td colspan="3">${equipment.observations ? 'CON OBSERVACIONES' : 'OPERATIVO'}</td>
-        </tr>
-        ${
-          equipment.observations
-            ? `
-        <tr>
-          <th>OBSERVACIONES</th>
-          <td colspan="3">${equipment.observations}</td>
-        </tr>`
-            : ''
-        }
-      </table>
-
-      ${generatePhotosHTML(equipment.prePhotos, equipment.postPhotos, {
-        isCompact,
-        isThirds,
-      })}
     </div>
   `;
 }
