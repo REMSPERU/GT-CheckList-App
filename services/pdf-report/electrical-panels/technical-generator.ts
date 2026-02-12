@@ -1,5 +1,8 @@
-import { MaintenanceSessionReport, EquipmentMaintenanceData } from './types';
-import { formatDate } from './utils';
+import {
+  MaintenanceSessionReport,
+  EquipmentMaintenanceData,
+} from '../common/types';
+import { formatDate } from '../common/utils';
 
 /**
  * Generate the header page with client info and procedure

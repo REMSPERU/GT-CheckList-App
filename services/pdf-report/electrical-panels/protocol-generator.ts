@@ -1,5 +1,5 @@
-import { MaintenanceSessionReport } from './types';
-import { formatDate } from './utils';
+import { MaintenanceSessionReport } from '../common/types';
+import { formatDate } from '../common/utils';
 
 /**
  * Generate a Protocol Page listing all tableros and their protocol checklist results

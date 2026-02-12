@@ -1,6 +1,9 @@
 // Operability Certificate HTML Generator
 
-import { MaintenanceSessionReport, EquipmentMaintenanceData } from './types';
+import {
+  MaintenanceSessionReport,
+  EquipmentMaintenanceData,
+} from '../common/types';
 
 /**
  * Format date to Spanish format (e.g., 15 de enero del 2026)

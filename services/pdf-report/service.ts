@@ -9,20 +9,20 @@ import {
   MaintenanceSessionReport,
   SessionReportData,
   ReportType,
-} from './types';
-import { getReportStyles } from './styles';
+} from './common/types';
+import { getReportStyles } from './common/styles';
 import {
   generateHeaderPageHTML,
   generateEquipmentSummaryPageHTML,
   generateEquipmentPhotoPageHTML,
   generateRecommendationsPageHTML,
-} from './technical-generator';
-import { generateProtocolPageHTML } from './protocol-generator';
+} from './electrical-panels/technical-generator';
+import { generateProtocolPageHTML } from './electrical-panels/protocol-generator';
 import {
   generateCoverPageHTML,
   generateMaintenanceHTML,
-} from './legacy-generator';
-import { generateOperabilityCertificateHTML } from './operability-generator';
+} from './electrical-panels/legacy-generator';
+import { generateOperabilityCertificateHTML } from './electrical-panels/operability-generator';
 
 /**
  * PDF Report Generation Service

@@ -1,7 +1,10 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ReportType, REPORT_TYPE_OPTIONS } from '@/services/pdf-report/types';
+import {
+  ReportType,
+  REPORT_TYPE_OPTIONS,
+} from '@/services/pdf-report/common/types';
 
 interface ReportTypeModalProps {
   visible: boolean;

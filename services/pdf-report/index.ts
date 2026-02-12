@@ -1,10 +1,10 @@
 // PDF Report Module - Re-exports
 
 // Types (including ReportType enum)
-export * from './types';
+export * from './common/types';
 
 // Styles
-export { getReportStyles } from './styles';
+export { getReportStyles } from './common/styles';
 
 // HTML Generators (Technical Report)
 export {
@@ -12,13 +12,13 @@ export {
   generateEquipmentSummaryPageHTML,
   generateEquipmentPhotoPageHTML,
   generateRecommendationsPageHTML,
-} from './technical-generator';
+} from './electrical-panels/technical-generator';
 
 // HTML Generators (Protocol Report)
-export { generateProtocolPageHTML } from './protocol-generator';
+export { generateProtocolPageHTML } from './electrical-panels/protocol-generator';
 
 // Operability Certificate Generator
-export { generateOperabilityCertificateHTML } from './operability-generator';
+export { generateOperabilityCertificateHTML } from './electrical-panels/operability-generator';
 
 // HTML Generators (Legacy - deprecated)
 export {
@@ -26,7 +26,7 @@ export {
   generateMaintenanceHTML,
   generateSummaryHTML,
   generateSignaturesHTML,
-} from './legacy-generator';
+} from './electrical-panels/legacy-generator';
 
 // Service
 export { pdfReportService } from './service';
