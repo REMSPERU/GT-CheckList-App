@@ -7,6 +7,7 @@ export enum ReportType {
   TECHNICAL = 'technical',
   OPERABILITY = 'operability',
   PROTOCOL = 'protocol',
+  EMERGENCY_LIGHTS = 'emergency_lights',
 }
 
 export interface ReportTypeOption {
@@ -35,6 +36,12 @@ export const REPORT_TYPE_OPTIONS: ReportTypeOption[] = [
     description: 'Solo equipos sin observaciones',
     icon: 'shield-checkmark',
   },
+  {
+    type: ReportType.EMERGENCY_LIGHTS,
+    name: 'Reporte Luces de Emergencia',
+    description: 'Informe técnico específico para luces de emergencia',
+    icon: 'bulb',
+  },
 ];
 
 export interface EquipmentMaintenanceData {
@@ -42,6 +49,8 @@ export interface EquipmentMaintenanceData {
   code: string;
   /** Equipment label (e.g., SG-1) */
   label: string;
+  /** Equipment brand (e.g., OPALUX) */
+  brand?: string;
   /** Equipment type (e.g., DISTRIBUCIÓN, AUTOSOPORTADO) */
   type: string;
   /** Location (e.g., PISO 1) */

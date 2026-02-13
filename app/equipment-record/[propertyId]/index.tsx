@@ -1,317 +1,65 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
-  RefreshControl,
-  Alert,
 } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaintenanceHeader from '@/components/maintenance-header';
-import PDFReportModal from '@/components/pdf-report-modal';
-import { ReportTypeModal } from '@/components/ReportTypeModal';
-import { useMaintenanceByProperty } from '@/hooks/use-maintenance';
-import { MaintenanceStatusEnum } from '@/types/api';
-import { supabase } from '@/lib/supabase';
-import {
-  pdfReportService as newPdfReportService,
-  ReportType,
-  MaintenanceSessionReport,
-} from '@/services/pdf-report';
 
-interface SessionHistoryItem {
-  date: string;
-  displayDate: string;
-  total: number;
-  completed: number;
-  maintenances: any[];
-  codigo?: string;
-  type?: string;
-  equipmentType?: string;
+interface EquipmentOption {
+  type: string;
+  name: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  description: string;
 }
 
-export default function SessionHistoryScreen() {
+const EQUIPMENT_OPTIONS: EquipmentOption[] = [
+  {
+    type: 'tablero',
+    name: 'Tableros Eléctricos',
+    icon: 'flash',
+    color: '#0891B2',
+    description: 'Historial de mantenimiento de tableros',
+  },
+  {
+    type: 'emergencia',
+    name: 'Luces de Emergencia',
+    icon: 'bulb',
+    color: '#0891B2',
+    description: 'Historial y reportes de luces de emergencia',
+  },
+];
+
+export default function EquipmentSelectionScreen() {
+  const router = useRouter();
   const { propertyId, propertyName } = useLocalSearchParams<{
     propertyId: string;
     propertyName?: string;
   }>();
 
-  // PDF Report State
-  const [pdfModalVisible, setPdfModalVisible] = useState(false);
-  const [pdfUri, setPdfUri] = useState<string | null>(null);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [generationProgress, setGenerationProgress] = useState('');
-  const [reportSummary, setReportSummary] = useState<{
-    propertyName: string;
-    sessionDate: string;
-    totalEquipments: number;
-    totalOk: number;
-    totalIssues: number;
-  } | null>(null);
-  const [pdfModalTitle, setPdfModalTitle] = useState('');
-
-  // Report Type Selection State
-  const [reportTypeModalVisible, setReportTypeModalVisible] = useState(false);
-  const [selectedSession, setSelectedSession] =
-    useState<SessionHistoryItem | null>(null);
-
-  // Fetch Data (reusing maintenance hook)
-  const {
-    data: maintenanceData = [],
-    isLoading,
-    refetch,
-    isRefetching,
-  } = useMaintenanceByProperty(propertyId);
-
-  // Group maintenances by date - filtering ONLY COMPLETED sessions (or partially completed)
-  const sessions = useMemo(() => {
-    const grouped: Record<string, SessionHistoryItem> = {};
-
-    maintenanceData.forEach((item: any) => {
-      // Only interested in items that are part of a history (usually means they are done or started)
-      // But user asked for "completed" sessions mainly. Let's include everything for history,
-      // but only allow report generation if completed.
-      const dateKey = item.dia_programado;
-      if (!dateKey) return;
-
-      if (!grouped[dateKey]) {
-        let dateObj: Date;
-        if (typeof dateKey === 'string' && dateKey.includes('T')) {
-          dateObj = new Date(dateKey);
-        } else {
-          dateObj = new Date(dateKey + 'T12:00:00');
-        }
-
-        let displayDate: string;
-        if (isNaN(dateObj.getTime())) {
-          displayDate = dateKey;
-        } else {
-          const formatted = dateObj.toLocaleDateString('es-PE', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          });
-          displayDate = formatted.charAt(0).toUpperCase() + formatted.slice(1);
-        }
-
-        grouped[dateKey] = {
-          date: dateKey,
-          displayDate,
-          total: 0,
-          completed: 0,
-          maintenances: [],
-          codigo: item.codigo,
-          type: item.tipo_mantenimiento || 'Preventivo',
-          equipmentType: item.equipos?.equipamentos?.nombre || 'Desconocido',
-        };
-      }
-
-      grouped[dateKey].total++;
-      grouped[dateKey].maintenances.push(item);
-
-      if (item.estatus === MaintenanceStatusEnum.FINALIZADO) {
-        grouped[dateKey].completed++;
-      }
+  const handleSelectType = (type: string) => {
+    router.push({
+      pathname: `/equipment-record/${propertyId}/history` as any,
+      params: {
+        propertyId,
+        propertyName,
+        equipmentType: type,
+      },
     });
-
-    // Filter to show only sessions that have at least one completed item or are fully done?
-    // User requested: "donde esten los mantenimientos ya realizados" (maintenances already done).
-    // Let's filter sessions where at least one item is completed, or maybe where ALL are completed?
-    // "para lo de informe deben estar todos completados" -> For report, ALL MUST BE COMPLETED.
-    // So for the LIST, I'll show all, but disable report button if not complete.
-
-    return Object.values(grouped).sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(), // Descending order for history
-    );
-  }, [maintenanceData]);
-
-  const handleShowReportOptions = (session: SessionHistoryItem) => {
-    setSelectedSession(session);
-    setReportTypeModalVisible(true);
-  };
-
-  const handleReportTypeSelect = async (type: ReportType) => {
-    if (!selectedSession) return;
-
-    setReportTypeModalVisible(false);
-    setPdfModalVisible(true);
-    setIsGeneratingPdf(true);
-    setPdfUri(null);
-
-    let title = '';
-    let progress = '';
-
-    switch (type) {
-      case ReportType.TECHNICAL:
-        title = 'Informe Técnico';
-        progress = 'Generando informe técnico...';
-        break;
-      case ReportType.PROTOCOL:
-        title = 'Protocolo de Mantenimiento';
-        progress = 'Generando protocolo...';
-        break;
-      case ReportType.OPERABILITY:
-        title = 'Certificado de Operatividad';
-        progress = 'Generando certificado...';
-        break;
-    }
-
-    setPdfModalTitle(title);
-    setGenerationProgress(progress);
-
-    try {
-      const maintenanceIds = selectedSession.maintenances
-        .filter((m: any) => m.estatus === MaintenanceStatusEnum.FINALIZADO)
-        .map((m: any) => m.id);
-
-      if (maintenanceIds.length === 0) {
-        Alert.alert(
-          'Sin datos',
-          'No hay mantenimientos finalizados para generar el informe.',
-        );
-        setPdfModalVisible(false);
-        setIsGeneratingPdf(false);
-        return;
-      }
-
-      setGenerationProgress('Cargando detalles de mantenimiento...');
-
-      const { data: responses, error } = await supabase
-        .from('maintenance_response')
-        .select(
-          `
-          id,
-          id_mantenimiento,
-          detail_maintenance,
-          protocol,
-          date_created,
-          user:user_created (
-            first_name,
-            last_name
-          )
-        `,
-        )
-        .in('id_mantenimiento', maintenanceIds);
-
-      if (error) throw error;
-
-      setGenerationProgress('Procesando datos del informe...');
-
-      const equipments: any[] = [];
-      let totalOkItems = 0;
-      let totalIssueItems = 0;
-
-      for (const maint of selectedSession.maintenances.filter(
-        (m: any) => m.estatus === MaintenanceStatusEnum.FINALIZADO,
-      )) {
-        const response = responses?.find(
-          (r: any) => r.id_mantenimiento === maint.id,
-        );
-        const detail = response?.detail_maintenance || {};
-
-        const checklist = detail.checklist || {};
-        totalOkItems += Object.values(checklist).filter(
-          (v: any) => v === true,
-        ).length;
-        totalIssueItems += Object.values(checklist).filter(
-          (v: any) => v === false,
-        ).length;
-
-        const firstMeasurement = detail.measurements
-          ? (Object.values(detail.measurements)[0] as any)
-          : null;
-
-        const panelType =
-          maint.equipos?.equipment_detail?.detalle_tecnico?.tipo_tablero ||
-          maint.tipo_mantenimiento ||
-          'Preventivo';
-
-        equipments.push({
-          code: maint.equipos?.codigo || 'N/A',
-          label: maint.equipos?.nombre || maint.equipos?.codigo || 'N/A',
-          type: panelType,
-          model:
-            maint.equipos?.equipment_detail?.detalle_tecnico?.modelo ||
-            'ADOSADO',
-          location: maint.equipos?.ubicacion || 'N/A',
-          voltage: firstMeasurement?.voltage,
-          amperage: firstMeasurement?.amperage,
-          cableSize: firstMeasurement?.cableDiameter,
-          circuits: detail.checklist ? Object.keys(detail.checklist).length : 0,
-          prePhotos: (detail.prePhotos || [])
-            .filter((p: any) => p.category !== 'thermo')
-            .map((p: any) => ({ url: p.url || p.uri })),
-          thermoPhotos: (detail.prePhotos || [])
-            .filter((p: any) => p.category === 'thermo')
-            .map((p: any) => ({ url: p.url || p.uri })),
-          postPhotos: (detail.postPhotos || []).map((p: any) => ({
-            url: p.url || p.uri,
-          })),
-          observations: detail.observations,
-          itemObservations: detail.itemObservations,
-          protocol: response?.protocol || detail.protocol,
-        });
-      }
-
-      // Build report data
-      const reportData: MaintenanceSessionReport = {
-        clientName: 'CORPORACION MG SAC',
-        address: 'Av. Del Pinar 180, Surco',
-        locationName: propertyName || 'Propiedad',
-        serviceDescription: 'MANTENIMIENTO PREVENTIVO DE TABLEROS ELÉCTRICOS',
-        serviceDate: selectedSession.date,
-        generatedAt: new Date().toISOString(),
-        sessionCode: selectedSession.codigo,
-        equipments,
-        measurementInstrument: {
-          name: 'PINZA MULTIMÉTRICA',
-          brand: 'FLUKE',
-          model: '376FC',
-          serial: 'VERIFICAR',
-        },
-      };
-
-      setGenerationProgress('Generando archivo PDF...');
-      const uri = await newPdfReportService.generateReport(type, reportData);
-      setPdfUri(uri);
-
-      setReportSummary({
-        propertyName: propertyName || 'Propiedad',
-        sessionDate: selectedSession.displayDate,
-        totalEquipments: equipments.length,
-        totalOk: totalOkItems,
-        totalIssues: totalIssueItems,
-      });
-    } catch (error) {
-      console.error('Error generating report:', error);
-      Alert.alert(
-        'Error',
-        'No se pudo generar el informe. Intente nuevamente.',
-      );
-      setPdfModalVisible(false);
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
-  const handleClosePdfModal = () => {
-    setPdfModalVisible(false);
-    setPdfUri(null);
-    setReportSummary(null);
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <MaintenanceHeader
-          title="Historial de Mantenimientos"
-          iconName="history"
+          title="Historial de Equipos"
+          iconName="file-tray-full-outline"
         />
 
         {propertyName && (
@@ -321,110 +69,33 @@ export default function SessionHistoryScreen() {
           </View>
         )}
 
-        {isLoading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color="#06B6D4" />
-          </View>
-        ) : sessions.length === 0 ? (
-          <View style={styles.centerContainer}>
-            <MaterialIcons
-              name="history-toggle-off"
-              size={64}
-              color="#D1D5DB"
-            />
-            <Text style={styles.emptyText}>No hay historial disponible</Text>
-          </View>
-        ) : (
-          <ScrollView
-            style={styles.listContainer}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-            }>
-            {sessions.map(session => {
-              const isComplete =
-                session.completed === session.total && session.total > 0;
+        <Text style={styles.subtitle}>Seleccione el tipo de equipo:</Text>
 
-              return (
-                <View key={session.date} style={styles.sessionCard}>
-                  <View style={styles.cardHeader}>
-                    <View style={styles.dateRow}>
-                      <Ionicons
-                        name="calendar-outline"
-                        size={20}
-                        color="#06B6D4"
-                      />
-                      <Text style={styles.dateText}>{session.displayDate}</Text>
-                    </View>
-                    {session.codigo && (
-                      <Text style={styles.codigoMainText}>
-                        {session.codigo}
-                      </Text>
-                    )}
-                  </View>
-
-                  <View style={styles.statsRow}>
-                    <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Equipos</Text>
-                      <Text style={styles.statValue}>{session.total}</Text>
-                    </View>
-                    <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Completados</Text>
-                      <Text
-                        style={[
-                          styles.statValue,
-                          { color: isComplete ? '#10B981' : '#F59E0B' },
-                        ]}>
-                        {session.completed}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {isComplete ? (
-                    <TouchableOpacity
-                      style={styles.reportButton}
-                      onPress={() => handleShowReportOptions(session)}
-                      activeOpacity={0.8}>
-                      <Ionicons
-                        name="document-text-outline"
-                        size={20}
-                        color="#fff"
-                      />
-                      <Text style={styles.reportButtonText}>
-                        Generar Informe
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={styles.pendingBadge}>
-                      <Text style={styles.pendingText}>
-                        Mantenimiento en Progreso
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-            <View style={{ height: 40 }} />
-          </ScrollView>
-        )}
+        <ScrollView
+          style={styles.listContainer}
+          contentContainerStyle={{ paddingBottom: 20 }}>
+          {EQUIPMENT_OPTIONS.map(option => (
+            <TouchableOpacity
+              key={option.type}
+              style={styles.card}
+              onPress={() => handleSelectType(option.type)}
+              activeOpacity={0.8}>
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: option.color },
+                ]}>
+                <Ionicons name={option.icon} size={32} color="#fff" />
+              </View>
+              <View style={styles.cardContent}>
+                <Text style={styles.cardTitle}>{option.name}</Text>
+                <Text style={styles.cardDescription}>{option.description}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#D1D5DB" />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
-
-      <ReportTypeModal
-        visible={reportTypeModalVisible}
-        onClose={() => setReportTypeModalVisible(false)}
-        onSelectType={handleReportTypeSelect}
-        isGenerating={isGeneratingPdf}
-      />
-
-      <PDFReportModal
-        visible={pdfModalVisible}
-        onClose={handleClosePdfModal}
-        title={pdfModalTitle}
-        pdfUri={pdfUri}
-        isGenerating={isGeneratingPdf}
-        generationProgress={generationProgress}
-        reportSummary={reportSummary ?? undefined}
-      />
     </SafeAreaView>
   );
 }
@@ -438,11 +109,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
     paddingHorizontal: 20,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   propertyBadge: {
     flexDirection: 'row',
@@ -461,93 +127,50 @@ const styles = StyleSheet.create({
     color: '#0891B2',
     flex: 1,
   },
-  listContainer: {
-    marginTop: 12,
-  },
-  emptyText: {
+  subtitle: {
     fontSize: 16,
-    color: '#6B7280',
-    marginTop: 16,
+    color: '#4B5563',
+    marginVertical: 16,
+    fontWeight: '500',
   },
-  sessionCard: {
+  listContainer: {
+    flex: 1,
+  },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
-  cardHeader: {
-    marginBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    paddingBottom: 12,
-  },
-  dateRow: {
-    flexDirection: 'row',
+  iconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
+    marginRight: 16,
   },
-  dateText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1F2937',
+  cardContent: {
+    flex: 1,
   },
-  codigoMainText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-    marginLeft: 28,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  statValue: {
+  cardTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#1F2937',
+    marginBottom: 4,
   },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  reportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#06B6D4',
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
-  },
-  reportButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  pendingBadge: {
-    backgroundColor: '#FEF3C7',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  pendingText: {
-    color: '#D97706',
-    fontWeight: '600',
+  cardDescription: {
     fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
   },
 });

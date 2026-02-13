@@ -93,7 +93,9 @@ export function useAppUpdate(): AppUpdateInfo {
         }
 
         const release = await response.json();
+
         const latestVersion = release.tag_name?.replace('v', '') || null;
+        const releaseNotes = release.body || null;
 
         // Find the APK asset
         const apkAsset = release.assets?.find((asset: any) =>
@@ -107,6 +109,7 @@ export function useAppUpdate(): AppUpdateInfo {
         setState(prev => ({
           ...prev,
           latestVersion,
+          releaseNotes,
           downloadUrl: apkAsset?.browser_download_url || null,
           needsUpdate,
           isLoading: false,

@@ -9,20 +9,24 @@ import {
   MaintenanceSessionReport,
   SessionReportData,
   ReportType,
-} from './types';
-import { getReportStyles } from './styles';
+} from './common/types';
+import { getReportStyles } from './common/styles';
 import {
   generateHeaderPageHTML,
   generateEquipmentSummaryPageHTML,
   generateEquipmentPhotoPageHTML,
   generateRecommendationsPageHTML,
-} from './technical-generator';
-import { generateProtocolPageHTML } from './protocol-generator';
+} from './electrical-panels/technical-generator';
+import { generateProtocolPageHTML } from './electrical-panels/protocol-generator';
 import {
   generateCoverPageHTML,
   generateMaintenanceHTML,
-} from './legacy-generator';
-import { generateOperabilityCertificateHTML } from './operability-generator';
+} from './electrical-panels/legacy-generator';
+import { generateOperabilityCertificateHTML } from './electrical-panels/operability-generator';
+import {
+  generateHeaderPageHTML as generateELHeader,
+  generateSummaryAndObservationsHTML as generateELSummary,
+} from './emergency-lights/technical-generator';
 
 /**
  * PDF Report Generation Service
@@ -41,7 +45,7 @@ class PDFReportService {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Informe Técnico - ${data.clientName}</title>
   <style>
-    ${getReportStyles()}
+    ${getReportStyles('portrait')}
   </style>
 </head>
 <body>
@@ -66,7 +70,7 @@ class PDFReportService {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Protocolo de Mantenimiento - ${data.clientName}</title>
   <style>
-    ${getReportStyles()}
+    ${getReportStyles('landscape')}
   </style>
 </head>
 <body>
@@ -81,6 +85,30 @@ class PDFReportService {
    */
   generateOperabilityCertificateHTML(data: MaintenanceSessionReport): string {
     return generateOperabilityCertificateHTML(data);
+  }
+
+  /**
+   * Generate emergency lights report HTML
+   */
+  generateEmergencyLightsReportHTML(data: MaintenanceSessionReport): string {
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Informe Técnico - Luces de Emergencia - ${data.clientName}</title>
+  <style>
+    ${getReportStyles('portrait')}
+  </style>
+</head>
+<body>
+  ${generateELHeader(data)}
+  ${generateELSummary(data)}
+  ${generateRecommendationsPageHTML(data)}
+</body>
+</html>
+    `;
   }
 
   /**
@@ -99,6 +127,9 @@ class PDFReportService {
         break;
       case ReportType.PROTOCOL:
         html = this.generateProtocolReportHTML(data);
+        break;
+      case ReportType.EMERGENCY_LIGHTS:
+        html = this.generateEmergencyLightsReportHTML(data);
         break;
       case ReportType.TECHNICAL:
       default:
@@ -147,7 +178,7 @@ class PDFReportService {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Informe de Mantenimiento</title>
   <style>
-    ${getReportStyles()}
+    ${getReportStyles('portrait')}
   </style>
 </head>
 <body>

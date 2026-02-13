@@ -1,9 +1,9 @@
 import {
   MaintenanceSessionReport,
   EquipmentMaintenanceData,
-  SessionReportData,
   ReportMaintenanceData,
-} from './types';
+  SessionReportData,
+} from '../common/types';
 import {
   generateHeaderPageHTML,
   generateEquipmentPhotoPageHTML,
