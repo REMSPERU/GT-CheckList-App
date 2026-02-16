@@ -1,11 +1,9 @@
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import {
-  ScrollView,
   View,
   StyleSheet,
   Text,
   TouchableOpacity,
-  RefreshControl,
   TextInput,
 } from 'react-native';
 import {
@@ -337,7 +335,7 @@ export default function ElectricalPanelsScreen() {
         </SafeAreaView>
       </View>
 
-      {/* Search Bar */}
+      {/* Search Bar - Fixed under image header */}
       <View style={styles.searchBarContainer}>
         <View style={styles.searchInputContainer}>
           <Feather name="search" size={18} color={Colors.light.tint} />
@@ -370,51 +368,48 @@ export default function ElectricalPanelsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-        }>
-        {/* Select All Row */}
-        {isSelectionMode && (
-          <View style={styles.selectAllRow}>
-            <TouchableOpacity
-              onPress={handleSelectAll}
-              style={styles.selectAllButton}>
-              <Text style={styles.selectAllText}>
-                {selectedPanelIds.size === panels.filter(p => p.config).length
-                  ? 'Deseleccionar todos'
-                  : 'Seleccionar todos'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Panels List */}
-        <View style={styles.panelsContainer}>
-          <EquipmentList<TableroElectricoResponse>
-            items={panels}
-            isLoading={isLoading}
-            isError={isError}
-            errorMessage={
-              error?.message || 'Error al cargar los tableros eléctricos'
-            }
-            emptyMessage="No hay tableros eléctricos disponibles con este filtro."
-            loadingMessage="Cargando tableros eléctricos..."
-            selectedIds={selectedPanelIds}
-            onToggleSelection={
-              canScheduleMaintenance ? toggleSelection : undefined
-            }
-            onItemPress={handlePanelPress}
-            renderLabel={panel =>
-              panel.equipment_detail?.rotulo || panel.codigo || 'N/A'
-            }
-            renderSubtitle={panel => panel.codigo || null}
-            onRetrySync={handleRetrySync}
-            isAutoRetrying={isAutoRetrying}
-            needsManualRetry={needsManualRetry}
-          />
-        </View>
-      </ScrollView>
+      <EquipmentList<TableroElectricoResponse>
+        items={panels}
+        isLoading={isLoading}
+        isError={isError}
+        errorMessage={
+          error?.message || 'Error al cargar los tableros eléctricos'
+        }
+        emptyMessage="No hay tableros eléctricos disponibles con este filtro."
+        loadingMessage="Cargando tableros eléctricos..."
+        selectedIds={selectedPanelIds}
+        onToggleSelection={canScheduleMaintenance ? toggleSelection : undefined}
+        onItemPress={handlePanelPress}
+        renderLabel={panel =>
+          panel.equipment_detail?.rotulo || panel.codigo || 'N/A'
+        }
+        renderSubtitle={panel => panel.codigo || null}
+        onRetrySync={handleRetrySync}
+        isAutoRetrying={isAutoRetrying}
+        needsManualRetry={needsManualRetry}
+        refreshing={isRefreshing}
+        onRefresh={onRefresh}
+        ListHeaderComponent={
+          <>
+            {/* Select All Row */}
+            {isSelectionMode && (
+              <View style={styles.selectAllRow}>
+                <TouchableOpacity
+                  onPress={handleSelectAll}
+                  style={styles.selectAllButton}>
+                  <Text style={styles.selectAllText}>
+                    {selectedPanelIds.size ===
+                    panels.filter(p => p.config).length
+                      ? 'Deseleccionar todos'
+                      : 'Seleccionar todos'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
+        }
+        contentContainerStyle={{ paddingTop: 0, paddingBottom: 100 }}
+      />
 
       {/* Floating Action Bar for Scheduling - only for SUPERVISOR/SUPERADMIN */}
       {canScheduleMaintenance &&
@@ -458,7 +453,8 @@ const styles = StyleSheet.create({
   },
   // Header styles
   headerContainer: {
-    minHeight: 130,
+    minHeight: 100,
+    height: 100,
     position: 'relative',
     overflow: 'hidden',
   },

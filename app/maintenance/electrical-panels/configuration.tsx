@@ -1,6 +1,13 @@
 import { useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScrollView, View, TouchableOpacity, Text } from 'react-native';
+import {
+  ScrollView,
+  View,
+  TouchableOpacity,
+  Text,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { useEffect, useState, useRef } from 'react';
 import { FormProvider } from 'react-hook-form';
 import DefaultHeader from '@/components/default-header';
@@ -101,31 +108,64 @@ export default function PanelConfigurationScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <FormProvider {...form}>
-        <ScrollView>
-          <DefaultHeader
-            title="Configuración del equipo"
-            searchPlaceholder=""
-          />
+        {currentStepId === STEP_IDS.CIRCUITS ? (
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
+            <View style={{ flex: 1 }}>
+              <DefaultHeader
+                title="Configuración del equipo"
+                searchPlaceholder=""
+              />
+              <View style={{ flex: 1 }}>{renderStep()}</View>
+              <View style={styles.footer}>
+                <TouchableOpacity
+                  style={styles.primaryBtn}
+                  onPress={handleGoNext}>
+                  <Text style={styles.primaryBtnText}>
+                    {isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryBtn}
+                  onPress={handleGoBack}>
+                  <Text style={styles.secondaryBtnText}>
+                    {isFirstStep(currentStepId) ? 'Cancel' : 'Atrás'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        ) : (
+          <ScrollView>
+            <DefaultHeader
+              title="Configuración del equipo"
+              searchPlaceholder=""
+            />
 
-          {/* Content */}
-          {renderStep()}
+            {/* Content */}
+            {renderStep()}
 
-          {/* Footer Buttons */}
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.primaryBtn} onPress={handleGoNext}>
-              <Text style={styles.primaryBtnText}>
-                {isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.secondaryBtn}
-              onPress={handleGoBack}>
-              <Text style={styles.secondaryBtnText}>
-                {isFirstStep(currentStepId) ? 'Cancel' : 'Atrás'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+            {/* Footer Buttons */}
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={handleGoNext}>
+                <Text style={styles.primaryBtnText}>
+                  {isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.secondaryBtn}
+                onPress={handleGoBack}>
+                <Text style={styles.secondaryBtnText}>
+                  {isFirstStep(currentStepId) ? 'Cancel' : 'Atrás'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        )}
       </FormProvider>
     </SafeAreaView>
   );
