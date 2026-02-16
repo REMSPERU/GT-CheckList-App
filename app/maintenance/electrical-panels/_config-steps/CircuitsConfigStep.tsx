@@ -1,4 +1,4 @@
-import { View, Text, TextInput, Alert } from 'react-native';
+import { View, Text, TextInput, Alert, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFormContext, Controller, useWatch } from 'react-hook-form';
 import {
@@ -6,7 +6,7 @@ import {
   CircuitConfig,
 } from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ProgressTabs from '@/components/progress-tabs';
 import { styles } from './_styles';
 import CircuitItem from './CircuitItem';
@@ -53,10 +53,10 @@ export default function CircuitsConfigStep({
 
   // Watch circuits for the currently selected ITG
   const currentCircuits =
-    useWatch({
+    (useWatch({
       control,
       name: `itgCircuits.${selectedItgIndex}.circuits` as const,
-    }) || [];
+    }) as unknown as CircuitConfig[]) || [];
 
   // Watch other fields for the current ITG
   const cnPrefix = useWatch({
@@ -157,7 +157,10 @@ export default function CircuitsConfigStep({
   >({});
 
   // Get expanded indices for current ITG
-  const expandedIndices = expandedIndicesMap[selectedItgIndex] || [];
+  const expandedIndices = useMemo(
+    () => expandedIndicesMap[selectedItgIndex] || [],
+    [expandedIndicesMap, selectedItgIndex],
+  );
 
   // Track previous circuits length to detect new additions
   const prevCircuitsLengthRef = useRef(currentCircuits.length);
@@ -231,7 +234,8 @@ export default function CircuitsConfigStep({
     return `itg-${selectedItgIndex}-circuit-${circuitIndex}`;
   };
 
-  return (
+  // Render header logic encapsulated
+  const renderHeader = () => (
     <View style={styles.contentWrapper}>
       {/* Equipo */}
       <Text style={styles.equipmentLabel}>
@@ -321,20 +325,39 @@ export default function CircuitsConfigStep({
           {errors.itgCircuits[selectedItgIndex]?.circuitsCount?.message}
         </Text>
       )}
+    </View>
+  );
 
-      {/* Lista de circuitos */}
-      <View style={{ marginTop: 12 }}>
-        {currentCircuits.map((circuit, idx) => (
-          <CircuitItem
-            key={getCircuitKey(idx)}
-            index={idx}
-            itgIndex={selectedItgIndex}
-            isExpanded={expandedIndices.includes(idx)}
-            onToggleExpand={toggleExpand}
-            cnPrefix={cnPrefix}
-          />
-        ))}
+  // Memoize renderItem to prevent re-creation on every re-render
+  const renderItem = useCallback(
+    ({ item, index }: { item: CircuitConfig; index: number }) => (
+      <View style={{ paddingHorizontal: 24 }}>
+        <CircuitItem
+          index={index}
+          itgIndex={selectedItgIndex}
+          isExpanded={expandedIndices.includes(index)}
+          onToggleExpand={toggleExpand}
+          cnPrefix={cnPrefix}
+        />
       </View>
+    ),
+    [selectedItgIndex, expandedIndices, toggleExpand, cnPrefix],
+  );
+
+  return (
+    <View style={{ flex: 1 }}>
+      <FlatList<CircuitConfig>
+        data={currentCircuits}
+        keyExtractor={(_, idx) => getCircuitKey(idx)}
+        renderItem={renderItem}
+        ListHeaderComponent={renderHeader}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={11}
+        removeClippedSubviews={true}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 24 }}
+      />
     </View>
   );
 }
