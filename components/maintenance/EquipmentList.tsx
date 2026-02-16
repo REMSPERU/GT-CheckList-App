@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  FlatList,
+  RefreshControl,
+  ListRenderItem,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { BaseEquipment } from '@/types/api';
@@ -33,6 +36,13 @@ export interface EquipmentListProps<T extends BaseEquipment> {
   isAutoRetrying?: (itemId: string) => boolean;
   /** Optional - map to check if item needs manual retry */
   needsManualRetry?: (itemId: string) => boolean;
+
+  // FlatList performance and layout props
+  ListHeaderComponent?: React.ComponentType<any> | React.ReactElement | null;
+  ListFooterComponent?: React.ComponentType<any> | React.ReactElement | null;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  contentContainerStyle?: any;
 }
 
 /**
@@ -55,87 +65,38 @@ export function EquipmentList<T extends BaseEquipment>({
   onRetrySync,
   isAutoRetrying,
   needsManualRetry,
+  ListHeaderComponent,
+  ListFooterComponent,
+  refreshing,
+  onRefresh,
+  contentContainerStyle,
 }: EquipmentListProps<T>) {
-  const getLabel = (item: T): string => {
-    if (renderLabel) {
-      return renderLabel(item);
-    }
-    // Default: use codigo or equipment_detail.rotulo
-    return item.codigo || (item.equipment_detail as any)?.rotulo || 'N/A';
-  };
+  const getLabel = useCallback(
+    (item: T): string => {
+      if (renderLabel) {
+        return renderLabel(item);
+      }
+      // Default: use codigo or equipment_detail.rotulo
+      return item.codigo || (item.equipment_detail as any)?.rotulo || 'N/A';
+    },
+    [renderLabel],
+  );
 
-  const renderSyncStatusBadge = (item: T) => {
-    const syncStatus = (item as any).syncStatus as SyncStatus | null;
-    const itemNeedsManualRetry = needsManualRetry?.(item.id);
-    const itemIsAutoRetrying = isAutoRetrying?.(item.id);
+  const renderBadge = useCallback(
+    (item: T) => {
+      const syncStatus = (item as any).syncStatus as SyncStatus | null;
+      const itemNeedsManualRetry = needsManualRetry?.(item.id);
+      const itemIsAutoRetrying = isAutoRetrying?.(item.id);
 
-    // Priority: manual retry needed > auto-retrying > pending/syncing
-    if (itemNeedsManualRetry && onRetrySync) {
-      return (
-        <TouchableOpacity
-          style={styles.syncBadgeError}
-          onPress={() => onRetrySync(item.id)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons
-            name="alert-circle"
-            size={14}
-            color="#DC2626"
-            style={{ marginRight: 4 }}
-          />
-          <Text style={styles.syncBadgeErrorText}>Reintentar</Text>
-        </TouchableOpacity>
-      );
-    }
-
-    if (itemIsAutoRetrying) {
-      return (
-        <View style={styles.syncBadgePending}>
-          <ActivityIndicator
-            size={12}
-            color="#D97706"
-            style={{ marginRight: 4 }}
-          />
-          <Text style={styles.syncBadgePendingText}>Reintentando...</Text>
-        </View>
-      );
-    }
-
-    if (syncStatus === 'syncing') {
-      return (
-        <View style={styles.syncBadgePending}>
-          <ActivityIndicator
-            size={12}
-            color="#0891B2"
-            style={{ marginRight: 4 }}
-          />
-          <Text style={styles.syncBadgeSyncingText}>Sincronizando...</Text>
-        </View>
-      );
-    }
-
-    if (syncStatus === 'pending') {
-      return (
-        <View style={styles.syncBadgePending}>
-          <Ionicons
-            name="cloud-upload-outline"
-            size={14}
-            color="#D97706"
-            style={{ marginRight: 4 }}
-          />
-          <Text style={styles.syncBadgePendingText}>Pendiente</Text>
-        </View>
-      );
-    }
-
-    if (syncStatus === 'error' || syncStatus === 'fatal_error') {
-      if (onRetrySync) {
+      // Priority: manual retry needed > auto-retrying > pending/syncing
+      if (itemNeedsManualRetry && onRetrySync) {
         return (
           <TouchableOpacity
             style={styles.syncBadgeError}
             onPress={() => onRetrySync(item.id)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons
-              name="refresh"
+              name="alert-circle"
               size={14}
               color="#DC2626"
               style={{ marginRight: 4 }}
@@ -144,31 +105,90 @@ export function EquipmentList<T extends BaseEquipment>({
           </TouchableOpacity>
         );
       }
-      return (
-        <View style={styles.syncBadgeError}>
-          <Ionicons
-            name="alert-circle"
-            size={14}
-            color="#DC2626"
-            style={{ marginRight: 4 }}
-          />
-          <Text style={styles.syncBadgeErrorText}>Error</Text>
-        </View>
-      );
-    }
 
-    // For 'synced' or no sync status (already configured from DB) - show nothing special
-    // The chevron arrow will be shown as usual
-    return null;
-  };
+      if (itemIsAutoRetrying) {
+        return (
+          <View style={styles.syncBadgePending}>
+            <ActivityIndicator
+              size={12}
+              color="#D97706"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.syncBadgePendingText}>Reintentando...</Text>
+          </View>
+        );
+      }
 
-  const renderItem = (item: T) => {
-    const isSelected = selectedIds.has(item.id);
-    const isConfigured = item.config;
+      if (syncStatus === 'syncing') {
+        return (
+          <View style={styles.syncBadgePending}>
+            <ActivityIndicator
+              size={12}
+              color="#0891B2"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.syncBadgeSyncingText}>Sincronizando...</Text>
+          </View>
+        );
+      }
 
-    const ItemContent = () => {
+      if (syncStatus === 'pending') {
+        return (
+          <View style={styles.syncBadgePending}>
+            <Ionicons
+              name="cloud-upload-outline"
+              size={14}
+              color="#D97706"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.syncBadgePendingText}>Pendiente</Text>
+          </View>
+        );
+      }
+
+      if (syncStatus === 'error' || syncStatus === 'fatal_error') {
+        if (onRetrySync) {
+          return (
+            <TouchableOpacity
+              style={styles.syncBadgeError}
+              onPress={() => onRetrySync(item.id)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons
+                name="refresh"
+                size={14}
+                color="#DC2626"
+                style={{ marginRight: 4 }}
+              />
+              <Text style={styles.syncBadgeErrorText}>Reintentar</Text>
+            </TouchableOpacity>
+          );
+        }
+        return (
+          <View style={styles.syncBadgeError}>
+            <Ionicons
+              name="alert-circle"
+              size={14}
+              color="#DC2626"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.syncBadgeErrorText}>Error</Text>
+          </View>
+        );
+      }
+
+      return null;
+    },
+    [needsManualRetry, isAutoRetrying, onRetrySync],
+  );
+
+  const renderItem: ListRenderItem<T> = useCallback(
+    ({ item }) => {
+      const isSelected = selectedIds.has(item.id);
+      const isConfigured = item.config;
+      const canSelect = !!onToggleSelection;
       const subtitle = renderSubtitle ? renderSubtitle(item) : null;
-      return (
+
+      const ItemContent = () => (
         <>
           <View style={styles.itemInfoColumn}>
             <Text style={styles.itemName}>{getLabel(item)}</Text>
@@ -201,100 +221,132 @@ export function EquipmentList<T extends BaseEquipment>({
 
           {isConfigured && (
             <View style={styles.rightSection}>
-              {renderSyncStatusBadge(item)}
+              {renderBadge(item)}
               <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
             </View>
           )}
         </>
       );
-    };
 
-    // Not configured: entire card is pressable, no selection circle
-    if (!isConfigured) {
-      return (
-        <TouchableOpacity
-          key={item.id}
-          style={styles.itemCard}
-          onPress={() => onItemPress(item)}
-          onLongPress={() => onLongPress?.(item)}
-          activeOpacity={0.7}>
-          <View style={[styles.radioCircle, styles.radioCircleHidden]} />
-          <ItemContent />
-        </TouchableOpacity>
-      );
-    }
-
-    // Configured: selection circle on the left (if selection enabled), content area navigates
-    // If onToggleSelection is not provided, hide selection UI completely
-    const canSelect = !!onToggleSelection;
-
-    return (
-      <View
-        key={item.id}
-        style={[styles.itemCard, isSelected && styles.itemCardSelected]}>
-        {canSelect ? (
+      if (!isConfigured) {
+        return (
           <TouchableOpacity
-            style={styles.selectionArea}
-            onPress={() => onToggleSelection(item.id)}>
-            <View
-              style={[
-                styles.radioCircle,
-                isSelected && styles.radioCircleSelected,
-              ]}>
-              {isSelected && <View style={styles.radioInnerCircle} />}
-            </View>
+            style={styles.itemCard}
+            onPress={() => onItemPress(item)}
+            onLongPress={() => onLongPress?.(item)}
+            activeOpacity={0.7}>
+            <View style={[styles.radioCircle, styles.radioCircleHidden]} />
+            <ItemContent />
           </TouchableOpacity>
-        ) : (
-          <View style={[styles.radioCircle, styles.radioCircleHidden]} />
-        )}
+        );
+      }
 
-        <TouchableOpacity
-          style={styles.itemContent}
-          onPress={() => onItemPress(item)}
-          onLongPress={() => onLongPress?.(item)}>
-          <ItemContent />
-        </TouchableOpacity>
+      return (
+        <View style={[styles.itemCard, isSelected && styles.itemCardSelected]}>
+          {canSelect ? (
+            <TouchableOpacity
+              style={styles.selectionArea}
+              onPress={() => onToggleSelection(item.id)}>
+              <View
+                style={[
+                  styles.radioCircle,
+                  isSelected && styles.radioCircleSelected,
+                ]}>
+                {isSelected && <View style={styles.radioInnerCircle} />}
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <View style={[styles.radioCircle, styles.radioCircleHidden]} />
+          )}
+
+          <TouchableOpacity
+            style={styles.itemContent}
+            onPress={() => onItemPress(item)}
+            onLongPress={() => onLongPress?.(item)}
+            activeOpacity={0.7}>
+            <ItemContent />
+          </TouchableOpacity>
+        </View>
+      );
+    },
+    [
+      selectedIds,
+      onToggleSelection,
+      onItemPress,
+      onLongPress,
+      renderSubtitle,
+      getLabel,
+      renderBadge,
+    ],
+  );
+
+  const ListEmpty = useMemo(
+    () => (
+      <View style={styles.centerContainer}>
+        <Text style={styles.emptyText}>{emptyMessage}</Text>
       </View>
-    );
-  };
+    ),
+    [emptyMessage],
+  );
 
-  if (isLoading) {
-    return (
+  const ListLoading = useMemo(
+    () => (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>{loadingMessage}</Text>
       </View>
-    );
-  }
+    ),
+    [loadingMessage],
+  );
 
-  if (isError) {
-    return (
+  const ListError = useMemo(
+    () => (
       <View style={styles.centerContainer}>
         <Text style={styles.errorText}>{errorMessage}</Text>
       </View>
-    );
-  }
+    ),
+    [errorMessage],
+  );
 
-  if (items.length === 0) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>{emptyMessage}</Text>
-      </View>
-    );
-  }
+  if (isLoading && items.length === 0) return ListLoading;
+  if (isError && items.length === 0) return ListError;
 
-  return <View style={styles.listContainer}>{items.map(renderItem)}</View>;
+  return (
+    <FlatList
+      data={items}
+      renderItem={renderItem}
+      keyExtractor={item => item.id}
+      ListHeaderComponent={ListHeaderComponent}
+      ListFooterComponent={ListFooterComponent}
+      ListEmptyComponent={ListEmpty}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={!!refreshing}
+            onRefresh={onRefresh}
+            colors={['#007AFF']}
+            tintColor="#007AFF"
+          />
+        ) : undefined
+      }
+      contentContainerStyle={[styles.listContent, contentContainerStyle]}
+      initialNumToRender={10}
+      maxToRenderPerBatch={10}
+      windowSize={5}
+      removeClippedSubviews={true}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
-  listContainer: {
-    flexDirection: 'column',
+  listContent: {
+    paddingBottom: 20,
   },
   centerContainer: {
-    flex: 1,
+    padding: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    minHeight: 200,
   },
   loadingText: {
     marginTop: 12,
@@ -312,7 +364,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   itemCard: {
-    width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
@@ -326,6 +377,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     borderWidth: 1,
     borderColor: 'transparent',
+    marginHorizontal: 16,
   },
   itemCardSelected: {
     borderColor: '#0891B2',
@@ -396,9 +448,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  actionIconContainer: {
-    paddingLeft: 8,
-  },
   statusContainer: {
     paddingLeft: 8,
     justifyContent: 'center',
@@ -410,7 +459,6 @@ const styles = StyleSheet.create({
     color: '#D97706',
     fontWeight: '600',
   },
-  // Sync status badge styles
   syncBadgePending: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -441,8 +489,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#DC2626',
-  },
-  syncBadgeSynced: {
-    paddingHorizontal: 4,
   },
 });

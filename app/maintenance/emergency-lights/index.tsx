@@ -1,13 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  ScrollView,
-  View,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  RefreshControl,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -279,60 +271,55 @@ export default function EmergencyLightsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-        }>
-        {/* Header */}
-        <DefaultHeader
-          title="Luces de Emergencia"
-          searchPlaceholder="Buscar por código"
-          onSearch={setSearchTerm}
-          onFilterPress={() => setShowFilterModal(true)}
-        />
+      <DefaultHeader
+        title="Luces de Emergencia"
+        searchPlaceholder="Buscar por código"
+        onSearch={setSearchTerm}
+        onFilterPress={() => setShowFilterModal(true)}
+      />
 
-        {/* Building Info & Select All */}
-        <View style={styles.buildingInfoRow}>
-          <View style={styles.buildingInfo}>
-            <Text style={styles.buildingName}>
-              {building ? building.name : 'Cargando...'}
-            </Text>
-          </View>
+      <EquipmentList<BaseEquipment>
+        items={lights}
+        isLoading={isLoading}
+        isError={isError}
+        errorMessage={
+          error?.message || 'Error al cargar las luces de emergencia'
+        }
+        emptyMessage="No hay luces de emergencia disponibles con este filtro."
+        loadingMessage="Cargando luces de emergencia..."
+        selectedIds={selectedIds}
+        onToggleSelection={canScheduleMaintenance ? toggleSelection : undefined}
+        onItemPress={handleItemPress}
+        onLongPress={handleDeleteLight}
+        renderLabel={item => item.codigo || 'N/A'}
+        refreshing={isRefreshing}
+        onRefresh={onRefresh}
+        ListHeaderComponent={
+          <>
+            {/* Building Info & Select All */}
+            <View style={styles.buildingInfoRow}>
+              <View style={styles.buildingInfo}>
+                <Text style={styles.buildingName}>
+                  {building ? building.name : 'Cargando...'}
+                </Text>
+              </View>
 
-          {isSelectionMode && (
-            <TouchableOpacity
-              onPress={handleSelectAll}
-              style={styles.selectAllButton}>
-              <Text style={styles.selectAllText}>
-                {selectedIds.size === lights.filter(l => l.config).length
-                  ? 'Deseleccionar todos'
-                  : 'Seleccionar todos'}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Lights List */}
-        <View style={styles.listContainer}>
-          <EquipmentList<BaseEquipment>
-            items={lights}
-            isLoading={isLoading}
-            isError={isError}
-            errorMessage={
-              error?.message || 'Error al cargar las luces de emergencia'
-            }
-            emptyMessage="No hay luces de emergencia disponibles con este filtro."
-            loadingMessage="Cargando luces de emergencia..."
-            selectedIds={selectedIds}
-            onToggleSelection={
-              canScheduleMaintenance ? toggleSelection : undefined
-            }
-            onItemPress={handleItemPress}
-            onLongPress={handleDeleteLight}
-            renderLabel={item => item.codigo || 'N/A'}
-          />
-        </View>
-      </ScrollView>
+              {isSelectionMode && (
+                <TouchableOpacity
+                  onPress={handleSelectAll}
+                  style={styles.selectAllButton}>
+                  <Text style={styles.selectAllText}>
+                    {selectedIds.size === lights.filter(l => l.config).length
+                      ? 'Deseleccionar todos'
+                      : 'Seleccionar todos'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </>
+        }
+        contentContainerStyle={{ paddingTop: 0, paddingBottom: 100 }}
+      />
 
       {/* Floating Action Bar for Scheduling - only for SUPERVISOR/SUPERADMIN */}
       {canScheduleMaintenance && isSelectionMode && selectedIds.size > 0 && (
