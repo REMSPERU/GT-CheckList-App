@@ -80,7 +80,6 @@ export default function MaintenanceScreen() {
     building: Property;
     maintenanceType: string;
   }) {
-    console.log('Selected:', building.name);
     router.push({
       pathname: '/maintenance/select-device',
       params: {

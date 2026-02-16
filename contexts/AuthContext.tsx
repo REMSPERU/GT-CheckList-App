@@ -6,7 +6,6 @@ import React, {
   useEffect,
   useState,
   useRef,
-  useCallback,
 } from 'react';
 import { AuthLoadingScreen } from '../components/auth-loading-screen';
 import {
@@ -82,8 +81,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const {
       data: { subscription },
     } = supabaseAuthService.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthContext] Auth event: ${event}`);
-
       if (event === 'SIGNED_IN' && session) {
         setHasSession(true);
         setIsAuthenticated(true);
@@ -165,7 +162,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           .eq('id', authUser.id)
           .single();
         userRole = publicUser?.role || '';
-      } catch (e) {
+      } catch {
         // Ignore network errors, proceed with existing or empty role
         console.log('Could not fetch remote role, continuing...');
       }
@@ -197,7 +194,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const localSession = await DatabaseService.getSession();
 
       if (localSession && localSession.access_token) {
-        console.log('[AuthContext] Found local session in SQLite');
         setHasSession(true);
         setIsAuthenticated(true);
 
