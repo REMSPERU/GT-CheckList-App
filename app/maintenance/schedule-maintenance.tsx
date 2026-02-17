@@ -313,7 +313,7 @@ export default function ScheduleMaintenanceScreen() {
                   <View style={styles.techIconContainer}>
                     <Ionicons name="person-outline" size={20} color="#374151" />
                   </View>
-                  <Text style={styles.techName}>{tech.username}</Text>
+                  <Text style={styles.techName}>{tech.email}</Text>
                   {/* Assuming 'company' or similar field exists or we simulate it */}
                   <Text style={styles.techCompany}>Rems</Text>
                   <TouchableOpacity onPress={() => toggleTechnician(tech.id)}>
@@ -514,7 +514,7 @@ export default function ScheduleMaintenanceScreen() {
                             styles.modalOptionText,
                             isSelected && styles.modalOptionTextSelected,
                           ]}>
-                          {t.username}
+                          {t.email}
                         </Text>
                       </View>
                       {isSelected && (
