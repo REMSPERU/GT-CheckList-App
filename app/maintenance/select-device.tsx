@@ -106,6 +106,16 @@ export default function SelectDeviceScreen() {
           },
         });
         break;
+      case 'PAT':
+        // Pozo a Tierra
+        router.push({
+          pathname: '/maintenance/grounding-wells',
+          params: {
+            building: JSON.stringify(building),
+            equipamento: JSON.stringify(equipamento),
+          },
+        });
+        break;
       default:
         // Fallback for other equipment types
         console.log('No route configured for:', equipamento.abreviatura);

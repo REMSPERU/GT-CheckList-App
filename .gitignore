@@ -44,3 +44,5 @@ app-example
 /ios
 /android
 
+
+.env.local

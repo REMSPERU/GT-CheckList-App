@@ -16,10 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { DatabaseService } from '../../../../services/db';
-import {
-  Ionicons,
-  MaterialCommunityIcons,
-} from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface ChecklistItem {
   value: boolean; // true = Si/Buen estado, false = No/Malo
@@ -43,7 +40,7 @@ const defaultItem: ChecklistItem = {
 };
 
 const defaultSession: GroundingWellSession = {
-  lidStatus: null,
+  lidStatus: 'good',
   lidStatusObservation: '',
   lidStatusPhoto: null,
   hasSignage: { ...defaultItem },
@@ -74,13 +71,13 @@ export default function GroundingWellChecklistScreen() {
     if (cameraStatus !== 'granted') {
       Alert.alert(
         'Permiso denegado',
-        'Se necesita acceso a la cámara para tomar fotos.'
+        'Se necesita acceso a la cámara para tomar fotos.',
       );
     }
   };
 
   const takePhoto = async (
-    itemKey: keyof GroundingWellSession | 'lidStatus'
+    itemKey: keyof GroundingWellSession | 'lidStatus',
   ) => {
     const result = await ImagePicker.launchCameraAsync({
       quality: 0.5,
@@ -109,33 +106,52 @@ export default function GroundingWellChecklistScreen() {
       return;
     }
     if (data.lidStatus === null) {
-      Alert.alert('Campo requerido', 'Por favor seleccione el estado de la tapa.');
+      Alert.alert(
+        'Campo requerido',
+        'Por favor seleccione el estado de la tapa.',
+      );
       return;
     }
     if (data.lidStatus === 'bad') {
       if (!data.lidStatusObservation) {
-        Alert.alert('Campo requerido', 'Por favor ingrese una observación para el estado de la tapa.');
+        Alert.alert(
+          'Campo requerido',
+          'Por favor ingrese una observación para el estado de la tapa.',
+        );
         return;
       }
       if (!data.lidStatusPhoto) {
-        Alert.alert('Campo requerido', 'Por favor tome una foto para el estado de la tapa.');
+        Alert.alert(
+          'Campo requerido',
+          'Por favor tome una foto para el estado de la tapa.',
+        );
         return;
       }
     }
 
-    const checklistItems: (keyof GroundingWellSession)[] = ['hasSignage', 'connectorsOk', 'hasAccess'];
+    const checklistItems: (keyof GroundingWellSession)[] = [
+      'hasSignage',
+      'connectorsOk',
+      'hasAccess',
+    ];
     for (const key of checklistItems) {
-        const item = data[key] as ChecklistItem;
-        if (!item.value) {
-            if (!item.observation) {
-                Alert.alert('Campo requerido', `Por favor ingrese una observación para "${key}".`);
-                return;
-            }
-            if (!item.photo) {
-                Alert.alert('Campo requerido', `Por favor tome una foto para "${key}".`);
-                return;
-            }
+      const item = data[key] as ChecklistItem;
+      if (!item.value) {
+        if (!item.observation) {
+          Alert.alert(
+            'Campo requerido',
+            `Por favor ingrese una observación para "${key}".`,
+          );
+          return;
         }
+        if (!item.photo) {
+          Alert.alert(
+            'Campo requerido',
+            `Por favor tome una foto para "${key}".`,
+          );
+          return;
+        }
+      }
     }
 
     setLoading(true);
@@ -167,14 +183,19 @@ export default function GroundingWellChecklistScreen() {
         maintenanceId || null,
         dataToSave,
         user.id,
-        photosToSave
+        photosToSave,
       );
-      Alert.alert('Guardado', 'Los datos del checklist han sido guardados localmente.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      Alert.alert(
+        'Guardado',
+        'Los datos del checklist han sido guardados localmente.',
+        [{ text: 'OK', onPress: () => router.back() }],
+      );
     } catch (error) {
       console.error('Error saving grounding well checklist:', error);
-      Alert.alert('Error', 'No se pudo guardar el checklist. Intente de nuevo.');
+      Alert.alert(
+        'Error',
+        'No se pudo guardar el checklist. Intente de nuevo.',
+      );
     } finally {
       setLoading(false);
     }
@@ -202,12 +223,18 @@ export default function GroundingWellChecklistScreen() {
             <Text style={styles.label}>{label}</Text>
           </View>
           <View style={styles.statusContainer}>
-            <Text style={[styles.statusText, item.value && styles.statusTextActive]}>
+            <Text
+              style={[
+                styles.statusText,
+                item.value && styles.statusTextActive,
+              ]}>
               {item.value ? 'Sí' : 'No'}
             </Text>
             <Switch
               value={item.value}
-              onValueChange={value => updateData({ [itemKey]: { ...item, value } })}
+              onValueChange={value =>
+                updateData({ [itemKey]: { ...item, value } })
+              }
               trackColor={{ false: '#E5E7EB', true: '#0891B2' }}
               thumbColor="#fff"
             />
@@ -219,10 +246,14 @@ export default function GroundingWellChecklistScreen() {
               style={styles.obsInput}
               placeholder="Ingrese observación"
               value={item.observation}
-              onChangeText={observation => updateData({ [itemKey]: { ...item, observation } })}
+              onChangeText={observation =>
+                updateData({ [itemKey]: { ...item, observation } })
+              }
               multiline
             />
-            <TouchableOpacity style={styles.photoButton} onPress={() => takePhoto(itemKey)}>
+            <TouchableOpacity
+              style={styles.photoButton}
+              onPress={() => takePhoto(itemKey)}>
               <Ionicons name="camera" size={24} color="#fff" />
               <Text style={styles.photoButtonText}>Tomar Foto</Text>
             </TouchableOpacity>
@@ -234,7 +265,7 @@ export default function GroundingWellChecklistScreen() {
       </View>
     );
   };
-  
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -246,25 +277,35 @@ export default function GroundingWellChecklistScreen() {
 
       <ScrollView style={styles.content}>
         {/* Estado de la Tapa */}
+        {/* Estado de la Tapa */}
         <View style={styles.card}>
-          <Text style={styles.label}>Estado de la Tapa</Text>
-          <View style={styles.optionContainer}>
-            <TouchableOpacity
-              style={[styles.optionButton, data.lidStatus === 'good' && styles.optionButtonSelected]}
-              onPress={() => updateData({ lidStatus: 'good' })}
-            >
-              <Text style={[styles.optionButtonText, data.lidStatus === 'good' && styles.optionButtonTextSelected]}>
-                Buen Estado
+          <View style={styles.cardHeader}>
+            <View style={styles.labelRow}>
+              <MaterialCommunityIcons
+                name="layers-outline"
+                size={20}
+                color="#0891B2"
+                style={styles.icon}
+              />
+              <Text style={styles.label}>Estado de la Tapa</Text>
+            </View>
+            <View style={styles.statusContainer}>
+              <Text
+                style={[
+                  styles.statusText,
+                  data.lidStatus === 'good' && styles.statusTextActive,
+                ]}>
+                {data.lidStatus === 'good' ? 'Bueno' : 'Malo'}
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.optionButton, data.lidStatus === 'bad' && styles.optionButtonSelected]}
-              onPress={() => updateData({ lidStatus: 'bad' })}
-            >
-              <Text style={[styles.optionButtonText, data.lidStatus === 'bad' && styles.optionButtonTextSelected]}>
-                Malo
-              </Text>
-            </TouchableOpacity>
+              <Switch
+                value={data.lidStatus === 'good'}
+                onValueChange={value =>
+                  updateData({ lidStatus: value ? 'good' : 'bad' })
+                }
+                trackColor={{ false: '#E5E7EB', true: '#0891B2' }}
+                thumbColor="#fff"
+              />
+            </View>
           </View>
           {data.lidStatus === 'bad' && (
             <>
@@ -272,15 +313,22 @@ export default function GroundingWellChecklistScreen() {
                 style={styles.obsInput}
                 placeholder="Ingrese observación para el estado de la tapa"
                 value={data.lidStatusObservation}
-                onChangeText={text => updateData({ lidStatusObservation: text })}
+                onChangeText={text =>
+                  updateData({ lidStatusObservation: text })
+                }
                 multiline
               />
-              <TouchableOpacity style={styles.photoButton} onPress={() => takePhoto('lidStatus')}>
+              <TouchableOpacity
+                style={styles.photoButton}
+                onPress={() => takePhoto('lidStatus')}>
                 <Ionicons name="camera" size={24} color="#fff" />
                 <Text style={styles.photoButtonText}>Tomar Foto</Text>
               </TouchableOpacity>
               {data.lidStatusPhoto && (
-                <Image source={{ uri: data.lidStatusPhoto }} style={styles.thumbnail} />
+                <Image
+                  source={{ uri: data.lidStatusPhoto }}
+                  style={styles.thumbnail}
+                />
               )}
             </>
           )}
@@ -290,23 +338,38 @@ export default function GroundingWellChecklistScreen() {
         {renderToggleItem(
           'Señalética Numérica',
           'hasSignage',
-          <MaterialCommunityIcons name="numeric" size={20} color="#0891B2" style={styles.icon} />
+          <MaterialCommunityIcons
+            name="numeric"
+            size={20}
+            color="#0891B2"
+            style={styles.icon}
+          />,
         )}
 
         {/* Conectores en buen estado */}
         {renderToggleItem(
           'Conectores en Buen Estado',
           'connectorsOk',
-          <MaterialCommunityIcons name="power-plug" size={20} color="#0891B2" style={styles.icon} />
+          <MaterialCommunityIcons
+            name="power-plug"
+            size={20}
+            color="#0891B2"
+            style={styles.icon}
+          />,
         )}
 
         {/* Acceso */}
         {renderToggleItem(
           'Acceso Disponible',
           'hasAccess',
-          <MaterialCommunityIcons name="door-open" size={20} color="#0891B2" style={styles.icon} />
+          <MaterialCommunityIcons
+            name="door-open"
+            size={20}
+            color="#0891B2"
+            style={styles.icon}
+          />,
         )}
-        
+
         <View style={{ height: 40 }} />
       </ScrollView>
 
@@ -347,11 +410,20 @@ const styles = StyleSheet.create({
   },
   labelRow: { flexDirection: 'row', alignItems: 'center' },
   icon: { marginRight: 8 },
-  label: { fontSize: 16, fontWeight: '600', color: '#11181C', marginBottom: 10 },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#11181C',
+    marginBottom: 10,
+  },
   statusContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statusText: { fontSize: 14, color: '#6B7280' },
   statusTextActive: { color: '#0891B2' },
-  optionContainer: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 10 },
+  optionContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+  },
   optionButton: {
     paddingVertical: 10,
     paddingHorizontal: 20,
