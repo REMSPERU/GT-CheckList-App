@@ -140,15 +140,20 @@ export default function ElectricalPanelsScreen() {
 
     try {
       // Race between pullData and timeout
-      await Promise.race([
-        syncService.pullData(),
-        new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error('Refresh timeout')),
-            REFRESH_TIMEOUT_MS,
-          ),
-        ),
-      ]);
+      await new Promise<void>(async (resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error('Refresh timeout'));
+        }, REFRESH_TIMEOUT_MS);
+
+        try {
+          await syncService.pullData();
+          clearTimeout(timeoutId);
+          resolve();
+        } catch (err) {
+          clearTimeout(timeoutId);
+          reject(err);
+        }
+      });
       console.log('[REFRESH] Sync completed successfully');
     } catch (err: any) {
       // Timeout or network error - proceed with local data

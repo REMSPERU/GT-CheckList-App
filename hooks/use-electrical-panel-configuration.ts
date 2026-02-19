@@ -331,7 +331,12 @@ export function usePanelConfiguration(
       try {
         console.log('🔵 [SAVE] Starting panel configuration save...');
         const values = getValues();
-        console.log('🔵 [SAVE] Form values:', JSON.stringify(values, null, 2));
+        if (__DEV__) {
+          console.log(
+            '🔵 [SAVE] Form values:',
+            JSON.stringify(values, null, 2),
+          );
+        }
 
         // Helper labels
         const PHASE_LABELS: Record<string, string> = {

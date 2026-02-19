@@ -101,7 +101,21 @@ export default function EmergencyLightsScreen() {
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await syncService.pullData();
+      // Race between pullData and timeout
+      await new Promise<void>(async (resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error('Refresh timeout'));
+        }, 10000); // 10s timeout
+
+        try {
+          await syncService.pullData();
+          clearTimeout(timeoutId);
+          resolve();
+        } catch (err) {
+          clearTimeout(timeoutId);
+          reject(err);
+        }
+      });
       await loadData();
     } catch (err) {
       console.error('Refresh failed:', err);

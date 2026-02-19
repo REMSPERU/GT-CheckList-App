@@ -33,6 +33,7 @@ class SyncService {
   private pollIntervalId: any = null;
   private isSyncing = false;
   private currentSyncPromise: Promise<boolean> | null = null;
+  private netInfoUnsubscribe: (() => void) | null = null;
 
   constructor() {
     this.init();
@@ -49,7 +50,7 @@ class SyncService {
     }, 15000);
 
     // Network event listener
-    NetInfo.addEventListener((state: any) => {
+    this.netInfoUnsubscribe = NetInfo.addEventListener((state: any) => {
       const wasConnected = this.isConnected;
       this.isConnected = state.isConnected ?? false;
       if (this.isConnected && !wasConnected) {
@@ -62,6 +63,10 @@ class SyncService {
     if (this.pollIntervalId) {
       clearInterval(this.pollIntervalId);
       this.pollIntervalId = null;
+    }
+    if (this.netInfoUnsubscribe) {
+      this.netInfoUnsubscribe();
+      this.netInfoUnsubscribe = null;
     }
   }
 

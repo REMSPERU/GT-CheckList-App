@@ -261,11 +261,18 @@ export async function getLocalScheduledMaintenances() {
         },
       },
       // Map assigned technicians
-      user_maintenace: row.assigned_technicians
-        ? JSON.parse(row.assigned_technicians).map((id: string) => ({
-            id_user: id,
-          }))
-        : [],
+      user_maintenace: (() => {
+        try {
+          return row.assigned_technicians
+            ? JSON.parse(row.assigned_technicians).map((id: string) => ({
+                id_user: id,
+              }))
+            : [];
+        } catch (e) {
+          console.error('Error parsing assigned technicians:', e);
+          return [];
+        }
+      })(),
     }));
 
     return results;
@@ -303,7 +310,14 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
         codigo: row.e_codigo,
         ubicacion: row.e_ubicacion,
         id_property: row.e_id_property,
-        equipment_detail: row.e_detail ? JSON.parse(row.e_detail) : null,
+        equipment_detail: (() => {
+          try {
+            return row.e_detail ? JSON.parse(row.e_detail) : null;
+          } catch (e) {
+            console.error('Error parsing equipment detail:', e);
+            return null;
+          }
+        })(),
         equipamentos: {
           nombre: row.eq_nombre,
         },
