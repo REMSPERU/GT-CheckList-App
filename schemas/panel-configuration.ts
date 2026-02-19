@@ -32,6 +32,7 @@ export const SubITMSchema = z.object({
 });
 
 export const DefaultCircuitSchema = z.object({
+  name: z.string().optional(),
   interruptorType: InterruptorTypeSchema,
 
   // Campos del interruptor principal (ITM o ID)

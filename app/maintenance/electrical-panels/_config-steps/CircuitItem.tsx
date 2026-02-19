@@ -179,6 +179,16 @@ const CircuitItem = ({
     setValue(`itgCircuits.${itgIndex}.circuits.${index}.subITMs`, newSubITMs);
   };
 
+  // Replace empty names with default format
+  const customName = useWatch({
+    control,
+    name: `itgCircuits.${itgIndex}.circuits.${index}.name`,
+  });
+  const displayName =
+    customName && customName.trim() !== ''
+      ? customName
+      : `${cnPrefix || 'CN'}-${index + 1}`;
+
   // Check if this circuit has any validation errors
   const circuitErrors = errors.itgCircuits?.[itgIndex]?.circuits?.[index];
   const hasErrors = !!(
@@ -193,15 +203,52 @@ const CircuitItem = ({
         styles.cnCard,
         hasErrors && { borderColor: '#EF4444', borderWidth: 1.5 },
       ]}>
-      {/* Header clickeable para expandir/colapsar */}
-      <TouchableOpacity
-        style={styles.cnCardHeader}
-        onPress={() => onToggleExpand(index)}
-        activeOpacity={0.7}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={styles.cnTitle}>
-            {cnPrefix || 'CN'}-{index + 1}
-          </Text>
+      {/* Header con TextInput y toggle */}
+      <View style={styles.cnCardHeader}>
+        <Controller
+          control={control}
+          name={`itgCircuits.${itgIndex}.circuits.${index}.name`}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: '#F3F4F6',
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 6,
+                marginRight: 8,
+              }}>
+              <TextInput
+                style={[
+                  styles.cnTitle,
+                  { padding: 0, margin: 0, minWidth: 40, fontSize: 14 },
+                ]}
+                value={
+                  value !== undefined
+                    ? value
+                    : `${cnPrefix || 'CN'}-${index + 1}`
+                }
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder={`${cnPrefix || 'CN'}-${index + 1}`}
+                placeholderTextColor="#9CA3AF"
+              />
+              <Ionicons name="pencil" size={12} color="#6B7280" />
+            </View>
+          )}
+        />
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 8,
+          }}
+          onPress={() => onToggleExpand(index)}
+          activeOpacity={0.7}>
           {hasErrors && (
             <View
               style={{
@@ -216,13 +263,13 @@ const CircuitItem = ({
               </Text>
             </View>
           )}
-        </View>
-        <Ionicons
-          name={isExpanded ? 'chevron-up' : 'chevron-down'}
-          size={20}
-          color={hasErrors ? '#EF4444' : '#6B7280'}
-        />
-      </TouchableOpacity>
+          <Ionicons
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={hasErrors ? '#EF4444' : '#6B7280'}
+          />
+        </TouchableOpacity>
+      </View>
 
       {isExpanded && (
         <View>
@@ -763,8 +810,7 @@ const CircuitItem = ({
 
           {/* Suministro */}
           <Text style={[styles.cnLabel, { marginTop: 12 }]}>
-            ¿Qué suministra eléctricamente el Circuito {cnPrefix || 'CN'}-
-            {index + 1}?
+            ¿Qué suministra eléctricamente el Circuito {displayName}?
           </Text>
           <Controller
             control={control}

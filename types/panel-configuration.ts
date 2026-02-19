@@ -13,6 +13,7 @@ export interface SubITM {
 }
 
 export interface CircuitConfig {
+  name?: string;
   interruptorType: InterruptorType;
 
   // Campos del interruptor principal (ITM o ID)
