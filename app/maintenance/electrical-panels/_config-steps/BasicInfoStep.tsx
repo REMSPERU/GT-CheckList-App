@@ -6,12 +6,6 @@ import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 export default function BasicInfoStep({ panel }: BasicInfoStepProps) {
   const { control } = useFormContext<PanelConfigurationFormValues>();
 
-  // Debug: ver el contenido del panel
-  console.log(
-    '🔍 [BasicInfoStep] Panel recibido:',
-    JSON.stringify(panel, null, 2),
-  );
-
   return (
     <View style={styles.contentWrapper}>
       {/* Equipo */}

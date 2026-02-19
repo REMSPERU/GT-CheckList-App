@@ -203,14 +203,10 @@ const CircuitsConfigStep = forwardRef<
     formState: { errors },
   } = useFormContext<PanelConfigurationFormValues>();
 
-  // Only watch the length via a lightweight selector – NOT the entire array
-  const itgCircuitsData =
-    useWatch({
-      control,
-      name: 'itgCircuits',
-    }) || [];
-
-  const itgCircuitsLength = itgCircuitsData.length;
+  // Watch only the count string (lightweight) instead of the entire itgCircuits array.
+  // This prevents massive re-renders when any circuit field changes.
+  const itgCount = useWatch({ control, name: 'itgCount' }) || '1';
+  const itgCircuitsLength = Math.max(1, parseInt(itgCount, 10) || 1);
 
   const [selectedItgIndex, setSelectedItgIndex] = useState(0);
 

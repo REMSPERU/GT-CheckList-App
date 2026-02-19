@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useRef, useCallback } from 'react';
-import { Alert } from 'react-native';
+import { Alert, InteractionManager } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -192,20 +192,33 @@ export function usePanelConfiguration(
         clearTimeout(saveTimeoutRef.current);
       }
 
-      // Debounce save by 1.5 seconds
-      saveTimeoutRef.current = setTimeout(async () => {
-        try {
-          const draft = {
-            formValues,
-            currentStepId,
-            lastUpdated: new Date().toISOString(),
-          };
-          await AsyncStorage.setItem(storageKey, JSON.stringify(draft));
-          console.log('💾 [CONFIG] Draft saved for panel:', initialPanel?.id);
-        } catch (error) {
-          console.error('❌ [CONFIG] Error saving draft:', error);
-        }
-      }, 1500);
+      // Debounce save by 3 seconds (longer to avoid blocking UI during rapid edits)
+      saveTimeoutRef.current = setTimeout(() => {
+        // Run after any pending animations/interactions to avoid blocking the UI thread
+        InteractionManager.runAfterInteractions(async () => {
+          try {
+            const draft = {
+              formValues,
+              currentStepId,
+              lastUpdated: new Date().toISOString(),
+            };
+            // Wrap stringify in try-catch — large/circular forms can throw
+            let serialized: string;
+            try {
+              serialized = JSON.stringify(draft);
+            } catch {
+              console.warn(
+                '⚠️ [CONFIG] Draft too large to serialize, skipping save',
+              );
+              return;
+            }
+            await AsyncStorage.setItem(storageKey, serialized);
+            console.log('💾 [CONFIG] Draft saved for panel:', initialPanel?.id);
+          } catch (error) {
+            console.error('❌ [CONFIG] Error saving draft:', error);
+          }
+        });
+      }, 3000);
     });
 
     return () => {
