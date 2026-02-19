@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useEffect, useState, useRef } from 'react';
+import { useRef, useMemo } from 'react';
 import { FormProvider } from 'react-hook-form';
 import DefaultHeader from '@/components/default-header';
 import {
@@ -17,7 +17,7 @@ import {
   isLastStep,
   isFirstStep,
 } from '@/hooks/use-electrical-panel-configuration';
-import { PanelData } from '@/types/panel-configuration';
+import { PanelData, CircuitsConfigStepRef } from '@/types/panel-configuration';
 import { styles } from './_config-steps/_styles';
 import BasicInfoStep from './_config-steps/BasicInfoStep';
 import ITGConfigStep from './_config-steps/ITGConfigStep';
@@ -28,27 +28,25 @@ import ReviewStep from './_config-steps/ReviewStep';
 
 export default function PanelConfigurationScreen() {
   const params = useLocalSearchParams();
-  const [panel, setPanel] = useState<PanelData | null>(null);
 
-  // Ref to hold custom navigation handlers from CircuitsConfigStep
-  const circuitsNavHandlersRef = useRef<{
-    handleNext: () => boolean | Promise<boolean>;
-    handleBack: () => boolean;
-  } | null>(null);
-
-  useEffect(() => {
+  // Parse panel data from URL params (derived state, no useEffect needed)
+  const panel = useMemo<PanelData | null>(() => {
     if (params.panel) {
       try {
-        setPanel(JSON.parse(params.panel as string));
+        return JSON.parse(params.panel as string);
       } catch {
-        setPanel({
+        return {
           id: 'N/A',
           codigo: 'N/A',
           equipment_detail: { rotulo: 'Equipo' },
-        });
+        };
       }
     }
+    return null;
   }, [params.panel]);
+
+  // Ref to hold custom navigation handlers from CircuitsConfigStep
+  const circuitsNavHandlersRef = useRef<CircuitsConfigStepRef | null>(null);
 
   const { currentStepId, form, goNext, goBack } = usePanelConfiguration(panel);
 
@@ -89,10 +87,7 @@ export default function PanelConfigurationScreen() {
       /* ... */
       case STEP_IDS.CIRCUITS:
         return (
-          <CircuitsConfigStep
-            panel={panel}
-            navigationHandlers={circuitsNavHandlersRef}
-          />
+          <CircuitsConfigStep panel={panel} ref={circuitsNavHandlersRef} />
         );
       case STEP_IDS.EXTRA_COMPONENTS:
         return <ExtraComponentsStep panel={panel} />;

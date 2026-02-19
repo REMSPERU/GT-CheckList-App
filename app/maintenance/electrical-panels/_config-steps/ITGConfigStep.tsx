@@ -181,7 +181,7 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
 
       {/* Lista IT-G - render based on watched itgDescriptions array */}
       <View style={{ marginTop: 12 }}>
-        {itgDescriptions.map((_, idx) => {
+        {itgDescriptions.map((description, idx) => {
           const itgErrors = errors.itgCircuits?.[idx];
           const hasErrors = !!(
             itgErrors?.amperajeITG ||
@@ -189,9 +189,12 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
             itgErrors?.cableTypeITG
           );
 
+          // Use a stable key combining index and description to handle reorders
+          const stableKey = `itg-${idx}-${description || 'empty'}`;
+
           return (
             <View
-              key={`itg-${idx}`}
+              key={stableKey}
               style={[
                 styles.itgCard,
                 hasErrors && { borderColor: '#EF4444', borderWidth: 1.5 },

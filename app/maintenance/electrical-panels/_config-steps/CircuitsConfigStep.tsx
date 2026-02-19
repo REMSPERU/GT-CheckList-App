@@ -3,10 +3,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFormContext, Controller, useWatch } from 'react-hook-form';
 import {
   CircuitsConfigStepProps,
+  CircuitsConfigStepRef,
   CircuitConfig,
 } from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  useImperativeHandle,
+  forwardRef,
+} from 'react';
 import ProgressTabs from '@/components/progress-tabs';
 import { styles } from './_styles';
 import CircuitItem from './CircuitItem';
@@ -27,10 +36,10 @@ const DEFAULT_CIRCUIT: CircuitConfig = {
   subITMs: [],
 };
 
-export default function CircuitsConfigStep({
-  panel,
-  navigationHandlers,
-}: CircuitsConfigStepProps) {
+const CircuitsConfigStep = forwardRef<
+  CircuitsConfigStepRef,
+  CircuitsConfigStepProps
+>(function CircuitsConfigStep({ panel }, ref) {
   const {
     control,
     setValue,
@@ -141,15 +150,15 @@ export default function CircuitsConfigStep({
     }
   }, [selectedItgIndex, clearErrors]);
 
-  // Expose handlers to parent via ref
-  useEffect(() => {
-    if (navigationHandlers) {
-      navigationHandlers.current = {
-        handleNext: handleNext,
-        handleBack: handleBack,
-      };
-    }
-  }, [navigationHandlers, handleNext, handleBack]);
+  // Expose handlers to parent via useImperativeHandle (React Compiler compatible)
+  useImperativeHandle(
+    ref,
+    () => ({
+      handleNext,
+      handleBack,
+    }),
+    [handleNext, handleBack],
+  );
 
   // State to track expanded indices per ITG
   const [expandedIndicesMap, setExpandedIndicesMap] = useState<
@@ -360,4 +369,6 @@ export default function CircuitsConfigStep({
       />
     </View>
   );
-}
+});
+
+export default CircuitsConfigStep;

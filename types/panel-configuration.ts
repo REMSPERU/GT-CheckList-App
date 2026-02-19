@@ -56,12 +56,13 @@ export interface ITGCircuitData {
   circuits: CircuitConfig[];
 }
 
+export interface CircuitsConfigStepRef {
+  handleNext: () => boolean | Promise<boolean>;
+  handleBack: () => boolean;
+}
+
 export interface CircuitsConfigStepProps {
   panel: PanelData | null;
-  navigationHandlers?: React.RefObject<{
-    handleNext: () => boolean | Promise<boolean>;
-    handleBack: () => boolean;
-  } | null>;
 }
 
 export type ExtraComponentType =
