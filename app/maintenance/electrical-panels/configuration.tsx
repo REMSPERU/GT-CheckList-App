@@ -104,10 +104,39 @@ export default function PanelConfigurationScreen() {
     <SafeAreaView style={styles.container}>
       <FormProvider {...form}>
         {currentStepId === STEP_IDS.CIRCUITS ? (
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
+          Platform.OS === 'ios' ? (
+            <KeyboardAvoidingView
+              style={{ flex: 1 }}
+              behavior="padding"
+              keyboardVerticalOffset={10}>
+              <View style={{ flex: 1 }}>
+                <DefaultHeader
+                  title="Configuración del equipo"
+                  searchPlaceholder=""
+                />
+                <View style={{ flex: 1 }}>{renderStep()}</View>
+                <View style={styles.footer}>
+                  <TouchableOpacity
+                    style={styles.primaryBtn}
+                    onPress={handleGoNext}>
+                    <Text style={styles.primaryBtnText}>
+                      {isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.secondaryBtn}
+                    onPress={handleGoBack}>
+                    <Text style={styles.secondaryBtnText}>
+                      {isFirstStep(currentStepId) ? 'Cancel' : 'Atrás'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          ) : (
+            /* Android: no KeyboardAvoidingView – the OS handles keyboard
+               avoidance natively via adjustResize. Using KAV on Android
+               causes a ghost gap below the footer after the keyboard closes. */
             <View style={{ flex: 1 }}>
               <DefaultHeader
                 title="Configuración del equipo"
@@ -131,7 +160,7 @@ export default function PanelConfigurationScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </KeyboardAvoidingView>
+          )
         ) : (
           <ScrollView>
             <DefaultHeader

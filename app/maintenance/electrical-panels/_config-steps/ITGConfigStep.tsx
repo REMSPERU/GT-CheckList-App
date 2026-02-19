@@ -1,9 +1,18 @@
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  ScrollView,
+  Platform,
+  Keyboard,
+} from 'react-native';
 import { useFormContext, Controller, useWatch } from 'react-hook-form';
 import RNPickerSelect from 'react-native-picker-select';
 import { Ionicons } from '@expo/vector-icons';
 import { ITGConfigStepProps, CableType } from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
+import { useState, useEffect, useMemo } from 'react';
 import { styles } from './_styles';
 
 const pickerSelectStyles = StyleSheet.create({
@@ -146,212 +155,248 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
     }
   };
 
+  // Track keyboard height on Android to add dynamic bottom padding
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const showSub = Keyboard.addListener('keyboardDidShow', e => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const dynamicPadding = useMemo(
+    () => ({ paddingBottom: keyboardHeight > 0 ? keyboardHeight : 24 }),
+    [keyboardHeight],
+  );
+
   return (
-    <View style={styles.contentWrapper}>
-      {/* Equipo */}
-      <Text style={styles.equipmentLabel}>
-        Equipo {panel?.equipment_detail?.rotulo || panel?.codigo || ''}
-      </Text>
-      <Text style={styles.stepTitleStrong}>
-        Interruptor Termomagnetico general (IT-G)
-      </Text>
+    <ScrollView
+      contentContainerStyle={dynamicPadding}
+      keyboardShouldPersistTaps="handled">
+      <View style={styles.contentWrapper}>
+        {/* Equipo */}
+        <Text style={styles.equipmentLabel}>
+          Equipo {panel?.equipment_detail?.rotulo || panel?.codigo || ''}
+        </Text>
+        <Text style={styles.stepTitleStrong}>
+          Interruptor Termomagnetico general (IT-G)
+        </Text>
 
-      {/* ¿Cuantos IT-G tienes? */}
-      <View style={styles.rowBetween}>
-        <Text style={styles.countLabel}>¿Cuantos IT-G tienes?</Text>
-        <Controller
-          control={control}
-          name="itgCount"
-          render={({ field: { onBlur, value } }) => (
-            <TextInput
-              style={[styles.countInput, errors.itgCount && styles.inputError]}
-              value={value}
-              onChangeText={updateCount}
-              onBlur={onBlur}
-              keyboardType="numeric"
-              placeholder="1"
-              placeholderTextColor="#9CA3AF"
-            />
-          )}
-        />
-      </View>
-      {errors.itgCount && (
-        <Text style={styles.errorText}>{errors.itgCount.message}</Text>
-      )}
+        {/* ¿Cuantos IT-G tienes? */}
+        <View style={styles.rowBetween}>
+          <Text style={styles.countLabel}>¿Cuantos IT-G tienes?</Text>
+          <Controller
+            control={control}
+            name="itgCount"
+            render={({ field: { onBlur, value } }) => (
+              <TextInput
+                style={[
+                  styles.countInput,
+                  errors.itgCount && styles.inputError,
+                ]}
+                value={value}
+                onChangeText={updateCount}
+                onBlur={onBlur}
+                keyboardType="numeric"
+                placeholder="1"
+                placeholderTextColor="#9CA3AF"
+              />
+            )}
+          />
+        </View>
+        {errors.itgCount && (
+          <Text style={styles.errorText}>{errors.itgCount.message}</Text>
+        )}
 
-      {/* Lista IT-G - render based on watched itgDescriptions array */}
-      <View style={{ marginTop: 12 }}>
-        {itgDescriptions.map((description, idx) => {
-          const itgErrors = errors.itgCircuits?.[idx];
-          const hasErrors = !!(
-            itgErrors?.amperajeITG ||
-            itgErrors?.diameterITG ||
-            itgErrors?.cableTypeITG
-          );
+        {/* Lista IT-G - render based on watched itgDescriptions array */}
+        <View style={{ marginTop: 12 }}>
+          {itgDescriptions.map((description, idx) => {
+            const itgErrors = errors.itgCircuits?.[idx];
+            const hasErrors = !!(
+              itgErrors?.amperajeITG ||
+              itgErrors?.diameterITG ||
+              itgErrors?.cableTypeITG
+            );
 
-          // Use a stable key combining index and description to handle reorders
-          const stableKey = `itg-${idx}-${description || 'empty'}`;
+            const stableKey = `itg-${idx}-${description || 'empty'}`;
 
-          return (
-            <View
-              key={stableKey}
-              style={[
-                styles.itgCard,
-                hasErrors && { borderColor: '#EF4444', borderWidth: 1.5 },
-              ]}>
+            return (
               <View
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={styles.itgTitle}>IT–G{idx + 1}</Text>
-                {hasErrors && (
-                  <View
-                    style={{
-                      backgroundColor: '#EF4444',
-                      borderRadius: 10,
-                      paddingHorizontal: 8,
-                      paddingVertical: 2,
-                    }}>
-                    <Text
+                key={stableKey}
+                style={[
+                  styles.itgCard,
+                  hasErrors && { borderColor: '#EF4444', borderWidth: 1.5 },
+                ]}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}>
+                  <Text style={styles.itgTitle}>IT–G{idx + 1}</Text>
+                  {hasErrors && (
+                    <View
                       style={{
-                        color: '#FFFFFF',
-                        fontSize: 10,
-                        fontWeight: '600',
+                        backgroundColor: '#EF4444',
+                        borderRadius: 10,
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
                       }}>
-                      Incompleto
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Amperaje */}
-              <Text style={styles.cnLabel}>AMPERAJE:</Text>
-              <View
-                style={[
-                  styles.inputWithUnitWrapper,
-                  itgErrors?.amperajeITG && {
-                    borderColor: '#EF4444',
-                    borderWidth: 1.5,
-                  },
-                ]}>
-                <Controller
-                  control={control}
-                  name={`itgCircuits.${idx}.amperajeITG`}
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      style={styles.itgInputWithUnit}
-                      value={value || ''}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="Ingrese amperaje"
-                      placeholderTextColor="#9CA3AF"
-                      keyboardType="numeric"
-                    />
+                      <Text
+                        style={{
+                          color: '#FFFFFF',
+                          fontSize: 10,
+                          fontWeight: '600',
+                        }}>
+                        Incompleto
+                      </Text>
+                    </View>
                   )}
-                />
-                <Text style={styles.unitText}>A</Text>
-              </View>
-              {itgErrors?.amperajeITG && (
-                <Text style={styles.errorText}>
-                  {itgErrors.amperajeITG.message}
-                </Text>
-              )}
+                </View>
 
-              {/* Diámetro */}
-              <Text style={styles.cnLabel}>DIÁMETRO:</Text>
-              <View
-                style={[
-                  styles.inputWithUnitWrapper,
-                  itgErrors?.diameterITG && {
-                    borderColor: '#EF4444',
-                    borderWidth: 1.5,
-                  },
-                ]}>
-                <Controller
-                  control={control}
-                  name={`itgCircuits.${idx}.diameterITG`}
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      style={styles.itgInputWithUnit}
-                      value={value || ''}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="Ingrese diámetro"
-                      placeholderTextColor="#9CA3AF"
-                      keyboardType="numeric"
-                    />
-                  )}
-                />
-                <Text style={styles.unitText}>mm²</Text>
-              </View>
-              {itgErrors?.diameterITG && (
-                <Text style={styles.errorText}>
-                  {itgErrors.diameterITG.message}
-                </Text>
-              )}
-
-              {/* Tipo de Cable */}
-              <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
-              <Controller
-                control={control}
-                name={`itgCircuits.${idx}.cableTypeITG`}
-                render={({ field: { onChange, value } }) => (
-                  <RNPickerSelect
-                    onValueChange={onChange}
-                    items={CABLE_TYPE_OPTIONS.map(opt => ({
-                      label: opt.label,
-                      value: opt.key,
-                    }))}
-                    placeholder={{
-                      label: 'Seleccione una opción',
-                      value: null,
-                      color: '#9CA3AF',
-                    }}
-                    value={value}
-                    style={{
-                      ...(itgErrors?.cableTypeITG
-                        ? pickerErrorStyles
-                        : pickerSelectStyles),
-                      iconContainer: {
-                        top: 12,
-                        right: 12,
-                      },
-                    }}
-                    useNativeAndroidPickerStyle={false}
-                    Icon={() => (
-                      <Ionicons
-                        name="chevron-down"
-                        size={20}
-                        color={itgErrors?.cableTypeITG ? '#EF4444' : '#6B7280'}
+                {/* Amperaje */}
+                <Text style={styles.cnLabel}>AMPERAJE:</Text>
+                <View
+                  style={[
+                    styles.inputWithUnitWrapper,
+                    itgErrors?.amperajeITG && {
+                      borderColor: '#EF4444',
+                      borderWidth: 1.5,
+                    },
+                  ]}>
+                  <Controller
+                    control={control}
+                    name={`itgCircuits.${idx}.amperajeITG`}
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <TextInput
+                        style={styles.itgInputWithUnit}
+                        value={value || ''}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        placeholder="Ingrese amperaje"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="numeric"
                       />
                     )}
                   />
+                  <Text style={styles.unitText}>A</Text>
+                </View>
+                {itgErrors?.amperajeITG && (
+                  <Text style={styles.errorText}>
+                    {itgErrors.amperajeITG.message}
+                  </Text>
                 )}
-              />
-              {itgErrors?.cableTypeITG && (
-                <Text style={styles.errorText}>Seleccione tipo de cable</Text>
-              )}
 
-              {/* Suministro eléctrico */}
-              <Text style={[styles.itgSubtitle, { marginTop: 12 }]}>
-                ¿Qué suministra eléctricamente el IT-G?
-              </Text>
-              <Controller
-                control={control}
-                name={`itgDescriptions.${idx}`}
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    style={styles.itgInput}
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    placeholder="Ingrese texto"
-                    placeholderTextColor="#9CA3AF"
+                {/* Diámetro */}
+                <Text style={styles.cnLabel}>DIÁMETRO:</Text>
+                <View
+                  style={[
+                    styles.inputWithUnitWrapper,
+                    itgErrors?.diameterITG && {
+                      borderColor: '#EF4444',
+                      borderWidth: 1.5,
+                    },
+                  ]}>
+                  <Controller
+                    control={control}
+                    name={`itgCircuits.${idx}.diameterITG`}
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <TextInput
+                        style={styles.itgInputWithUnit}
+                        value={value || ''}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        placeholder="Ingrese diámetro"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="numeric"
+                      />
+                    )}
                   />
+                  <Text style={styles.unitText}>mm²</Text>
+                </View>
+                {itgErrors?.diameterITG && (
+                  <Text style={styles.errorText}>
+                    {itgErrors.diameterITG.message}
+                  </Text>
                 )}
-              />
-            </View>
-          );
-        })}
+
+                {/* Tipo de Cable */}
+                <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
+                <Controller
+                  control={control}
+                  name={`itgCircuits.${idx}.cableTypeITG`}
+                  render={({ field: { onChange, value } }) => (
+                    <RNPickerSelect
+                      onValueChange={onChange}
+                      items={CABLE_TYPE_OPTIONS.map(opt => ({
+                        label: opt.label,
+                        value: opt.key,
+                      }))}
+                      placeholder={{
+                        label: 'Seleccione una opción',
+                        value: null,
+                        color: '#9CA3AF',
+                      }}
+                      value={value}
+                      style={{
+                        ...(itgErrors?.cableTypeITG
+                          ? pickerErrorStyles
+                          : pickerSelectStyles),
+                        iconContainer: {
+                          top: 12,
+                          right: 12,
+                        },
+                      }}
+                      useNativeAndroidPickerStyle={false}
+                      Icon={() => (
+                        <Ionicons
+                          name="chevron-down"
+                          size={20}
+                          color={
+                            itgErrors?.cableTypeITG ? '#EF4444' : '#6B7280'
+                          }
+                        />
+                      )}
+                    />
+                  )}
+                />
+                {itgErrors?.cableTypeITG && (
+                  <Text style={styles.errorText}>Seleccione tipo de cable</Text>
+                )}
+
+                {/* Suministro eléctrico */}
+                <Text style={[styles.itgSubtitle, { marginTop: 12 }]}>
+                  ¿Qué suministra eléctricamente el IT-G?
+                </Text>
+                <Controller
+                  control={control}
+                  name={`itgDescriptions.${idx}`}
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      style={styles.itgInput}
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="Ingrese texto"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
+                />
+              </View>
+            );
+          })}
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }

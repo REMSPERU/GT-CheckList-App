@@ -1,4 +1,12 @@
-import { View, Text, TextInput, Alert, FlatList } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Alert,
+  FlatList,
+  Platform,
+  Keyboard,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFormContext, Controller, useWatch } from 'react-hook-form';
 import {
@@ -15,6 +23,7 @@ import {
   useMemo,
   useImperativeHandle,
   forwardRef,
+  memo,
 } from 'react';
 import ProgressTabs from '@/components/progress-tabs';
 import { styles } from './_styles';
@@ -36,240 +45,87 @@ const DEFAULT_CIRCUIT: CircuitConfig = {
   subITMs: [],
 };
 
-const CircuitsConfigStep = forwardRef<
-  CircuitsConfigStepRef,
-  CircuitsConfigStepProps
->(function CircuitsConfigStep({ panel }, ref) {
+// ─── Extracted Header Component ──────────────────────────────────────────────
+// Extracted as a separate memoized component so that TextInput focus is never
+// lost due to parent re-renders from FlatList data changes.
+interface HeaderProps {
+  panel: CircuitsConfigStepProps['panel'];
+  selectedItgIndex: number;
+  itgCircuitsLength: number;
+  itgDescription: string | undefined;
+}
+
+const ListHeader = memo(function ListHeader({
+  panel,
+  selectedItgIndex,
+  itgCircuitsLength,
+  itgDescription,
+}: HeaderProps) {
   const {
     control,
     setValue,
     getValues,
-    trigger,
-    clearErrors,
     formState: { errors },
   } = useFormContext<PanelConfigurationFormValues>();
 
-  // Watch the full itgCircuits array to get its length
-  const itgCircuitsData =
-    useWatch({
-      control,
-      name: 'itgCircuits',
-    }) || [];
-
-  const itgCircuitsLength = itgCircuitsData.length;
-
-  const [selectedItgIndex, setSelectedItgIndex] = useState(0);
-
-  // Watch circuits for the currently selected ITG
-  const currentCircuits =
-    (useWatch({
-      control,
-      name: `itgCircuits.${selectedItgIndex}.circuits` as const,
-    }) as unknown as CircuitConfig[]) || [];
-
-  // Watch other fields for the current ITG
-  const cnPrefix = useWatch({
-    control,
-    name: `itgCircuits.${selectedItgIndex}.cnPrefix` as const,
-  });
-
-  const itgDescription = useWatch({
-    control,
-    name: `itgDescriptions.${selectedItgIndex}` as const,
-  });
-
-  // Helper to generate tab labels
-  const getTabLabels = () => {
-    return Array.from(
-      { length: itgCircuitsLength },
-      (_, i) => `IT - G${i + 1} `,
-    );
-  };
-
-  // Validate current ITG before allowing tab change
-  const validateCurrentItg = useCallback(async (): Promise<boolean> => {
-    const result = await trigger(`itgCircuits.${selectedItgIndex}` as any);
-
-    if (!result) {
-      // Get specific errors for this ITG
-      const itgErrors = errors.itgCircuits?.[selectedItgIndex];
-      let errorMessages: string[] = [];
-
-      if (itgErrors?.cnPrefix) {
-        errorMessages.push('• Prefijo es requerido');
-      }
-      if (itgErrors?.circuitsCount) {
-        errorMessages.push('• Cantidad de circuitos debe ser mayor a 0');
-      }
-      if (itgErrors?.circuits) {
-        errorMessages.push('• Complete todos los campos de los circuitos');
-      }
-
-      if (errorMessages.length > 0) {
-        Alert.alert(
-          `Error en IT-G${selectedItgIndex + 1}`,
-          `Por favor complete los siguientes campos:\n\n${errorMessages.join('\n')}`,
-        );
-      }
-    }
-
-    return result;
-  }, [selectedItgIndex, trigger, errors]);
-
-  // Navigation handlers with validation
-  const handleNext = useCallback(async () => {
-    // Validate current ITG before proceeding
-    const isValid = await validateCurrentItg();
-
-    if (!isValid) {
-      return false; // Don't proceed - validation failed
-    }
-
-    if (selectedItgIndex < itgCircuitsLength - 1) {
-      // Clear errors before switching to next ITG
-      clearErrors('itgCircuits');
-      // Go to next IT-G tab
-      setSelectedItgIndex(prev => prev + 1);
-      return false; // Don't proceed to next step
-    } else {
-      // Last IT-G, OK to go to next step
-      return true;
-    }
-  }, [selectedItgIndex, itgCircuitsLength, validateCurrentItg, clearErrors]);
-
-  const handleBack = useCallback(() => {
-    if (selectedItgIndex > 0) {
-      // Clear errors before switching to previous ITG
-      clearErrors('itgCircuits');
-      // Go to previous IT-G tab - no validation needed when going back
-      setSelectedItgIndex(prev => prev - 1);
-      return false; // Don't go back to previous step
-    } else {
-      // First IT-G, OK to go to previous step
-      return true;
-    }
-  }, [selectedItgIndex, clearErrors]);
-
-  // Expose handlers to parent via useImperativeHandle (React Compiler compatible)
-  useImperativeHandle(
-    ref,
-    () => ({
-      handleNext,
-      handleBack,
-    }),
-    [handleNext, handleBack],
+  const tabLabels = useMemo(
+    () =>
+      Array.from({ length: itgCircuitsLength }, (_, i) => `IT - G${i + 1} `),
+    [itgCircuitsLength],
   );
 
-  // State to track expanded indices per ITG
-  const [expandedIndicesMap, setExpandedIndicesMap] = useState<
-    Record<number, number[]>
-  >({});
+  // Circuits count handler — local to the header so it doesn't force
+  // the entire list to re-render.
+  const updateCircuitsCount = useCallback(
+    (value: string) => {
+      const n = Math.max(0, parseInt(value || '0', 10));
+      const currentCircuitsList =
+        getValues(`itgCircuits.${selectedItgIndex}.circuits`) || [];
+      const currentLength = currentCircuitsList.length;
 
-  // Get expanded indices for current ITG
-  const expandedIndices = useMemo(
-    () => expandedIndicesMap[selectedItgIndex] || [],
-    [expandedIndicesMap, selectedItgIndex],
-  );
+      let newCircuits = [...currentCircuitsList];
 
-  // Track previous circuits length to detect new additions
-  const prevCircuitsLengthRef = useRef(currentCircuits.length);
-  const prevItgIndexRef = useRef(selectedItgIndex);
-
-  useEffect(() => {
-    // Only expand new items if we're still on the same ITG
-    if (prevItgIndexRef.current === selectedItgIndex) {
-      if (currentCircuits.length > prevCircuitsLengthRef.current) {
-        // Items were added - expand them
-        const newIndices = Array.from(
-          { length: currentCircuits.length - prevCircuitsLengthRef.current },
-          (_, i) => prevCircuitsLengthRef.current + i,
-        );
-        setExpandedIndicesMap(prev => ({
-          ...prev,
-          [selectedItgIndex]: [
-            ...(prev[selectedItgIndex] || []),
-            ...newIndices,
-          ],
-        }));
+      if (n > currentLength) {
+        for (let i = currentLength; i < n; i++) {
+          newCircuits.push({
+            ...DEFAULT_CIRCUIT,
+            cableType: 'libre_halogeno' as const,
+          });
+        }
+      } else if (n < currentLength) {
+        newCircuits = newCircuits.slice(0, n);
       }
-    }
-    prevCircuitsLengthRef.current = currentCircuits.length;
-    prevItgIndexRef.current = selectedItgIndex;
-  }, [currentCircuits.length, selectedItgIndex]);
 
-  // Toggle handler using useCallback to keep prop stable for React.memo
-  const toggleExpand = useCallback(
-    (index: number) => {
-      setExpandedIndicesMap(prev => {
-        const currentIndices = prev[selectedItgIndex] || [];
-        const newIndices = currentIndices.includes(index)
-          ? currentIndices.filter((i: number) => i !== index)
-          : [...currentIndices, index];
-        return { ...prev, [selectedItgIndex]: newIndices };
-      });
+      setValue(`itgCircuits.${selectedItgIndex}.circuits`, newCircuits as any);
+      setValue(`itgCircuits.${selectedItgIndex}.circuitsCount`, value);
     },
-    [selectedItgIndex],
+    [selectedItgIndex, getValues, setValue],
   );
 
-  // Update circuits count - uses setValue directly instead of useFieldArray
-  const updateCircuitsCount = (value: string) => {
-    const n = Math.max(0, parseInt(value || '0', 10));
-    const currentCircuitsList =
-      getValues(`itgCircuits.${selectedItgIndex}.circuits`) || [];
-    const currentLength = currentCircuitsList.length;
-
-    let newCircuits = [...currentCircuitsList];
-
-    if (n > currentLength) {
-      // Add new circuits
-      for (let i = currentLength; i < n; i++) {
-        newCircuits.push({
-          ...DEFAULT_CIRCUIT,
-          cableType: 'libre_halogeno' as const,
-        });
-      }
-    } else if (n < currentLength) {
-      // Remove excess circuits from the end
-      newCircuits = newCircuits.slice(0, n);
-    }
-
-    // Update both the circuits array and the count
-    setValue(`itgCircuits.${selectedItgIndex}.circuits`, newCircuits as any);
-    setValue(`itgCircuits.${selectedItgIndex}.circuitsCount`, value);
-  };
-
-  // Generate stable keys for circuit items based on ITG index and circuit index
-  const getCircuitKey = (circuitIndex: number) => {
-    return `itg-${selectedItgIndex}-circuit-${circuitIndex}`;
-  };
-
-  // Render header logic encapsulated
-  const renderHeader = () => (
+  return (
     <View style={styles.contentWrapper}>
       {/* Equipo */}
       <Text style={styles.equipmentLabel}>
         Equipo {panel?.equipment_detail?.rotulo || panel?.codigo || ''}
       </Text>
 
-      {/* Tabs for IT-G selection - Non-clickable, navigation via buttons */}
+      {/* Tabs for IT-G selection */}
       {itgCircuitsLength > 1 && (
         <ProgressTabs
-          items={getTabLabels()}
+          items={tabLabels}
           selectedIndex={selectedItgIndex}
-          onSelectIndex={() => {}} // Disabled
+          onSelectIndex={() => {}}
           disabled={true}
         />
       )}
 
-      {/* IT-G description (title is already in tab) */}
+      {/* IT-G description */}
       {itgDescription && (
         <Text style={styles.itgDescription}>{itgDescription}</Text>
       )}
 
-      {/* Prefijo - key forces re-mount when ITG changes */}
-      <View
-        key={`prefix-container-${selectedItgIndex}`}
-        style={{ marginBottom: 8 }}>
+      {/* Prefijo */}
+      <View style={{ marginBottom: 8 }}>
         <View style={styles.labelWithIconRow}>
           <Text style={styles.countLabel}>Ingrese el prefijo</Text>
           <Ionicons
@@ -279,7 +135,6 @@ const CircuitsConfigStep = forwardRef<
           />
         </View>
         <Controller
-          key={`prefix-${selectedItgIndex}`}
           control={control}
           name={`itgCircuits.${selectedItgIndex}.cnPrefix` as const}
           render={({ field: { onChange, onBlur, value } }) => (
@@ -304,13 +159,10 @@ const CircuitsConfigStep = forwardRef<
         )}
       </View>
 
-      {/* ¿Cuántos circuitos tienes? - key forces re-mount when ITG changes */}
-      <View
-        key={`count-container-${selectedItgIndex}`}
-        style={styles.rowBetween}>
+      {/* ¿Cuántos circuitos tienes? */}
+      <View style={styles.rowBetween}>
         <Text style={styles.countLabel}>¿Cuántos circuitos tienes?</Text>
         <Controller
-          key={`count-${selectedItgIndex}`}
           control={control}
           name={`itgCircuits.${selectedItgIndex}.circuitsCount` as const}
           render={({ field: { value } }) => (
@@ -336,39 +188,254 @@ const CircuitsConfigStep = forwardRef<
       )}
     </View>
   );
+});
 
-  // Memoize renderItem to prevent re-creation on every re-render
+// ─── Main Component ──────────────────────────────────────────────────────────
+
+const CircuitsConfigStep = forwardRef<
+  CircuitsConfigStepRef,
+  CircuitsConfigStepProps
+>(function CircuitsConfigStep({ panel }, ref) {
+  const {
+    control,
+    trigger,
+    clearErrors,
+    formState: { errors },
+  } = useFormContext<PanelConfigurationFormValues>();
+
+  // Only watch the length via a lightweight selector – NOT the entire array
+  const itgCircuitsData =
+    useWatch({
+      control,
+      name: 'itgCircuits',
+    }) || [];
+
+  const itgCircuitsLength = itgCircuitsData.length;
+
+  const [selectedItgIndex, setSelectedItgIndex] = useState(0);
+
+  // Watch only the specific fields we actually need for the list
+  const currentCircuits =
+    (useWatch({
+      control,
+      name: `itgCircuits.${selectedItgIndex}.circuits` as const,
+    }) as unknown as CircuitConfig[]) || [];
+
+  const cnPrefix =
+    useWatch({
+      control,
+      name: `itgCircuits.${selectedItgIndex}.cnPrefix` as const,
+    }) || '';
+
+  const itgDescription = useWatch({
+    control,
+    name: `itgDescriptions.${selectedItgIndex}` as const,
+  });
+
+  // ── Validation & Navigation ──────────────────────────────────────────────
+
+  const validateCurrentItg = useCallback(async (): Promise<boolean> => {
+    const result = await trigger(`itgCircuits.${selectedItgIndex}` as any);
+
+    if (!result) {
+      const itgErrors = errors.itgCircuits?.[selectedItgIndex];
+      const errorMessages: string[] = [];
+
+      if (itgErrors?.cnPrefix) {
+        errorMessages.push('• Prefijo es requerido');
+      }
+      if (itgErrors?.circuitsCount) {
+        errorMessages.push('• Cantidad de circuitos debe ser mayor a 0');
+      }
+      if (itgErrors?.circuits) {
+        errorMessages.push('• Complete todos los campos de los circuitos');
+      }
+
+      if (errorMessages.length > 0) {
+        Alert.alert(
+          `Error en IT-G${selectedItgIndex + 1}`,
+          `Por favor complete los siguientes campos:\n\n${errorMessages.join('\n')}`,
+        );
+      }
+    }
+
+    return result;
+  }, [selectedItgIndex, trigger, errors]);
+
+  const handleNext = useCallback(async () => {
+    const isValid = await validateCurrentItg();
+    if (!isValid) return false;
+
+    if (selectedItgIndex < itgCircuitsLength - 1) {
+      clearErrors('itgCircuits');
+      setSelectedItgIndex(prev => prev + 1);
+      return false;
+    }
+    return true;
+  }, [selectedItgIndex, itgCircuitsLength, validateCurrentItg, clearErrors]);
+
+  const handleBack = useCallback(() => {
+    if (selectedItgIndex > 0) {
+      clearErrors('itgCircuits');
+      setSelectedItgIndex(prev => prev - 1);
+      return false;
+    }
+    return true;
+  }, [selectedItgIndex, clearErrors]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      handleNext,
+      handleBack,
+    }),
+    [handleNext, handleBack],
+  );
+
+  // ── Expand / Collapse ────────────────────────────────────────────────────
+
+  const [expandedIndicesMap, setExpandedIndicesMap] = useState<
+    Record<number, number[]>
+  >({});
+
+  const expandedIndices = useMemo(
+    () => expandedIndicesMap[selectedItgIndex] || [],
+    [expandedIndicesMap, selectedItgIndex],
+  );
+
+  // Track previous circuits length to detect new additions
+  const prevCircuitsLengthRef = useRef(currentCircuits.length);
+  const prevItgIndexRef = useRef(selectedItgIndex);
+
+  useEffect(() => {
+    if (prevItgIndexRef.current === selectedItgIndex) {
+      if (currentCircuits.length > prevCircuitsLengthRef.current) {
+        const newIndices = Array.from(
+          { length: currentCircuits.length - prevCircuitsLengthRef.current },
+          (_, i) => prevCircuitsLengthRef.current + i,
+        );
+        setExpandedIndicesMap(prev => ({
+          ...prev,
+          [selectedItgIndex]: [
+            ...(prev[selectedItgIndex] || []),
+            ...newIndices,
+          ],
+        }));
+      }
+    }
+    prevCircuitsLengthRef.current = currentCircuits.length;
+    prevItgIndexRef.current = selectedItgIndex;
+  }, [currentCircuits.length, selectedItgIndex]);
+
+  const toggleExpand = useCallback(
+    (index: number) => {
+      setExpandedIndicesMap(prev => {
+        const currentIndices = prev[selectedItgIndex] || [];
+        const newIndices = currentIndices.includes(index)
+          ? currentIndices.filter((i: number) => i !== index)
+          : [...currentIndices, index];
+        return { ...prev, [selectedItgIndex]: newIndices };
+      });
+    },
+    [selectedItgIndex],
+  );
+
+  // ── FlatList Helpers ─────────────────────────────────────────────────────
+
+  // Use a stable data array reference – only re-create when length actually changes
+  const circuitsCount = currentCircuits.length;
+  const stableData = useMemo(
+    () => currentCircuits,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [circuitsCount, selectedItgIndex],
+  );
+
+  const getCircuitKey = useCallback(
+    (_: CircuitConfig, idx: number) => `itg-${selectedItgIndex}-circuit-${idx}`,
+    [selectedItgIndex],
+  );
+
+  // Memoize renderItem — pull `expandedIndices.includes` out of the closure
+  // by using a Set for O(1) lookup.
+  const expandedSet = useMemo(
+    () => new Set(expandedIndices),
+    [expandedIndices],
+  );
+
   const renderItem = useCallback(
     ({ item, index }: { item: CircuitConfig; index: number }) => (
-      <View style={{ paddingHorizontal: 24 }}>
+      <View style={paddingStyle}>
         <CircuitItem
           index={index}
           itgIndex={selectedItgIndex}
-          isExpanded={expandedIndices.includes(index)}
+          isExpanded={expandedSet.has(index)}
           onToggleExpand={toggleExpand}
           cnPrefix={cnPrefix}
         />
       </View>
     ),
-    [selectedItgIndex, expandedIndices, toggleExpand, cnPrefix],
+    [selectedItgIndex, expandedSet, toggleExpand, cnPrefix],
+  );
+
+  // Memoize the header element so FlatList doesn't re-mount it
+  const headerElement = useMemo(
+    () => (
+      <ListHeader
+        panel={panel}
+        selectedItgIndex={selectedItgIndex}
+        itgCircuitsLength={itgCircuitsLength}
+        itgDescription={itgDescription}
+      />
+    ),
+    [panel, selectedItgIndex, itgCircuitsLength, itgDescription],
+  );
+
+  // Track keyboard height on Android to add dynamic bottom padding,
+  // so inputs near the bottom aren't hidden behind the keyboard.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const showSub = Keyboard.addListener('keyboardDidShow', e => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const dynamicContentPadding = useMemo(
+    () => ({ paddingBottom: keyboardHeight > 0 ? keyboardHeight : 24 }),
+    [keyboardHeight],
   );
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={containerStyle}>
       <FlatList<CircuitConfig>
-        data={currentCircuits}
-        keyExtractor={(_, idx) => getCircuitKey(idx)}
+        data={stableData}
+        keyExtractor={getCircuitKey}
         renderItem={renderItem}
-        ListHeaderComponent={renderHeader}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={11}
-        removeClippedSubviews={true}
+        ListHeaderComponent={headerElement}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        // removeClippedSubviews can cause crashes on Android with complex items
+        removeClippedSubviews={Platform.OS === 'ios'}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={dynamicContentPadding}
       />
     </View>
   );
 });
+
+// Static style objects extracted outside the component to prevent re-creation
+const containerStyle = { flex: 1 } as const;
+const paddingStyle = { paddingHorizontal: 24 } as const;
 
 export default CircuitsConfigStep;
