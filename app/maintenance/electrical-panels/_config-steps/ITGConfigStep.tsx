@@ -122,7 +122,7 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
               phaseID: undefined,
               amperajeID: '',
               diameterID: '',
-              cableTypeID: undefined,
+              cableTypeID: 'libre_halogeno',
               subITMsCount: '1',
               subITMs: [],
             },

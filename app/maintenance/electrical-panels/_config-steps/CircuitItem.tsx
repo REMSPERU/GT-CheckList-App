@@ -23,7 +23,7 @@ const DEFAULT_SUB_ITM: SubITM = {
   phaseITM: 'mono_2w',
   amperajeITM: '',
   diameter: '',
-  cableType: undefined,
+  cableType: 'libre_halogeno',
   supply: '',
 };
 
@@ -442,6 +442,10 @@ const CircuitItem = ({
                     setValue(
                       `itgCircuits.${itgIndex}.circuits.${index}.amperajeID`,
                       '',
+                    );
+                    setValue(
+                      `itgCircuits.${itgIndex}.circuits.${index}.cableTypeID`,
+                      'libre_halogeno',
                     );
                   }
                 }}>
