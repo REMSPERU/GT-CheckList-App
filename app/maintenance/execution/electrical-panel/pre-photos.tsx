@@ -229,8 +229,10 @@ export default function PreMaintenancePhotosScreen() {
   );
   const thermoPhotos = session.prePhotos.filter(p => p.category === 'thermo');
 
-  // Validation - all sections must have at least 1 photo
-  const isFormValid = panelPhotos.length >= 1 && thermoPhotos.length >= 1;
+  // Validation - panel photos required, thermo only if 'autosoportado'
+  const isThermoRequired = tipoTablero === 'autosoportado';
+  const isFormValid =
+    panelPhotos.length >= 1 && (!isThermoRequired || thermoPhotos.length >= 1);
 
   const PhotoBoxSection = ({
     title,
@@ -356,11 +358,13 @@ export default function PreMaintenancePhotosScreen() {
           section="panel"
         />
 
-        <PhotoBoxSection
-          title="Medición Termográfica"
-          photos={thermoPhotos}
-          section="thermo"
-        />
+        {tipoTablero === 'autosoportado' && (
+          <PhotoBoxSection
+            title="Medición Termográfica"
+            photos={thermoPhotos}
+            section="thermo"
+          />
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -375,7 +379,9 @@ export default function PreMaintenancePhotosScreen() {
         </TouchableOpacity>
         {!isFormValid && (
           <Text style={styles.footerSubtext}>
-            Agregue al menos 1 foto en cada sección.
+            {isThermoRequired
+              ? 'Agregue al menos 1 foto en cada sección.'
+              : 'Agregue al menos 1 foto del tablero.'}
           </Text>
         )}
       </View>
