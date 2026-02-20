@@ -48,7 +48,11 @@ export default function PanelConfigurationScreen() {
   // Ref to hold custom navigation handlers from CircuitsConfigStep
   const circuitsNavHandlersRef = useRef<CircuitsConfigStepRef | null>(null);
 
-  const { currentStepId, form, goNext, goBack } = usePanelConfiguration(panel);
+  const isEditMode = params.isEditMode === 'true';
+  const { currentStepId, form, goNext, goBack } = usePanelConfiguration(
+    panel,
+    isEditMode,
+  );
 
   // Custom navigation for Circuits step
   const handleGoNext = async () => {

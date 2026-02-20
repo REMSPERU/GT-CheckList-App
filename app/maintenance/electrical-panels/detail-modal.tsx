@@ -10,10 +10,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TableroElectricoResponse } from '@/types/api';
 import { PanelDetailContent } from '@/components/maintenance/PanelDetailContent';
+import { useUserRole } from '@/hooks/use-user-role';
 
 export default function PanelDetailModal() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { isAdmin, isSupervisor } = useUserRole();
 
   let panel: TableroElectricoResponse | null = null;
   let detail: any = null;
@@ -54,6 +56,23 @@ export default function PanelDetailModal() {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={modalStyles.headerTitle}>Detalle del Tablero</Text>
+        <View style={{ flex: 1 }} />
+        {(isAdmin || isSupervisor) && (
+          <TouchableOpacity
+            onPress={() => {
+              router.push({
+                pathname: '/maintenance/electrical-panels/configuration',
+                params: {
+                  panel: JSON.stringify(panel),
+                  isEditMode: 'true',
+                },
+              });
+            }}
+            style={modalStyles.editButton}>
+            <Ionicons name="pencil" size={20} color="#0891B2" />
+            <Text style={modalStyles.editButtonText}>Editar</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={modalStyles.content}>
@@ -93,6 +112,22 @@ const modalStyles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#11181C',
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#ECFEFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A5F3FC',
+    gap: 4,
+  },
+  editButtonText: {
+    color: '#0891B2',
+    fontWeight: '600',
+    fontSize: 14,
   },
   centerContent: {
     flex: 1,

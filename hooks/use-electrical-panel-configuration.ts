@@ -11,6 +11,7 @@ import {
 } from '@/schemas/panel-configuration';
 import { DatabaseService } from '@/services/database';
 import { syncQueue } from '@/services/sync-queue';
+import { supabaseElectricalPanelService } from '@/services/supabase-electrical-panel.service';
 
 // Storage key prefix for configuration drafts
 const CONFIG_DRAFT_KEY_PREFIX = 'panel_config_draft_';
@@ -84,6 +85,7 @@ export interface UsePanelConfigurationReturn {
 
 export function usePanelConfiguration(
   initialPanel: PanelData | null,
+  isEditMode: boolean = false,
 ): UsePanelConfigurationReturn {
   const router = useRouter();
   const [currentStepId, setCurrentStepId] = useState<StepId>(STEP_ORDER[0]);
@@ -520,21 +522,45 @@ export function usePanelConfiguration(
             ...newDetailMapping,
           };
 
-          await DatabaseService.saveOfflinePanelConfiguration(
-            initialPanel.id,
-            finalEquipmentDetail,
-          );
+          if (isEditMode) {
+            console.log(
+              '✏️ [SAVE] Edit Mode Active: Saving directly to Supabase...',
+            );
 
-          // Add to sync queue for automatic retry with exponential backoff
-          syncQueue.enqueue(initialPanel.id, 'panel_config');
-          console.log('📤 [SAVE] Added to sync queue:', initialPanel.id);
+            // Save directly to Supabase bypassing local offline sync
+            await supabaseElectricalPanelService.updateEquipmentDetail(
+              initialPanel.id,
+              finalEquipmentDetail,
+            );
+
+            // Also update local DB for immediate UI feedback without queuing
+            await DatabaseService.saveOfflinePanelConfiguration(
+              initialPanel.id,
+              finalEquipmentDetail,
+            );
+
+            console.log('✅ [SAVE] Direct Supabase save completed');
+          } else {
+            console.log('📶 [SAVE] Normal Mode Active: Queuing for sync...');
+
+            await DatabaseService.saveOfflinePanelConfiguration(
+              initialPanel.id,
+              finalEquipmentDetail,
+            );
+
+            // Add to sync queue for automatic retry with exponential backoff
+            syncQueue.enqueue(initialPanel.id, 'panel_config');
+            console.log('📤 [SAVE] Added to sync queue:', initialPanel.id);
+          }
 
           // Clear the draft after successful save
           await clearDraft();
 
           Alert.alert(
             'Configuración guardada',
-            'El equipo ha sido configurado localmente y se sincronizará cuando haya conexión.',
+            isEditMode
+              ? 'El equipo ha sido actualizado en la nube exitosamente.'
+              : 'El equipo ha sido configurado localmente y se sincronizará cuando haya conexión.',
             [{ text: 'OK', onPress: () => router.back() }],
           );
         } else {
