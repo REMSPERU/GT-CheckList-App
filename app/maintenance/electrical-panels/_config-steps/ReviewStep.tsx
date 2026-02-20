@@ -24,16 +24,20 @@ export default function ReviewStep({ panel }: ReviewStepProps) {
       prefijo: itg.cnPrefix,
       itms: itg.circuits.map((itm, cIdx) => ({
         id: `${itg.cnPrefix}${cIdx + 1}`,
-        tipo: (itm.interruptorType === 'id' ? 'ID' : 'ITM') as 'ITM' | 'ID',
-        amperaje: itm.amperaje,
-        fases: itm.phase,
+        tipo: (itm.interruptorType === 'id'
+          ? 'ID'
+          : itm.interruptorType === 'reserva'
+            ? 'Reserva'
+            : 'ITM') as any,
+        amperaje: itm.amperaje || '',
+        fases: itm.phase || '',
         tipo_cable: itm.cableType || 'no_libre_halogeno',
-        diametro_cable: itm.diameter,
+        diametro_cable: itm.diameter || '',
         suministra: itm.supply || '',
         diferencial:
           itm.interruptorType === 'itm'
             ? {
-                existe: itm.hasID,
+                existe: !!itm.hasID,
                 amperaje: itm.amperajeID || 0,
                 fases: itm.phaseID || '',
                 tipo_cable: itm.cableTypeID || '',

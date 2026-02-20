@@ -387,17 +387,24 @@ export function usePanelConfiguration(
               : undefined,
             itms: itg.circuits.map((circuit, cIdx) => ({
               id: `${itg.cnPrefix}-${cIdx + 1}`,
-              tipo: circuit.interruptorType === 'id' ? 'ID' : 'ITM',
-              fases: PHASE_LABELS[circuit.phase] || circuit.phase,
-              amperaje: Number(circuit.amperaje),
+              tipo:
+                circuit.interruptorType === 'id'
+                  ? 'ID'
+                  : circuit.interruptorType === 'reserva'
+                    ? 'Reserva'
+                    : 'ITM',
+              fases: circuit.phase
+                ? PHASE_LABELS[circuit.phase] || circuit.phase
+                : '',
+              amperaje: circuit.amperaje ? Number(circuit.amperaje) : 0,
               tipo_cable: circuit.cableType
                 ? CABLE_TYPE_LABELS[circuit.cableType] || circuit.cableType
                 : undefined,
-              diametro_cable: circuit.diameter,
+              diametro_cable: circuit.diameter || '',
               // Para ITM: diferencial opcional
               ...(circuit.interruptorType === 'itm' && {
                 diferencial: {
-                  existe: circuit.hasID,
+                  existe: !!circuit.hasID,
                   ...(circuit.hasID && {
                     fases: circuit.phaseID
                       ? PHASE_LABELS[circuit.phaseID] || circuit.phaseID

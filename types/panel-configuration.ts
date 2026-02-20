@@ -1,7 +1,7 @@
 export type PanelType = 'adosado' | 'empotrado';
 export type PhaseType = 'mono_2w' | 'tri_3w' | 'tri_4w' | 'unipolar';
 export type CableType = 'libre_halogeno' | 'no_libre_halogeno';
-export type InterruptorType = 'itm' | 'id';
+export type InterruptorType = 'itm' | 'id' | 'reserva';
 
 // ITM hijo que vive dentro de un ID
 export interface SubITM {
@@ -17,9 +17,9 @@ export interface CircuitConfig {
   interruptorType: InterruptorType;
 
   // Campos del interruptor principal (ITM o ID)
-  phase: PhaseType;
-  amperaje: string;
-  diameter: string;
+  phase?: PhaseType;
+  amperaje?: string;
+  diameter?: string;
   cableType?: CableType;
   supply: string;
 

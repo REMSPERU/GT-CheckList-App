@@ -20,7 +20,7 @@ export const ExtraComponentTypeSchema = z.enum([
   'medidores',
   'timers',
 ]);
-export const InterruptorTypeSchema = z.enum(['itm', 'id']);
+export const InterruptorTypeSchema = z.enum(['itm', 'id', 'reserva']);
 
 // Esquema para ITM hijo dentro de un ID
 export const SubITMSchema = z.object({
@@ -31,28 +31,54 @@ export const SubITMSchema = z.object({
   supply: z.string().optional(),
 });
 
-export const DefaultCircuitSchema = z.object({
-  name: z.string().optional(),
-  interruptorType: InterruptorTypeSchema,
+export const DefaultCircuitSchema = z
+  .object({
+    name: z.string().optional(),
+    interruptorType: InterruptorTypeSchema,
 
-  // Campos del interruptor principal (ITM o ID)
-  phase: PhaseTypeSchema,
-  amperaje: z.string().min(1, 'Amperaje requerido'),
-  diameter: z.string().min(1, 'Diámetro requerido'),
-  cableType: CableTypeSchema.optional(),
-  supply: z.string().optional(),
+    // Campos del interruptor principal (ITM o ID)
+    phase: PhaseTypeSchema.optional(),
+    amperaje: z.string().optional(),
+    diameter: z.string().optional(),
+    cableType: CableTypeSchema.optional(),
+    supply: z.string().optional(),
 
-  // Para ITM: toggle de ID opcional
-  hasID: z.boolean(),
-  phaseID: PhaseTypeSchema.optional(),
-  amperajeID: z.string().optional(),
-  diameterID: z.string().optional(),
-  cableTypeID: CableTypeSchema.optional(),
+    // Para ITM: toggle de ID opcional
+    hasID: z.boolean().optional(),
+    phaseID: PhaseTypeSchema.optional(),
+    amperajeID: z.string().optional(),
+    diameterID: z.string().optional(),
+    cableTypeID: CableTypeSchema.optional(),
 
-  // Para ID: ITMs hijos (1-3)
-  subITMsCount: z.string().optional(),
-  subITMs: z.array(SubITMSchema).optional(),
-});
+    // Para ID: ITMs hijos (1-3)
+    subITMsCount: z.string().optional(),
+    subITMs: z.array(SubITMSchema).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.interruptorType !== 'reserva') {
+      if (!data.phase) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Fase requerida',
+          path: ['phase'],
+        });
+      }
+      if (!data.amperaje) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Amperaje requerido',
+          path: ['amperaje'],
+        });
+      }
+      if (!data.diameter) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Diámetro requerido',
+          path: ['diameter'],
+        });
+      }
+    }
+  });
 
 export const ITGCircuitDataSchema = z.object({
   cnPrefix: z.string().min(1, 'Prefijo requerido'),
