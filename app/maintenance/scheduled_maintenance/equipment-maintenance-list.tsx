@@ -20,11 +20,13 @@ import { MaintenanceStatusEnum } from '@/types/api';
 
 export default function EquipmentMaintenanceListScreen() {
   const router = useRouter();
-  const { propertyId, scheduledDate, propertyName } = useLocalSearchParams<{
-    propertyId: string;
-    scheduledDate?: string;
-    propertyName?: string;
-  }>();
+  const { propertyId, sessionId, sessionName, propertyName } =
+    useLocalSearchParams<{
+      propertyId: string;
+      sessionId?: string;
+      sessionName?: string;
+      propertyName?: string;
+    }>();
 
   // State
   const [activeTab, setActiveTab] = useState<'Preventivo' | 'Correctivo'>(
@@ -37,7 +39,7 @@ export default function EquipmentMaintenanceListScreen() {
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   // When coming from session screen, show all statuses by default
   const [selectedStatus, setSelectedStatus] = useState<string>(
-    scheduledDate ? '' : MaintenanceStatusEnum.NO_INICIADO,
+    sessionId ? '' : MaintenanceStatusEnum.NO_INICIADO,
   );
 
   // Fetch Data
@@ -54,8 +56,8 @@ export default function EquipmentMaintenanceListScreen() {
     const typs = new Set<string>();
 
     maintenanceData.forEach((item: any) => {
-      // Apply date filter for deriving filter options
-      if (scheduledDate && item.dia_programado !== scheduledDate) return;
+      // Apply session filter for deriving filter options
+      if (sessionId && item.id_sesion !== sessionId) return;
 
       if (item.equipos?.ubicacion) locs.add(item.equipos.ubicacion);
       if (item.equipos?.equipamentos?.nombre)
@@ -65,16 +67,15 @@ export default function EquipmentMaintenanceListScreen() {
     return {
       locations: Array.from(locs),
     };
-  }, [maintenanceData, scheduledDate]);
+  }, [maintenanceData, sessionId]);
 
   // Filter Logic
   const filteredData = useMemo(() => {
     return maintenanceData.filter((item: any) => {
-      // 0. Filter by Scheduled Date (if provided from session screen)
-      if (scheduledDate && item.dia_programado !== scheduledDate) return false;
+      // 0. Filter by Session ID (if provided)
+      if (sessionId && item.id_sesion !== sessionId) return false;
 
       // 1. Tab Filter (Tipo Mantenimiento)
-      // Database stores 'Preventivo' or 'Correctivo' (case sensitive usually)
       if (item.tipo_mantenimiento !== activeTab) return false;
 
       // 2. Status Filter
@@ -83,7 +84,6 @@ export default function EquipmentMaintenanceListScreen() {
       // 3. Search Filter (Only Code)
       const searchLower = searchQuery.toLowerCase();
       const code = item.equipos?.codigo?.toLowerCase() || '';
-
       if (!code.includes(searchLower)) return false;
 
       // 4. Dynamic Filters
@@ -98,22 +98,22 @@ export default function EquipmentMaintenanceListScreen() {
     searchQuery,
     selectedLocation,
     selectedStatus,
-    scheduledDate,
+    sessionId,
   ]);
 
   // Calculate session totals for determining if this is the last equipment
   const sessionTotals = useMemo(() => {
-    if (!scheduledDate) return { total: 0, completed: 0 };
+    if (!sessionId) return { total: 0, completed: 0 };
 
     const sessionItems = maintenanceData.filter(
-      (item: any) => item.dia_programado === scheduledDate,
+      (item: any) => item.id_sesion === sessionId,
     );
     const completed = sessionItems.filter(
       (item: any) => item.estatus === MaintenanceStatusEnum.FINALIZADO,
     ).length;
 
     return { total: sessionItems.length, completed };
-  }, [maintenanceData, scheduledDate]);
+  }, [maintenanceData, sessionId]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -132,32 +132,6 @@ export default function EquipmentMaintenanceListScreen() {
     }
   };
 
-  // Format scheduled date for display
-  const displayScheduledDate = useMemo(() => {
-    if (!scheduledDate) return null;
-
-    // Parse date - handle both "YYYY-MM-DD" and ISO formats
-    let dateObj: Date;
-    if (typeof scheduledDate === 'string' && scheduledDate.includes('T')) {
-      dateObj = new Date(scheduledDate);
-    } else {
-      dateObj = new Date(scheduledDate + 'T12:00:00');
-    }
-
-    // Check if date is valid
-    if (isNaN(dateObj.getTime())) {
-      return scheduledDate; // fallback to raw string
-    }
-
-    const formatted = dateObj.toLocaleDateString('es-PE', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-  }, [scheduledDate]);
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -166,13 +140,15 @@ export default function EquipmentMaintenanceListScreen() {
           iconName="home-repair-service"
         />
 
-        {/* Date/Property Info Badge */}
-        {(displayScheduledDate || propertyName) && (
+        {/* Session / Date Badge */}
+        {(sessionName || propertyName) && (
           <View style={styles.infoBadgeContainer}>
-            {displayScheduledDate && (
+            {sessionName && (
               <View style={styles.dateBadge}>
-                <Ionicons name="calendar-outline" size={16} color="#06B6D4" />
-                <Text style={styles.dateBadgeText}>{displayScheduledDate}</Text>
+                <Ionicons name="construct-outline" size={16} color="#06B6D4" />
+                <Text style={styles.dateBadgeText} numberOfLines={2}>
+                  {sessionName}
+                </Text>
               </View>
             )}
           </View>
@@ -312,7 +288,7 @@ export default function EquipmentMaintenanceListScreen() {
                             sessionTotal: sessionTotals.total.toString(),
                             sessionCompleted:
                               sessionTotals.completed.toString(),
-                            sessionDate: scheduledDate || '',
+                            sessionId: sessionId || '',
                           },
                         });
                       }

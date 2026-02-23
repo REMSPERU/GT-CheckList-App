@@ -101,8 +101,27 @@ export async function initDatabase() {
           id_equipo TEXT,
           estatus TEXT,
           codigo TEXT,
+          id_sesion TEXT,
           assigned_technicians TEXT, -- JSON string of user IDs
           last_synced_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS local_sesion_mantenimiento (
+          id TEXT PRIMARY KEY,
+          nombre TEXT,
+          descripcion TEXT,
+          fecha_programada TEXT,
+          estatus TEXT,
+          id_property TEXT,
+          created_by TEXT,
+          created_at TEXT,
+          last_synced_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS local_user_sesion_mantenimiento (
+          id_user TEXT,
+          id_sesion TEXT,
+          PRIMARY KEY (id_user, id_sesion)
         );
 
         -- Offline Work (Write-Sync)
@@ -197,6 +216,18 @@ export async function initDatabase() {
       );
     } catch {
       // Column already exists
+    }
+
+    // Migration v1.4: Add id_sesion column to local_scheduled_maintenances
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_scheduled_maintenances ADD COLUMN id_sesion TEXT;`,
+      );
+      console.log(
+        'Migration: Added id_sesion column to local_scheduled_maintenances',
+      );
+    } catch {
+      // Column already exists (new installs or already-migrated DBs)
     }
 
     console.log('Database initialized');

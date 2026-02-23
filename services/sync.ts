@@ -371,6 +371,8 @@ class SyncService {
           equipamentos,
           equipamentosProperty,
           scheduledMaintenances,
+          sessions,
+          userSessions,
         ] = await Promise.all([
           supabase
             .from('equipos')
@@ -396,11 +398,18 @@ class SyncService {
             .from('mantenimientos')
             .select(
               `
-                id, dia_programado, tipo_mantenimiento, observations, estatus, codigo, id_equipo,
-                user_maintenace ( id_user )
+                id, dia_programado, tipo_mantenimiento, observations, estatus, codigo, id_equipo, id_sesion
              `,
             )
             .order('dia_programado', { ascending: true })
+            .then(r => r.data),
+          supabase
+            .from('sesion_mantenimiento')
+            .select('*')
+            .then(r => r.data),
+          supabase
+            .from('user_sesion_mantenimiento')
+            .select('id_user, id_sesion')
             .then(r => r.data),
         ]);
 
@@ -412,6 +421,8 @@ class SyncService {
           equipamentos || [],
           equipamentosProperty || [],
           scheduledMaintenances || [],
+          sessions || [],
+          userSessions || [],
         );
 
         console.log('Down-Sync Completed.');

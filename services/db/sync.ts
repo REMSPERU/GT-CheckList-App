@@ -87,6 +87,8 @@ export async function bulkInsertMirrorData(
   equipamentos: any[] = [],
   equipamentosProperty: any[] = [],
   scheduledMaintenances: any[] = [],
+  sessions: any[] = [],
+  userSessions: any[] = [],
 ) {
   await ensureInitialized();
 
@@ -191,7 +193,7 @@ export async function bulkInsertMirrorData(
         'local_scheduled_maintenances',
         scheduledMaintenances,
         'id',
-        'INSERT OR REPLACE INTO local_scheduled_maintenances (id, dia_programado, tipo_mantenimiento, observations, id_equipo, estatus, codigo, assigned_technicians, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT OR REPLACE INTO local_scheduled_maintenances (id, dia_programado, tipo_mantenimiento, observations, id_equipo, estatus, codigo, id_sesion, assigned_technicians, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         item => [
           item.id,
           item.dia_programado,
@@ -200,12 +202,42 @@ export async function bulkInsertMirrorData(
           item.id_equipo,
           item.estatus,
           item.codigo,
+          item.id_sesion || null,
           JSON.stringify(
-            item.user_maintenace?.map((um: any) => um.id_user) || [],
+            item.user_sesion_mantenimiento?.map((um: any) => um.id_user) || [],
           ),
           new Date().toISOString(),
         ],
       );
+
+      // --- Smart Sync for Sesion Mantenimiento ---
+      await smartSyncTable(
+        db,
+        'local_sesion_mantenimiento',
+        sessions,
+        'id',
+        'INSERT OR REPLACE INTO local_sesion_mantenimiento (id, nombre, descripcion, fecha_programada, estatus, id_property, created_by, created_at, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        item => [
+          item.id,
+          item.nombre,
+          item.descripcion || null,
+          item.fecha_programada || null,
+          item.estatus || 'NO INICIADO',
+          item.id_property || null,
+          item.created_by || null,
+          item.created_at || null,
+          new Date().toISOString(),
+        ],
+      );
+
+      // --- User Sesion Mantenimiento (Composite Key - Full Replace) ---
+      await db.runAsync('DELETE FROM local_user_sesion_mantenimiento');
+      for (const item of userSessions) {
+        await db.runAsync(
+          'INSERT OR REPLACE INTO local_user_sesion_mantenimiento (id_user, id_sesion) VALUES (?, ?)',
+          [item.id_user, item.id_sesion],
+        );
+      }
     });
 
     console.log('[SmartSync] Mirror data sync completed');
