@@ -5,29 +5,65 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TableroElectricoResponse } from '@/types/api';
 import { PanelDetailContent } from '@/components/maintenance/PanelDetailContent';
 import { useUserRole } from '@/hooks/use-user-role';
+import { useEffect, useState } from 'react';
+import { DatabaseService } from '@/services/database';
 
 export default function PanelDetailModal() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { isAdmin, isSupervisor } = useUserRole();
 
-  let panel: TableroElectricoResponse | null = null;
-  let detail: any = null;
+  const [panel, setPanel] = useState<TableroElectricoResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  try {
-    if (params.panel) {
-      panel = JSON.parse(params.panel as string);
-      detail = panel?.equipment_detail || {};
+  useEffect(() => {
+    async function fetchPanel() {
+      try {
+        if (params.panelId) {
+          const data = await DatabaseService.getEquipmentById(
+            params.panelId as string,
+          );
+          setPanel(data as TableroElectricoResponse);
+        } else if (params.panel) {
+          // Fallback for backward compatibility just in case
+          setPanel(JSON.parse(params.panel as string));
+        }
+      } catch (e) {
+        console.error('Error fetching panel data', e);
+      } finally {
+        setIsLoading(false);
+      }
     }
-  } catch (e) {
-    console.error('Error parsing panel data', e);
+    fetchPanel();
+  }, [params.panelId, params.panel]);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={modalStyles.container}>
+        <View style={modalStyles.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={modalStyles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+          <Text style={modalStyles.headerTitle}>Detalle del Tablero</Text>
+        </View>
+        <View style={modalStyles.centerContent}>
+          <ActivityIndicator size="large" color="#0891B2" />
+          <Text style={{ marginTop: 16 }}>Cargando información...</Text>
+        </View>
+      </SafeAreaView>
+    );
   }
+
+  const detail = panel?.equipment_detail || null;
 
   if (!panel || !detail) {
     return (
@@ -63,7 +99,7 @@ export default function PanelDetailModal() {
               router.push({
                 pathname: '/maintenance/electrical-panels/configuration',
                 params: {
-                  panel: JSON.stringify(panel),
+                  panelId: panel.id,
                   isEditMode: 'true',
                 },
               });
