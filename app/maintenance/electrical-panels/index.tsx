@@ -238,7 +238,7 @@ export default function ElectricalPanelsScreen() {
         }
 
         router.push({
-          pathname: '/maintenance/electrical-panels/detail-modal',
+          pathname: '/maintenance/electrical-panels/detail',
           params: {
             panelId: panel.id,
           },

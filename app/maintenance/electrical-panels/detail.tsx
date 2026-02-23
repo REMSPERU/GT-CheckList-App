@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +14,7 @@ import { useUserRole } from '@/hooks/use-user-role';
 import { useEffect, useState } from 'react';
 import { DatabaseService } from '@/services/database';
 
-export default function PanelDetailModal() {
+export default function PanelDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { isAdmin, isSupervisor } = useUserRole();
@@ -32,7 +31,6 @@ export default function PanelDetailModal() {
           );
           setPanel(data as TableroElectricoResponse);
         } else if (params.panel) {
-          // Fallback for backward compatibility just in case
           setPanel(JSON.parse(params.panel as string));
         }
       } catch (e) {
@@ -44,56 +42,22 @@ export default function PanelDetailModal() {
     fetchPanel();
   }, [params.panelId, params.panel]);
 
-  if (isLoading) {
-    return (
-      <SafeAreaView style={modalStyles.container}>
-        <View style={modalStyles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={modalStyles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <Text style={modalStyles.headerTitle}>Detalle del Tablero</Text>
-        </View>
-        <View style={modalStyles.centerContent}>
-          <ActivityIndicator size="large" color="#0891B2" />
-          <Text style={{ marginTop: 16 }}>Cargando información...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   const detail = panel?.equipment_detail || null;
 
-  if (!panel || !detail) {
-    return (
-      <SafeAreaView style={modalStyles.container}>
-        <View style={modalStyles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={modalStyles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <Text style={modalStyles.headerTitle}>Detalle del Tablero</Text>
-        </View>
-        <View style={modalStyles.centerContent}>
-          <Text>No se encontró información del detalle.</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
+  // Single stable wrapper so SafeAreaView and header never remount,
+  // which prevents the layout jump between loading and loaded states.
   return (
-    <SafeAreaView style={modalStyles.container}>
-      <View style={modalStyles.header}>
+    <SafeAreaView style={styles.container}>
+      {/* Header – always visible */}
+      <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
-          style={modalStyles.backButton}>
+          style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={modalStyles.headerTitle}>Detalle del Tablero</Text>
+        <Text style={styles.headerTitle}>Detalle del Tablero</Text>
         <View style={{ flex: 1 }} />
-        {(isAdmin || isSupervisor) && (
+        {!isLoading && panel && (isAdmin || isSupervisor) && (
           <TouchableOpacity
             onPress={() => {
               router.push({
@@ -104,30 +68,42 @@ export default function PanelDetailModal() {
                 },
               });
             }}
-            style={modalStyles.editButton}>
+            style={styles.editButton}>
             <Ionicons name="pencil" size={20} color="#0891B2" />
-            <Text style={modalStyles.editButtonText}>Editar</Text>
+            <Text style={styles.editButtonText}>Editar</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <ScrollView contentContainerStyle={modalStyles.content}>
-        <PanelDetailContent
-          data={{
-            rotulo: detail.rotulo || '',
-            tipo_tablero: detail.tipo_tablero || '',
-            detalle_tecnico: detail.detalle_tecnico,
-            itgs: detail.itgs || [],
-            componentes: detail.componentes || [],
-            condiciones_especiales: detail.condiciones_especiales,
-          }}
-        />
-      </ScrollView>
+      {/* Body – changes based on state */}
+      {isLoading ? (
+        // No spinner — SQLite is instant (<10ms) so showing a spinner
+        // would only produce a layout jump when content replaces it.
+        // The body just stays empty for that brief moment.
+        <View style={{ flex: 1 }} />
+      ) : !panel || !detail ? (
+        <View style={styles.centerContent}>
+          <Text>No se encontró información del detalle.</Text>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.content}>
+          <PanelDetailContent
+            data={{
+              rotulo: detail.rotulo || '',
+              tipo_tablero: detail.tipo_tablero || '',
+              detalle_tecnico: detail.detalle_tecnico,
+              itgs: detail.itgs || [],
+              componentes: detail.componentes || [],
+              condiciones_especiales: detail.condiciones_especiales,
+            }}
+          />
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
-const modalStyles = StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F3F4F6',
