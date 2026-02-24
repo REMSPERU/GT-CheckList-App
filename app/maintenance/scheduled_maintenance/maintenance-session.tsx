@@ -8,7 +8,11 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import {
+  Ionicons,
+  MaterialIcons,
+  MaterialCommunityIcons,
+} from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaintenanceHeader from '@/components/maintenance-header';
@@ -63,6 +67,39 @@ export default function MaintenanceSessionScreen() {
       year: 'numeric',
     });
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  };
+
+  const getEquipmentTypeConfig = (type: string) => {
+    switch (type) {
+      case 'Luces de Emergencia':
+        return {
+          icon: 'lightbulb-on-outline' as const,
+          color: '#F59E0B',
+          bgColor: '#FEF3C7',
+          label: 'Luces de Emergencia',
+        };
+      case 'Tablero Electrico':
+        return {
+          icon: 'flash-outline' as const,
+          color: '#3B82F6',
+          bgColor: '#DBEAFE',
+          label: 'Tablero Eléctrico',
+        };
+      case 'Pozo a Tierra':
+        return {
+          icon: 'earth' as const,
+          color: '#10B981',
+          bgColor: '#D1FAE5',
+          label: 'Pozo a Tierra',
+        };
+      default:
+        return {
+          icon: 'wrench-outline' as const,
+          color: '#6B7280',
+          bgColor: '#F3F4F6',
+          label: type,
+        };
+    }
   };
 
   const handleSessionPress = (session: any) => {
@@ -152,6 +189,40 @@ export default function MaintenanceSessionScreen() {
                       </Text>
                     )}
                   </View>
+
+                  {/* Equipment Types */}
+                  {session.equipmentTypes &&
+                    session.equipmentTypes.length > 0 && (
+                      <View style={styles.equipmentTypesRow}>
+                        {session.equipmentTypes.map(
+                          (type: string, idx: number) => {
+                            const config = getEquipmentTypeConfig(type);
+                            return (
+                              <View
+                                key={idx}
+                                style={[
+                                  styles.equipmentTypeChip,
+                                  { backgroundColor: config.bgColor },
+                                ]}>
+                                <MaterialCommunityIcons
+                                  name={config.icon}
+                                  size={14}
+                                  color={config.color}
+                                />
+                                <Text
+                                  style={[
+                                    styles.equipmentTypeText,
+                                    { color: config.color },
+                                  ]}
+                                  numberOfLines={1}>
+                                  {config.label}
+                                </Text>
+                              </View>
+                            );
+                          },
+                        )}
+                      </View>
+                    )}
 
                   {/* Progress Bar */}
                   <View style={styles.progressContainer}>
@@ -313,5 +384,23 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  equipmentTypesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  equipmentTypeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    gap: 5,
+  },
+  equipmentTypeText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

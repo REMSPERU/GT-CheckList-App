@@ -342,7 +342,14 @@ export async function getLocalSessionsByProperty(propertyId: string) {
         s.*,
         COUNT(m.id) as total_count,
         SUM(CASE WHEN m.estatus = 'FINALIZADO' THEN 1 ELSE 0 END) as completed_count,
-        SUM(CASE WHEN m.estatus = 'EN PROGRESO' THEN 1 ELSE 0 END) as in_progress_count
+        SUM(CASE WHEN m.estatus = 'EN PROGRESO' THEN 1 ELSE 0 END) as in_progress_count,
+        (
+          SELECT GROUP_CONCAT(DISTINCT eq.nombre)
+          FROM local_scheduled_maintenances m2
+          JOIN local_equipos e ON m2.id_equipo = e.id
+          JOIN local_equipamentos eq ON e.id_equipamento = eq.id
+          WHERE m2.id_sesion = s.id
+        ) as equipment_types
       FROM local_sesion_mantenimiento s
       LEFT JOIN local_scheduled_maintenances m ON m.id_sesion = s.id
       WHERE s.id_property = ?
@@ -364,6 +371,7 @@ export async function getLocalSessionsByProperty(propertyId: string) {
       total: row.total_count || 0,
       completed: row.completed_count || 0,
       inProgress: row.in_progress_count || 0,
+      equipmentTypes: row.equipment_types ? row.equipment_types.split(',') : [],
     }));
   });
 }
