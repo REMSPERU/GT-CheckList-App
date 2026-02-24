@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Modal,
   RefreshControl,
+  Image,
+  Alert,
 } from 'react-native';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -17,6 +19,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceByProperty } from '@/hooks/use-maintenance';
 import { MaintenanceStatusEnum } from '@/types/api';
+import * as ImagePicker from 'expo-image-picker';
+import { DatabaseService } from '@/services/database';
+import { supabase } from '@/lib/supabase';
+import { syncService } from '@/services/sync';
 
 export default function EquipmentMaintenanceListScreen() {
   const router = useRouter();
@@ -41,6 +47,12 @@ export default function EquipmentMaintenanceListScreen() {
   const [selectedStatus, setSelectedStatus] = useState<string>(
     sessionId ? '' : MaintenanceStatusEnum.NO_INICIADO,
   );
+
+  // Session Photo Modal States
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [sessionPhotos, setSessionPhotos] = useState<string[]>([]);
+  const [pendingNavigation, setPendingNavigation] = useState<any>(null);
+  const [checkingPhotos, setCheckingPhotos] = useState(false);
 
   // Fetch Data
   const {
@@ -129,6 +141,101 @@ export default function EquipmentMaintenanceListScreen() {
         return '#EF4444';
       default:
         return '#6B7280';
+    }
+  };
+
+  // --- Session Photo Logic for Luces de Emergencia ---
+  const handleEmergencyLightNavigation = async (navParams: any) => {
+    if (!sessionId) {
+      router.push({ pathname: '/maintenance/execution', params: navParams });
+      return;
+    }
+
+    setCheckingPhotos(true);
+    try {
+      const hasPhotos = await DatabaseService.sessionHasPhotos(sessionId);
+      if (hasPhotos) {
+        // Already has photos, navigate directly
+        router.push({ pathname: '/maintenance/execution', params: navParams });
+      } else {
+        // Need to capture session photos first
+        setPendingNavigation(navParams);
+        setSessionPhotos([]);
+        setShowPhotoModal(true);
+      }
+    } catch (error) {
+      console.error('Error checking session photos:', error);
+      // On error, allow navigation anyway
+      router.push({ pathname: '/maintenance/execution', params: navParams });
+    } finally {
+      setCheckingPhotos(false);
+    }
+  };
+
+  const handleTakeSessionPhoto = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.5,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        setSessionPhotos(prev => [...prev, result.assets[0].uri]);
+      }
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir la cámara');
+    }
+  };
+
+  const handleRemoveSessionPhoto = (index: number) => {
+    setSessionPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleConfirmSessionPhotos = async () => {
+    if (sessionPhotos.length !== 2) {
+      Alert.alert(
+        'Fotos requeridas',
+        'Debe tomar exactamente 2 fotos para iniciar la sesión de mantenimiento.',
+      );
+      return;
+    }
+
+    try {
+      // Get current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const userId = user?.id || '';
+
+      // Save photos to offline queue
+      await DatabaseService.saveOfflineSessionPhotos(
+        sessionId!,
+        sessionPhotos,
+        userId,
+      );
+
+      // Trigger background sync
+      syncService
+        .pushData()
+        .catch(err => console.error('Background sync failed:', err));
+
+      // Close modal and navigate
+      setShowPhotoModal(false);
+      setSessionPhotos([]);
+      if (pendingNavigation) {
+        router.push({
+          pathname: '/maintenance/execution',
+          params: pendingNavigation,
+        });
+        setPendingNavigation(null);
+      }
+    } catch (error) {
+      console.error('Error saving session photos:', error);
+      Alert.alert(
+        'Error',
+        'No se pudieron guardar las fotos. Intente nuevamente.',
+      );
     }
   };
 
@@ -275,22 +382,31 @@ export default function EquipmentMaintenanceListScreen() {
                           },
                         });
                       } else {
-                        router.push({
-                          pathname: '/maintenance/execution',
-                          params: {
-                            panelId: equipment.id,
-                            maintenanceId: item.id,
-                            equipmentType: equipment.equipamentos?.nombre,
-                            propertyId: propertyId,
-                            propertyName: propertyName,
-                            maintenanceType: item.tipo_mantenimiento,
-                            // Session context for last equipment detection
-                            sessionTotal: sessionTotals.total.toString(),
-                            sessionCompleted:
-                              sessionTotals.completed.toString(),
-                            sessionId: sessionId || '',
-                          },
-                        });
+                        const navParams = {
+                          panelId: equipment.id,
+                          maintenanceId: item.id,
+                          equipmentType: equipment.equipamentos?.nombre,
+                          propertyId: propertyId,
+                          propertyName: propertyName,
+                          maintenanceType: item.tipo_mantenimiento,
+                          sessionTotal: sessionTotals.total.toString(),
+                          sessionCompleted: sessionTotals.completed.toString(),
+                          sessionId: sessionId || '',
+                        };
+
+                        // Intercept for Luces de Emergencia: check session photos
+                        if (
+                          equipment.equipamentos?.nombre ===
+                            'Luces de Emergencia' &&
+                          sessionId
+                        ) {
+                          handleEmergencyLightNavigation(navParams);
+                        } else {
+                          router.push({
+                            pathname: '/maintenance/execution',
+                            params: navParams,
+                          });
+                        }
                       }
                     }}>
                     <View style={styles.cardHeader}>
@@ -450,6 +566,115 @@ export default function EquipmentMaintenanceListScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* Session Photo Modal */}
+        <Modal
+          visible={showPhotoModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => {
+            setShowPhotoModal(false);
+            setPendingNavigation(null);
+            setSessionPhotos([]);
+          }}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.sessionPhotoModalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Fotos de Sesión</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowPhotoModal(false);
+                    setPendingNavigation(null);
+                    setSessionPhotos([]);
+                  }}>
+                  <Feather name="x" size={24} color="#000" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.sessionPhotoSubtitle}>
+                Tome 2 fotos para iniciar la sesión de mantenimiento de luces de
+                emergencia. Estas fotos se usarán en el informe.
+              </Text>
+
+              {/* Photo Grid */}
+              <View style={styles.sessionPhotoGrid}>
+                {[0, 1].map(index => (
+                  <View key={index} style={styles.sessionPhotoSlot}>
+                    {sessionPhotos[index] ? (
+                      <View style={styles.sessionPhotoFilled}>
+                        <Image
+                          source={{ uri: sessionPhotos[index] }}
+                          style={styles.sessionPhotoImage}
+                        />
+                        <TouchableOpacity
+                          style={styles.sessionPhotoRemoveBtn}
+                          onPress={() => handleRemoveSessionPhoto(index)}>
+                          <Ionicons
+                            name="close-circle"
+                            size={24}
+                            color="#EF4444"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.sessionPhotoEmpty}
+                        onPress={
+                          sessionPhotos.length === index
+                            ? handleTakeSessionPhoto
+                            : undefined
+                        }>
+                        <Ionicons
+                          name="camera-outline"
+                          size={32}
+                          color={
+                            sessionPhotos.length === index
+                              ? '#06B6D4'
+                              : '#D1D5DB'
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.sessionPhotoEmptyText,
+                            sessionPhotos.length === index && {
+                              color: '#06B6D4',
+                            },
+                          ]}>
+                          Foto {index + 1}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+              </View>
+
+              {/* Counter */}
+              <Text style={styles.sessionPhotoCounter}>
+                {sessionPhotos.length}/2 fotos
+              </Text>
+
+              {/* Confirm Button */}
+              <TouchableOpacity
+                style={[
+                  styles.applyButton,
+                  sessionPhotos.length !== 2 && { backgroundColor: '#D1D5DB' },
+                ]}
+                onPress={handleConfirmSessionPhotos}
+                disabled={sessionPhotos.length !== 2}>
+                <Text style={styles.applyButtonText}>
+                  Continuar con Mantenimiento
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Loading overlay for checking photos */}
+        {checkingPhotos && (
+          <View style={styles.checkingOverlay}>
+            <ActivityIndicator size="large" color="#06B6D4" />
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -716,5 +941,75 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#0891B2',
+  },
+  // Session Photo Modal Styles
+  sessionPhotoModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  sessionPhotoSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  sessionPhotoGrid: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 16,
+  },
+  sessionPhotoSlot: {
+    flex: 1,
+    aspectRatio: 1,
+  },
+  sessionPhotoFilled: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  sessionPhotoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  sessionPhotoRemoveBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  sessionPhotoEmpty: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F9FAFB',
+  },
+  sessionPhotoEmptyText: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
+  sessionPhotoCounter: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 16,
+    fontWeight: '600',
+  },
+  checkingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

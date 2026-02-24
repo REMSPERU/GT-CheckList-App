@@ -89,6 +89,7 @@ export async function bulkInsertMirrorData(
   scheduledMaintenances: any[] = [],
   sessions: any[] = [],
   userSessions: any[] = [],
+  sessionPhotos: any[] = [],
 ) {
   await ensureInitialized();
 
@@ -238,6 +239,23 @@ export async function bulkInsertMirrorData(
           [item.id_user, item.id_sesion],
         );
       }
+
+      // --- Smart Sync for Session Photos ---
+      await smartSyncTable(
+        db,
+        'local_sesion_fotos',
+        sessionPhotos,
+        'id',
+        'INSERT OR REPLACE INTO local_sesion_fotos (id, id_sesion, foto_url, tipo, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        item => [
+          item.id,
+          item.id_sesion,
+          item.foto_url,
+          item.tipo || 'inicio',
+          item.created_by || null,
+          item.created_at || null,
+        ],
+      );
     });
 
     console.log('[SmartSync] Mirror data sync completed');

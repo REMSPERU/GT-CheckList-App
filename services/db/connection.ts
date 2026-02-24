@@ -183,6 +183,29 @@ export async function initDatabase() {
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY(checklist_local_id) REFERENCES offline_grounding_well_checklist(local_id)
         );
+
+        -- Session-level photos (offline queue for sync)
+        CREATE TABLE IF NOT EXISTS offline_sesion_fotos (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          id_sesion TEXT NOT NULL,
+          local_uri TEXT NOT NULL,
+          tipo TEXT DEFAULT 'inicio',
+          created_by TEXT,
+          status TEXT DEFAULT 'pending',
+          remote_url TEXT,
+          error_message TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Session-level photos (mirror from Supabase)
+        CREATE TABLE IF NOT EXISTS local_sesion_fotos (
+          id TEXT PRIMARY KEY,
+          id_sesion TEXT NOT NULL,
+          foto_url TEXT NOT NULL,
+          tipo TEXT DEFAULT 'inicio',
+          created_by TEXT,
+          created_at TEXT
+        );
       `);
 
     // === MIGRATIONS ===
