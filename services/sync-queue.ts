@@ -1,4 +1,4 @@
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+import NetInfo from '@react-native-community/netinfo';
 
 export type SyncItemType = 'panel_config' | 'maintenance' | 'photo';
 export type SyncStatus =
@@ -39,14 +39,12 @@ class SyncQueueService {
 
   private init() {
     // Listen for network changes to trigger sync on reconnect
-    this.netInfoUnsubscribe = NetInfo.addEventListener(
-      (state: NetInfoState) => {
-        if (state.isConnected) {
-          console.log('[SYNC-QUEUE] Network connected, processing queue...');
-          this.processQueue();
-        }
-      },
-    );
+    this.netInfoUnsubscribe = NetInfo.addEventListener((state: any) => {
+      if (state.isConnected) {
+        console.log('[SYNC-QUEUE] Network connected, processing queue...');
+        this.processQueue();
+      }
+    });
   }
 
   /**

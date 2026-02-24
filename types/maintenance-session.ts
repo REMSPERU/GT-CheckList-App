@@ -7,6 +7,23 @@ export interface PhotoItem {
   status?: 'pending' | 'synced' | 'error';
 }
 
+export interface ItemObservation {
+  note: string;
+  photoUri?: string;
+  photoUris?: string[];
+}
+
+export interface ItemMeasurement {
+  voltage?: string;
+  amperage?: string;
+  isVoltageInRange?: boolean;
+  isAmperageInRange?: boolean;
+  cableDiameter?: string;
+  cableType?: string;
+  originalCableDiameter?: string;
+  originalCableType?: string;
+}
+
 export interface MaintenanceSession {
   sessionId: string;
   maintenanceId?: string;
