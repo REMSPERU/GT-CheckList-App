@@ -177,8 +177,7 @@ function generatePhotosHTML(
       <div class="${containerClass}">
         <span class="photo-header bg-orange">DESPUÉS ${postPhotos.length > 1 ? `#${idx + 1}` : ''}</span>
         <img src="${photo.url}" alt="Estado final" />
-        <p class="photo-caption">${photo.caption || 'Tablero limpio y cerrado'}</p>
-      </div>
+      </div>  
     `);
   });
 
@@ -260,7 +259,7 @@ export function generateEquipmentPhotoPageHTML(
           <th>CABLE</th>
           <td>${equipment.cableSize ? `${equipment.cableSize} mm` : '-'}</td>
           <th>OBSERVACIONES</th>
-          <td>${equipment.observations || 'Ninguna'}</td>
+          <td>${obsCount > 0 ? `${obsCount} observaciones` : 'Ninguna'}</td>
         </tr>
       </table>
 

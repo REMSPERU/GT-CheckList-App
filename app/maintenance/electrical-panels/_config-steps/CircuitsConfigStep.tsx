@@ -378,6 +378,7 @@ const CircuitsConfigStep = forwardRef<
   const headerElement = useMemo(
     () => (
       <ListHeader
+        key={selectedItgIndex}
         panel={panel}
         selectedItgIndex={selectedItgIndex}
         itgCircuitsLength={itgCircuitsLength}

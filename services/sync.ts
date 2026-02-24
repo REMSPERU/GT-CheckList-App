@@ -20,9 +20,18 @@ interface OfflinePhoto {
   id: number;
   maintenance_local_id: number;
   local_uri: string;
-  type: 'pre' | 'post' | 'observation';
+  type: 'pre' | 'post' | 'observation' | 'session';
   category?: string;
   observation_key?: string;
+  status: string;
+}
+
+interface OfflineSessionPhoto {
+  id: number;
+  id_sesion: string;
+  local_uri: string;
+  tipo: string;
+  created_by: string;
   status: string;
 }
 
@@ -120,6 +129,9 @@ class SyncService {
     // 3. Sync Grounding Wells
     await this.syncPendingGroundingWells();
 
+    // 4. Sync Session Photos
+    await this.syncPendingSessionPhotos();
+
     console.log('[SYNC] Batch Upload Finished.');
   }
 
@@ -151,7 +163,9 @@ class SyncService {
                 ? 'pre'
                 : photo.type === 'post'
                   ? 'post'
-                  : 'observations';
+                  : photo.type === 'session'
+                    ? 'session'
+                    : 'observations';
 
             console.log(
               `[SYNC] Uploading photo ${photo.id}: ${photo.local_uri} to /${folder}`,
@@ -351,6 +365,64 @@ class SyncService {
   }
 
   // ----------------------------------------------------------------
+  // SUB-ROUTINE 4: SESSION PHOTOS
+  // ----------------------------------------------------------------
+  private async syncPendingSessionPhotos() {
+    const pendingPhotos =
+      (await DatabaseService.getPendingSessionPhotos()) as OfflineSessionPhoto[];
+    if (pendingPhotos.length === 0) return;
+
+    console.log(
+      `[SYNC-SESSION-PHOTO] Found ${pendingPhotos.length} pending session photos`,
+    );
+
+    for (const photo of pendingPhotos) {
+      try {
+        await DatabaseService.updateSessionPhotoStatus(photo.id, 'syncing');
+
+        // 1. Upload to Storage
+        const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
+          photo.local_uri,
+          `session/${photo.id_sesion}`,
+        );
+        console.log(
+          `[SYNC-SESSION-PHOTO] Photo ${photo.id} uploaded: ${remoteUrl}`,
+        );
+
+        // 2. Insert into Supabase table
+        const { error } = await supabase
+          .from('sesion_mantenimiento_fotos')
+          .insert({
+            id_sesion: photo.id_sesion,
+            foto_url: remoteUrl,
+            tipo: photo.tipo || 'inicio',
+            created_by: photo.created_by,
+          });
+
+        if (error) {
+          console.error('[SYNC-SESSION-PHOTO] Supabase insert error:', error);
+          throw error;
+        }
+
+        // 3. Mark as synced
+        await DatabaseService.updateSessionPhotoStatus(
+          photo.id,
+          'synced',
+          remoteUrl,
+        );
+      } catch (error) {
+        console.error(`[SYNC-SESSION-PHOTO] Failed for ${photo.id}:`, error);
+        await DatabaseService.updateSessionPhotoStatus(
+          photo.id,
+          'error',
+          null,
+          String(error),
+        );
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------
   // PULL DATA
   // ----------------------------------------------------------------
   async pullData(): Promise<boolean> {
@@ -371,6 +443,9 @@ class SyncService {
           equipamentos,
           equipamentosProperty,
           scheduledMaintenances,
+          sessions,
+          userSessions,
+          sessionPhotos,
         ] = await Promise.all([
           supabase
             .from('equipos')
@@ -396,11 +471,22 @@ class SyncService {
             .from('mantenimientos')
             .select(
               `
-                id, dia_programado, tipo_mantenimiento, observations, estatus, codigo, id_equipo,
-                user_maintenace ( id_user )
+                id, dia_programado, tipo_mantenimiento, observations, estatus, codigo, id_equipo, id_sesion
              `,
             )
             .order('dia_programado', { ascending: true })
+            .then(r => r.data),
+          supabase
+            .from('sesion_mantenimiento')
+            .select('*')
+            .then(r => r.data),
+          supabase
+            .from('user_sesion_mantenimiento')
+            .select('id_user, id_sesion')
+            .then(r => r.data),
+          supabase
+            .from('sesion_mantenimiento_fotos')
+            .select('*')
             .then(r => r.data),
         ]);
 
@@ -412,6 +498,9 @@ class SyncService {
           equipamentos || [],
           equipamentosProperty || [],
           scheduledMaintenances || [],
+          sessions || [],
+          userSessions || [],
+          sessionPhotos || [],
         );
 
         console.log('Down-Sync Completed.');

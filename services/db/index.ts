@@ -26,6 +26,13 @@ import {
 } from './users';
 import { saveSession, getSession, clearSession } from './session';
 import {
+  saveOfflineSessionPhotos,
+  sessionHasPhotos,
+  getPendingSessionPhotos,
+  updateSessionPhotoStatus,
+  getLocalSessionPhotos,
+} from './session-photos';
+import {
   getLocalEquipments,
   getEquipmentById,
   getLocalProperties,
@@ -34,6 +41,7 @@ import {
   getEquipmentByProperty,
   getLocalScheduledMaintenances,
   getLocalMaintenancesByProperty,
+  getLocalSessionsByProperty,
   getInstrumentsByEquipmentType,
 } from './queries';
 import {
@@ -53,6 +61,7 @@ export * from './users';
 export * from './session';
 export * from './queries';
 export * from './equipment';
+export * from './session-photos';
 
 // Create DatabaseService object for backward compatibility
 export const DatabaseService = {
@@ -105,12 +114,20 @@ export const DatabaseService = {
   getEquipmentByProperty,
   getLocalScheduledMaintenances,
   getLocalMaintenancesByProperty,
+  getLocalSessionsByProperty,
   getInstrumentsByEquipmentType,
 
   // Equipment CRUD
   createEquipment,
   softDeleteEquipment,
   generateEquipmentCode,
+
+  // Session Photos
+  saveOfflineSessionPhotos,
+  sessionHasPhotos,
+  getPendingSessionPhotos,
+  updateSessionPhotoStatus,
+  getLocalSessionPhotos,
 
   // Utils
   withLock,

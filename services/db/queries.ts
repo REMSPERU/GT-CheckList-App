@@ -305,6 +305,7 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
       estatus: row.estatus,
       tipo_mantenimiento: row.tipo_mantenimiento,
       codigo: row.codigo,
+      id_sesion: row.id_sesion || null,
       equipos: {
         id: row.e_id,
         codigo: row.e_codigo,
@@ -322,6 +323,55 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
           nombre: row.eq_nombre,
         },
       },
+    }));
+  });
+}
+
+/**
+ * Get real maintenance sessions for a property from local mirror.
+ * Returns sessions with their maintenance counts and technicians.
+ */
+export async function getLocalSessionsByProperty(propertyId: string) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+
+    const rows = await db.getAllAsync(
+      `
+      SELECT
+        s.*,
+        COUNT(m.id) as total_count,
+        SUM(CASE WHEN m.estatus = 'FINALIZADO' THEN 1 ELSE 0 END) as completed_count,
+        SUM(CASE WHEN m.estatus = 'EN PROGRESO' THEN 1 ELSE 0 END) as in_progress_count,
+        (
+          SELECT GROUP_CONCAT(DISTINCT eq.nombre)
+          FROM local_scheduled_maintenances m2
+          JOIN local_equipos e ON m2.id_equipo = e.id
+          JOIN local_equipamentos eq ON e.id_equipamento = eq.id
+          WHERE m2.id_sesion = s.id
+        ) as equipment_types
+      FROM local_sesion_mantenimiento s
+      LEFT JOIN local_scheduled_maintenances m ON m.id_sesion = s.id
+      WHERE s.id_property = ?
+      GROUP BY s.id
+      ORDER BY s.fecha_programada ASC
+      `,
+      [propertyId],
+    );
+
+    return rows.map((row: any) => ({
+      id: row.id,
+      nombre: row.nombre,
+      descripcion: row.descripcion,
+      fecha_programada: row.fecha_programada,
+      estatus: row.estatus || 'NO INICIADO',
+      id_property: row.id_property,
+      created_by: row.created_by,
+      created_at: row.created_at,
+      total: row.total_count || 0,
+      completed: row.completed_count || 0,
+      inProgress: row.in_progress_count || 0,
+      equipmentTypes: row.equipment_types ? row.equipment_types.split(',') : [],
     }));
   });
 }

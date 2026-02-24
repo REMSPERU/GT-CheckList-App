@@ -7,10 +7,12 @@ import {
   Text,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
-import { useRef, useMemo } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { FormProvider } from 'react-hook-form';
 import DefaultHeader from '@/components/default-header';
+import { DatabaseService } from '@/services/database';
 import {
   usePanelConfiguration,
   STEP_IDS,
@@ -29,21 +31,41 @@ import ReviewStep from './_config-steps/ReviewStep';
 export default function PanelConfigurationScreen() {
   const params = useLocalSearchParams();
 
-  // Parse panel data from URL params (derived state, no useEffect needed)
-  const panel = useMemo<PanelData | null>(() => {
-    if (params.panel) {
+  const [panel, setPanel] = useState<PanelData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch panel data from local database using panelId
+  useEffect(() => {
+    async function loadPanel() {
       try {
-        return JSON.parse(params.panel as string);
-      } catch {
-        return {
+        if (params.panelId) {
+          const data = await DatabaseService.getEquipmentById(
+            params.panelId as string,
+          );
+          setPanel(data as PanelData);
+        } else if (params.panel) {
+          // Fallback for stringified panel object
+          setPanel(JSON.parse(params.panel as string));
+        } else {
+          setPanel({
+            id: 'N/A',
+            codigo: 'N/A',
+            equipment_detail: { rotulo: 'Equipo' },
+          });
+        }
+      } catch (err) {
+        console.error('Failed to parse or load panel:', err);
+        setPanel({
           id: 'N/A',
           codigo: 'N/A',
           equipment_detail: { rotulo: 'Equipo' },
-        };
+        });
+      } finally {
+        setIsLoading(false);
       }
     }
-    return null;
-  }, [params.panel]);
+    loadPanel();
+  }, [params.panelId, params.panel]);
 
   // Ref to hold custom navigation handlers from CircuitsConfigStep
   const circuitsNavHandlersRef = useRef<CircuitsConfigStepRef | null>(null);
@@ -103,6 +125,19 @@ export default function PanelConfigurationScreen() {
         return null;
     }
   };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <DefaultHeader title="Configuración del equipo" searchPlaceholder="" />
+        <View
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#0891B2" />
+          <Text style={{ marginTop: 16 }}>Cargando información...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>

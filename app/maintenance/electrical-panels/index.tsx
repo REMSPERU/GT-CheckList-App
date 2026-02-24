@@ -10,7 +10,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Colors } from '@/constants/theme';
@@ -57,6 +57,9 @@ export default function ElectricalPanelsScreen() {
 
   // Role-based permissions
   const { canScheduleMaintenance } = useUserRole();
+
+  // Navigation lock to prevent double presses
+  const navigationLockRef = useRef(false);
 
   useEffect(() => {
     if (buildingParam) {
@@ -209,22 +212,38 @@ export default function ElectricalPanelsScreen() {
   };
 
   const handlePanelPress = (panel: TableroElectricoResponse) => {
-    if (!panel.config) {
-      router.push({
-        pathname: '/maintenance/electrical-panels/configuration',
-        params: {
-          panel: JSON.stringify(panel),
-          building: building ? JSON.stringify(building) : '',
-        },
-      });
-      return;
-    }
+    // Prevent double taps
+    if (navigationLockRef.current) return;
+    navigationLockRef.current = true;
 
-    router.push({
-      pathname: '/maintenance/electrical-panels/detail-modal',
-      params: {
-        panel: JSON.stringify(panel),
-      },
+    // Release lock after a reasonable delay (e.g., 1000ms)
+    setTimeout(() => {
+      navigationLockRef.current = false;
+    }, 1000);
+
+    // Defer the heavy JSON.stringify and navigation to allow the touch ripple
+    // to render immediately and prevent the UI from freezing.
+    requestAnimationFrame(() => {
+      // Small timeout to give the JS thread a tiny bit of breathing room
+      setTimeout(() => {
+        if (!panel.config) {
+          router.push({
+            pathname: '/maintenance/electrical-panels/configuration',
+            params: {
+              panelId: panel.id,
+              building: building ? JSON.stringify(building) : '',
+            },
+          });
+          return;
+        }
+
+        router.push({
+          pathname: '/maintenance/electrical-panels/detail',
+          params: {
+            panelId: panel.id,
+          },
+        });
+      }, 50);
     });
   };
 

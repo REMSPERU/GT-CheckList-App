@@ -53,7 +53,7 @@ const defaultSession: EmergencyLightSession = {
   tiempoDuracionItem: { ...defaultItemData },
   switchItem: { ...defaultItemData },
   conectadoTomacorrienteItem: { ...defaultItemData },
-  conexionDirectaItem: { ...defaultItemData, status: false },
+  conexionDirectaItem: { ...defaultItemData },
   conectadoCircuitoIluminacionItem: { ...defaultItemData },
 };
 
@@ -134,10 +134,8 @@ export default function EmergencyLightsChecklistScreen() {
       Alert.alert('Campo requerido', 'Por favor ingrese el valor de Lumenes');
       return;
     }
-    if (!data.tiempoDuracion.trim()) {
-      Alert.alert('Campo requerido', 'Por favor ingrese el tiempo de duración');
-      return;
-    }
+    // Only validate tiempoDuracion if we allowed the user to input it
+    // Actually as we removed the input, what happens to it? It'll be empty. We can skip this validation if the status is checked or not since its handled via observation.
 
     // Validate observations
     const items = [
@@ -188,7 +186,6 @@ export default function EmergencyLightsChecklistScreen() {
     );
   }
 
-  // Render a checklist item with measurement input
   const renderMeasurementItem = (
     label: string,
     icon: React.ReactNode,
@@ -197,6 +194,9 @@ export default function EmergencyLightsChecklistScreen() {
     itemKey: keyof EmergencyLightSession,
     placeholder: string,
     unit?: string,
+    trueLabel: string = 'Si',
+    falseLabel: string = 'No',
+    showInput: boolean = true,
   ) => {
     const item = data[itemKey] as ChecklistItemData;
     return (
@@ -206,24 +206,26 @@ export default function EmergencyLightsChecklistScreen() {
             {icon}
             <Text style={styles.label}>{label}</Text>
           </View>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.measureInput}
-              placeholder={placeholder}
-              placeholderTextColor="#9CA3AF"
-              keyboardType="numeric"
-              value={value}
-              onChangeText={onChangeValue}
-            />
-            {unit && <Text style={styles.unitText}>{unit}</Text>}
-          </View>
+          {showInput && (
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.measureInput}
+                placeholder={placeholder}
+                placeholderTextColor="#9CA3AF"
+                keyboardType="numeric"
+                value={value}
+                onChangeText={onChangeValue}
+              />
+              {unit && <Text style={styles.unitText}>{unit}</Text>}
+            </View>
+          )}
           <View style={styles.statusContainer}>
             <Text
               style={[
                 styles.statusText,
                 item.status && styles.statusTextActive,
               ]}>
-              {item.status ? 'Ok' : 'Obs'}
+              {item.status ? trueLabel : falseLabel}
             </Text>
             <Switch
               value={item.status}
@@ -274,6 +276,8 @@ export default function EmergencyLightsChecklistScreen() {
     label: string,
     icon: React.ReactNode,
     itemKey: keyof EmergencyLightSession,
+    trueLabel: string = 'Si',
+    falseLabel: string = 'No',
   ) => {
     const item = data[itemKey] as ChecklistItemData;
     return (
@@ -289,7 +293,7 @@ export default function EmergencyLightsChecklistScreen() {
                 styles.statusText,
                 item.status && styles.statusTextActive,
               ]}>
-              {item.status ? 'Ok' : 'Obs'}
+              {item.status ? trueLabel : falseLabel}
             </Text>
             <Switch
               value={item.status}
@@ -378,6 +382,9 @@ export default function EmergencyLightsChecklistScreen() {
           'tiempoDuracionItem',
           '',
           'Min',
+          '>90',
+          '<90',
+          false, // Ocultar input
         )}
 
         {/* Switch */}
@@ -390,6 +397,8 @@ export default function EmergencyLightsChecklistScreen() {
             style={styles.icon}
           />,
           'switchItem',
+          'No',
+          'Si',
         )}
 
         {/* Conectado a Tomacorriente */}
@@ -402,6 +411,8 @@ export default function EmergencyLightsChecklistScreen() {
             style={styles.icon}
           />,
           'conectadoTomacorrienteItem',
+          'No',
+          'Si',
         )}
 
         {/* Conexión directa */}
