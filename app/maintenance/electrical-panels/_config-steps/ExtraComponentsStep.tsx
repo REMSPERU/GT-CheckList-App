@@ -1,7 +1,7 @@
 import { View, Text, Switch, TextInput, StyleSheet } from 'react-native';
 import { useFormContext, Controller, useWatch } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import {
   ExtraComponentsStepProps,
   ExtraComponentType,
@@ -143,8 +143,10 @@ const ComponentCard = memo(function ComponentCard({
 });
 
 // ── Main Component ──────────────────────────────────────────────────────────
+// memo prevents re-renders when only the parent re-renders (e.g., step
+// navigation state change), since `panel` prop is stable between renders.
 
-export default function ExtraComponentsStep({
+export default memo(function ExtraComponentsStep({
   panel,
 }: ExtraComponentsStepProps) {
   const { control, setValue } = useFormContext<PanelConfigurationFormValues>();
@@ -202,7 +204,8 @@ export default function ExtraComponentsStep({
 
   const updateQuantity = useCallback(
     (type: ExtraComponentType, qtyStr: string) => {
-      const qty = Math.max(0, parseInt(qtyStr || '0', 10));
+      const parsed = parseInt(qtyStr || '0', 10);
+      const qty = isNaN(parsed) ? 0 : Math.max(0, parsed);
       const currentList = extraComponents[type] || [];
       const newList = [...currentList];
 
@@ -220,6 +223,23 @@ export default function ExtraComponentsStep({
     },
     [extraComponents, setValue],
   );
+
+  // Pre-create stable per-type callbacks so ComponentCard memo actually works.
+  // Without this, inline arrows `() => toggleComponent(def.type)` create new
+  // references on every render, defeating the memo on all 6 cards.
+  const handlers = useMemo(() => {
+    const result: Record<
+      ExtraComponentType,
+      { onToggle: () => void; onUpdateQuantity: (val: string) => void }
+    > = {} as any;
+    for (const def of COMPONENT_DEFINITIONS) {
+      result[def.type] = {
+        onToggle: () => toggleComponent(def.type),
+        onUpdateQuantity: (val: string) => updateQuantity(def.type, val),
+      };
+    }
+    return result;
+  }, [toggleComponent, updateQuantity]);
 
   return (
     <View style={styles.contentWrapper}>
@@ -240,11 +260,11 @@ export default function ExtraComponentsStep({
             icon={def.icon}
             isEnabled={isEnabled}
             componentList={componentList}
-            onToggle={() => toggleComponent(def.type)}
-            onUpdateQuantity={(val: string) => updateQuantity(def.type, val)}
+            onToggle={handlers[def.type].onToggle}
+            onUpdateQuantity={handlers[def.type].onUpdateQuantity}
           />
         );
       })}
     </View>
   );
-}
+});

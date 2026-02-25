@@ -139,3 +139,81 @@ export const PanelConfigurationSchema = z.object({
 export type PanelConfigurationFormValues = z.infer<
   typeof PanelConfigurationSchema
 >;
+
+// ============================================================================
+// DRAFT SCHEMA (permisivo)
+// ============================================================================
+// Esquema que solo valida la estructura/tipos sin reglas de negocio.
+// Se usa para validar drafts guardados offline que pueden estar a medio llenar.
+// Sin .min(), sin .refine(), sin .superRefine() — solo forma y tipos.
+
+const SubITMDraftSchema = z.object({
+  phaseITM: PhaseTypeSchema,
+  amperajeITM: z.string(),
+  diameter: z.string(),
+  cableType: CableTypeSchema.optional(),
+  supply: z.string().optional(),
+});
+
+const CircuitDraftSchema = z.object({
+  name: z.string().optional(),
+  interruptorType: InterruptorTypeSchema,
+  phase: PhaseTypeSchema.optional(),
+  amperaje: z.string().optional(),
+  diameter: z.string().optional(),
+  cableType: CableTypeSchema.optional(),
+  supply: z.string().optional(),
+  hasID: z.boolean().optional(),
+  phaseID: PhaseTypeSchema.optional(),
+  amperajeID: z.string().optional(),
+  diameterID: z.string().optional(),
+  cableTypeID: CableTypeSchema.optional(),
+  subITMsCount: z.string().optional(),
+  subITMs: z.array(SubITMDraftSchema).optional(),
+});
+
+const ITGCircuitDataDraftSchema = z.object({
+  cnPrefix: z.string(),
+  circuitsCount: z.string(),
+  circuits: z.array(CircuitDraftSchema),
+  phaseITG: PhaseTypeSchema.optional(),
+  amperajeITG: z.string().optional(),
+  diameterITG: z.string().optional(),
+  cableTypeITG: CableTypeSchema.optional(),
+});
+
+const ExtraComponentDraftSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+});
+
+export const PanelConfigurationDraftSchema = z.object({
+  panelName: z.string().optional(),
+  panelType: PanelTypeSchema,
+  voltage: z.string(),
+  phase: PhaseTypeSchema,
+
+  itgCount: z.string(),
+  itgDescriptions: z.array(z.string()),
+
+  itgCircuits: z.array(ITGCircuitDataDraftSchema),
+
+  enabledComponents: z.array(ExtraComponentTypeSchema),
+  extraComponents: z.object({
+    contactores: z.array(ExtraComponentDraftSchema),
+    relays: z.array(ExtraComponentDraftSchema),
+    ventiladores: z.array(ExtraComponentDraftSchema),
+    termostato: z.array(ExtraComponentDraftSchema),
+    medidores: z.array(ExtraComponentDraftSchema),
+    timers: z.array(ExtraComponentDraftSchema),
+  }),
+
+  extraConditions: z.object({
+    mandilProteccion: z.boolean(),
+    puertaMandilAterrados: z.boolean(),
+    barraTierra: z.boolean(),
+    terminalesElectricos: z.boolean(),
+    mangasTermoContraibles: z.boolean(),
+    diagramaUnifilarDirectorio: z.boolean(),
+  }),
+});

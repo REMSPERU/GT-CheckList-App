@@ -56,6 +56,9 @@ export interface ITGCircuitData {
   circuitsCount: string;
   circuits: CircuitConfig[];
   phaseITG?: PhaseType;
+  amperajeITG?: string;
+  diameterITG?: string;
+  cableTypeITG?: CableType;
 }
 
 export interface CircuitsConfigStepRef {

@@ -9,7 +9,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { useRef, useEffect, useState, memo } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { FormProvider } from 'react-hook-form';
 import DefaultHeader from '@/components/default-header';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -19,6 +19,7 @@ import {
   STEP_IDS,
   isLastStep,
   isFirstStep,
+  StepId,
 } from '@/hooks/use-electrical-panel-configuration';
 import { PanelData, CircuitsConfigStepRef } from '@/types/panel-configuration';
 import { styles } from './_config-steps/_styles';
@@ -33,7 +34,7 @@ import ReviewStep from './_config-steps/ReviewStep';
 // Eliminates 3x duplicated JSX blocks and memoizes to avoid re-renders when
 // only the step content changes.
 interface NavigationFooterProps {
-  currentStepId: string;
+  currentStepId: StepId;
   onNext: () => void;
   onBack: () => void;
 }
@@ -47,12 +48,12 @@ const NavigationFooter = memo(function NavigationFooter({
     <View style={styles.footer}>
       <TouchableOpacity style={styles.primaryBtn} onPress={onNext}>
         <Text style={styles.primaryBtnText}>
-          {isLastStep(currentStepId as any) ? 'Guardar' : 'Siguiente'}
+          {isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}
         </Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.secondaryBtn} onPress={onBack}>
         <Text style={styles.secondaryBtnText}>
-          {isFirstStep(currentStepId as any) ? 'Cancel' : 'Atras'}
+          {isFirstStep(currentStepId) ? 'Cancel' : 'Atras'}
         </Text>
       </TouchableOpacity>
     </View>
@@ -112,44 +113,43 @@ export default function PanelConfigurationScreen() {
   const circuitsNavHandlersRef = useRef<CircuitsConfigStepRef | null>(null);
 
   const isEditMode = params.isEditMode === 'true';
-  const { currentStepId, form, goNext, goBack, saveDraft } =
-    usePanelConfiguration(panel, isEditMode);
+  const { currentStepId, form, goNext, goBack } = usePanelConfiguration(
+    panel,
+    isEditMode,
+  );
 
-  // Custom navigation for Circuits step
-  const handleGoNext = async () => {
-    // If we are in Circuits step and have custom handlers
+  // Custom navigation for Circuits step — wrapped in useCallback so
+  // NavigationFooter (memo) doesn't re-render when only step content changes.
+  const handleGoNext = useCallback(async () => {
     if (currentStepId === STEP_IDS.CIRCUITS && circuitsNavHandlersRef.current) {
-      // handleNext returns true if we should proceed to next step
-      // returns false if we just switched tabs locally or validation failed
       const canProceed = await circuitsNavHandlersRef.current.handleNext();
       if (canProceed) {
-        goNext(); // Actually go to next step
+        goNext();
       }
-      // Otherwise stay on current IT-G tab
     } else {
       goNext();
     }
-  };
+  }, [currentStepId, goNext]);
 
-  const handleGoBack = () => {
+  const handleGoBack = useCallback(() => {
     if (currentStepId === STEP_IDS.CIRCUITS && circuitsNavHandlersRef.current) {
       const canGoBack = circuitsNavHandlersRef.current.handleBack();
       if (canGoBack) {
-        goBack(); // Actually go to previous step
+        goBack();
       }
-      // Otherwise stay on current IT-G tab
     } else {
       goBack();
     }
-  };
+  }, [currentStepId, goBack]);
 
-  const renderStep = () => {
+  // Memoize the rendered step to avoid re-creating JSX on every parent
+  // re-render when currentStepId hasn't changed.
+  const renderedStep = useMemo(() => {
     switch (currentStepId) {
       case STEP_IDS.BASIC_INFO:
         return <BasicInfoStep panel={panel} />;
       case STEP_IDS.ITG_CONFIG:
         return <ITGConfigStep panel={panel} />;
-      /* ... */
       case STEP_IDS.CIRCUITS:
         return (
           <CircuitsConfigStep panel={panel} ref={circuitsNavHandlersRef} />
@@ -163,7 +163,7 @@ export default function PanelConfigurationScreen() {
       default:
         return null;
     }
-  };
+  }, [currentStepId, panel]);
 
   if (isLoading) {
     return (
@@ -194,7 +194,7 @@ export default function PanelConfigurationScreen() {
                     title="Configuracion del equipo"
                     searchPlaceholder=""
                   />
-                  <View style={flexOneStyle}>{renderStep()}</View>
+                  <View style={flexOneStyle}>{renderedStep}</View>
                   <NavigationFooter
                     currentStepId={currentStepId}
                     onNext={handleGoNext}
@@ -211,7 +211,7 @@ export default function PanelConfigurationScreen() {
                   title="Configuracion del equipo"
                   searchPlaceholder=""
                 />
-                <View style={flexOneStyle}>{renderStep()}</View>
+                <View style={flexOneStyle}>{renderedStep}</View>
                 <NavigationFooter
                   currentStepId={currentStepId}
                   onNext={handleGoNext}
@@ -227,7 +227,7 @@ export default function PanelConfigurationScreen() {
               />
 
               {/* Content */}
-              {renderStep()}
+              {renderedStep}
 
               {/* Footer */}
               <NavigationFooter

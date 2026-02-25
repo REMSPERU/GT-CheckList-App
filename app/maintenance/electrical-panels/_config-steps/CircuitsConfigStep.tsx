@@ -79,7 +79,7 @@ const ListHeader = memo(function ListHeader({
   // the entire list to re-render.
   const updateCircuitsCount = useCallback(
     (value: string) => {
-      const n = Math.max(0, parseInt(value || '0', 10));
+      const n = Math.max(0, parseInt(value || '0', 10) || 0);
       const currentCircuitsList =
         getValues(`itgCircuits.${selectedItgIndex}.circuits`) || [];
       const currentLength = currentCircuitsList.length;
@@ -115,7 +115,7 @@ const ListHeader = memo(function ListHeader({
         <ProgressTabs
           items={tabLabels}
           selectedIndex={selectedItgIndex}
-          onSelectIndex={() => {}}
+          onSelectIndex={noop}
           disabled={true}
         />
       )}
@@ -197,12 +197,8 @@ const CircuitsConfigStep = forwardRef<
   CircuitsConfigStepRef,
   CircuitsConfigStepProps
 >(function CircuitsConfigStep({ panel }, ref) {
-  const {
-    control,
-    trigger,
-    clearErrors,
-    formState: { errors },
-  } = useFormContext<PanelConfigurationFormValues>();
+  const { control, trigger, clearErrors, getFieldState } =
+    useFormContext<PanelConfigurationFormValues>();
 
   // Watch only the count string (lightweight) instead of the entire itgCircuits array.
   // This prevents massive re-renders when any circuit field changes.
@@ -235,16 +231,28 @@ const CircuitsConfigStep = forwardRef<
     const result = await trigger(`itgCircuits.${selectedItgIndex}` as any);
 
     if (!result) {
-      const itgErrors = errors.itgCircuits?.[selectedItgIndex];
+      // Read fresh field state after trigger() — the `errors` from the
+      // render-time closure is stale at this point because trigger() updated
+      // the form state asynchronously.
+      const prefixState = getFieldState(
+        `itgCircuits.${selectedItgIndex}.cnPrefix` as any,
+      );
+      const countState = getFieldState(
+        `itgCircuits.${selectedItgIndex}.circuitsCount` as any,
+      );
+      const circuitsState = getFieldState(
+        `itgCircuits.${selectedItgIndex}.circuits` as any,
+      );
+
       const errorMessages: string[] = [];
 
-      if (itgErrors?.cnPrefix) {
+      if (prefixState.error) {
         errorMessages.push('• Prefijo es requerido');
       }
-      if (itgErrors?.circuitsCount) {
+      if (countState.error) {
         errorMessages.push('• Cantidad de circuitos debe ser mayor a 0');
       }
-      if (itgErrors?.circuits) {
+      if (circuitsState.error) {
         errorMessages.push('• Complete todos los campos de los circuitos');
       }
 
@@ -257,7 +265,7 @@ const CircuitsConfigStep = forwardRef<
     }
 
     return result;
-  }, [selectedItgIndex, trigger, errors]);
+  }, [selectedItgIndex, trigger, getFieldState]);
 
   const handleNext = useCallback(async () => {
     const isValid = await validateCurrentItg();
@@ -360,7 +368,7 @@ const CircuitsConfigStep = forwardRef<
   );
 
   const renderItem = useCallback(
-    ({ item, index }: { item: CircuitConfig; index: number }) => (
+    ({ item: _item, index }: { item: CircuitConfig; index: number }) => (
       <View style={paddingStyle}>
         <CircuitItem
           index={index}
@@ -434,9 +442,10 @@ const CircuitsConfigStep = forwardRef<
   );
 });
 
-// Static style objects extracted outside the component to prevent re-creation
+// Static style objects & callbacks extracted outside the component to prevent re-creation
 const containerStyle = { flex: 1 } as const;
 const paddingStyle = { paddingHorizontal: 24 } as const;
 const marginBottom8Style = { marginBottom: 8 } as const;
+const noop = () => {};
 
 export default CircuitsConfigStep;

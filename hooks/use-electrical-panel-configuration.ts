@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Alert } from 'react-native';
+import { Alert, AppState, AppStateStatus } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,6 +8,7 @@ import { PanelData } from '@/types/panel-configuration';
 import {
   PanelConfigurationSchema,
   PanelConfigurationFormValues,
+  PanelConfigurationDraftSchema,
 } from '@/schemas/panel-configuration';
 import { DatabaseService } from '@/services/database';
 import { syncQueue } from '@/services/sync-queue';
@@ -15,6 +16,12 @@ import { supabaseElectricalPanelService } from '@/services/supabase-electrical-p
 
 // Storage key prefix for configuration drafts
 const CONFIG_DRAFT_KEY_PREFIX = 'panel_config_draft_';
+
+// Auto-save interval in milliseconds.
+// 10 seconds is long enough that even with 50 circuits the periodic
+// JSON.stringify + AsyncStorage write won't stack up on the JS thread,
+// but short enough that the user loses at most ~10 s of work on a crash.
+const AUTO_SAVE_INTERVAL_MS = 10_000;
 
 // ============================================================================
 // STEP CONFIGURATION
@@ -167,10 +174,8 @@ export function usePanelConfiguration(
 
   // ── Draft Persistence ────────────────────────────────────────────────────
 
-  // Save draft explicitly — called on step transitions and unmount.
-  // Replaces the old `watch()` global subscription which listened to every
-  // field change and caused unnecessary overhead (each keystroke triggered the
-  // subscription callback even with debounce).
+  // Save draft explicitly — called on step transitions, unmount, background,
+  // and periodically via auto-save.
   const saveDraft = useCallback(async () => {
     if (isLoadingDraftRef.current) return;
     const storageKey = getStorageKey();
@@ -198,6 +203,54 @@ export function usePanelConfiguration(
     }
   }, [getStorageKey, getValues, initialPanel?.id]);
 
+  // ── Auto-save: periodic interval + dirty flag ────────────────────────────
+  // Instead of saving on every keystroke (which caused lag with watch()),
+  // we use a lightweight dirty flag. The form.watch() subscription just
+  // flips the flag — zero serialization cost. A setInterval checks the
+  // flag every AUTO_SAVE_INTERVAL_MS and persists only when dirty.
+  const isDirtyRef = useRef(false);
+  const saveDraftRef = useRef(saveDraft);
+  saveDraftRef.current = saveDraft;
+
+  // Mark dirty on any form change (the subscription callback is very cheap)
+  useEffect(() => {
+    const subscription = form.watch(() => {
+      isDirtyRef.current = true;
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  // Periodic flush — only writes when dirty
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isDirtyRef.current) {
+        isDirtyRef.current = false;
+        saveDraftRef.current();
+      }
+    }, AUTO_SAVE_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ── Save on app background (user switches app / OS kills) ────────────────
+  useEffect(() => {
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      // 'background' on Android, 'inactive' on iOS (when the app is about
+      // to go to background or the task switcher is shown).
+      if (nextState === 'background' || nextState === 'inactive') {
+        if (isDirtyRef.current) {
+          isDirtyRef.current = false;
+          saveDraftRef.current();
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange,
+    );
+    return () => subscription.remove();
+  }, []);
+
   // Load saved draft on mount
   useEffect(() => {
     const loadDraft = async () => {
@@ -214,11 +267,14 @@ export function usePanelConfiguration(
           if (__DEV__)
             console.log('[CONFIG] Loaded draft for panel:', initialPanel?.id);
 
-          // Restore form values — validate against schema first to prevent
-          // crashes from stale/mismatched draft data (e.g. after schema changes
-          // between app updates).
+          // Restore form values — validate against the DRAFT schema (lenient)
+          // which only checks structure/types, not business rules.
+          // A half-filled form is expected when restoring a draft; the strict
+          // PanelConfigurationSchema would reject any empty required field
+          // (amperaje, diameter, cnPrefix, etc.), causing every in-progress
+          // draft to be discarded.
           if (parsed.formValues) {
-            const validation = PanelConfigurationSchema.safeParse(
+            const validation = PanelConfigurationDraftSchema.safeParse(
               parsed.formValues,
             );
             if (validation.success) {
@@ -227,6 +283,7 @@ export function usePanelConfiguration(
               if (__DEV__)
                 console.warn(
                   '[CONFIG] Draft schema mismatch, discarding stale draft',
+                  validation.error.issues,
                 );
               await AsyncStorage.removeItem(storageKey);
             }
@@ -253,9 +310,10 @@ export function usePanelConfiguration(
   // Save draft on unmount so user doesn't lose data if they navigate away
   useEffect(() => {
     return () => {
-      saveDraft();
+      // Always flush on unmount regardless of dirty flag — the component
+      // is being torn down, so we want to persist the latest state.
+      saveDraftRef.current();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Function to clear draft after successful save
