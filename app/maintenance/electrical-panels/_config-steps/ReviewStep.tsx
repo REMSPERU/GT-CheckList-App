@@ -30,6 +30,7 @@ export default function ReviewStep({ panel }: ReviewStepProps) {
         id: `IT-G${idx + 1}`,
         suministra: values.itgDescriptions[idx] || '',
         prefijo: itg.cnPrefix,
+        fases: itg.phaseITG || '',
         itms: itg.circuits.map((itm, cIdx) => ({
           id: `${itg.cnPrefix}${cIdx + 1}`,
           tipo: (itm.interruptorType === 'id'

@@ -87,6 +87,7 @@ export const ITGCircuitDataSchema = z.object({
   }),
   circuits: z.array(DefaultCircuitSchema),
   // IT-G specific fields (required)
+  phaseITG: PhaseTypeSchema,
   amperajeITG: z.string().min(1, 'Amperaje es requerido'),
   diameterITG: z.string().min(1, 'Diámetro es requerido'),
   cableTypeITG: CableTypeSchema,

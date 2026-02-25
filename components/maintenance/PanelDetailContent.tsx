@@ -17,6 +17,7 @@ export interface PanelDetailProps {
       prefijo?: string;
       suministra?: string;
       // IT-G specific fields
+      fases?: string;
       amperaje?: number | string;
       diametro_cable?: string;
       tipo_cable?: string;
@@ -122,7 +123,19 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = ({ data }) => {
                 <Text style={styles.iconText}>IG</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.itgId}>{itg.id}</Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}>
+                  <Text style={styles.itgId}>{itg.id}</Text>
+                  {itg.fases ? (
+                    <View style={styles.phaseBadge}>
+                      <Text style={styles.phaseText}>{itg.fases}</Text>
+                    </View>
+                  ) : null}
+                </View>
                 {itg.suministra ? (
                   <Text style={styles.itgSupply}>
                     Suministra: {itg.suministra}

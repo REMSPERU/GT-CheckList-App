@@ -10,7 +10,11 @@ import {
 import { useFormContext, Controller, useWatch } from 'react-hook-form';
 import RNPickerSelect from 'react-native-picker-select';
 import { Ionicons } from '@expo/vector-icons';
-import { ITGConfigStepProps, CableType } from '@/types/panel-configuration';
+import {
+  ITGConfigStepProps,
+  CableType,
+  PhaseType,
+} from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 import { useState, useEffect, useMemo } from 'react';
 import { styles } from './_styles';
@@ -83,6 +87,13 @@ const pickerErrorStyles = StyleSheet.create({
   },
 });
 
+const PHASE_OPTIONS: { key: PhaseType; label: string }[] = [
+  { key: 'unipolar', label: 'Unipolar' },
+  { key: 'mono_2w', label: 'Monofásico 2 hilos' },
+  { key: 'tri_3w', label: 'Trifásico 3 hilos' },
+  { key: 'tri_4w', label: 'Trifásico 4 hilos' },
+];
+
 const CABLE_TYPE_OPTIONS: { key: CableType; label: string }[] = [
   { key: 'libre_halogeno', label: 'Libre de Halógeno' },
   { key: 'no_libre_halogeno', label: 'No libre de Halógeno' },
@@ -145,6 +156,7 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
             },
           ],
           // New IT-G specific fields (required)
+          phaseITG: 'mono_2w',
           amperajeITG: '',
           diameterITG: '',
           cableTypeITG: 'libre_halogeno',
@@ -231,6 +243,7 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
           {itgDescriptions.map((description, idx) => {
             const itgErrors = errors.itgCircuits?.[idx];
             const hasErrors = !!(
+              itgErrors?.phaseITG ||
               itgErrors?.amperajeITG ||
               itgErrors?.diameterITG ||
               itgErrors?.cableTypeITG
@@ -255,6 +268,48 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
                     </View>
                   )}
                 </View>
+
+                {/* Fases */}
+                <Text style={styles.cnLabel}>FASES:</Text>
+                <Controller
+                  control={control}
+                  name={`itgCircuits.${idx}.phaseITG`}
+                  render={({ field: { onChange, value } }) => (
+                    <RNPickerSelect
+                      onValueChange={onChange}
+                      items={PHASE_OPTIONS.map(opt => ({
+                        label: opt.label,
+                        value: opt.key,
+                      }))}
+                      placeholder={{
+                        label: 'Seleccione tipo de fase',
+                        value: null,
+                        color: '#9CA3AF',
+                      }}
+                      value={value}
+                      style={{
+                        ...(itgErrors?.phaseITG
+                          ? pickerErrorStyles
+                          : pickerSelectStyles),
+                        iconContainer: {
+                          top: 12,
+                          right: 12,
+                        },
+                      }}
+                      useNativeAndroidPickerStyle={false}
+                      Icon={
+                        itgErrors?.phaseITG
+                          ? PickerChevronErrorIcon
+                          : PickerChevronIcon
+                      }
+                    />
+                  )}
+                />
+                {itgErrors?.phaseITG && (
+                  <Text style={styles.errorText}>
+                    {itgErrors.phaseITG.message}
+                  </Text>
+                )}
 
                 {/* Amperaje */}
                 <Text style={styles.cnLabel}>AMPERAJE:</Text>
