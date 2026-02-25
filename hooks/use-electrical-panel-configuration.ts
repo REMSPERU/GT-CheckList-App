@@ -1,5 +1,5 @@
-﻿import { useState, useEffect, useRef, useCallback } from 'react';
-import { Alert, InteractionManager } from 'react-native';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -56,20 +56,34 @@ export function isFirstStep(stepId: StepId): boolean {
 // DEFAULT VALUES
 // ============================================================================
 
-const DEFAULT_CIRCUIT: any = {
-  interruptorType: 'itm',
-  phase: 'mono_2w',
-  amperaje: '',
-  diameter: '',
-  cableType: 'libre_halogeno',
-  supply: '',
-  hasID: false,
-  phaseID: undefined,
-  amperajeID: '',
-  diameterID: '',
-  cableTypeID: undefined,
-  subITMsCount: '1',
-  subITMs: [],
+const DEFAULT_CIRCUIT: PanelConfigurationFormValues['itgCircuits'][number]['circuits'][number] =
+  {
+    interruptorType: 'itm',
+    phase: 'mono_2w',
+    amperaje: '',
+    diameter: '',
+    cableType: 'libre_halogeno',
+    supply: '',
+    hasID: false,
+    phaseID: undefined,
+    amperajeID: '',
+    diameterID: '',
+    cableTypeID: undefined,
+    subITMsCount: '1',
+    subITMs: [],
+  };
+
+// Helper labels — defined once at module level to avoid re-creation on each save
+const PHASE_LABELS: Record<string, string> = {
+  unipolar: 'Unipolar',
+  mono_2w: 'Monofásico 2 hilos',
+  tri_3w: 'Trifásico 3 hilos',
+  tri_4w: 'Trifásico 4 hilos',
+};
+
+const CABLE_TYPE_LABELS: Record<string, string> = {
+  libre_halogeno: 'Libre de Halógeno',
+  no_libre_halogeno: 'No Libre de Halógeno',
 };
 
 // ============================================================================
@@ -78,9 +92,10 @@ const DEFAULT_CIRCUIT: any = {
 
 export interface UsePanelConfigurationReturn {
   currentStepId: StepId;
-  form: UseFormReturn<any>; // Changed to any to bypass library version/type conflicts
+  form: UseFormReturn<PanelConfigurationFormValues>;
   goNext: () => Promise<void>;
   goBack: () => void;
+  saveDraft: () => Promise<void>;
 }
 
 export function usePanelConfiguration(
@@ -90,6 +105,13 @@ export function usePanelConfiguration(
   const router = useRouter();
   const [currentStepId, setCurrentStepId] = useState<StepId>(STEP_ORDER[0]);
   const [isLoadingDraft, setIsLoadingDraft] = useState(true);
+
+  // Refs to hold latest values without causing re-renders or stale closures
+  const currentStepIdRef = useRef(currentStepId);
+  currentStepIdRef.current = currentStepId;
+
+  const isLoadingDraftRef = useRef(isLoadingDraft);
+  isLoadingDraftRef.current = isLoadingDraft;
 
   // Generate storage key based on panel ID
   const getStorageKey = useCallback(() => {
@@ -110,7 +132,6 @@ export function usePanelConfiguration(
           cnPrefix: 'CN',
           circuitsCount: '1',
           circuits: [{ ...DEFAULT_CIRCUIT }],
-          // IT-G specific fields
           amperajeITG: '',
           diameterITG: '',
           cableTypeITG: 'libre_halogeno',
@@ -134,13 +155,47 @@ export function usePanelConfiguration(
         diagramaUnifilarDirectorio: false,
       },
     },
-    mode: 'onChange',
+    // 'onBlur' prevents full Zod schema validation on every keystroke.
+    // With 'onChange', each character typed runs the entire PanelConfigurationSchema
+    // (including nested arrays with superRefine), causing significant lag.
+    // Step-level validation is handled explicitly in validateCurrentStep().
+    mode: 'onBlur',
   });
 
-  const { trigger, getValues, reset, watch } = form;
+  const { trigger, getValues, reset } = form;
 
-  // Debounce ref for auto-save
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ── Draft Persistence ────────────────────────────────────────────────────
+
+  // Save draft explicitly — called on step transitions and unmount.
+  // Replaces the old `watch()` global subscription which listened to every
+  // field change and caused unnecessary overhead (each keystroke triggered the
+  // subscription callback even with debounce).
+  const saveDraft = useCallback(async () => {
+    if (isLoadingDraftRef.current) return;
+    const storageKey = getStorageKey();
+    if (!storageKey) return;
+
+    try {
+      const draft = {
+        formValues: getValues(),
+        currentStepId: currentStepIdRef.current,
+        lastUpdated: new Date().toISOString(),
+      };
+      let serialized: string;
+      try {
+        serialized = JSON.stringify(draft);
+      } catch {
+        if (__DEV__)
+          console.warn('[CONFIG] Draft too large to serialize, skipping save');
+        return;
+      }
+      await AsyncStorage.setItem(storageKey, serialized);
+      if (__DEV__)
+        console.log('[CONFIG] Draft saved for panel:', initialPanel?.id);
+    } catch (error) {
+      if (__DEV__) console.error('[CONFIG] Error saving draft:', error);
+    }
+  }, [getStorageKey, getValues, initialPanel?.id]);
 
   // Load saved draft on mount
   useEffect(() => {
@@ -155,11 +210,25 @@ export function usePanelConfiguration(
         const savedDraft = await AsyncStorage.getItem(storageKey);
         if (savedDraft) {
           const parsed = JSON.parse(savedDraft);
-          console.log('📂 [CONFIG] Loaded draft for panel:', initialPanel?.id);
+          if (__DEV__)
+            console.log('[CONFIG] Loaded draft for panel:', initialPanel?.id);
 
-          // Restore form values
+          // Restore form values — validate against schema first to prevent
+          // crashes from stale/mismatched draft data (e.g. after schema changes
+          // between app updates).
           if (parsed.formValues) {
-            reset(parsed.formValues);
+            const validation = PanelConfigurationSchema.safeParse(
+              parsed.formValues,
+            );
+            if (validation.success) {
+              reset(parsed.formValues);
+            } else {
+              if (__DEV__)
+                console.warn(
+                  '[CONFIG] Draft schema mismatch, discarding stale draft',
+                );
+              await AsyncStorage.removeItem(storageKey);
+            }
           }
 
           // Restore current step
@@ -171,7 +240,7 @@ export function usePanelConfiguration(
           }
         }
       } catch (error) {
-        console.error('❌ [CONFIG] Error loading draft:', error);
+        if (__DEV__) console.error('[CONFIG] Error loading draft:', error);
       } finally {
         setIsLoadingDraft(false);
       }
@@ -180,80 +249,13 @@ export function usePanelConfiguration(
     loadDraft();
   }, [getStorageKey, initialPanel?.id, reset]);
 
-  // Auto-save draft when form values change (with debounce)
+  // Save draft on unmount so user doesn't lose data if they navigate away
   useEffect(() => {
-    const subscription = watch(formValues => {
-      // Don't save while loading
-      if (isLoadingDraft) return;
-
-      const storageKey = getStorageKey();
-      if (!storageKey) return;
-
-      // Clear previous timeout
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-
-      // Debounce save by 3 seconds (longer to avoid blocking UI during rapid edits)
-      saveTimeoutRef.current = setTimeout(() => {
-        // Run after any pending animations/interactions to avoid blocking the UI thread
-        InteractionManager.runAfterInteractions(async () => {
-          try {
-            const draft = {
-              formValues,
-              currentStepId,
-              lastUpdated: new Date().toISOString(),
-            };
-            // Wrap stringify in try-catch — large/circular forms can throw
-            let serialized: string;
-            try {
-              serialized = JSON.stringify(draft);
-            } catch {
-              console.warn(
-                '⚠️ [CONFIG] Draft too large to serialize, skipping save',
-              );
-              return;
-            }
-            await AsyncStorage.setItem(storageKey, serialized);
-            console.log('💾 [CONFIG] Draft saved for panel:', initialPanel?.id);
-          } catch (error) {
-            console.error('❌ [CONFIG] Error saving draft:', error);
-          }
-        });
-      }, 3000);
-    });
-
     return () => {
-      subscription.unsubscribe();
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+      saveDraft();
     };
-  }, [watch, getStorageKey, currentStepId, isLoadingDraft, initialPanel?.id]);
-
-  // Save step changes
-  useEffect(() => {
-    const saveStepChange = async () => {
-      if (isLoadingDraft) return;
-
-      const storageKey = getStorageKey();
-      if (!storageKey) return;
-
-      try {
-        const existingDraft = await AsyncStorage.getItem(storageKey);
-        if (existingDraft) {
-          const parsed = JSON.parse(existingDraft);
-          parsed.currentStepId = currentStepId;
-          parsed.lastUpdated = new Date().toISOString();
-          await AsyncStorage.setItem(storageKey, JSON.stringify(parsed));
-        }
-      } catch (error) {
-        console.error('❌ [CONFIG] Error saving step change:', error);
-      }
-    };
-
-    saveStepChange();
-  }, [currentStepId, getStorageKey, isLoadingDraft]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Function to clear draft after successful save
   const clearDraft = useCallback(async () => {
@@ -261,14 +263,17 @@ export function usePanelConfiguration(
     if (storageKey) {
       try {
         await AsyncStorage.removeItem(storageKey);
-        console.log('🗑️ [CONFIG] Draft cleared for panel:', initialPanel?.id);
+        if (__DEV__)
+          console.log('[CONFIG] Draft cleared for panel:', initialPanel?.id);
       } catch (error) {
-        console.error('❌ [CONFIG] Error clearing draft:', error);
+        if (__DEV__) console.error('[CONFIG] Error clearing draft:', error);
       }
     }
   }, [getStorageKey, initialPanel?.id]);
 
-  const validateCurrentStep = async (): Promise<boolean> => {
+  // ── Validation ───────────────────────────────────────────────────────────
+
+  const validateCurrentStep = useCallback(async (): Promise<boolean> => {
     let fieldsToValidate: (keyof PanelConfigurationFormValues)[] = [];
 
     switch (currentStepId) {
@@ -325,46 +330,23 @@ export function usePanelConfiguration(
         return true;
     }
 
-    const result = await trigger(fieldsToValidate);
+    return trigger(fieldsToValidate);
+  }, [currentStepId, trigger, getValues, form]);
 
-    // Manual check for errors to show alert if needed (mimicking previous behavior)
-    if (!result) {
-      // Optional: you could inspect form.formState.errors here to show specific alerts
-      // But usually the UI will show the validation errors under the fields
-      // Alert.alert("Validación", "Por favor revise los campos marcados en rojo.");
-    }
+  // ── Navigation ───────────────────────────────────────────────────────────
 
-    return result;
-  };
-
-  const goNext = async () => {
+  const goNext = useCallback(async () => {
     const isValid = await validateCurrentStep();
     if (!isValid) return;
 
     const currentIndex = getStepIndex(currentStepId);
     if (isLastStep(currentStepId)) {
       try {
-        console.log('🔵 [SAVE] Starting panel configuration save...');
+        if (__DEV__) console.log('[SAVE] Starting panel configuration save...');
         const values = getValues();
         if (__DEV__) {
-          console.log(
-            '🔵 [SAVE] Form values:',
-            JSON.stringify(values, null, 2),
-          );
+          console.log('[SAVE] Form values:', JSON.stringify(values, null, 2));
         }
-
-        // Helper labels
-        const PHASE_LABELS: Record<string, string> = {
-          unipolar: 'Unipolar',
-          mono_2w: 'Monofásico 2 hilos',
-          tri_3w: 'Trifásico 3 hilos',
-          tri_4w: 'Trifásico 4 hilos',
-        };
-
-        const CABLE_TYPE_LABELS: Record<string, string> = {
-          libre_halogeno: 'Libre de Halógeno',
-          no_libre_halogeno: 'No Libre de Halógeno',
-        };
 
         // Map form values to the requested JSONB structure
         const newDetailMapping = {
@@ -381,7 +363,6 @@ export function usePanelConfiguration(
             id: `ITG-${idx + 1}`,
             suministra: values.itgDescriptions[idx] || 'N/A',
             prefijo: itg.cnPrefix,
-            // IT-G specific fields
             amperaje: itg.amperajeITG ? Number(itg.amperajeITG) : undefined,
             diametro_cable: itg.diameterITG || undefined,
             tipo_cable: itg.cableTypeITG
@@ -403,7 +384,6 @@ export function usePanelConfiguration(
                 ? CABLE_TYPE_LABELS[circuit.cableType] || circuit.cableType
                 : undefined,
               diametro_cable: circuit.diameter || '',
-              // Para ITM: diferencial opcional
               ...(circuit.interruptorType === 'itm' && {
                 diferencial: {
                   existe: !!circuit.hasID,
@@ -422,7 +402,6 @@ export function usePanelConfiguration(
                   }),
                 },
               }),
-              // Para ID: sub ITMs
               ...(circuit.interruptorType === 'id' &&
                 circuit.subITMs && {
                   sub_itms: circuit.subITMs.map((subItm, sIdx) => ({
@@ -496,36 +475,27 @@ export function usePanelConfiguration(
           },
         };
 
-        console.log(
-          '🔵 [SAVE] Mapped detail structure:',
-          JSON.stringify(newDetailMapping, null, 2),
-        );
+        if (__DEV__) {
+          console.log(
+            '[SAVE] Mapped detail structure:',
+            JSON.stringify(newDetailMapping, null, 2),
+          );
+        }
 
         if (initialPanel?.id) {
-          console.log('🔵 [SAVE] Panel ID found:', initialPanel.id);
-          // 1. Fetch current equipment_detail to avoid losing fields (merge)
-          // For offline support, we should merge with what we have locally or just overwrite if critical.
-          // Since we are moving to offline-first, relying on `initialPanel` which comes from local DB should be safer.
-          // If we want to be 100% sure we merge with existing local data:
-          // const existingPanelLocal =
-          //   (await DatabaseService.getElectricalPanelsByProperty(
-          //     initialPanel.id_property!, // we need property ID here
-          //   )) as any[];
-          // Actually, we can just assume initialPanel content is relatively fresh or simplistic merge.
+          if (__DEV__) console.log('[SAVE] Panel ID found:', initialPanel.id);
 
-          // Better approach: Just use initialPanel.equipment_detail if connected components passed it correctly.
           const currentDetail = initialPanel.equipment_detail || {};
 
-          // 2. Merge existing data with new mapping
+          // Merge existing data with new mapping
           const finalEquipmentDetail = {
             ...currentDetail,
             ...newDetailMapping,
           };
 
           if (isEditMode) {
-            console.log(
-              '✏️ [SAVE] Edit Mode Active: Saving directly to Supabase...',
-            );
+            if (__DEV__)
+              console.log('[SAVE] Edit Mode: Saving directly to Supabase...');
 
             // Save directly to Supabase bypassing local offline sync
             await supabaseElectricalPanelService.updateEquipmentDetail(
@@ -539,9 +509,9 @@ export function usePanelConfiguration(
               finalEquipmentDetail,
             );
 
-            console.log('✅ [SAVE] Direct Supabase save completed');
+            if (__DEV__) console.log('[SAVE] Direct Supabase save completed');
           } else {
-            console.log('📶 [SAVE] Normal Mode Active: Queuing for sync...');
+            if (__DEV__) console.log('[SAVE] Normal Mode: Queuing for sync...');
 
             await DatabaseService.saveOfflinePanelConfiguration(
               initialPanel.id,
@@ -550,7 +520,8 @@ export function usePanelConfiguration(
 
             // Add to sync queue for automatic retry with exponential backoff
             syncQueue.enqueue(initialPanel.id, 'panel_config');
-            console.log('📤 [SAVE] Added to sync queue:', initialPanel.id);
+            if (__DEV__)
+              console.log('[SAVE] Added to sync queue:', initialPanel.id);
           }
 
           // Clear the draft after successful save
@@ -564,14 +535,16 @@ export function usePanelConfiguration(
             [{ text: 'OK', onPress: () => router.back() }],
           );
         } else {
-          console.log(
-            '❌ [SAVE] No panel ID found! initialPanel:',
-            initialPanel,
-          );
+          if (__DEV__)
+            console.log(
+              '[SAVE] No panel ID found! initialPanel:',
+              initialPanel,
+            );
           throw new Error('ID de panel no encontrado');
         }
       } catch (error) {
-        console.error('❌ [SAVE] Error saving panel configuration:', error);
+        if (__DEV__)
+          console.error('[SAVE] Error saving panel configuration:', error);
         Alert.alert(
           'Error',
           'No se pudo guardar la configuración. Por favor reintente.',
@@ -579,24 +552,41 @@ export function usePanelConfiguration(
       }
       return;
     }
+
+    // Save draft before transitioning to the next step
+    await saveDraft();
+
     if (currentIndex < STEP_ORDER.length - 1) {
       setCurrentStepId(STEP_ORDER[currentIndex + 1]);
     }
-  };
+  }, [
+    validateCurrentStep,
+    currentStepId,
+    getValues,
+    initialPanel,
+    isEditMode,
+    clearDraft,
+    saveDraft,
+    router,
+  ]);
 
-  const goBack = () => {
+  const goBack = useCallback(() => {
+    // Fire-and-forget draft save before navigating back
+    saveDraft();
+
     const currentIndex = getStepIndex(currentStepId);
     if (currentIndex > 0) {
       setCurrentStepId(STEP_ORDER[currentIndex - 1]);
     } else {
       router.back();
     }
-  };
+  }, [currentStepId, saveDraft, router]);
 
   return {
     currentStepId,
     form,
     goNext,
     goBack,
+    saveDraft,
   };
 }

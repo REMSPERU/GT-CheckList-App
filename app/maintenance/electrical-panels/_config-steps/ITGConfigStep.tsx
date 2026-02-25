@@ -15,6 +15,14 @@ import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 import { useState, useEffect, useMemo } from 'react';
 import { styles } from './_styles';
 
+// ── Stable Icon components for RNPickerSelect (avoid inline re-creation) ────
+const PickerChevronIcon = () => (
+  <Ionicons name="chevron-down" size={20} color="#6B7280" />
+);
+const PickerChevronErrorIcon = () => (
+  <Ionicons name="chevron-down" size={20} color="#EF4444" />
+);
+
 const pickerSelectStyles = StyleSheet.create({
   inputIOS: {
     fontSize: 14,
@@ -219,7 +227,7 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
         )}
 
         {/* Lista IT-G - render based on watched itgDescriptions array */}
-        <View style={{ marginTop: 12 }}>
+        <View style={localStyles.itgListContainer}>
           {itgDescriptions.map((description, idx) => {
             const itgErrors = errors.itgCircuits?.[idx];
             const hasErrors = !!(
@@ -228,7 +236,9 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
               itgErrors?.cableTypeITG
             );
 
-            const stableKey = `itg-${idx}-${description || 'empty'}`;
+            // Key must NOT include field values — that would destroy/recreate
+            // the entire component on every keystroke (loss of focus, flash, etc.)
+            const stableKey = `itg-${idx}`;
 
             return (
               <View
@@ -237,29 +247,11 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
                   styles.itgCard,
                   hasErrors && { borderColor: '#EF4444', borderWidth: 1.5 },
                 ]}>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}>
+                <View style={localStyles.itgCardHeaderRow}>
                   <Text style={styles.itgTitle}>IT–G{idx + 1}</Text>
                   {hasErrors && (
-                    <View
-                      style={{
-                        backgroundColor: '#EF4444',
-                        borderRadius: 10,
-                        paddingHorizontal: 8,
-                        paddingVertical: 2,
-                      }}>
-                      <Text
-                        style={{
-                          color: '#FFFFFF',
-                          fontSize: 10,
-                          fontWeight: '600',
-                        }}>
-                        Incompleto
-                      </Text>
+                    <View style={localStyles.errorBadge}>
+                      <Text style={localStyles.errorBadgeText}>Incompleto</Text>
                     </View>
                   )}
                 </View>
@@ -358,15 +350,11 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
                         },
                       }}
                       useNativeAndroidPickerStyle={false}
-                      Icon={() => (
-                        <Ionicons
-                          name="chevron-down"
-                          size={20}
-                          color={
-                            itgErrors?.cableTypeITG ? '#EF4444' : '#6B7280'
-                          }
-                        />
-                      )}
+                      Icon={
+                        itgErrors?.cableTypeITG
+                          ? PickerChevronErrorIcon
+                          : PickerChevronIcon
+                      }
                     />
                   )}
                 />
@@ -375,7 +363,7 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
                 )}
 
                 {/* Suministro eléctrico */}
-                <Text style={[styles.itgSubtitle, { marginTop: 12 }]}>
+                <Text style={[styles.itgSubtitle, localStyles.marginTop12]}>
                   ¿Qué suministra eléctricamente el IT-G?
                 </Text>
                 <Controller
@@ -400,3 +388,17 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
     </ScrollView>
   );
 }
+
+// ── Static styles extracted from inline objects ─────────────────────────────
+const localStyles = StyleSheet.create({
+  itgListContainer: { marginTop: 12 },
+  marginTop12: { marginTop: 12 },
+  itgCardHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  errorBadge: {
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  errorBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '600' },
+});

@@ -126,7 +126,7 @@ const ListHeader = memo(function ListHeader({
       )}
 
       {/* Prefijo */}
-      <View style={{ marginBottom: 8 }}>
+      <View style={marginBottom8Style}>
         <View style={styles.labelWithIconRow}>
           <Text style={styles.countLabel}>Ingrese el prefijo</Text>
           <Ionicons
@@ -423,8 +423,10 @@ const CircuitsConfigStep = forwardRef<
         initialNumToRender={5}
         maxToRenderPerBatch={5}
         windowSize={5}
-        // removeClippedSubviews can cause crashes on Android with complex items
-        removeClippedSubviews={Platform.OS === 'ios'}
+        // removeClippedSubviews can cause crashes with complex items
+        // (TextInputs, pickers, nested views) on both platforms. For form-heavy
+        // lists where stability is critical, keep it disabled.
+        removeClippedSubviews={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={dynamicContentPadding}
       />
@@ -435,5 +437,6 @@ const CircuitsConfigStep = forwardRef<
 // Static style objects extracted outside the component to prevent re-creation
 const containerStyle = { flex: 1 } as const;
 const paddingStyle = { paddingHorizontal: 24 } as const;
+const marginBottom8Style = { marginBottom: 8 } as const;
 
 export default CircuitsConfigStep;
