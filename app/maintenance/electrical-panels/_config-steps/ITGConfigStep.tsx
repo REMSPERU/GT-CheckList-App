@@ -16,7 +16,7 @@ import {
   PhaseType,
 } from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { styles } from './_styles';
 
 // ── Stable Icon components for RNPickerSelect (avoid inline re-creation) ────
@@ -99,7 +99,44 @@ const CABLE_TYPE_OPTIONS: { key: CableType; label: string }[] = [
   { key: 'no_libre_halogeno', label: 'No libre de Halógeno' },
 ];
 
-export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
+// Pre-computed picker items — avoids .map() on every render
+const PHASE_PICKER_ITEMS = PHASE_OPTIONS.map(opt => ({
+  label: opt.label,
+  value: opt.key,
+}));
+const CABLE_TYPE_PICKER_ITEMS = CABLE_TYPE_OPTIONS.map(opt => ({
+  label: opt.label,
+  value: opt.key,
+}));
+
+// Static placeholder objects — avoids re-creating on every render
+const PHASE_PLACEHOLDER = {
+  label: 'Seleccione tipo de fase',
+  value: null,
+  color: '#9CA3AF',
+};
+const GENERIC_PLACEHOLDER = {
+  label: 'Seleccione una opción',
+  value: null,
+  color: '#9CA3AF',
+};
+
+// Combined picker styles with iconContainer — avoids spreading + inline object
+const pickerStyleWithIcon = {
+  ...pickerSelectStyles,
+  iconContainer: { top: 12, right: 12 },
+};
+const pickerErrorStyleWithIcon = {
+  ...pickerErrorStyles,
+  iconContainer: { top: 12, right: 12 },
+};
+
+// Static error border style
+const errorBorderStyle = { borderColor: '#EF4444', borderWidth: 1.5 } as const;
+
+// memo prevents re-renders when only the parent re-renders (e.g., step
+// navigation state change), since `panel` prop is stable between renders.
+export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
   const {
     control,
     setValue,
@@ -113,67 +150,72 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
     name: 'itgDescriptions',
   });
 
-  // Handler that updates count and syncs arrays
-  const updateCount = (text: string) => {
-    // 1. Update the count field
-    setValue('itgCount', text, { shouldValidate: true });
+  // Handler that updates count and syncs arrays — wrapped in useCallback to
+  // avoid re-creating on every render (prevents unnecessary Controller re-renders)
+  const updateCount = useCallback(
+    (text: string) => {
+      // 1. Update the count field
+      setValue('itgCount', text, { shouldValidate: true });
 
-    // 2. Sync itgDescriptions array
-    const n = Math.max(0, parseInt(text || '0', 10));
-    const currentDescriptions = getValues('itgDescriptions');
-    const currentLength = currentDescriptions.length;
+      // 2. Sync itgDescriptions array
+      const parsed = parseInt(text || '0', 10);
+      const n = isNaN(parsed) ? 0 : Math.max(0, parsed);
+      const currentDescriptions = getValues('itgDescriptions');
+      const currentLength = currentDescriptions.length;
 
-    if (n > currentLength) {
-      // Add items
-      const newDescriptions = [...currentDescriptions];
-      while (newDescriptions.length < n) {
-        newDescriptions.push('');
+      if (n > currentLength) {
+        // Add items
+        const newDescriptions = [...currentDescriptions];
+        while (newDescriptions.length < n) {
+          newDescriptions.push('');
+        }
+        setValue('itgDescriptions', newDescriptions);
+
+        // Also sync itgCircuits
+        const currentCircuits = getValues('itgCircuits');
+        const newCircuits = [...currentCircuits];
+        while (newCircuits.length < n) {
+          newCircuits.push({
+            cnPrefix: 'CN',
+            circuitsCount: '1',
+            circuits: [
+              {
+                interruptorType: 'itm',
+                phase: 'mono_2w',
+                amperaje: '',
+                diameter: '',
+                cableType: 'libre_halogeno',
+                supply: '',
+                hasID: false,
+                phaseID: undefined,
+                amperajeID: '',
+                diameterID: '',
+                cableTypeID: 'libre_halogeno',
+                subITMsCount: '1',
+                subITMs: [],
+              },
+            ],
+            // New IT-G specific fields (required)
+            phaseITG: 'mono_2w',
+            amperajeITG: '',
+            diameterITG: '',
+            cableTypeITG: 'libre_halogeno',
+          });
+        }
+        setValue('itgCircuits', newCircuits);
+      } else if (n < currentLength) {
+        // Remove items from the end
+        const newDescriptions = currentDescriptions.slice(0, n);
+        setValue('itgDescriptions', newDescriptions);
+
+        // Also sync itgCircuits
+        const currentCircuits = getValues('itgCircuits');
+        const newCircuits = currentCircuits.slice(0, n);
+        setValue('itgCircuits', newCircuits);
       }
-      setValue('itgDescriptions', newDescriptions);
-
-      // Also sync itgCircuits
-      const currentCircuits = getValues('itgCircuits');
-      const newCircuits = [...currentCircuits];
-      while (newCircuits.length < n) {
-        newCircuits.push({
-          cnPrefix: 'CN',
-          circuitsCount: '1',
-          circuits: [
-            {
-              interruptorType: 'itm',
-              phase: 'mono_2w',
-              amperaje: '',
-              diameter: '',
-              cableType: 'libre_halogeno',
-              supply: '',
-              hasID: false,
-              phaseID: undefined,
-              amperajeID: '',
-              diameterID: '',
-              cableTypeID: 'libre_halogeno',
-              subITMsCount: '1',
-              subITMs: [],
-            },
-          ],
-          // New IT-G specific fields (required)
-          phaseITG: 'mono_2w',
-          amperajeITG: '',
-          diameterITG: '',
-          cableTypeITG: 'libre_halogeno',
-        });
-      }
-      setValue('itgCircuits', newCircuits);
-    } else if (n < currentLength) {
-      // Remove items from the end
-      const newDescriptions = currentDescriptions.slice(0, n);
-      setValue('itgDescriptions', newDescriptions);
-
-      // Also sync itgCircuits
-      const currentCircuits = getValues('itgCircuits');
-      const newCircuits = currentCircuits.slice(0, n);
-      setValue('itgCircuits', newCircuits);
-    }
-  };
+    },
+    [setValue, getValues],
+  );
 
   // Track keyboard height on Android to add dynamic bottom padding
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -256,10 +298,7 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
             return (
               <View
                 key={stableKey}
-                style={[
-                  styles.itgCard,
-                  hasErrors && { borderColor: '#EF4444', borderWidth: 1.5 },
-                ]}>
+                style={[styles.itgCard, hasErrors && errorBorderStyle]}>
                 <View style={localStyles.itgCardHeaderRow}>
                   <Text style={styles.itgTitle}>IT–G{idx + 1}</Text>
                   {hasErrors && (
@@ -277,25 +316,14 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
                   render={({ field: { onChange, value } }) => (
                     <RNPickerSelect
                       onValueChange={onChange}
-                      items={PHASE_OPTIONS.map(opt => ({
-                        label: opt.label,
-                        value: opt.key,
-                      }))}
-                      placeholder={{
-                        label: 'Seleccione tipo de fase',
-                        value: null,
-                        color: '#9CA3AF',
-                      }}
+                      items={PHASE_PICKER_ITEMS}
+                      placeholder={PHASE_PLACEHOLDER}
                       value={value}
-                      style={{
-                        ...(itgErrors?.phaseITG
-                          ? pickerErrorStyles
-                          : pickerSelectStyles),
-                        iconContainer: {
-                          top: 12,
-                          right: 12,
-                        },
-                      }}
+                      style={
+                        itgErrors?.phaseITG
+                          ? pickerErrorStyleWithIcon
+                          : pickerStyleWithIcon
+                      }
                       useNativeAndroidPickerStyle={false}
                       Icon={
                         itgErrors?.phaseITG
@@ -316,10 +344,7 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
                 <View
                   style={[
                     styles.inputWithUnitWrapper,
-                    itgErrors?.amperajeITG && {
-                      borderColor: '#EF4444',
-                      borderWidth: 1.5,
-                    },
+                    itgErrors?.amperajeITG && errorBorderStyle,
                   ]}>
                   <Controller
                     control={control}
@@ -349,10 +374,7 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
                 <View
                   style={[
                     styles.inputWithUnitWrapper,
-                    itgErrors?.diameterITG && {
-                      borderColor: '#EF4444',
-                      borderWidth: 1.5,
-                    },
+                    itgErrors?.diameterITG && errorBorderStyle,
                   ]}>
                   <Controller
                     control={control}
@@ -385,25 +407,14 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
                   render={({ field: { onChange, value } }) => (
                     <RNPickerSelect
                       onValueChange={onChange}
-                      items={CABLE_TYPE_OPTIONS.map(opt => ({
-                        label: opt.label,
-                        value: opt.key,
-                      }))}
-                      placeholder={{
-                        label: 'Seleccione una opción',
-                        value: null,
-                        color: '#9CA3AF',
-                      }}
+                      items={CABLE_TYPE_PICKER_ITEMS}
+                      placeholder={GENERIC_PLACEHOLDER}
                       value={value}
-                      style={{
-                        ...(itgErrors?.cableTypeITG
-                          ? pickerErrorStyles
-                          : pickerSelectStyles),
-                        iconContainer: {
-                          top: 12,
-                          right: 12,
-                        },
-                      }}
+                      style={
+                        itgErrors?.cableTypeITG
+                          ? pickerErrorStyleWithIcon
+                          : pickerStyleWithIcon
+                      }
                       useNativeAndroidPickerStyle={false}
                       Icon={
                         itgErrors?.cableTypeITG
@@ -442,9 +453,7 @@ export default function ITGConfigStep({ panel }: ITGConfigStepProps) {
       </View>
     </ScrollView>
   );
-}
-
-// ── Static styles extracted from inline objects ─────────────────────────────
+});
 const localStyles = StyleSheet.create({
   itgListContainer: { marginTop: 12 },
   marginTop12: { marginTop: 12 },

@@ -107,6 +107,41 @@ const CABLE_TYPE_OPTIONS: { key: CableType; label: string }[] = [
   { key: 'no_libre_halogeno', label: 'No libre de Halógeno' },
 ];
 
+// Pre-computed picker items — avoids .map() on every render
+const PHASE_PICKER_ITEMS = PHASE_OPTIONS.map(opt => ({
+  label: opt.label,
+  value: opt.key,
+}));
+const CABLE_TYPE_PICKER_ITEMS = CABLE_TYPE_OPTIONS.map(opt => ({
+  label: opt.label,
+  value: opt.key,
+}));
+
+// Static placeholder objects
+const PHASE_PLACEHOLDER = {
+  label: 'Seleccione tipo de fase',
+  value: null,
+  color: '#9CA3AF',
+};
+const GENERIC_PLACEHOLDER = {
+  label: 'Seleccione una opción',
+  value: null,
+  color: '#9CA3AF',
+};
+
+// Combined picker styles with iconContainer
+const pickerStyleWithIcon = {
+  ...pickerSelectStyles,
+  iconContainer: { top: 12, right: 12 },
+};
+const pickerErrorStyleWithIcon = {
+  ...pickerErrorStyles,
+  iconContainer: { top: 12, right: 12 },
+};
+
+// Static error border style
+const errorBorderStyle = { borderColor: '#EF4444', borderWidth: 1.5 } as const;
+
 const INTERRUPTOR_OPTIONS: {
   key: InterruptorType;
   label: string;
@@ -240,11 +275,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
   );
 
   return (
-    <View
-      style={[
-        styles.cnCard,
-        hasErrors && { borderColor: '#EF4444', borderWidth: 1.5 },
-      ]}>
+    <View style={[styles.cnCard, hasErrors && errorBorderStyle]}>
       {/* Header con TextInput y toggle */}
       <View style={styles.cnCardHeader}>
         <Controller
@@ -328,23 +359,10 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
               render={({ field: { onChange, value } }) => (
                 <RNPickerSelect
                   onValueChange={onChange}
-                  items={PHASE_OPTIONS.map(opt => ({
-                    label: opt.label,
-                    value: opt.key,
-                  }))}
-                  placeholder={{
-                    label: 'Seleccione tipo de fase',
-                    value: null,
-                    color: '#9CA3AF',
-                  }}
+                  items={PHASE_PICKER_ITEMS}
+                  placeholder={PHASE_PLACEHOLDER}
                   value={value}
-                  style={{
-                    ...pickerSelectStyles,
-                    iconContainer: {
-                      top: 12,
-                      right: 12,
-                    },
-                  }}
+                  style={pickerStyleWithIcon}
                   useNativeAndroidPickerStyle={false}
                   Icon={PickerChevronIcon}
                 />
@@ -388,10 +406,8 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
             <View
               style={[
                 styles.inputWithUnitWrapper,
-                errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.diameter && {
-                  borderColor: '#EF4444',
-                  borderWidth: 1.5,
-                },
+                errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.diameter &&
+                  errorBorderStyle,
               ]}>
               <Controller
                 control={control}
@@ -427,26 +443,14 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
               render={({ field: { onChange, value } }) => (
                 <RNPickerSelect
                   onValueChange={onChange}
-                  items={CABLE_TYPE_OPTIONS.map(opt => ({
-                    label: opt.label,
-                    value: opt.key,
-                  }))}
-                  placeholder={{
-                    label: 'Seleccione una opción',
-                    value: null,
-                    color: '#9CA3AF',
-                  }}
+                  items={CABLE_TYPE_PICKER_ITEMS}
+                  placeholder={GENERIC_PLACEHOLDER}
                   value={value}
-                  style={{
-                    ...(errors.itgCircuits?.[itgIndex]?.circuits?.[index]
-                      ?.cableType
-                      ? pickerErrorStyles
-                      : pickerSelectStyles),
-                    iconContainer: {
-                      top: 12,
-                      right: 12,
-                    },
-                  }}
+                  style={
+                    errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.cableType
+                      ? pickerErrorStyleWithIcon
+                      : pickerStyleWithIcon
+                  }
                   useNativeAndroidPickerStyle={false}
                   Icon={
                     errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.cableType
@@ -540,23 +544,10 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                       render={({ field: { onChange, value } }) => (
                         <RNPickerSelect
                           onValueChange={onChange}
-                          items={PHASE_OPTIONS.map(opt => ({
-                            label: opt.label,
-                            value: opt.key,
-                          }))}
-                          placeholder={{
-                            label: 'Seleccione tipo de fase',
-                            value: null,
-                            color: '#9CA3AF',
-                          }}
+                          items={PHASE_PICKER_ITEMS}
+                          placeholder={PHASE_PLACEHOLDER}
                           value={value}
-                          style={{
-                            ...pickerSelectStyles,
-                            iconContainer: {
-                              top: 12,
-                              right: 12,
-                            },
-                          }}
+                          style={pickerStyleWithIcon}
                           useNativeAndroidPickerStyle={false}
                           Icon={PickerChevronIcon}
                         />
@@ -611,23 +602,10 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                       render={({ field: { onChange, value } }) => (
                         <RNPickerSelect
                           onValueChange={onChange}
-                          items={CABLE_TYPE_OPTIONS.map(opt => ({
-                            label: opt.label,
-                            value: opt.key,
-                          }))}
-                          placeholder={{
-                            label: 'Seleccione una opción',
-                            value: null,
-                            color: '#9CA3AF',
-                          }}
+                          items={CABLE_TYPE_PICKER_ITEMS}
+                          placeholder={GENERIC_PLACEHOLDER}
                           value={value}
-                          style={{
-                            ...pickerSelectStyles,
-                            iconContainer: {
-                              top: 12,
-                              right: 12,
-                            },
-                          }}
+                          style={pickerStyleWithIcon}
                           useNativeAndroidPickerStyle={false}
                           Icon={PickerChevronIcon}
                         />
@@ -662,7 +640,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                 </View>
 
                 {/* Renderizar cada sub-ITM */}
-                {subITMs.map((_: any, subIdx: number) => (
+                {subITMs.map((_subItm, subIdx: number) => (
                   <View key={subIdx} style={collapsedStyles.subItmContainer}>
                     <Text
                       style={[
@@ -679,20 +657,10 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                       render={({ field: { onChange, value } }) => (
                         <RNPickerSelect
                           onValueChange={onChange}
-                          items={PHASE_OPTIONS.map(opt => ({
-                            label: opt.label,
-                            value: opt.key,
-                          }))}
-                          placeholder={{
-                            label: 'Seleccione tipo de fase',
-                            value: null,
-                            color: '#9CA3AF',
-                          }}
+                          items={PHASE_PICKER_ITEMS}
+                          placeholder={PHASE_PLACEHOLDER}
                           value={value}
-                          style={{
-                            ...pickerSelectStyles,
-                            iconContainer: { top: 12, right: 12 },
-                          }}
+                          style={pickerStyleWithIcon}
                           useNativeAndroidPickerStyle={false}
                           Icon={PickerChevronIcon}
                         />
@@ -746,20 +714,10 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                       render={({ field: { onChange, value } }) => (
                         <RNPickerSelect
                           onValueChange={onChange}
-                          items={CABLE_TYPE_OPTIONS.map(opt => ({
-                            label: opt.label,
-                            value: opt.key,
-                          }))}
-                          placeholder={{
-                            label: 'Seleccione una opción',
-                            value: null,
-                            color: '#9CA3AF',
-                          }}
+                          items={CABLE_TYPE_PICKER_ITEMS}
+                          placeholder={GENERIC_PLACEHOLDER}
                           value={value}
-                          style={{
-                            ...pickerSelectStyles,
-                            iconContainer: { top: 12, right: 12 },
-                          }}
+                          style={pickerStyleWithIcon}
                           useNativeAndroidPickerStyle={false}
                           Icon={PickerChevronIcon}
                         />
