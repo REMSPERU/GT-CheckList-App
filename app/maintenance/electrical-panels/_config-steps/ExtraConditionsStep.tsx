@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity } from 'react-native';
+import { memo } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
 import { ExtraConditionsStepProps } from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
@@ -39,7 +40,9 @@ const CONDITIONS: {
   },
 ];
 
-export default function ExtraConditionsStep({
+// memo prevents re-renders when only the parent re-renders due to step
+// changes, since `panel` prop is stable between renders.
+export default memo(function ExtraConditionsStep({
   panel,
 }: ExtraConditionsStepProps) {
   const { control } = useFormContext<PanelConfigurationFormValues>();
@@ -97,4 +100,4 @@ export default function ExtraConditionsStep({
       </View>
     </View>
   );
-}
+});

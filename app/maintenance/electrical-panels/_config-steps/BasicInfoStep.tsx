@@ -1,9 +1,12 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { memo } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
 import { BasicInfoStepProps } from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 
-export default function BasicInfoStep({ panel }: BasicInfoStepProps) {
+// memo prevents re-renders when only the parent (configuration.tsx) re-renders
+// due to step changes, since `panel` prop is stable between renders.
+export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
   const { control } = useFormContext<PanelConfigurationFormValues>();
 
   return (
@@ -187,7 +190,7 @@ export default function BasicInfoStep({ panel }: BasicInfoStepProps) {
       />
     </View>
   );
-}
+});
 
 // Styles for BasicInfoStep
 const styles = StyleSheet.create({

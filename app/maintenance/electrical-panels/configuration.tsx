@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ScrollView,
@@ -9,9 +9,10 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, memo } from 'react';
 import { FormProvider } from 'react-hook-form';
 import DefaultHeader from '@/components/default-header';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DatabaseService } from '@/services/database';
 import {
   usePanelConfiguration,
@@ -28,8 +29,48 @@ import ExtraComponentsStep from './_config-steps/ExtraComponentsStep';
 import ExtraConditionsStep from './_config-steps/ExtraConditionsStep';
 import ReviewStep from './_config-steps/ReviewStep';
 
+// ── Extracted NavigationFooter ──────────────────────────────────────────────
+// Eliminates 3x duplicated JSX blocks and memoizes to avoid re-renders when
+// only the step content changes.
+interface NavigationFooterProps {
+  currentStepId: string;
+  onNext: () => void;
+  onBack: () => void;
+}
+
+const NavigationFooter = memo(function NavigationFooter({
+  currentStepId,
+  onNext,
+  onBack,
+}: NavigationFooterProps) {
+  return (
+    <View style={styles.footer}>
+      <TouchableOpacity style={styles.primaryBtn} onPress={onNext}>
+        <Text style={styles.primaryBtnText}>
+          {isLastStep(currentStepId as any) ? 'Guardar' : 'Siguiente'}
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.secondaryBtn} onPress={onBack}>
+        <Text style={styles.secondaryBtnText}>
+          {isFirstStep(currentStepId as any) ? 'Cancel' : 'Atras'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+});
+
+// ── Static style constants (avoid re-creating objects each render) ──────────
+const flexOneStyle = { flex: 1 } as const;
+const loadingContainerStyle = {
+  flex: 1,
+  justifyContent: 'center',
+  alignItems: 'center',
+} as const;
+const loadingTextStyle = { marginTop: 16 } as const;
+
 export default function PanelConfigurationScreen() {
   const params = useLocalSearchParams();
+  const router = useRouter();
 
   const [panel, setPanel] = useState<PanelData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,7 +95,7 @@ export default function PanelConfigurationScreen() {
           });
         }
       } catch (err) {
-        console.error('Failed to parse or load panel:', err);
+        if (__DEV__) console.error('Failed to parse or load panel:', err);
         setPanel({
           id: 'N/A',
           codigo: 'N/A',
@@ -71,10 +112,8 @@ export default function PanelConfigurationScreen() {
   const circuitsNavHandlersRef = useRef<CircuitsConfigStepRef | null>(null);
 
   const isEditMode = params.isEditMode === 'true';
-  const { currentStepId, form, goNext, goBack } = usePanelConfiguration(
-    panel,
-    isEditMode,
-  );
+  const { currentStepId, form, goNext, goBack, saveDraft } =
+    usePanelConfiguration(panel, isEditMode);
 
   // Custom navigation for Circuits step
   const handleGoNext = async () => {
@@ -129,107 +168,77 @@ export default function PanelConfigurationScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <DefaultHeader title="Configuración del equipo" searchPlaceholder="" />
-        <View
-          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <DefaultHeader title="Configuracion del equipo" searchPlaceholder="" />
+        <View style={loadingContainerStyle}>
           <ActivityIndicator size="large" color="#0891B2" />
-          <Text style={{ marginTop: 16 }}>Cargando información...</Text>
+          <Text style={loadingTextStyle}>Cargando informacion...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <FormProvider {...form}>
-        {currentStepId === STEP_IDS.CIRCUITS ? (
-          Platform.OS === 'ios' ? (
-            <KeyboardAvoidingView
-              style={{ flex: 1 }}
-              behavior="padding"
-              keyboardVerticalOffset={10}>
-              <View style={{ flex: 1 }}>
+    <ErrorBoundary
+      fallbackMessage="Ocurrio un error en la configuracion. Sus datos se guardaron como borrador."
+      onReset={() => router.back()}>
+      <SafeAreaView style={styles.container}>
+        <FormProvider {...form}>
+          {currentStepId === STEP_IDS.CIRCUITS ? (
+            Platform.OS === 'ios' ? (
+              <KeyboardAvoidingView
+                style={flexOneStyle}
+                behavior="padding"
+                keyboardVerticalOffset={10}>
+                <View style={flexOneStyle}>
+                  <DefaultHeader
+                    title="Configuracion del equipo"
+                    searchPlaceholder=""
+                  />
+                  <View style={flexOneStyle}>{renderStep()}</View>
+                  <NavigationFooter
+                    currentStepId={currentStepId}
+                    onNext={handleGoNext}
+                    onBack={handleGoBack}
+                  />
+                </View>
+              </KeyboardAvoidingView>
+            ) : (
+              /* Android: no KeyboardAvoidingView -- the OS handles keyboard
+                 avoidance natively via adjustResize. Using KAV on Android
+                 causes a ghost gap below the footer after the keyboard closes. */
+              <View style={flexOneStyle}>
                 <DefaultHeader
-                  title="Configuración del equipo"
+                  title="Configuracion del equipo"
                   searchPlaceholder=""
                 />
-                <View style={{ flex: 1 }}>{renderStep()}</View>
-                <View style={styles.footer}>
-                  <TouchableOpacity
-                    style={styles.primaryBtn}
-                    onPress={handleGoNext}>
-                    <Text style={styles.primaryBtnText}>
-                      {isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.secondaryBtn}
-                    onPress={handleGoBack}>
-                    <Text style={styles.secondaryBtnText}>
-                      {isFirstStep(currentStepId) ? 'Cancel' : 'Atrás'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                <View style={flexOneStyle}>{renderStep()}</View>
+                <NavigationFooter
+                  currentStepId={currentStepId}
+                  onNext={handleGoNext}
+                  onBack={handleGoBack}
+                />
               </View>
-            </KeyboardAvoidingView>
+            )
           ) : (
-            /* Android: no KeyboardAvoidingView – the OS handles keyboard
-               avoidance natively via adjustResize. Using KAV on Android
-               causes a ghost gap below the footer after the keyboard closes. */
-            <View style={{ flex: 1 }}>
+            <ScrollView>
               <DefaultHeader
-                title="Configuración del equipo"
+                title="Configuracion del equipo"
                 searchPlaceholder=""
               />
-              <View style={{ flex: 1 }}>{renderStep()}</View>
-              <View style={styles.footer}>
-                <TouchableOpacity
-                  style={styles.primaryBtn}
-                  onPress={handleGoNext}>
-                  <Text style={styles.primaryBtnText}>
-                    {isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.secondaryBtn}
-                  onPress={handleGoBack}>
-                  <Text style={styles.secondaryBtnText}>
-                    {isFirstStep(currentStepId) ? 'Cancel' : 'Atrás'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )
-        ) : (
-          <ScrollView>
-            <DefaultHeader
-              title="Configuración del equipo"
-              searchPlaceholder=""
-            />
 
-            {/* Content */}
-            {renderStep()}
+              {/* Content */}
+              {renderStep()}
 
-            {/* Footer Buttons */}
-            <View style={styles.footer}>
-              <TouchableOpacity
-                style={styles.primaryBtn}
-                onPress={handleGoNext}>
-                <Text style={styles.primaryBtnText}>
-                  {isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.secondaryBtn}
-                onPress={handleGoBack}>
-                <Text style={styles.secondaryBtnText}>
-                  {isFirstStep(currentStepId) ? 'Cancel' : 'Atrás'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        )}
-      </FormProvider>
-    </SafeAreaView>
+              {/* Footer */}
+              <NavigationFooter
+                currentStepId={currentStepId}
+                onNext={handleGoNext}
+                onBack={handleGoBack}
+              />
+            </ScrollView>
+          )}
+        </FormProvider>
+      </SafeAreaView>
+    </ErrorBoundary>
   );
 }

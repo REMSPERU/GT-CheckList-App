@@ -18,6 +18,14 @@ import {
 } from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 
+// ── Stable Icon components for RNPickerSelect (avoid inline re-creation) ────
+const PickerChevronIcon = () => (
+  <Ionicons name="chevron-down" size={20} color="#6B7280" />
+);
+const PickerChevronErrorIcon = () => (
+  <Ionicons name="chevron-down" size={20} color="#EF4444" />
+);
+
 // Default SubITM para nuevos circuitos
 const DEFAULT_SUB_ITM: SubITM = {
   phaseITM: 'mono_2w',
@@ -245,10 +253,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
           render={({ field: { onChange, onBlur, value } }) => (
             <View style={collapsedStyles.editableNameContainer}>
               <TextInput
-                style={[
-                  styles.cnTitle,
-                  { padding: 0, margin: 0, minWidth: 40, fontSize: 14 },
-                ]}
+                style={[styles.cnTitle, collapsedStyles.editableTextInput]}
                 value={
                   value !== undefined
                     ? value
@@ -341,9 +346,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                     },
                   }}
                   useNativeAndroidPickerStyle={false}
-                  Icon={() => (
-                    <Ionicons name="chevron-down" size={20} color="#6B7280" />
-                  )}
+                  Icon={PickerChevronIcon}
                 />
               )}
             />
@@ -445,18 +448,11 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                     },
                   }}
                   useNativeAndroidPickerStyle={false}
-                  Icon={() => (
-                    <Ionicons
-                      name="chevron-down"
-                      size={20}
-                      color={
-                        errors.itgCircuits?.[itgIndex]?.circuits?.[index]
-                          ?.cableType
-                          ? '#EF4444'
-                          : '#6B7280'
-                      }
-                    />
-                  )}
+                  Icon={
+                    errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.cableType
+                      ? PickerChevronErrorIcon
+                      : PickerChevronIcon
+                  }
                 />
               )}
             />
@@ -466,7 +462,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
 
             {/* ID - Optional Section (solo para tipo ITM) */}
             {interruptorType === 'itm' && (
-              <View style={{ marginTop: 12 }}>
+              <View style={collapsedStyles.marginTop12}>
                 <TouchableOpacity
                   style={[styles.toggleRow, hasID && styles.toggleRowActive]}
                   onPress={() => {
@@ -536,7 +532,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                 </TouchableOpacity>
 
                 {hasID && (
-                  <View style={{ marginTop: 12 }}>
+                  <View style={collapsedStyles.marginTop12}>
                     <Text style={styles.cnLabel}>FASES</Text>
                     <Controller
                       control={control}
@@ -562,13 +558,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                             },
                           }}
                           useNativeAndroidPickerStyle={false}
-                          Icon={() => (
-                            <Ionicons
-                              name="chevron-down"
-                              size={20}
-                              color="#6B7280"
-                            />
-                          )}
+                          Icon={PickerChevronIcon}
                         />
                       )}
                     />
@@ -639,13 +629,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                             },
                           }}
                           useNativeAndroidPickerStyle={false}
-                          Icon={() => (
-                            <Ionicons
-                              name="chevron-down"
-                              size={20}
-                              color="#6B7280"
-                            />
-                          )}
+                          Icon={PickerChevronIcon}
                         />
                       )}
                     />
@@ -655,7 +639,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
             )}
             {/* Sub-ITMs Section (solo para tipo ID) */}
             {interruptorType === 'id' && (
-              <View style={{ marginTop: 12 }}>
+              <View style={collapsedStyles.marginTop12}>
                 <Text style={styles.cnLabel}>CANTIDAD DE ITMs:</Text>
                 <View style={styles.segmentContainer}>
                   {['1', '2', '3'].map(num => (
@@ -680,7 +664,11 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                 {/* Renderizar cada sub-ITM */}
                 {subITMs.map((_: any, subIdx: number) => (
                   <View key={subIdx} style={collapsedStyles.subItmContainer}>
-                    <Text style={[styles.cnSectionTitle, { marginTop: 0 }]}>
+                    <Text
+                      style={[
+                        styles.cnSectionTitle,
+                        collapsedStyles.noMarginTop,
+                      ]}>
                       ITM {subIdx + 1}
                     </Text>
 
@@ -706,13 +694,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                             iconContainer: { top: 12, right: 12 },
                           }}
                           useNativeAndroidPickerStyle={false}
-                          Icon={() => (
-                            <Ionicons
-                              name="chevron-down"
-                              size={20}
-                              color="#6B7280"
-                            />
-                          )}
+                          Icon={PickerChevronIcon}
                         />
                       )}
                     />
@@ -779,13 +761,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                             iconContainer: { top: 12, right: 12 },
                           }}
                           useNativeAndroidPickerStyle={false}
-                          Icon={() => (
-                            <Ionicons
-                              name="chevron-down"
-                              size={20}
-                              color="#6B7280"
-                            />
-                          )}
+                          Icon={PickerChevronIcon}
                         />
                       )}
                     />
@@ -811,7 +787,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
             )}
 
             {/* Suministro */}
-            <Text style={[styles.cnLabel, { marginTop: 12 }]}>
+            <Text style={[styles.cnLabel, collapsedStyles.marginTop12]}>
               ¿Qué suministra eléctricamente el Circuito {displayName}?
             </Text>
             <Controller
@@ -880,6 +856,12 @@ const collapsedStyles = StyleSheet.create({
     borderRadius: 6,
     marginRight: 8,
   },
+  editableTextInput: {
+    padding: 0,
+    margin: 0,
+    minWidth: 40,
+    fontSize: 14,
+  },
   toggleArea: {
     flex: 1,
     flexDirection: 'row',
@@ -897,6 +879,12 @@ const collapsedStyles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '600',
+  },
+  marginTop12: {
+    marginTop: 12,
+  },
+  noMarginTop: {
+    marginTop: 0,
   },
   subItmContainer: {
     marginTop: 12,
