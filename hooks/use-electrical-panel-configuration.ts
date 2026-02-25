@@ -132,6 +132,7 @@ export function usePanelConfiguration(
           cnPrefix: 'CN',
           circuitsCount: '1',
           circuits: [{ ...DEFAULT_CIRCUIT }],
+          phaseITG: 'mono_2w',
           amperajeITG: '',
           diameterITG: '',
           cableTypeITG: 'libre_halogeno',
@@ -292,6 +293,13 @@ export function usePanelConfiguration(
 
         for (let i = 0; i < itgCircuits.length; i++) {
           const itg = itgCircuits[i];
+          if (!itg.phaseITG) {
+            form.setError(`itgCircuits.${i}.phaseITG` as any, {
+              type: 'manual',
+              message: 'Fase es requerida',
+            });
+            hasErrors = true;
+          }
           if (!itg.amperajeITG || itg.amperajeITG.trim() === '') {
             form.setError(`itgCircuits.${i}.amperajeITG` as any, {
               type: 'manual',
@@ -363,6 +371,9 @@ export function usePanelConfiguration(
             id: `ITG-${idx + 1}`,
             suministra: values.itgDescriptions[idx] || 'N/A',
             prefijo: itg.cnPrefix,
+            fases: itg.phaseITG
+              ? PHASE_LABELS[itg.phaseITG] || itg.phaseITG
+              : undefined,
             amperaje: itg.amperajeITG ? Number(itg.amperajeITG) : undefined,
             diametro_cable: itg.diameterITG || undefined,
             tipo_cable: itg.cableTypeITG

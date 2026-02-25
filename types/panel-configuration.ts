@@ -55,6 +55,7 @@ export interface ITGCircuitData {
   cnPrefix: string;
   circuitsCount: string;
   circuits: CircuitConfig[];
+  phaseITG?: PhaseType;
 }
 
 export interface CircuitsConfigStepRef {
