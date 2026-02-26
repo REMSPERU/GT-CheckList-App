@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useFormContext } from 'react-hook-form';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { ReviewStepProps } from '@/types/panel-configuration';
 import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
 import { PanelDetailContent } from '@/components/maintenance/PanelDetailContent';
@@ -11,7 +11,7 @@ const localStyles = StyleSheet.create({
   scrollView: { marginTop: 16 },
 });
 
-export default function ReviewStep({ panel }: ReviewStepProps) {
+function ReviewStep({ panel }: ReviewStepProps) {
   const { getValues } = useFormContext<PanelConfigurationFormValues>();
 
   // useMemo avoids recalculating the mapping on every parent re-render.
@@ -95,3 +95,5 @@ export default function ReviewStep({ panel }: ReviewStepProps) {
     </View>
   );
 }
+
+export default memo(ReviewStep);

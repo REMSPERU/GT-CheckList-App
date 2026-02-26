@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -164,7 +164,6 @@ interface CircuitItemProps {
   itgIndex: number;
   isExpanded: boolean;
   onToggleExpand: (index: number) => void;
-  cnPrefix: string;
 }
 
 // ─── MEMOIZED SUB-ITM FORM ITEM ──────────────────────────────────────────────
@@ -281,16 +280,22 @@ const SubITMFormItem = memo(function SubITMFormItem({
 });
 
 // ─── COLLAPSED HEADER ─────────────────────────────────────────────────────────
-// Zero hooks, zero subscriptions. Just reads values once on render.
+// Minimal hooks: only watches cnPrefix (a lightweight scalar).
 const CollapsedCircuitHeader = memo(function CollapsedCircuitHeader({
   index,
   itgIndex,
-  cnPrefix,
   onToggleExpand,
 }: Omit<CircuitItemProps, 'isExpanded'>) {
-  const { getValues } = useFormContext<PanelConfigurationFormValues>();
+  const { getValues, control } = useFormContext<PanelConfigurationFormValues>();
 
-  // Read values imperatively (no subscription, no re-renders)
+  // Read cnPrefix reactively so the label updates when the user edits it
+  const cnPrefix =
+    useWatch({
+      control,
+      name: `itgCircuits.${itgIndex}.cnPrefix` as const,
+    }) || '';
+
+  // Read name imperatively (no subscription, no re-renders from other fields)
   const name = getValues(
     `itgCircuits.${itgIndex}.circuits.${index}.name` as any,
   );
@@ -319,17 +324,19 @@ const CollapsedCircuitHeader = memo(function CollapsedCircuitHeader({
 const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
   index,
   itgIndex,
-  cnPrefix,
   onToggleExpand,
 }: Omit<CircuitItemProps, 'isExpanded'>) {
-  const {
-    control,
-    setValue,
-    getValues,
-    formState: { errors },
-  } = useFormContext<PanelConfigurationFormValues>();
+  const { control, setValue, getValues, getFieldState } =
+    useFormContext<PanelConfigurationFormValues>();
 
   const prefix = `itgCircuits.${itgIndex}.circuits.${index}` as const;
+
+  // Read cnPrefix reactively (lightweight scalar watch)
+  const cnPrefix =
+    useWatch({
+      control,
+      name: `itgCircuits.${itgIndex}.cnPrefix` as const,
+    }) || '';
 
   // These hooks only run for the 1 expanded item, not 74 collapsed ones
   const hasID = useWatch({
@@ -354,11 +361,16 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
       name: `${prefix}.subITMsCount`,
     }) || '1';
 
-  const subITMs =
-    useWatch({
-      control,
-      name: `${prefix}.subITMs`,
-    }) || [];
+  // Instead of watching the entire subITMs array (which re-renders on every
+  // sub-ITM field change), derive the count from the scalar subITMsCount and
+  // only check the actual array length imperatively. Each SubITMFormItem reads
+  // its own fields via Controller — we just need the count to render them.
+  const subITMsLength = (() => {
+    const actualArray = getValues(`${prefix}.subITMs` as any) as
+      | any[]
+      | undefined;
+    return actualArray?.length || 0;
+  })();
 
   const customName = useWatch({
     control,
@@ -460,21 +472,32 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
     }
   }, [prefix, hasID, setValue]);
 
-  const circuitErrors = errors.itgCircuits?.[itgIndex]?.circuits?.[index];
+  // Read errors imperatively via getFieldState() — avoids subscribing to
+  // the entire formState.errors tree which would cause this component to
+  // re-render on any validation error anywhere in the form.
+  const amperajeState = getFieldState(`${prefix}.amperaje` as any);
+  const diameterState = getFieldState(`${prefix}.diameter` as any);
+  const cableTypeState = getFieldState(`${prefix}.cableType` as any);
   const hasErrors = !!(
-    circuitErrors?.amperaje ||
-    circuitErrors?.diameter ||
-    circuitErrors?.cableType
+    amperajeState.error ||
+    diameterState.error ||
+    cableTypeState.error
   );
 
   // Build stable base paths for sub-ITM forms to avoid string concatenation in render
   const subITMBasePath = `${prefix}.subITMs`;
 
+  // Generate index array for sub-ITMs rendering (avoids watching the full array)
+  const subITMIndices = useMemo(
+    () => Array.from({ length: subITMsLength }, (_, i) => i),
+    [subITMsLength],
+  );
+
   // Whether to show the main supply field:
   // - For ITM: only if there are no sub-ITMs active (each sub-ITM has its own supply)
   // - For ID: never (sub-ITMs always present)
   const showMainSupply =
-    interruptorType === 'itm' && !(hasSubITMs && subITMs.length > 0);
+    interruptorType === 'itm' && !(hasSubITMs && subITMsLength > 0);
 
   return (
     <View style={[styles.cnCard, hasErrors && errorBorderStyle]}>
@@ -577,7 +600,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                   <TextInput
                     style={[
                       styles.itgInputWithUnit,
-                      circuitErrors?.amperaje && styles.inputError,
+                      amperajeState.error && styles.inputError,
                     ]}
                     value={value}
                     onChangeText={onChange}
@@ -590,9 +613,9 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
               />
               <Text style={styles.unitText}>A</Text>
             </View>
-            {circuitErrors?.amperaje && (
+            {amperajeState.error && (
               <Text style={styles.errorText}>
-                {circuitErrors.amperaje.message}
+                {amperajeState.error.message}
               </Text>
             )}
 
@@ -601,7 +624,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
             <View
               style={[
                 styles.inputWithUnitWrapper,
-                circuitErrors?.diameter && errorBorderStyle,
+                diameterState.error && errorBorderStyle,
               ]}>
               <Controller
                 control={control}
@@ -620,9 +643,9 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
               />
               <Text style={styles.unitText}>mm2</Text>
             </View>
-            {circuitErrors?.diameter && (
+            {diameterState.error && (
               <Text style={styles.errorText}>
-                {circuitErrors.diameter.message}
+                {diameterState.error.message}
               </Text>
             )}
 
@@ -638,20 +661,20 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                   placeholder={GENERIC_PLACEHOLDER}
                   value={value}
                   style={
-                    circuitErrors?.cableType
+                    cableTypeState.error
                       ? pickerErrorStyleWithIcon
                       : pickerStyleWithIcon
                   }
                   useNativeAndroidPickerStyle={false}
                   Icon={
-                    circuitErrors?.cableType
+                    cableTypeState.error
                       ? PickerChevronErrorIcon
                       : PickerChevronIcon
                   }
                 />
               )}
             />
-            {circuitErrors?.cableType && (
+            {cableTypeState.error && (
               <Text style={styles.errorText}>Seleccione tipo de cable</Text>
             )}
 
@@ -825,7 +848,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                       </View>
 
                       {/* Render each sub-ITM with memoized component */}
-                      {subITMs.map((_subItm, subIdx: number) => (
+                      {subITMIndices.map(subIdx => (
                         <SubITMFormItem
                           key={subIdx}
                           control={control}
@@ -864,7 +887,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                 </View>
 
                 {/* Render each sub-ITM with memoized component */}
-                {subITMs.map((_subItm, subIdx: number) => (
+                {subITMIndices.map(subIdx => (
                   <SubITMFormItem
                     key={subIdx}
                     control={control}
@@ -905,14 +928,13 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
 });
 
 // ─── WRAPPER (exported) ───────────────────────────────────────────────────────
-// Decides which component to mount. Collapsed = 0 hooks. Expanded = all hooks.
+// Decides which component to mount. Collapsed = minimal hooks. Expanded = all hooks.
 function CircuitItemWrapper(props: CircuitItemProps) {
   if (props.isExpanded) {
     return (
       <ExpandedCircuitContent
         index={props.index}
         itgIndex={props.itgIndex}
-        cnPrefix={props.cnPrefix}
         onToggleExpand={props.onToggleExpand}
       />
     );
@@ -921,7 +943,6 @@ function CircuitItemWrapper(props: CircuitItemProps) {
     <CollapsedCircuitHeader
       index={props.index}
       itgIndex={props.itgIndex}
-      cnPrefix={props.cnPrefix}
       onToggleExpand={props.onToggleExpand}
     />
   );

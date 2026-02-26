@@ -134,21 +134,181 @@ const pickerErrorStyleWithIcon = {
 // Static error border style
 const errorBorderStyle = { borderColor: '#EF4444', borderWidth: 1.5 } as const;
 
+// ── Memoized ITGCard ─────────────────────────────────────────────────────────
+// Each card reads only its own errors via getFieldState() and its own
+// description via Controller. Editing ITG-1 won't re-render ITG-2.
+interface ITGCardProps {
+  idx: number;
+}
+
+const ITGCard = memo(function ITGCard({ idx }: ITGCardProps) {
+  const { control, getFieldState } =
+    useFormContext<PanelConfigurationFormValues>();
+
+  // Read errors imperatively — avoids subscribing to the entire errors tree
+  const phaseError = getFieldState(`itgCircuits.${idx}.phaseITG` as any).error;
+  const amperajeError = getFieldState(
+    `itgCircuits.${idx}.amperajeITG` as any,
+  ).error;
+  const diameterError = getFieldState(
+    `itgCircuits.${idx}.diameterITG` as any,
+  ).error;
+  const cableTypeError = getFieldState(
+    `itgCircuits.${idx}.cableTypeITG` as any,
+  ).error;
+
+  const hasErrors = !!(
+    phaseError ||
+    amperajeError ||
+    diameterError ||
+    cableTypeError
+  );
+
+  return (
+    <View style={[styles.itgCard, hasErrors && errorBorderStyle]}>
+      <View style={localStyles.itgCardHeaderRow}>
+        <Text style={styles.itgTitle}>IT–G{idx + 1}</Text>
+        {hasErrors && (
+          <View style={localStyles.errorBadge}>
+            <Text style={localStyles.errorBadgeText}>Incompleto</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Fases */}
+      <Text style={styles.cnLabel}>FASES:</Text>
+      <Controller
+        control={control}
+        name={`itgCircuits.${idx}.phaseITG`}
+        render={({ field: { onChange, value } }) => (
+          <RNPickerSelect
+            onValueChange={onChange}
+            items={PHASE_PICKER_ITEMS}
+            placeholder={PHASE_PLACEHOLDER}
+            value={value}
+            style={phaseError ? pickerErrorStyleWithIcon : pickerStyleWithIcon}
+            useNativeAndroidPickerStyle={false}
+            Icon={phaseError ? PickerChevronErrorIcon : PickerChevronIcon}
+          />
+        )}
+      />
+      {phaseError && <Text style={styles.errorText}>{phaseError.message}</Text>}
+
+      {/* Amperaje */}
+      <Text style={styles.cnLabel}>AMPERAJE:</Text>
+      <View
+        style={[
+          styles.inputWithUnitWrapper,
+          amperajeError && errorBorderStyle,
+        ]}>
+        <Controller
+          control={control}
+          name={`itgCircuits.${idx}.amperajeITG`}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <TextInput
+              style={styles.itgInputWithUnit}
+              value={value || ''}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder="Ingrese amperaje"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
+            />
+          )}
+        />
+        <Text style={styles.unitText}>A</Text>
+      </View>
+      {amperajeError && (
+        <Text style={styles.errorText}>{amperajeError.message}</Text>
+      )}
+
+      {/* Diámetro */}
+      <Text style={styles.cnLabel}>DIÁMETRO:</Text>
+      <View
+        style={[
+          styles.inputWithUnitWrapper,
+          diameterError && errorBorderStyle,
+        ]}>
+        <Controller
+          control={control}
+          name={`itgCircuits.${idx}.diameterITG`}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <TextInput
+              style={styles.itgInputWithUnit}
+              value={value || ''}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder="Ingrese diámetro"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
+            />
+          )}
+        />
+        <Text style={styles.unitText}>mm²</Text>
+      </View>
+      {diameterError && (
+        <Text style={styles.errorText}>{diameterError.message}</Text>
+      )}
+
+      {/* Tipo de Cable */}
+      <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
+      <Controller
+        control={control}
+        name={`itgCircuits.${idx}.cableTypeITG`}
+        render={({ field: { onChange, value } }) => (
+          <RNPickerSelect
+            onValueChange={onChange}
+            items={CABLE_TYPE_PICKER_ITEMS}
+            placeholder={GENERIC_PLACEHOLDER}
+            value={value}
+            style={
+              cableTypeError ? pickerErrorStyleWithIcon : pickerStyleWithIcon
+            }
+            useNativeAndroidPickerStyle={false}
+            Icon={cableTypeError ? PickerChevronErrorIcon : PickerChevronIcon}
+          />
+        )}
+      />
+      {cableTypeError && (
+        <Text style={styles.errorText}>Seleccione tipo de cable</Text>
+      )}
+
+      {/* Suministro eléctrico */}
+      <Text style={[styles.itgSubtitle, localStyles.marginTop12]}>
+        ¿Qué suministra eléctricamente el IT-G?
+      </Text>
+      <Controller
+        control={control}
+        name={`itgDescriptions.${idx}`}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            style={styles.itgInput}
+            value={value}
+            onChangeText={onChange}
+            onBlur={onBlur}
+            placeholder="Ingrese texto"
+            placeholderTextColor="#9CA3AF"
+          />
+        )}
+      />
+    </View>
+  );
+});
+
+// ── Main Component ──────────────────────────────────────────────────────────
 // memo prevents re-renders when only the parent re-renders (e.g., step
 // navigation state change), since `panel` prop is stable between renders.
 export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
-  const {
-    control,
-    setValue,
-    getValues,
-    formState: { errors },
-  } = useFormContext<PanelConfigurationFormValues>();
+  const { control, setValue, getValues, getFieldState } =
+    useFormContext<PanelConfigurationFormValues>();
 
-  // Watch itgDescriptions for reactive re-renders
-  const itgDescriptions = useWatch({
-    control,
-    name: 'itgDescriptions',
-  });
+  // Watch only the scalar count — not the entire itgDescriptions array.
+  // The number of ITG cards to render is derived from this count.
+  const itgCount = useWatch({ control, name: 'itgCount' }) || '1';
+  const itgCountNum = Math.max(0, parseInt(itgCount, 10) || 0);
+
+  // Read itgCount error imperatively
+  const itgCountError = getFieldState('itgCount').error;
 
   // Handler that updates count and syncs arrays — wrapped in useCallback to
   // avoid re-creating on every render (prevents unnecessary Controller re-renders)
@@ -218,6 +378,12 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
     [setValue, getValues],
   );
 
+  // Stable index array for rendering ITG cards
+  const itgIndices = useMemo(
+    () => Array.from({ length: itgCountNum }, (_, i) => i),
+    [itgCountNum],
+  );
+
   // Track keyboard height on Android to add dynamic bottom padding
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
@@ -263,10 +429,7 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
             name="itgCount"
             render={({ field: { onBlur, value } }) => (
               <TextInput
-                style={[
-                  styles.countInput,
-                  errors.itgCount && styles.inputError,
-                ]}
+                style={[styles.countInput, itgCountError && styles.inputError]}
                 value={value}
                 onChangeText={updateCount}
                 onBlur={onBlur}
@@ -277,184 +440,21 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
             )}
           />
         </View>
-        {errors.itgCount && (
-          <Text style={styles.errorText}>{errors.itgCount.message}</Text>
+        {itgCountError && (
+          <Text style={styles.errorText}>{itgCountError.message}</Text>
         )}
 
-        {/* Lista IT-G - render based on watched itgDescriptions array */}
+        {/* Lista IT-G — each card is a memoized component */}
         <View style={localStyles.itgListContainer}>
-          {itgDescriptions.map((description, idx) => {
-            const itgErrors = errors.itgCircuits?.[idx];
-            const hasErrors = !!(
-              itgErrors?.phaseITG ||
-              itgErrors?.amperajeITG ||
-              itgErrors?.diameterITG ||
-              itgErrors?.cableTypeITG
-            );
-
-            // Key must NOT include field values — that would destroy/recreate
-            // the entire component on every keystroke (loss of focus, flash, etc.)
-            const stableKey = `itg-${idx}`;
-
-            return (
-              <View
-                key={stableKey}
-                style={[styles.itgCard, hasErrors && errorBorderStyle]}>
-                <View style={localStyles.itgCardHeaderRow}>
-                  <Text style={styles.itgTitle}>IT–G{idx + 1}</Text>
-                  {hasErrors && (
-                    <View style={localStyles.errorBadge}>
-                      <Text style={localStyles.errorBadgeText}>Incompleto</Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* Fases */}
-                <Text style={styles.cnLabel}>FASES:</Text>
-                <Controller
-                  control={control}
-                  name={`itgCircuits.${idx}.phaseITG`}
-                  render={({ field: { onChange, value } }) => (
-                    <RNPickerSelect
-                      onValueChange={onChange}
-                      items={PHASE_PICKER_ITEMS}
-                      placeholder={PHASE_PLACEHOLDER}
-                      value={value}
-                      style={
-                        itgErrors?.phaseITG
-                          ? pickerErrorStyleWithIcon
-                          : pickerStyleWithIcon
-                      }
-                      useNativeAndroidPickerStyle={false}
-                      Icon={
-                        itgErrors?.phaseITG
-                          ? PickerChevronErrorIcon
-                          : PickerChevronIcon
-                      }
-                    />
-                  )}
-                />
-                {itgErrors?.phaseITG && (
-                  <Text style={styles.errorText}>
-                    {itgErrors.phaseITG.message}
-                  </Text>
-                )}
-
-                {/* Amperaje */}
-                <Text style={styles.cnLabel}>AMPERAJE:</Text>
-                <View
-                  style={[
-                    styles.inputWithUnitWrapper,
-                    itgErrors?.amperajeITG && errorBorderStyle,
-                  ]}>
-                  <Controller
-                    control={control}
-                    name={`itgCircuits.${idx}.amperajeITG`}
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <TextInput
-                        style={styles.itgInputWithUnit}
-                        value={value || ''}
-                        onChangeText={onChange}
-                        onBlur={onBlur}
-                        placeholder="Ingrese amperaje"
-                        placeholderTextColor="#9CA3AF"
-                        keyboardType="numeric"
-                      />
-                    )}
-                  />
-                  <Text style={styles.unitText}>A</Text>
-                </View>
-                {itgErrors?.amperajeITG && (
-                  <Text style={styles.errorText}>
-                    {itgErrors.amperajeITG.message}
-                  </Text>
-                )}
-
-                {/* Diámetro */}
-                <Text style={styles.cnLabel}>DIÁMETRO:</Text>
-                <View
-                  style={[
-                    styles.inputWithUnitWrapper,
-                    itgErrors?.diameterITG && errorBorderStyle,
-                  ]}>
-                  <Controller
-                    control={control}
-                    name={`itgCircuits.${idx}.diameterITG`}
-                    render={({ field: { onChange, onBlur, value } }) => (
-                      <TextInput
-                        style={styles.itgInputWithUnit}
-                        value={value || ''}
-                        onChangeText={onChange}
-                        onBlur={onBlur}
-                        placeholder="Ingrese diámetro"
-                        placeholderTextColor="#9CA3AF"
-                        keyboardType="numeric"
-                      />
-                    )}
-                  />
-                  <Text style={styles.unitText}>mm²</Text>
-                </View>
-                {itgErrors?.diameterITG && (
-                  <Text style={styles.errorText}>
-                    {itgErrors.diameterITG.message}
-                  </Text>
-                )}
-
-                {/* Tipo de Cable */}
-                <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
-                <Controller
-                  control={control}
-                  name={`itgCircuits.${idx}.cableTypeITG`}
-                  render={({ field: { onChange, value } }) => (
-                    <RNPickerSelect
-                      onValueChange={onChange}
-                      items={CABLE_TYPE_PICKER_ITEMS}
-                      placeholder={GENERIC_PLACEHOLDER}
-                      value={value}
-                      style={
-                        itgErrors?.cableTypeITG
-                          ? pickerErrorStyleWithIcon
-                          : pickerStyleWithIcon
-                      }
-                      useNativeAndroidPickerStyle={false}
-                      Icon={
-                        itgErrors?.cableTypeITG
-                          ? PickerChevronErrorIcon
-                          : PickerChevronIcon
-                      }
-                    />
-                  )}
-                />
-                {itgErrors?.cableTypeITG && (
-                  <Text style={styles.errorText}>Seleccione tipo de cable</Text>
-                )}
-
-                {/* Suministro eléctrico */}
-                <Text style={[styles.itgSubtitle, localStyles.marginTop12]}>
-                  ¿Qué suministra eléctricamente el IT-G?
-                </Text>
-                <Controller
-                  control={control}
-                  name={`itgDescriptions.${idx}`}
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      style={styles.itgInput}
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="Ingrese texto"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                  )}
-                />
-              </View>
-            );
-          })}
+          {itgIndices.map(idx => (
+            <ITGCard key={`itg-${idx}`} idx={idx} />
+          ))}
         </View>
       </View>
     </ScrollView>
   );
 });
+
 const localStyles = StyleSheet.create({
   itgListContainer: { marginTop: 12 },
   marginTop12: { marginTop: 12 },

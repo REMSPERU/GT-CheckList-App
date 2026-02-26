@@ -55,6 +55,7 @@ interface HeaderProps {
   selectedItgIndex: number;
   itgCircuitsLength: number;
   itgDescription: string | undefined;
+  onCircuitsCountChange: (count: number) => void;
 }
 
 const ListHeader = memo(function ListHeader({
@@ -62,18 +63,25 @@ const ListHeader = memo(function ListHeader({
   selectedItgIndex,
   itgCircuitsLength,
   itgDescription,
+  onCircuitsCountChange,
 }: HeaderProps) {
-  const {
-    control,
-    setValue,
-    getValues,
-    formState: { errors },
-  } = useFormContext<PanelConfigurationFormValues>();
+  const { control, setValue, getValues, getFieldState, trigger } =
+    useFormContext<PanelConfigurationFormValues>();
 
   const tabLabels = useMemo(
     () =>
       Array.from({ length: itgCircuitsLength }, (_, i) => `IT - G${i + 1} `),
     [itgCircuitsLength],
+  );
+
+  // Read errors imperatively — avoids subscribing to the entire formState.errors tree.
+  // We trigger field-level validation on blur / submit; here we just need to
+  // display the state after trigger() has run.
+  const prefixState = getFieldState(
+    `itgCircuits.${selectedItgIndex}.cnPrefix` as any,
+  );
+  const countState = getFieldState(
+    `itgCircuits.${selectedItgIndex}.circuitsCount` as any,
   );
 
   // Circuits count handler — local to the header so it doesn't force
@@ -100,8 +108,12 @@ const ListHeader = memo(function ListHeader({
 
       setValue(`itgCircuits.${selectedItgIndex}.circuits`, newCircuits as any);
       setValue(`itgCircuits.${selectedItgIndex}.circuitsCount`, value);
+
+      // Notify the parent of the new circuits count so it can update the
+      // FlatList data without watching the entire circuits array.
+      onCircuitsCountChange(n);
     },
-    [selectedItgIndex, getValues, setValue],
+    [selectedItgIndex, getValues, setValue, onCircuitsCountChange],
   );
 
   return (
@@ -141,11 +153,7 @@ const ListHeader = memo(function ListHeader({
           name={`itgCircuits.${selectedItgIndex}.cnPrefix` as const}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
-              style={[
-                styles.input,
-                errors.itgCircuits?.[selectedItgIndex]?.cnPrefix &&
-                  styles.inputError,
-              ]}
+              style={[styles.input, prefixState.error && styles.inputError]}
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
@@ -154,10 +162,8 @@ const ListHeader = memo(function ListHeader({
             />
           )}
         />
-        {errors.itgCircuits?.[selectedItgIndex]?.cnPrefix && (
-          <Text style={styles.errorText}>
-            {errors.itgCircuits[selectedItgIndex]?.cnPrefix?.message}
-          </Text>
+        {prefixState.error && (
+          <Text style={styles.errorText}>{prefixState.error.message}</Text>
         )}
       </View>
 
@@ -169,11 +175,7 @@ const ListHeader = memo(function ListHeader({
           name={`itgCircuits.${selectedItgIndex}.circuitsCount` as const}
           render={({ field: { value } }) => (
             <TextInput
-              style={[
-                styles.countInput,
-                errors.itgCircuits?.[selectedItgIndex]?.circuitsCount &&
-                  styles.inputError,
-              ]}
+              style={[styles.countInput, countState.error && styles.inputError]}
               value={value}
               onChangeText={updateCircuitsCount}
               keyboardType="numeric"
@@ -183,10 +185,8 @@ const ListHeader = memo(function ListHeader({
           )}
         />
       </View>
-      {errors.itgCircuits?.[selectedItgIndex]?.circuitsCount && (
-        <Text style={styles.errorText}>
-          {errors.itgCircuits[selectedItgIndex]?.circuitsCount?.message}
-        </Text>
+      {countState.error && (
+        <Text style={styles.errorText}>{countState.error.message}</Text>
       )}
     </View>
   );
@@ -194,11 +194,15 @@ const ListHeader = memo(function ListHeader({
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
+// Lightweight index-only item type for FlatList. Each CircuitItem reads its own
+// form data via useFormContext — we never need the full CircuitConfig object here.
+type CircuitIndexItem = { _idx: number };
+
 const CircuitsConfigStep = forwardRef<
   CircuitsConfigStepRef,
   CircuitsConfigStepProps
 >(function CircuitsConfigStep({ panel }, ref) {
-  const { control, trigger, clearErrors, getFieldState } =
+  const { control, trigger, clearErrors, getFieldState, getValues } =
     useFormContext<PanelConfigurationFormValues>();
 
   // Watch only the count string (lightweight) instead of the entire itgCircuits array.
@@ -208,19 +212,34 @@ const CircuitsConfigStep = forwardRef<
 
   const [selectedItgIndex, setSelectedItgIndex] = useState(0);
 
-  // Watch only the specific fields we actually need for the list
-  const currentCircuits =
-    (useWatch({
-      control,
-      name: `itgCircuits.${selectedItgIndex}.circuits` as const,
-    }) as unknown as CircuitConfig[]) || [];
+  // ── Circuits count: driven by a scalar state, NOT useWatch on the array ──
+  // The header's `updateCircuitsCount` callback pushes the new count here.
+  // We also seed the value from `circuitsCount` form field on ITG change.
+  const [circuitsCount, setCircuitsCount] = useState(() => {
+    const initial = getValues(
+      `itgCircuits.${0}.circuitsCount` as any,
+    ) as string;
+    const circuits = getValues(`itgCircuits.${0}.circuits` as any) as any[];
+    // Prefer actual array length over the text field (the text might lag)
+    return circuits?.length || Math.max(0, parseInt(initial || '0', 10) || 0);
+  });
 
-  const cnPrefix =
-    useWatch({
-      control,
-      name: `itgCircuits.${selectedItgIndex}.cnPrefix` as const,
-    }) || '';
+  // Re-seed when switching ITG tabs
+  useEffect(() => {
+    const circuits = getValues(
+      `itgCircuits.${selectedItgIndex}.circuits` as any,
+    ) as any[];
+    setCircuitsCount(circuits?.length || 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItgIndex]);
 
+  // Callback passed to ListHeader so it can notify us of count changes
+  // without us subscribing to the full circuits array via useWatch.
+  const onCircuitsCountChange = useCallback((n: number) => {
+    setCircuitsCount(n);
+  }, []);
+
+  // Watch only the itgDescription for the header (lightweight scalar)
   const itgDescription = useWatch({
     control,
     name: `itgDescriptions.${selectedItgIndex}` as const,
@@ -309,16 +328,16 @@ const CircuitsConfigStep = forwardRef<
     [expandedIndicesMap, selectedItgIndex],
   );
 
-  // Track previous circuits length to detect new additions
-  const prevCircuitsLengthRef = useRef(currentCircuits.length);
+  // Track previous circuits count to detect new additions
+  const prevCircuitsCountRef = useRef(circuitsCount);
   const prevItgIndexRef = useRef(selectedItgIndex);
 
   useEffect(() => {
     if (prevItgIndexRef.current === selectedItgIndex) {
-      if (currentCircuits.length > prevCircuitsLengthRef.current) {
+      if (circuitsCount > prevCircuitsCountRef.current) {
         const newIndices = Array.from(
-          { length: currentCircuits.length - prevCircuitsLengthRef.current },
-          (_, i) => prevCircuitsLengthRef.current + i,
+          { length: circuitsCount - prevCircuitsCountRef.current },
+          (_, i) => prevCircuitsCountRef.current + i,
         );
         setExpandedIndicesMap(prev => ({
           ...prev,
@@ -329,9 +348,9 @@ const CircuitsConfigStep = forwardRef<
         }));
       }
     }
-    prevCircuitsLengthRef.current = currentCircuits.length;
+    prevCircuitsCountRef.current = circuitsCount;
     prevItgIndexRef.current = selectedItgIndex;
-  }, [currentCircuits.length, selectedItgIndex]);
+  }, [circuitsCount, selectedItgIndex]);
 
   const toggleExpand = useCallback(
     (index: number) => {
@@ -348,39 +367,44 @@ const CircuitsConfigStep = forwardRef<
 
   // ── FlatList Helpers ─────────────────────────────────────────────────────
 
-  // Use a stable data array reference – only re-create when length actually changes
-  const circuitsCount = currentCircuits.length;
-  const stableData = useMemo(
-    () => currentCircuits,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Stable index-only data array. Only re-created when count or ITG changes.
+  // Each CircuitItem reads its own form data — we never pass CircuitConfig here.
+  const stableData = useMemo<CircuitIndexItem[]>(
+    () => Array.from({ length: circuitsCount }, (_, i) => ({ _idx: i })),
     [circuitsCount, selectedItgIndex],
   );
 
   const getCircuitKey = useCallback(
-    (_: CircuitConfig, idx: number) => `itg-${selectedItgIndex}-circuit-${idx}`,
+    (item: CircuitIndexItem) => `itg-${selectedItgIndex}-circuit-${item._idx}`,
     [selectedItgIndex],
   );
 
-  // Memoize renderItem — pull `expandedIndices.includes` out of the closure
-  // by using a Set for O(1) lookup.
-  const expandedSet = useMemo(
+  // Store expandedSet in a ref so that `renderItem` identity doesn't change
+  // when the user expands/collapses a circuit. Each CircuitItem receives
+  // `isExpanded` via the ref lookup — the FlatList won't re-render ALL items
+  // on expand/collapse; only the toggled item re-renders (via its own state).
+  const expandedSetRef = useRef(new Set<number>());
+  expandedSetRef.current = useMemo(
     () => new Set(expandedIndices),
     [expandedIndices],
   );
 
+  // renderItem is now stable across expand/collapse and cnPrefix changes.
+  // - cnPrefix: each CircuitItem reads it via useWatch internally (Fix #5)
+  // - expandedSet: read from ref (Fix #8)
+  // - only `selectedItgIndex` and `toggleExpand` can change its identity
   const renderItem = useCallback(
-    ({ item: _item, index }: { item: CircuitConfig; index: number }) => (
+    ({ item }: { item: CircuitIndexItem }) => (
       <View style={paddingStyle}>
         <CircuitItem
-          index={index}
+          index={item._idx}
           itgIndex={selectedItgIndex}
-          isExpanded={expandedSet.has(index)}
+          isExpanded={expandedSetRef.current.has(item._idx)}
           onToggleExpand={toggleExpand}
-          cnPrefix={cnPrefix}
         />
       </View>
     ),
-    [selectedItgIndex, expandedSet, toggleExpand, cnPrefix],
+    [selectedItgIndex, toggleExpand],
   );
 
   // Memoize the header element so FlatList doesn't re-mount it
@@ -392,9 +416,16 @@ const CircuitsConfigStep = forwardRef<
         selectedItgIndex={selectedItgIndex}
         itgCircuitsLength={itgCircuitsLength}
         itgDescription={itgDescription}
+        onCircuitsCountChange={onCircuitsCountChange}
       />
     ),
-    [panel, selectedItgIndex, itgCircuitsLength, itgDescription],
+    [
+      panel,
+      selectedItgIndex,
+      itgCircuitsLength,
+      itgDescription,
+      onCircuitsCountChange,
+    ],
   );
 
   // Track keyboard height on Android to add dynamic bottom padding,
@@ -424,7 +455,7 @@ const CircuitsConfigStep = forwardRef<
 
   return (
     <View style={containerStyle}>
-      <FlatList<CircuitConfig>
+      <FlatList<CircuitIndexItem>
         data={stableData}
         keyExtractor={getCircuitKey}
         renderItem={renderItem}
@@ -438,6 +469,9 @@ const CircuitsConfigStep = forwardRef<
         removeClippedSubviews={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={dynamicContentPadding}
+        // Force re-render of visible items when expand/collapse state changes.
+        // This is needed because we read from expandedSetRef in renderItem.
+        extraData={expandedIndices}
       />
     </View>
   );

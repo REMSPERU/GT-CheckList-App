@@ -385,8 +385,14 @@ export function usePanelConfiguration(
         return !hasErrors;
       }
       case STEP_IDS.CIRCUITS:
-        fieldsToValidate = ['itgCircuits'];
-        break;
+        // Validation for the circuits step is handled internally by
+        // CircuitsConfigStep via its ref (handleNext validates each ITG
+        // individually). By the time we reach goNext(), every ITG has
+        // already passed validation. Re-triggering 'itgCircuits' here
+        // would run the full Zod schema over ALL ITGs × circuits × subITMs
+        // — potentially 1500+ objects — causing a noticeable freeze on
+        // lower-end devices. Skip it.
+        return true;
       case STEP_IDS.EXTRA_COMPONENTS:
         fieldsToValidate = ['enabledComponents', 'extraComponents'];
         break;
