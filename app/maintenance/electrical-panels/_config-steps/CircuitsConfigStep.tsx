@@ -42,6 +42,7 @@ const DEFAULT_CIRCUIT: CircuitConfig = {
   amperajeID: '',
   diameterID: '',
   cableTypeID: 'libre_halogeno',
+  hasSubITMs: false,
   subITMsCount: '1',
   subITMs: [],
 };

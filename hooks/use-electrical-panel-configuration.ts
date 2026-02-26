@@ -76,6 +76,7 @@ const DEFAULT_CIRCUIT: PanelConfigurationFormValues['itgCircuits'][number]['circ
     amperajeID: '',
     diameterID: '',
     cableTypeID: undefined,
+    hasSubITMs: false,
     subITMsCount: '1',
     subITMs: [],
   };
@@ -471,8 +472,10 @@ export function usePanelConfiguration(
                   }),
                 },
               }),
-              ...(circuit.interruptorType === 'id' &&
-                circuit.subITMs && {
+              ...((circuit.interruptorType === 'id' ||
+                (circuit.interruptorType === 'itm' && circuit.hasSubITMs)) &&
+                circuit.subITMs &&
+                circuit.subITMs.length > 0 && {
                   sub_itms: circuit.subITMs.map((subItm, sIdx) => ({
                     id: `${itg.cnPrefix}-${cIdx + 1}-${sIdx + 1}`,
                     fases: PHASE_LABELS[subItm.phaseITM] || subItm.phaseITM,

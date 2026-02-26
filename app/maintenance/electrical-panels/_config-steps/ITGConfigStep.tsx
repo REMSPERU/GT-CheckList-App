@@ -191,6 +191,7 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
                 amperajeID: '',
                 diameterID: '',
                 cableTypeID: 'libre_halogeno',
+                hasSubITMs: false,
                 subITMsCount: '1',
                 subITMs: [],
               },

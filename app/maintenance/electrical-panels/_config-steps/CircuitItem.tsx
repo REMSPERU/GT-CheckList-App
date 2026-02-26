@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import { Control, Controller, useFormContext, useWatch } from 'react-hook-form';
 import RNPickerSelect from 'react-native-picker-select';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from './_styles';
@@ -16,7 +16,11 @@ import {
   InterruptorType,
   SubITM,
 } from '@/types/panel-configuration';
-import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
+import {
+  PanelConfigurationFormValues,
+  SUB_ITMS_MAX_ITM,
+  SUB_ITMS_MAX_ID,
+} from '@/schemas/panel-configuration';
 
 // ── Stable Icon components for RNPickerSelect (avoid inline re-creation) ────
 const PickerChevronIcon = () => (
@@ -97,17 +101,17 @@ const pickerErrorStyles = StyleSheet.create({
 
 const PHASE_OPTIONS: { key: PhaseType; label: string }[] = [
   { key: 'unipolar', label: 'Unipolar' },
-  { key: 'mono_2w', label: 'Monofásico 2 hilos' },
-  { key: 'tri_3w', label: 'Trifásico 3 hilos' },
-  { key: 'tri_4w', label: 'Trifásico 4 hilos' },
+  { key: 'mono_2w', label: 'Monofasico 2 hilos' },
+  { key: 'tri_3w', label: 'Trifasico 3 hilos' },
+  { key: 'tri_4w', label: 'Trifasico 4 hilos' },
 ];
 
 const CABLE_TYPE_OPTIONS: { key: CableType; label: string }[] = [
-  { key: 'libre_halogeno', label: 'Libre de Halógeno' },
-  { key: 'no_libre_halogeno', label: 'No libre de Halógeno' },
+  { key: 'libre_halogeno', label: 'Libre de Halogeno' },
+  { key: 'no_libre_halogeno', label: 'No libre de Halogeno' },
 ];
 
-// Pre-computed picker items — avoids .map() on every render
+// Pre-computed picker items -- avoids .map() on every render
 const PHASE_PICKER_ITEMS = PHASE_OPTIONS.map(opt => ({
   label: opt.label,
   value: opt.key,
@@ -124,7 +128,7 @@ const PHASE_PLACEHOLDER = {
   color: '#9CA3AF',
 };
 const GENERIC_PLACEHOLDER = {
-  label: 'Seleccione una opción',
+  label: 'Seleccione una opcion',
   value: null,
   color: '#9CA3AF',
 };
@@ -152,6 +156,9 @@ const INTERRUPTOR_OPTIONS: {
   { key: 'reserva', label: 'Reserva', shortLabel: 'Reserva' },
 ];
 
+// Segment options for ID sub-ITM count (1-3)
+const ID_SUB_ITM_COUNT_OPTIONS = ['1', '2', '3'];
+
 interface CircuitItemProps {
   index: number;
   itgIndex: number;
@@ -159,6 +166,119 @@ interface CircuitItemProps {
   onToggleExpand: (index: number) => void;
   cnPrefix: string;
 }
+
+// ─── MEMOIZED SUB-ITM FORM ITEM ──────────────────────────────────────────────
+// Extracted as a separate memo component so editing one sub-ITM doesn't
+// re-render sibling sub-ITMs. Critical for ITM mode with up to 30 items.
+interface SubITMFormItemProps {
+  control: Control<PanelConfigurationFormValues>;
+  basePath: string; // e.g. "itgCircuits.0.circuits.0.subITMs.0"
+  subIdx: number;
+}
+
+const SubITMFormItem = memo(function SubITMFormItem({
+  control,
+  basePath,
+  subIdx,
+}: SubITMFormItemProps) {
+  return (
+    <View style={localStyles.subItmContainer}>
+      <Text style={[styles.cnSectionTitle, localStyles.noMarginTop]}>
+        ITM {subIdx + 1}
+      </Text>
+
+      <Text style={styles.cnLabel}>FASES</Text>
+      <Controller
+        control={control}
+        name={`${basePath}.phaseITM` as any}
+        render={({ field: { onChange, value } }) => (
+          <RNPickerSelect
+            onValueChange={onChange}
+            items={PHASE_PICKER_ITEMS}
+            placeholder={PHASE_PLACEHOLDER}
+            value={value}
+            style={pickerStyleWithIcon}
+            useNativeAndroidPickerStyle={false}
+            Icon={PickerChevronIcon}
+          />
+        )}
+      />
+
+      <Text style={styles.cnLabel}>AMPERAJE:</Text>
+      <View style={styles.inputWithUnitWrapper}>
+        <Controller
+          control={control}
+          name={`${basePath}.amperajeITM` as any}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <TextInput
+              style={styles.itgInputWithUnit}
+              value={value || ''}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder="Ingrese amperaje"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
+            />
+          )}
+        />
+        <Text style={styles.unitText}>A</Text>
+      </View>
+
+      <Text style={styles.cnLabel}>DIAMETRO:</Text>
+      <View style={styles.inputWithUnitWrapper}>
+        <Controller
+          control={control}
+          name={`${basePath}.diameter` as any}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <TextInput
+              style={styles.itgInputWithUnit}
+              value={value || ''}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder="Ingrese diametro"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
+            />
+          )}
+        />
+        <Text style={styles.unitText}>mm2</Text>
+      </View>
+
+      <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
+      <Controller
+        control={control}
+        name={`${basePath}.cableType` as any}
+        render={({ field: { onChange, value } }) => (
+          <RNPickerSelect
+            onValueChange={onChange}
+            items={CABLE_TYPE_PICKER_ITEMS}
+            placeholder={GENERIC_PLACEHOLDER}
+            value={value}
+            style={pickerStyleWithIcon}
+            useNativeAndroidPickerStyle={false}
+            Icon={PickerChevronIcon}
+          />
+        )}
+      />
+
+      <Text style={styles.cnLabel}>SUMINISTRO:</Text>
+      <Controller
+        control={control}
+        name={`${basePath}.supply` as any}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            style={styles.itgInput}
+            value={value || ''}
+            onChangeText={onChange}
+            onBlur={onBlur}
+            placeholder="Que suministra?"
+            placeholderTextColor="#9CA3AF"
+          />
+        )}
+      />
+    </View>
+  );
+});
 
 // ─── COLLAPSED HEADER ─────────────────────────────────────────────────────────
 // Zero hooks, zero subscriptions. Just reads values once on render.
@@ -183,7 +303,7 @@ const CollapsedCircuitHeader = memo(function CollapsedCircuitHeader({
         style={styles.cnCardHeader}
         onPress={() => onToggleExpand(index)}
         activeOpacity={0.7}>
-        <View style={collapsedStyles.nameContainer}>
+        <View style={localStyles.nameContainer}>
           <Text style={styles.cnTitle} numberOfLines={1}>
             {displayName}
           </Text>
@@ -195,7 +315,7 @@ const CollapsedCircuitHeader = memo(function CollapsedCircuitHeader({
 });
 
 // ─── EXPANDED CONTENT ─────────────────────────────────────────────────────────
-// All hooks live here — only mounted for the single expanded item.
+// All hooks live here -- only mounted for the single expanded item.
 const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
   index,
   itgIndex,
@@ -209,63 +329,136 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
     formState: { errors },
   } = useFormContext<PanelConfigurationFormValues>();
 
+  const prefix = `itgCircuits.${itgIndex}.circuits.${index}` as const;
+
   // These hooks only run for the 1 expanded item, not 74 collapsed ones
   const hasID = useWatch({
     control,
-    name: `itgCircuits.${itgIndex}.circuits.${index}.hasID`,
+    name: `${prefix}.hasID`,
+  });
+
+  const hasSubITMs = useWatch({
+    control,
+    name: `${prefix}.hasSubITMs`,
   });
 
   const interruptorType =
     useWatch({
       control,
-      name: `itgCircuits.${itgIndex}.circuits.${index}.interruptorType`,
+      name: `${prefix}.interruptorType`,
     }) || 'itm';
 
   const subITMsCount =
     useWatch({
       control,
-      name: `itgCircuits.${itgIndex}.circuits.${index}.subITMsCount`,
+      name: `${prefix}.subITMsCount`,
     }) || '1';
 
   const subITMs =
     useWatch({
       control,
-      name: `itgCircuits.${itgIndex}.circuits.${index}.subITMs`,
+      name: `${prefix}.subITMs`,
     }) || [];
 
   const customName = useWatch({
     control,
-    name: `itgCircuits.${itgIndex}.circuits.${index}.name`,
+    name: `${prefix}.name`,
   });
   const displayName =
     customName && customName.trim() !== ''
       ? customName
       : `${cnPrefix || 'CN'}-${index + 1}`;
 
-  const updateSubITMsCount = useCallback(
-    (newCount: string) => {
-      const n = parseInt(newCount, 10);
-      if (isNaN(n) || n < 1 || n > 3) return;
-
-      const currentSubITMs =
-        getValues(`itgCircuits.${itgIndex}.circuits.${index}.subITMs`) || [];
+  // Syncs subITMs array length with the desired count, preserving existing data
+  const syncSubITMsArray = useCallback(
+    (targetCount: number) => {
+      const currentSubITMs = getValues(`${prefix}.subITMs` as any) || [];
       let newSubITMs = [...currentSubITMs];
 
-      while (newSubITMs.length < n) {
+      while (newSubITMs.length < targetCount) {
         newSubITMs.push({ ...DEFAULT_SUB_ITM });
       }
-      if (newSubITMs.length > n) {
-        newSubITMs = newSubITMs.slice(0, n);
+      if (newSubITMs.length > targetCount) {
+        newSubITMs = newSubITMs.slice(0, targetCount);
       }
 
-      setValue(
-        `itgCircuits.${itgIndex}.circuits.${index}.subITMsCount`,
-        newCount,
-      );
-      setValue(`itgCircuits.${itgIndex}.circuits.${index}.subITMs`, newSubITMs);
+      setValue(`${prefix}.subITMs` as any, newSubITMs);
     },
-    [itgIndex, index, getValues, setValue],
+    [prefix, getValues, setValue],
   );
+
+  // ── ITM sub-ITMs count: local state for free typing, commit on blur ──
+  // This avoids the problem where clamping on every keystroke prevents the
+  // user from clearing the field to type a new number (e.g. delete "1" → "3" → "30").
+  const [itmCountInput, setItmCountInput] = useState(subITMsCount);
+
+  // Sync local state when form value changes externally (e.g. toggle reset)
+  useEffect(() => {
+    setItmCountInput(subITMsCount);
+  }, [subITMsCount]);
+
+  // Accept raw text while typing — only digits allowed
+  const onChangeItmCount = useCallback((text: string) => {
+    // Strip non-digits
+    const cleaned = text.replace(/[^0-9]/g, '');
+    setItmCountInput(cleaned);
+  }, []);
+
+  // Commit the value on blur: clamp to [1, max] and sync the sub-ITMs array
+  const onBlurItmCount = useCallback(() => {
+    const n = parseInt(itmCountInput, 10);
+    const clamped = isNaN(n) || n < 1 ? 1 : Math.min(n, SUB_ITMS_MAX_ITM);
+    const value = String(clamped);
+
+    setItmCountInput(value);
+    setValue(`${prefix}.subITMsCount` as any, value);
+    syncSubITMsArray(clamped);
+  }, [itmCountInput, prefix, setValue, syncSubITMsArray]);
+
+  // Updates the sub-ITMs count for ID type (segment control: 1-3)
+  const updateSubITMsCountID = useCallback(
+    (newCount: string) => {
+      const n = parseInt(newCount, 10);
+      if (isNaN(n) || n < 1 || n > SUB_ITMS_MAX_ID) return;
+
+      setValue(`${prefix}.subITMsCount` as any, newCount);
+      syncSubITMsArray(n);
+    },
+    [prefix, setValue, syncSubITMsArray],
+  );
+
+  // Handles the ITM sub-ITMs toggle: initializes or clears the array
+  const toggleITMSubITMs = useCallback(() => {
+    const newValue = !hasSubITMs;
+    setValue(`${prefix}.hasSubITMs` as any, newValue);
+
+    if (newValue) {
+      // Initialize with 1 sub-ITM
+      setValue(`${prefix}.subITMsCount` as any, '1');
+      syncSubITMsArray(1);
+    } else {
+      // Clear sub-ITMs data
+      setValue(`${prefix}.subITMsCount` as any, '1');
+      setValue(`${prefix}.subITMs` as any, []);
+    }
+  }, [prefix, hasSubITMs, setValue, syncSubITMsArray]);
+
+  // Handles the ID toggle for ITM type
+  const toggleIDForITM = useCallback(() => {
+    const newValue = !hasID;
+    setValue(`${prefix}.hasID` as any, newValue);
+
+    if (!newValue) {
+      setValue(`${prefix}.phaseID` as any, undefined);
+      setValue(`${prefix}.amperajeID` as any, undefined);
+      setValue(`${prefix}.diameterID` as any, undefined);
+      setValue(`${prefix}.cableTypeID` as any, undefined);
+    } else {
+      setValue(`${prefix}.phaseID` as any, 'mono_2w');
+      setValue(`${prefix}.amperajeID` as any, '');
+      setValue(`${prefix}.cableTypeID` as any, 'libre_halogeno');
+    }
+  }, [prefix, hasID, setValue]);
 
   const circuitErrors = errors.itgCircuits?.[itgIndex]?.circuits?.[index];
   const hasErrors = !!(
@@ -274,17 +467,26 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
     circuitErrors?.cableType
   );
 
+  // Build stable base paths for sub-ITM forms to avoid string concatenation in render
+  const subITMBasePath = `${prefix}.subITMs`;
+
+  // Whether to show the main supply field:
+  // - For ITM: only if there are no sub-ITMs active (each sub-ITM has its own supply)
+  // - For ID: never (sub-ITMs always present)
+  const showMainSupply =
+    interruptorType === 'itm' && !(hasSubITMs && subITMs.length > 0);
+
   return (
     <View style={[styles.cnCard, hasErrors && errorBorderStyle]}>
       {/* Header con TextInput y toggle */}
       <View style={styles.cnCardHeader}>
         <Controller
           control={control}
-          name={`itgCircuits.${itgIndex}.circuits.${index}.name`}
+          name={`${prefix}.name`}
           render={({ field: { onChange, onBlur, value } }) => (
-            <View style={collapsedStyles.editableNameContainer}>
+            <View style={localStyles.editableNameContainer}>
               <TextInput
-                style={[styles.cnTitle, collapsedStyles.editableTextInput]}
+                style={[styles.cnTitle, localStyles.editableTextInput]}
                 value={
                   value !== undefined
                     ? value
@@ -300,12 +502,12 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
           )}
         />
         <TouchableOpacity
-          style={collapsedStyles.toggleArea}
+          style={localStyles.toggleArea}
           onPress={() => onToggleExpand(index)}
           activeOpacity={0.7}>
           {hasErrors && (
-            <View style={collapsedStyles.errorBadge}>
-              <Text style={collapsedStyles.errorBadgeText}>Incompleto</Text>
+            <View style={localStyles.errorBadge}>
+              <Text style={localStyles.errorBadgeText}>Incompleto</Text>
             </View>
           )}
           <Ionicons
@@ -316,7 +518,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
         </TouchableOpacity>
       </View>
 
-      {/* ── Full content ── */}
+      {/* -- Full content -- */}
       <View>
         {/* Selector de tipo de interruptor */}
         <Text style={styles.cnLabel}>TIPO DE INTERRUPTOR:</Text>
@@ -329,10 +531,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                 interruptorType === option.key && styles.segmentActive,
               ]}
               onPress={() =>
-                setValue(
-                  `itgCircuits.${itgIndex}.circuits.${index}.interruptorType`,
-                  option.key,
-                )
+                setValue(`${prefix}.interruptorType` as any, option.key)
               }>
               <Text
                 style={[
@@ -345,7 +544,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
           ))}
         </View>
 
-        {/* Título según el tipo seleccionado */}
+        {/* Titulo segun el tipo seleccionado */}
         <Text style={styles.cnSectionTitle}>
           {INTERRUPTOR_OPTIONS.find(o => o.key === interruptorType)?.label ||
             'Interruptor Termomagnetico (ITM)'}
@@ -355,7 +554,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
             <Text style={styles.cnLabel}>FASES</Text>
             <Controller
               control={control}
-              name={`itgCircuits.${itgIndex}.circuits.${index}.phase`}
+              name={`${prefix}.phase`}
               render={({ field: { onChange, value } }) => (
                 <RNPickerSelect
                   onValueChange={onChange}
@@ -373,13 +572,12 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
             <View style={styles.inputWithUnitWrapper}>
               <Controller
                 control={control}
-                name={`itgCircuits.${itgIndex}.circuits.${index}.amperaje`}
+                name={`${prefix}.amperaje`}
                 render={({ field: { onChange, onBlur, value } }) => (
                   <TextInput
                     style={[
                       styles.itgInputWithUnit,
-                      errors.itgCircuits?.[itgIndex]?.circuits?.[index]
-                        ?.amperaje && styles.inputError,
+                      circuitErrors?.amperaje && styles.inputError,
                     ]}
                     value={value}
                     onChangeText={onChange}
@@ -392,46 +590,39 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
               />
               <Text style={styles.unitText}>A</Text>
             </View>
-            {errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.amperaje && (
+            {circuitErrors?.amperaje && (
               <Text style={styles.errorText}>
-                {
-                  errors.itgCircuits[itgIndex]?.circuits?.[index]?.amperaje
-                    ?.message
-                }
+                {circuitErrors.amperaje.message}
               </Text>
             )}
 
-            {/* Diámetro */}
-            <Text style={styles.cnLabel}>DIÁMETRO:</Text>
+            {/* Diametro */}
+            <Text style={styles.cnLabel}>DIAMETRO:</Text>
             <View
               style={[
                 styles.inputWithUnitWrapper,
-                errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.diameter &&
-                  errorBorderStyle,
+                circuitErrors?.diameter && errorBorderStyle,
               ]}>
               <Controller
                 control={control}
-                name={`itgCircuits.${itgIndex}.circuits.${index}.diameter`}
+                name={`${prefix}.diameter`}
                 render={({ field: { onChange, onBlur, value } }) => (
                   <TextInput
                     style={styles.itgInputWithUnit}
                     value={value || ''}
                     onChangeText={onChange}
                     onBlur={onBlur}
-                    placeholder="Ingrese diámetro"
+                    placeholder="Ingrese diametro"
                     placeholderTextColor="#9CA3AF"
                     keyboardType="numeric"
                   />
                 )}
               />
-              <Text style={styles.unitText}>mm²</Text>
+              <Text style={styles.unitText}>mm2</Text>
             </View>
-            {errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.diameter && (
+            {circuitErrors?.diameter && (
               <Text style={styles.errorText}>
-                {
-                  errors.itgCircuits[itgIndex]?.circuits?.[index]?.diameter
-                    ?.message
-                }
+                {circuitErrors.diameter.message}
               </Text>
             )}
 
@@ -439,7 +630,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
             <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
             <Controller
               control={control}
-              name={`itgCircuits.${itgIndex}.circuits.${index}.cableType`}
+              name={`${prefix}.cableType`}
               render={({ field: { onChange, value } }) => (
                 <RNPickerSelect
                   onValueChange={onChange}
@@ -447,66 +638,30 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                   placeholder={GENERIC_PLACEHOLDER}
                   value={value}
                   style={
-                    errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.cableType
+                    circuitErrors?.cableType
                       ? pickerErrorStyleWithIcon
                       : pickerStyleWithIcon
                   }
                   useNativeAndroidPickerStyle={false}
                   Icon={
-                    errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.cableType
+                    circuitErrors?.cableType
                       ? PickerChevronErrorIcon
                       : PickerChevronIcon
                   }
                 />
               )}
             />
-            {errors.itgCircuits?.[itgIndex]?.circuits?.[index]?.cableType && (
+            {circuitErrors?.cableType && (
               <Text style={styles.errorText}>Seleccione tipo de cable</Text>
             )}
 
-            {/* ID - Optional Section (solo para tipo ITM) */}
+            {/* ── ITM-specific sections ── */}
             {interruptorType === 'itm' && (
-              <View style={collapsedStyles.marginTop12}>
+              <View style={localStyles.marginTop12}>
+                {/* ID Toggle (Interruptor Diferencial opcional) */}
                 <TouchableOpacity
                   style={[styles.toggleRow, hasID && styles.toggleRowActive]}
-                  onPress={() => {
-                    const newValue = !hasID;
-                    setValue(
-                      `itgCircuits.${itgIndex}.circuits.${index}.hasID`,
-                      newValue,
-                    );
-                    if (!newValue) {
-                      setValue(
-                        `itgCircuits.${itgIndex}.circuits.${index}.phaseID`,
-                        undefined,
-                      );
-                      setValue(
-                        `itgCircuits.${itgIndex}.circuits.${index}.amperajeID`,
-                        undefined,
-                      );
-                      setValue(
-                        `itgCircuits.${itgIndex}.circuits.${index}.diameterID`,
-                        undefined,
-                      );
-                      setValue(
-                        `itgCircuits.${itgIndex}.circuits.${index}.cableTypeID`,
-                        undefined,
-                      );
-                    } else {
-                      setValue(
-                        `itgCircuits.${itgIndex}.circuits.${index}.phaseID`,
-                        'mono_2w',
-                      );
-                      setValue(
-                        `itgCircuits.${itgIndex}.circuits.${index}.amperajeID`,
-                        '',
-                      );
-                      setValue(
-                        `itgCircuits.${itgIndex}.circuits.${index}.cableTypeID`,
-                        'libre_halogeno',
-                      );
-                    }
-                  }}>
+                  onPress={toggleIDForITM}>
                   <View style={styles.toggleIconRow}>
                     <Ionicons
                       name="shield-checkmark-outline"
@@ -536,11 +691,11 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                 </TouchableOpacity>
 
                 {hasID && (
-                  <View style={collapsedStyles.marginTop12}>
+                  <View style={localStyles.marginTop12}>
                     <Text style={styles.cnLabel}>FASES</Text>
                     <Controller
                       control={control}
-                      name={`itgCircuits.${itgIndex}.circuits.${index}.phaseID`}
+                      name={`${prefix}.phaseID`}
                       render={({ field: { onChange, value } }) => (
                         <RNPickerSelect
                           onValueChange={onChange}
@@ -557,7 +712,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                     <View style={styles.inputWithUnitWrapper}>
                       <Controller
                         control={control}
-                        name={`itgCircuits.${itgIndex}.circuits.${index}.amperajeID`}
+                        name={`${prefix}.amperajeID`}
                         render={({ field: { onChange, onBlur, value } }) => (
                           <TextInput
                             style={styles.itgInputWithUnit}
@@ -573,32 +728,32 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                       <Text style={styles.unitText}>A</Text>
                     </View>
 
-                    {/* Diámetro ID */}
-                    <Text style={styles.cnLabel}>DIÁMETRO:</Text>
+                    {/* Diametro ID */}
+                    <Text style={styles.cnLabel}>DIAMETRO:</Text>
                     <View style={styles.inputWithUnitWrapper}>
                       <Controller
                         control={control}
-                        name={`itgCircuits.${itgIndex}.circuits.${index}.diameterID`}
+                        name={`${prefix}.diameterID`}
                         render={({ field: { onChange, onBlur, value } }) => (
                           <TextInput
                             style={styles.itgInputWithUnit}
                             value={value || ''}
                             onChangeText={onChange}
                             onBlur={onBlur}
-                            placeholder="Ingrese diámetro"
+                            placeholder="Ingrese diametro"
                             placeholderTextColor="#9CA3AF"
                             keyboardType="numeric"
                           />
                         )}
                       />
-                      <Text style={styles.unitText}>mm²</Text>
+                      <Text style={styles.unitText}>mm2</Text>
                     </View>
 
                     {/* Tipo de Cable ID */}
                     <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
                     <Controller
                       control={control}
-                      name={`itgCircuits.${itgIndex}.circuits.${index}.cableTypeID`}
+                      name={`${prefix}.cableTypeID`}
                       render={({ field: { onChange, value } }) => (
                         <RNPickerSelect
                           onValueChange={onChange}
@@ -613,21 +768,90 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                     />
                   </View>
                 )}
+
+                {/* Sub-ITMs Toggle for ITM type */}
+                <View style={localStyles.marginTop12}>
+                  <TouchableOpacity
+                    style={[
+                      styles.toggleRow,
+                      hasSubITMs && styles.toggleRowActive,
+                    ]}
+                    onPress={toggleITMSubITMs}>
+                    <View style={styles.toggleIconRow}>
+                      <Ionicons
+                        name="git-branch-outline"
+                        size={20}
+                        color={hasSubITMs ? '#0891B2' : '#6B7280'}
+                      />
+                      <Text
+                        style={[
+                          styles.toggleLabel,
+                          hasSubITMs && styles.toggleLabelActive,
+                        ]}>
+                        Sub-ITMs
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.toggleSwitch,
+                        hasSubITMs && styles.toggleSwitchActive,
+                      ]}>
+                      <View
+                        style={[
+                          styles.toggleThumb,
+                          hasSubITMs && styles.toggleThumbActive,
+                        ]}
+                      />
+                    </View>
+                  </TouchableOpacity>
+
+                  {hasSubITMs && (
+                    <View style={localStyles.marginTop12}>
+                      <Text style={styles.cnLabel}>
+                        CANTIDAD DE SUB-ITMs (1-{SUB_ITMS_MAX_ITM}):
+                      </Text>
+                      <View style={styles.inputWithUnitWrapper}>
+                        <TextInput
+                          style={styles.itgInputWithUnit}
+                          value={itmCountInput}
+                          onChangeText={onChangeItmCount}
+                          onBlur={onBlurItmCount}
+                          keyboardType="numeric"
+                          placeholder="1"
+                          placeholderTextColor="#9CA3AF"
+                          maxLength={2}
+                        />
+                        <Text style={styles.unitText}>uds</Text>
+                      </View>
+
+                      {/* Render each sub-ITM with memoized component */}
+                      {subITMs.map((_subItm, subIdx: number) => (
+                        <SubITMFormItem
+                          key={subIdx}
+                          control={control}
+                          basePath={`${subITMBasePath}.${subIdx}`}
+                          subIdx={subIdx}
+                        />
+                      ))}
+                    </View>
+                  )}
+                </View>
               </View>
             )}
-            {/* Sub-ITMs Section (solo para tipo ID) */}
+
+            {/* ── ID-specific sections: Sub-ITMs (1-3 via segments) ── */}
             {interruptorType === 'id' && (
-              <View style={collapsedStyles.marginTop12}>
+              <View style={localStyles.marginTop12}>
                 <Text style={styles.cnLabel}>CANTIDAD DE ITMs:</Text>
                 <View style={styles.segmentContainer}>
-                  {['1', '2', '3'].map(num => (
+                  {ID_SUB_ITM_COUNT_OPTIONS.map(num => (
                     <TouchableOpacity
                       key={num}
                       style={[
                         styles.segment,
                         subITMsCount === num && styles.segmentActive,
                       ]}
-                      onPress={() => updateSubITMsCount(num)}>
+                      onPress={() => updateSubITMsCountID(num)}>
                       <Text
                         style={[
                           styles.segmentText,
@@ -639,129 +863,40 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                   ))}
                 </View>
 
-                {/* Renderizar cada sub-ITM */}
+                {/* Render each sub-ITM with memoized component */}
                 {subITMs.map((_subItm, subIdx: number) => (
-                  <View key={subIdx} style={collapsedStyles.subItmContainer}>
-                    <Text
-                      style={[
-                        styles.cnSectionTitle,
-                        collapsedStyles.noMarginTop,
-                      ]}>
-                      ITM {subIdx + 1}
-                    </Text>
-
-                    <Text style={styles.cnLabel}>FASES</Text>
-                    <Controller
-                      control={control}
-                      name={`itgCircuits.${itgIndex}.circuits.${index}.subITMs.${subIdx}.phaseITM`}
-                      render={({ field: { onChange, value } }) => (
-                        <RNPickerSelect
-                          onValueChange={onChange}
-                          items={PHASE_PICKER_ITEMS}
-                          placeholder={PHASE_PLACEHOLDER}
-                          value={value}
-                          style={pickerStyleWithIcon}
-                          useNativeAndroidPickerStyle={false}
-                          Icon={PickerChevronIcon}
-                        />
-                      )}
-                    />
-
-                    <Text style={styles.cnLabel}>AMPERAJE:</Text>
-                    <View style={styles.inputWithUnitWrapper}>
-                      <Controller
-                        control={control}
-                        name={`itgCircuits.${itgIndex}.circuits.${index}.subITMs.${subIdx}.amperajeITM`}
-                        render={({ field: { onChange, onBlur, value } }) => (
-                          <TextInput
-                            style={styles.itgInputWithUnit}
-                            value={value || ''}
-                            onChangeText={onChange}
-                            onBlur={onBlur}
-                            placeholder="Ingrese amperaje"
-                            placeholderTextColor="#9CA3AF"
-                            keyboardType="numeric"
-                          />
-                        )}
-                      />
-                      <Text style={styles.unitText}>A</Text>
-                    </View>
-
-                    <Text style={styles.cnLabel}>DIÁMETRO:</Text>
-                    <View style={styles.inputWithUnitWrapper}>
-                      <Controller
-                        control={control}
-                        name={`itgCircuits.${itgIndex}.circuits.${index}.subITMs.${subIdx}.diameter`}
-                        render={({ field: { onChange, onBlur, value } }) => (
-                          <TextInput
-                            style={styles.itgInputWithUnit}
-                            value={value || ''}
-                            onChangeText={onChange}
-                            onBlur={onBlur}
-                            placeholder="Ingrese diámetro"
-                            placeholderTextColor="#9CA3AF"
-                            keyboardType="numeric"
-                          />
-                        )}
-                      />
-                      <Text style={styles.unitText}>mm²</Text>
-                    </View>
-
-                    <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
-                    <Controller
-                      control={control}
-                      name={`itgCircuits.${itgIndex}.circuits.${index}.subITMs.${subIdx}.cableType`}
-                      render={({ field: { onChange, value } }) => (
-                        <RNPickerSelect
-                          onValueChange={onChange}
-                          items={CABLE_TYPE_PICKER_ITEMS}
-                          placeholder={GENERIC_PLACEHOLDER}
-                          value={value}
-                          style={pickerStyleWithIcon}
-                          useNativeAndroidPickerStyle={false}
-                          Icon={PickerChevronIcon}
-                        />
-                      )}
-                    />
-
-                    <Text style={styles.cnLabel}>SUMINISTRO:</Text>
-                    <Controller
-                      control={control}
-                      name={`itgCircuits.${itgIndex}.circuits.${index}.subITMs.${subIdx}.supply`}
-                      render={({ field: { onChange, onBlur, value } }) => (
-                        <TextInput
-                          style={styles.itgInput}
-                          value={value || ''}
-                          onChangeText={onChange}
-                          onBlur={onBlur}
-                          placeholder="¿Qué suministra?"
-                          placeholderTextColor="#9CA3AF"
-                        />
-                      )}
-                    />
-                  </View>
+                  <SubITMFormItem
+                    key={subIdx}
+                    control={control}
+                    basePath={`${subITMBasePath}.${subIdx}`}
+                    subIdx={subIdx}
+                  />
                 ))}
               </View>
             )}
 
-            {/* Suministro */}
-            <Text style={[styles.cnLabel, collapsedStyles.marginTop12]}>
-              ¿Qué suministra eléctricamente el Circuito {displayName}?
-            </Text>
-            <Controller
-              control={control}
-              name={`itgCircuits.${itgIndex}.circuits.${index}.supply`}
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
-                  style={styles.itgInput}
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  placeholder="Ingrese texto"
-                  placeholderTextColor="#9CA3AF"
+            {/* Suministro - only shown when no sub-ITMs are active for ITM */}
+            {showMainSupply && (
+              <View>
+                <Text style={[styles.cnLabel, localStyles.marginTop12]}>
+                  Que suministra electricamente el Circuito {displayName}?
+                </Text>
+                <Controller
+                  control={control}
+                  name={`${prefix}.supply`}
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      style={styles.itgInput}
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="Ingrese texto"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
                 />
-              )}
-            />
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -793,7 +928,7 @@ function CircuitItemWrapper(props: CircuitItemProps) {
 }
 
 // Extracted static styles
-const collapsedStyles = StyleSheet.create({
+const localStyles = StyleSheet.create({
   nameContainer: {
     flexDirection: 'row',
     alignItems: 'center',

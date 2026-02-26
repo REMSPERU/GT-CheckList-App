@@ -54,8 +54,11 @@ export default function ReviewStep({ panel }: ReviewStepProps) {
                 }
               : undefined,
           sub_itms:
-            itm.interruptorType === 'id' && itm.subITMs
-              ? itm.subITMs.map((sub, sIdx) => ({
+            itm.interruptorType === 'id' ||
+            (itm.interruptorType === 'itm' &&
+              itm.subITMs &&
+              itm.subITMs.length > 0)
+              ? itm.subITMs?.map((sub, sIdx) => ({
                   id: `${itg.cnPrefix}${cIdx + 1}-${sIdx + 1}`,
                   amperaje: sub.amperajeITM,
                   fases: sub.phaseITM,

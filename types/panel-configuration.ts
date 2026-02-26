@@ -3,7 +3,7 @@ export type PhaseType = 'mono_2w' | 'tri_3w' | 'tri_4w' | 'unipolar';
 export type CableType = 'libre_halogeno' | 'no_libre_halogeno';
 export type InterruptorType = 'itm' | 'id' | 'reserva';
 
-// ITM hijo que vive dentro de un ID
+// ITM hijo que vive dentro de un ITM (máx 30) o un ID (máx 3)
 export interface SubITM {
   phaseITM: PhaseType;
   amperajeITM: string;
@@ -30,7 +30,10 @@ export interface CircuitConfig {
   diameterID?: string;
   cableTypeID?: CableType;
 
-  // Para ID: ITMs hijos (1-3)
+  // Sub-ITMs hijos
+  // Para ITM: 0-30 sub-ITMs opcionales (toggle hasSubITMs)
+  // Para ID: 1-3 ITMs hijos obligatorios
+  hasSubITMs: boolean;
   subITMsCount: string;
   subITMs: SubITM[];
 }

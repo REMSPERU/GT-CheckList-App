@@ -261,8 +261,8 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = ({ data }) => {
                   </View>
                 )}
 
-                {/* Sub-ITMs Section (solo para tipo ID) */}
-                {itm.tipo === 'ID' &&
+                {/* Sub-ITMs Section (para tipo ID e ITM con sub-ITMs) */}
+                {(itm.tipo === 'ID' || itm.tipo === 'ITM') &&
                   itm.sub_itms &&
                   itm.sub_itms.length > 0 && (
                     <View style={styles.subItmsContainer}>
