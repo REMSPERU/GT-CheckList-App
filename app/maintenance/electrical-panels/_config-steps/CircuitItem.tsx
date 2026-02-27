@@ -361,16 +361,16 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
       name: `${prefix}.subITMsCount`,
     }) || '1';
 
-  // Instead of watching the entire subITMs array (which re-renders on every
-  // sub-ITM field change), derive the count from the scalar subITMsCount and
-  // only check the actual array length imperatively. Each SubITMFormItem reads
-  // its own fields via Controller — we just need the count to render them.
-  const subITMsLength = (() => {
+  // Local state for the sub-ITMs count — same pattern as circuitsCount in
+  // CircuitsConfigStep. We do NOT useWatch on the subITMs array (that would
+  // re-render on every field change inside any sub-ITM). Instead, syncSubITMsArray
+  // pushes the new length here after mutating the form array.
+  const [subITMsLength, setSubITMsLength] = useState(() => {
     const actualArray = getValues(`${prefix}.subITMs` as any) as
       | any[]
       | undefined;
     return actualArray?.length || 0;
-  })();
+  });
 
   const customName = useWatch({
     control,
@@ -381,7 +381,9 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
       ? customName
       : `${cnPrefix || 'CN'}-${index + 1}`;
 
-  // Syncs subITMs array length with the desired count, preserving existing data
+  // Syncs subITMs array length with the desired count, preserving existing data.
+  // Also updates the local subITMsLength state so the render loop picks up
+  // the new count without needing useWatch on the full array.
   const syncSubITMsArray = useCallback(
     (targetCount: number) => {
       const currentSubITMs = getValues(`${prefix}.subITMs` as any) || [];
@@ -395,6 +397,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
       }
 
       setValue(`${prefix}.subITMs` as any, newSubITMs);
+      setSubITMsLength(newSubITMs.length);
     },
     [prefix, getValues, setValue],
   );
@@ -452,6 +455,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
       // Clear sub-ITMs data
       setValue(`${prefix}.subITMsCount` as any, '1');
       setValue(`${prefix}.subITMs` as any, []);
+      setSubITMsLength(0);
     }
   }, [prefix, hasSubITMs, setValue, syncSubITMsArray]);
 
