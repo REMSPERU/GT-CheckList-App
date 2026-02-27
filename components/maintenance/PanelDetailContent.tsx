@@ -1,7 +1,15 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
+
+// ── Module-level helper (avoids re-creation on every render) ───────────────
+const formatConditionKey = (key: string) => {
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, str => str.toUpperCase())
+    .replace(/_/g, ' ');
+};
 
 export interface PanelDetailProps {
   data: {
@@ -57,324 +65,298 @@ export interface PanelDetailProps {
   };
 }
 
-export const PanelDetailContent: React.FC<PanelDetailProps> = ({ data }) => {
-  if (!data) return null;
-  const {
-    rotulo,
-    detalle_tecnico,
-    itgs = [],
-    componentes = [],
-    condiciones_especiales = {},
-  } = data;
+export const PanelDetailContent: React.FC<PanelDetailProps> = memo(
+  ({ data }) => {
+    if (!data) return null;
+    const {
+      rotulo,
+      detalle_tecnico,
+      itgs = [],
+      componentes = [],
+      condiciones_especiales = {},
+    } = data;
 
-  // Safe defaults
-  const safeDetalleTecnico = detalle_tecnico || {
-    fases: '',
-    voltaje: '-',
-    tipo_tablero: '',
-  };
+    // Safe defaults
+    const safeDetalleTecnico = detalle_tecnico || {
+      fases: '',
+      voltaje: '-',
+      tipo_tablero: '',
+    };
 
-  const formatConditionKey = (key: string) => {
-    return key
-      .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, str => str.toUpperCase())
-      .replace(/_/g, ' ');
-  };
-
-  return (
-    <View style={styles.container}>
-      {/* Header Info */}
-      <View style={styles.headerSection}>
-        <View style={styles.headerTop}>
-          <MaterialCommunityIcons
-            name="lightning-bolt-outline"
-            size={24}
-            color="#06B6D4"
-          />
-          <Text style={styles.rotuloLabel}>
-            RÓTULO: <Text style={styles.rotuloValue}>{rotulo}</Text>
-          </Text>
-        </View>
-
-        <View style={styles.techGrid}>
-          <View style={styles.techItem}>
-            <Text style={styles.techLabel}>Montaje</Text>
-            <Text style={styles.techValue}>
-              {safeDetalleTecnico.tipo_tablero}
+    return (
+      <View style={styles.container}>
+        {/* Header Info */}
+        <View style={styles.headerSection}>
+          <View style={styles.headerTop}>
+            <MaterialCommunityIcons
+              name="lightning-bolt-outline"
+              size={24}
+              color="#06B6D4"
+            />
+            <Text style={styles.rotuloLabel}>
+              RÓTULO: <Text style={styles.rotuloValue}>{rotulo}</Text>
             </Text>
           </View>
-          <View style={styles.techItem}>
-            <Text style={styles.techLabel}>Voltaje</Text>
-            <Text style={styles.techValue}>{safeDetalleTecnico.voltaje} V</Text>
-          </View>
-          <View style={styles.techItem}>
-            <Text style={styles.techLabel}>Fases</Text>
-            <Text style={styles.techValue}>{safeDetalleTecnico.fases}</Text>
+
+          <View style={styles.techGrid}>
+            <View style={styles.techItem}>
+              <Text style={styles.techLabel}>Montaje</Text>
+              <Text style={styles.techValue}>
+                {safeDetalleTecnico.tipo_tablero}
+              </Text>
+            </View>
+            <View style={styles.techItem}>
+              <Text style={styles.techLabel}>Voltaje</Text>
+              <Text style={styles.techValue}>
+                {safeDetalleTecnico.voltaje} V
+              </Text>
+            </View>
+            <View style={styles.techItem}>
+              <Text style={styles.techLabel}>Fases</Text>
+              <Text style={styles.techValue}>{safeDetalleTecnico.fases}</Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      {/* ITGs Section */}
-      {itgs.map((itg, idx) => (
-        <View key={idx} style={styles.sectionContainer}>
-          <View style={styles.itgHeader}>
-            <View style={styles.itgTitleRow}>
-              <View style={styles.iconBox}>
-                <Text style={styles.iconText}>IG</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}>
-                  <Text style={styles.itgId}>{itg.id}</Text>
-                  {itg.fases ? (
-                    <View style={styles.phaseBadge}>
-                      <Text style={styles.phaseText}>{itg.fases}</Text>
-                    </View>
+        {/* ITGs Section */}
+        {itgs.map((itg, idx) => (
+          <View key={idx} style={styles.sectionContainer}>
+            <View style={styles.itgHeader}>
+              <View style={styles.itgTitleRow}>
+                <View style={styles.iconBox}>
+                  <Text style={styles.iconText}>IG</Text>
+                </View>
+                <View style={styles.flexOne}>
+                  <View style={styles.rowCenterGap8}>
+                    <Text style={styles.itgId}>{itg.id}</Text>
+                    {itg.fases ? (
+                      <View style={styles.phaseBadge}>
+                        <Text style={styles.phaseText}>{itg.fases}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  {itg.suministra ? (
+                    <Text style={styles.itgSupply}>
+                      Suministra: {itg.suministra}
+                    </Text>
                   ) : null}
                 </View>
-                {itg.suministra ? (
-                  <Text style={styles.itgSupply}>
-                    Suministra: {itg.suministra}
-                  </Text>
-                ) : null}
               </View>
-            </View>
 
-            {/* IT-G Technical Details */}
-            {(itg.amperaje || itg.diametro_cable || itg.tipo_cable) && (
-              <View style={styles.itgTechDetails}>
-                {itg.amperaje && (
-                  <View style={styles.itgTechItem}>
-                    <Text style={styles.itgTechLabel}>Amperaje</Text>
-                    <Text style={styles.itgTechValue}>{itg.amperaje}A</Text>
-                  </View>
-                )}
-                {itg.diametro_cable && (
-                  <View style={styles.itgTechItem}>
-                    <Text style={styles.itgTechLabel}>Diámetro</Text>
-                    <Text style={styles.itgTechValue}>
-                      {itg.diametro_cable} mm²
-                    </Text>
-                  </View>
-                )}
-                {itg.tipo_cable && (
-                  <View style={styles.itgTechItem}>
-                    <Text style={styles.itgTechLabel}>Cable</Text>
-                    <Text style={styles.itgTechValue}>{itg.tipo_cable}</Text>
-                  </View>
-                )}
-              </View>
-            )}
-          </View>
-
-          {/* ITMs List */}
-          <View style={styles.circuitsContainer}>
-            {itg.itms.map((itm, cIdx) => (
-              <View key={cIdx} style={styles.circuitItem}>
-                {/* Circuit Row - Compact Layout */}
-                <View style={styles.circuitRow}>
-                  <View
-                    style={[
-                      styles.circuitIdBox,
-                      itm.tipo === 'ID' && {
-                        backgroundColor: '#ECFEFF',
-                        borderColor: '#0891B2',
-                      },
-                    ]}>
-                    <Text
-                      style={[
-                        styles.circuitIdText,
-                        itm.tipo === 'ID' && { color: '#0891B2' },
-                      ]}>
-                      {itm.id}
-                    </Text>
-                  </View>
-                  <View style={styles.circuitContent}>
-                    <View style={styles.circuitTopRow}>
-                      {/* Badge de tipo */}
-                      <View
-                        style={[
-                          styles.typeBadge,
-                          itm.tipo === 'ID' && { backgroundColor: '#ECFEFF' },
-                        ]}>
-                        <Text
-                          style={[
-                            styles.typeText,
-                            itm.tipo === 'ID' && { color: '#0891B2' },
-                          ]}>
-                          {itm.tipo || 'ITM'}
-                        </Text>
-                      </View>
-                      <Text style={styles.circuitAmps}>{itm.amperaje}A</Text>
-                      <View style={styles.phaseBadge}>
-                        <Text style={styles.phaseText}>{itm.fases}</Text>
-                      </View>
-                    </View>
-                    {itm.tipo !== 'ID' && itm.suministra && (
-                      <Text style={styles.circuitSupplyText}>
-                        {itm.suministra}
-                      </Text>
-                    )}
-                    <Text style={styles.cableInfoText}>
-                      {itm.tipo_cable} • {itm.diametro_cable} mm²
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Differential Subsection (solo para ITM) */}
-                {itm.diferencial?.existe && (
-                  <View
-                    style={[
-                      styles.differentialBox,
-                      {
-                        backgroundColor: '#F0F9FF',
-                        borderLeftColor: Colors.light.tint,
-                      },
-                    ]}>
-                    <View style={styles.diffHeader}>
-                      <MaterialCommunityIcons
-                        name="current-ac"
-                        size={14}
-                        color={Colors.light.tint}
-                      />
-                      <Text
-                        style={[
-                          styles.diffTitle,
-                          { color: Colors.light.tint },
-                        ]}>
-                        Diferencial
-                      </Text>
-                    </View>
-                    <Text style={[styles.diffValue, { color: '#0369a1' }]}>
-                      {itm.diferencial.amperaje}A - {itm.diferencial.fases}
-                    </Text>
-                    {itm.diferencial.tipo_cable && (
-                      <Text style={[styles.diffCable, { color: '#0ea5e9' }]}>
-                        {itm.diferencial.tipo_cable} |{' '}
-                        {itm.diferencial.diametro_cable} mm²
-                      </Text>
-                    )}
-                  </View>
-                )}
-
-                {/* Sub-ITMs Section (para tipo ID e ITM con sub-ITMs) */}
-                {(itm.tipo === 'ID' || itm.tipo === 'ITM') &&
-                  itm.sub_itms &&
-                  itm.sub_itms.length > 0 && (
-                    <View style={styles.subItmsContainer}>
-                      <View style={styles.subItmsHeader}>
-                        <Ionicons
-                          name="git-branch-outline"
-                          size={14}
-                          color="#0891B2"
-                        />
-                        <Text style={styles.subItmsTitle}>
-                          ITMs Asociados ({itm.sub_itms.length})
-                        </Text>
-                      </View>
-                      {itm.sub_itms.map((subItm, sIdx) => (
-                        <View key={sIdx} style={styles.subItmCard}>
-                          <View style={styles.subItmRow}>
-                            <View style={styles.subItmIdBox}>
-                              <Text style={styles.subItmIdText}>
-                                {subItm.id}
-                              </Text>
-                            </View>
-                            <View style={styles.subItmContent}>
-                              <View style={styles.subItmTopRow}>
-                                <Text style={styles.subItmAmps}>
-                                  {subItm.amperaje}A
-                                </Text>
-                                <View style={styles.subItmPhaseBadge}>
-                                  <Text style={styles.subItmPhaseText}>
-                                    {subItm.fases}
-                                  </Text>
-                                </View>
-                              </View>
-                              {subItm.suministra && (
-                                <Text style={styles.subItmSupply}>
-                                  {subItm.suministra}
-                                </Text>
-                              )}
-                              <Text style={styles.subItmCable}>
-                                {subItm.tipo_cable} • {subItm.diametro_cable}{' '}
-                                mm²
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-                      ))}
+              {/* IT-G Technical Details */}
+              {(itg.amperaje || itg.diametro_cable || itg.tipo_cable) && (
+                <View style={styles.itgTechDetails}>
+                  {itg.amperaje && (
+                    <View style={styles.itgTechItem}>
+                      <Text style={styles.itgTechLabel}>Amperaje</Text>
+                      <Text style={styles.itgTechValue}>{itg.amperaje}A</Text>
                     </View>
                   )}
-              </View>
-            ))}
-          </View>
-        </View>
-      ))}
+                  {itg.diametro_cable && (
+                    <View style={styles.itgTechItem}>
+                      <Text style={styles.itgTechLabel}>Diámetro</Text>
+                      <Text style={styles.itgTechValue}>
+                        {itg.diametro_cable} mm²
+                      </Text>
+                    </View>
+                  )}
+                  {itg.tipo_cable && (
+                    <View style={styles.itgTechItem}>
+                      <Text style={styles.itgTechLabel}>Cable</Text>
+                      <Text style={styles.itgTechValue}>{itg.tipo_cable}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
 
-      {/* Additional Components */}
-      {componentes.length > 0 && (
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Componentes Adicionales</Text>
-          {componentes.map((comp, idx) => (
-            <View key={idx} style={styles.componentGroup}>
-              <Text style={styles.componentType}>{comp.tipo}</Text>
-              {comp.items.map((item, iIdx) => (
-                <View key={iIdx} style={styles.componentRow}>
-                  <Ionicons
-                    name="hardware-chip-outline"
-                    size={16}
-                    color="#4B5563"
-                  />
-                  <Text style={styles.compCode}>{item.codigo}</Text>
-                  <View style={styles.compDot} />
-                  <Text style={styles.compSupply}>{item.suministra}</Text>
+            {/* ITMs List */}
+            <View style={styles.circuitsContainer}>
+              {itg.itms.map((itm, cIdx) => (
+                <View key={cIdx} style={styles.circuitItem}>
+                  {/* Circuit Row - Compact Layout */}
+                  <View style={styles.circuitRow}>
+                    <View
+                      style={[
+                        styles.circuitIdBox,
+                        itm.tipo === 'ID' && styles.circuitIdBoxID,
+                      ]}>
+                      <Text
+                        style={[
+                          styles.circuitIdText,
+                          itm.tipo === 'ID' && { color: '#0891B2' },
+                        ]}>
+                        {itm.id}
+                      </Text>
+                    </View>
+                    <View style={styles.circuitContent}>
+                      <View style={styles.circuitTopRow}>
+                        {/* Badge de tipo */}
+                        <View
+                          style={[
+                            styles.typeBadge,
+                            itm.tipo === 'ID' && styles.typeBadgeID,
+                          ]}>
+                          <Text
+                            style={[
+                              styles.typeText,
+                              itm.tipo === 'ID' && styles.typeTextID,
+                            ]}>
+                            {itm.tipo || 'ITM'}
+                          </Text>
+                        </View>
+                        <Text style={styles.circuitAmps}>{itm.amperaje}A</Text>
+                        <View style={styles.phaseBadge}>
+                          <Text style={styles.phaseText}>{itm.fases}</Text>
+                        </View>
+                      </View>
+                      {itm.tipo !== 'ID' && itm.suministra && (
+                        <Text style={styles.circuitSupplyText}>
+                          {itm.suministra}
+                        </Text>
+                      )}
+                      <Text style={styles.cableInfoText}>
+                        {itm.tipo_cable} • {itm.diametro_cable} mm²
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Differential Subsection (solo para ITM) */}
+                  {itm.diferencial?.existe && (
+                    <View style={styles.differentialBoxActive}>
+                      <View style={styles.diffHeader}>
+                        <MaterialCommunityIcons
+                          name="current-ac"
+                          size={14}
+                          color={Colors.light.tint}
+                        />
+                        <Text style={styles.diffTitleActive}>Diferencial</Text>
+                      </View>
+                      <Text style={styles.diffValueActive}>
+                        {itm.diferencial.amperaje}A - {itm.diferencial.fases}
+                      </Text>
+                      {itm.diferencial.tipo_cable && (
+                        <Text style={styles.diffCableActive}>
+                          {itm.diferencial.tipo_cable} |{' '}
+                          {itm.diferencial.diametro_cable} mm²
+                        </Text>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Sub-ITMs Section (para tipo ID e ITM con sub-ITMs) */}
+                  {(itm.tipo === 'ID' || itm.tipo === 'ITM') &&
+                    itm.sub_itms &&
+                    itm.sub_itms.length > 0 && (
+                      <View style={styles.subItmsContainer}>
+                        <View style={styles.subItmsHeader}>
+                          <Ionicons
+                            name="git-branch-outline"
+                            size={14}
+                            color="#0891B2"
+                          />
+                          <Text style={styles.subItmsTitle}>
+                            ITMs Asociados ({itm.sub_itms.length})
+                          </Text>
+                        </View>
+                        {itm.sub_itms.map((subItm, sIdx) => (
+                          <View key={sIdx} style={styles.subItmCard}>
+                            <View style={styles.subItmRow}>
+                              <View style={styles.subItmIdBox}>
+                                <Text style={styles.subItmIdText}>
+                                  {subItm.id}
+                                </Text>
+                              </View>
+                              <View style={styles.subItmContent}>
+                                <View style={styles.subItmTopRow}>
+                                  <Text style={styles.subItmAmps}>
+                                    {subItm.amperaje}A
+                                  </Text>
+                                  <View style={styles.subItmPhaseBadge}>
+                                    <Text style={styles.subItmPhaseText}>
+                                      {subItm.fases}
+                                    </Text>
+                                  </View>
+                                </View>
+                                {subItm.suministra && (
+                                  <Text style={styles.subItmSupply}>
+                                    {subItm.suministra}
+                                  </Text>
+                                )}
+                                <Text style={styles.subItmCable}>
+                                  {subItm.tipo_cable} • {subItm.diametro_cable}{' '}
+                                  mm²
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
                 </View>
               ))}
             </View>
-          ))}
-        </View>
-      )}
+          </View>
+        ))}
 
-      {/* Special Conditions */}
-      {Object.keys(condiciones_especiales).length > 0 && (
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Condiciones Especiales</Text>
-          <View style={styles.conditionsGrid}>
-            {Object.entries(condiciones_especiales).map(([key, value]) => (
-              <View
-                key={key}
-                style={[
-                  styles.conditionChip,
-                  !value && {
-                    backgroundColor: '#F3F4F6',
-                    borderColor: '#E5E7EB',
-                  },
-                ]}>
-                <Ionicons
-                  name={value ? 'checkmark-circle' : 'close-circle'}
-                  size={16}
-                  color={value ? Colors.light.tint : Colors.light.icon}
-                />
-                <Text
-                  style={[
-                    styles.conditionLabel,
-                    !value && { color: Colors.light.icon },
-                  ]}>
-                  {formatConditionKey(key)}
-                </Text>
+        {/* Additional Components */}
+        {componentes.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Componentes Adicionales</Text>
+            {componentes.map((comp, idx) => (
+              <View key={idx} style={styles.componentGroup}>
+                <Text style={styles.componentType}>{comp.tipo}</Text>
+                {comp.items.map((item, iIdx) => (
+                  <View key={iIdx} style={styles.componentRow}>
+                    <Ionicons
+                      name="hardware-chip-outline"
+                      size={16}
+                      color="#4B5563"
+                    />
+                    <Text style={styles.compCode}>{item.codigo}</Text>
+                    <View style={styles.compDot} />
+                    <Text style={styles.compSupply}>{item.suministra}</Text>
+                  </View>
+                ))}
               </View>
             ))}
           </View>
-        </View>
-      )}
-    </View>
-  );
-};
+        )}
+
+        {/* Special Conditions */}
+        {Object.keys(condiciones_especiales).length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Condiciones Especiales</Text>
+            <View style={styles.conditionsGrid}>
+              {Object.entries(condiciones_especiales).map(([key, value]) => (
+                <View
+                  key={key}
+                  style={[
+                    styles.conditionChip,
+                    !value && styles.conditionChipInactive,
+                  ]}>
+                  <Ionicons
+                    name={value ? 'checkmark-circle' : 'close-circle'}
+                    size={16}
+                    color={value ? Colors.light.tint : Colors.light.icon}
+                  />
+                  <Text
+                    style={[
+                      styles.conditionLabel,
+                      !value && styles.conditionLabelInactive,
+                    ]}>
+                    {formatConditionKey(key)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  },
+);
+PanelDetailContent.displayName = 'PanelDetailContent';
 
 const styles = StyleSheet.create({
   container: {
@@ -851,5 +833,56 @@ const styles = StyleSheet.create({
   subItmCable: {
     fontSize: 10,
     color: '#94A3B8',
+  },
+
+  // ── Extracted inline styles ───────────────────────────────────────────
+  flexOne: {
+    flex: 1,
+  },
+  rowCenterGap8: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  circuitIdBoxID: {
+    backgroundColor: '#ECFEFF',
+    borderColor: '#0891B2',
+  },
+  typeBadgeID: {
+    backgroundColor: '#ECFEFF',
+  },
+  typeTextID: {
+    color: '#0891B2',
+  },
+  differentialBoxActive: {
+    marginTop: 10,
+    backgroundColor: '#F0F9FF',
+    borderRadius: 8,
+    padding: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.light.tint,
+  },
+  diffTitleActive: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    color: Colors.light.tint,
+  },
+  diffValueActive: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0369a1',
+  },
+  diffCableActive: {
+    fontSize: 11,
+    marginTop: 2,
+    color: '#0ea5e9',
+  },
+  conditionChipInactive: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+  },
+  conditionLabelInactive: {
+    color: Colors.light.icon,
   },
 });

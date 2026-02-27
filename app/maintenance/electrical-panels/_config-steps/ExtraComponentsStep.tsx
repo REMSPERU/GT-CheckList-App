@@ -57,6 +57,48 @@ const localStyles = StyleSheet.create({
   itemSubtitle: { marginBottom: 8 },
 });
 
+// ── Per-item form row (memoized) ────────────────────────────────────────────
+// Each item reads its own Controller slice, so editing item N does NOT
+// re-render items 0..N-1 or N+1..max.
+interface ComponentFormItemProps {
+  type: ExtraComponentType;
+  index: number;
+  label: string;
+}
+
+const ComponentFormItem = memo(function ComponentFormItem({
+  type,
+  index,
+  label,
+}: ComponentFormItemProps) {
+  const { control } = useFormContext<PanelConfigurationFormValues>();
+
+  return (
+    <View style={localStyles.itemContainer}>
+      <Text style={[styles.cnLabel, localStyles.itemLabel]}>
+        {label.toUpperCase()} {index + 1}
+      </Text>
+      <Text style={[styles.itgSubtitle, localStyles.itemSubtitle]}>
+        Que suministra electricamente?
+      </Text>
+      <Controller
+        control={control}
+        name={`extraComponents.${type}.${index}.description`}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            style={styles.itgInput}
+            value={value}
+            onChangeText={onChange}
+            onBlur={onBlur}
+            placeholder="Ingrese descripcion"
+            placeholderTextColor="#9CA3AF"
+          />
+        )}
+      />
+    </View>
+  );
+});
+
 // ── Per-type ComponentCard (memoized) ───────────────────────────────────────
 // Each card watches only its own slice of the form via useWatch. This means
 // editing "Contactores" never re-renders "Relays", "Timers", etc.
@@ -121,29 +163,13 @@ const ComponentCard = memo(function ComponentCard({
           </View>
 
           {componentList.map(
-            (item: { id: string; description: string }, idx: number) => (
-              <View key={`${type}-${idx}`} style={localStyles.itemContainer}>
-                <Text style={[styles.cnLabel, localStyles.itemLabel]}>
-                  {label.toUpperCase()} {idx + 1}
-                </Text>
-                <Text style={[styles.itgSubtitle, localStyles.itemSubtitle]}>
-                  Que suministra electricamente?
-                </Text>
-                <Controller
-                  control={control}
-                  name={`extraComponents.${type}.${idx}.description`}
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      style={styles.itgInput}
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      placeholder="Ingrese descripcion"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                  )}
-                />
-              </View>
+            (_item: { id: string; description: string }, idx: number) => (
+              <ComponentFormItem
+                key={`${type}-${idx}`}
+                type={type}
+                index={idx}
+                label={label}
+              />
             ),
           )}
         </View>

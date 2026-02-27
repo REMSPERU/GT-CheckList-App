@@ -14,6 +14,9 @@ import { useUserRole } from '@/hooks/use-user-role';
 import { useEffect, useState } from 'react';
 import { DatabaseService } from '@/services/database';
 
+// ── Static style constant (avoid re-creating on every render) ──────────────
+const flexOneStyle = { flex: 1 } as const;
+
 export default function PanelDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -56,7 +59,7 @@ export default function PanelDetailScreen() {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Detalle del Tablero</Text>
-        <View style={{ flex: 1 }} />
+        <View style={flexOneStyle} />
         {!isLoading && panel && (isAdmin || isSupervisor) && (
           <TouchableOpacity
             onPress={() => {
@@ -80,7 +83,7 @@ export default function PanelDetailScreen() {
         // No spinner — SQLite is instant (<10ms) so showing a spinner
         // would only produce a layout jump when content replaces it.
         // The body just stays empty for that brief moment.
-        <View style={{ flex: 1 }} />
+        <View style={flexOneStyle} />
       ) : !panel || !detail ? (
         <View style={styles.centerContent}>
           <Text>No se encontró información del detalle.</Text>
