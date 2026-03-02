@@ -34,6 +34,13 @@ const EQUIPMENT_OPTIONS: EquipmentOption[] = [
     color: '#0891B2',
     description: 'Historial y reportes de luces de emergencia',
   },
+  {
+    type: 'pozo',
+    name: 'Pozo a Tierra',
+    icon: 'earth',
+    color: '#0891B2',
+    description: 'Historial de mantenimiento de pozos a tierra',
+  },
 ];
 
 export default function EquipmentSelectionScreen() {
