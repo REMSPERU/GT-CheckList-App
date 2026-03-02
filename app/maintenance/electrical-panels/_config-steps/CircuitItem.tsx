@@ -162,6 +162,7 @@ const ID_SUB_ITM_COUNT_OPTIONS = ['1', '2', '3'];
 interface CircuitItemProps {
   index: number;
   itgIndex: number;
+  cnPrefix: string;
   isExpanded: boolean;
   onToggleExpand: (index: number) => void;
 }
@@ -280,20 +281,17 @@ const SubITMFormItem = memo(function SubITMFormItem({
 });
 
 // ─── COLLAPSED HEADER ─────────────────────────────────────────────────────────
-// Minimal hooks: only watches cnPrefix (a lightweight scalar).
+// Receives cnPrefix as a prop (single subscription at the parent level via
+// CircuitsConfigStep) instead of each collapsed header subscribing individually.
+// With 29 collapsed items, this eliminates 29 useWatch subscriptions that each
+// triggered re-renders when cnPrefix changed.
 const CollapsedCircuitHeader = memo(function CollapsedCircuitHeader({
   index,
   itgIndex,
+  cnPrefix,
   onToggleExpand,
 }: Omit<CircuitItemProps, 'isExpanded'>) {
-  const { getValues, control } = useFormContext<PanelConfigurationFormValues>();
-
-  // Read cnPrefix reactively so the label updates when the user edits it
-  const cnPrefix =
-    useWatch({
-      control,
-      name: `itgCircuits.${itgIndex}.cnPrefix` as const,
-    }) || '';
+  const { getValues } = useFormContext<PanelConfigurationFormValues>();
 
   // Read name imperatively (no subscription, no re-renders from other fields)
   const name = getValues(
@@ -321,6 +319,9 @@ const CollapsedCircuitHeader = memo(function CollapsedCircuitHeader({
 
 // ─── EXPANDED CONTENT ─────────────────────────────────────────────────────────
 // All hooks live here -- only mounted for the single expanded item.
+// cnPrefix is passed as a prop but we also useWatch it here since the expanded
+// item needs to react to live edits in the prefix field. This is fine because
+// only 1 item is expanded at a time (1 subscription vs N).
 const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
   index,
   itgIndex,
@@ -939,6 +940,7 @@ function CircuitItemWrapper(props: CircuitItemProps) {
       <ExpandedCircuitContent
         index={props.index}
         itgIndex={props.itgIndex}
+        cnPrefix={props.cnPrefix}
         onToggleExpand={props.onToggleExpand}
       />
     );
@@ -947,6 +949,7 @@ function CircuitItemWrapper(props: CircuitItemProps) {
     <CollapsedCircuitHeader
       index={props.index}
       itgIndex={props.itgIndex}
+      cnPrefix={props.cnPrefix}
       onToggleExpand={props.onToggleExpand}
     />
   );

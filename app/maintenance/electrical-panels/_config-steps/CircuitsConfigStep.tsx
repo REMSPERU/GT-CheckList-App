@@ -65,7 +65,7 @@ const ListHeader = memo(function ListHeader({
   itgDescription,
   onCircuitsCountChange,
 }: HeaderProps) {
-  const { control, setValue, getValues, getFieldState, trigger } =
+  const { control, setValue, getValues, getFieldState } =
     useFormContext<PanelConfigurationFormValues>();
 
   const tabLabels = useMemo(
@@ -245,6 +245,15 @@ const CircuitsConfigStep = forwardRef<
     name: `itgDescriptions.${selectedItgIndex}` as const,
   });
 
+  // Watch cnPrefix at the parent level — a single lightweight scalar subscription
+  // instead of N subscriptions inside each CollapsedCircuitHeader. Passed as a
+  // prop to every CircuitItem so collapsed headers never need useWatch.
+  const cnPrefix =
+    useWatch({
+      control,
+      name: `itgCircuits.${selectedItgIndex}.cnPrefix` as const,
+    }) || '';
+
   // ── Validation & Navigation ──────────────────────────────────────────────
 
   const validateCurrentItg = useCallback(async (): Promise<boolean> => {
@@ -369,8 +378,12 @@ const CircuitsConfigStep = forwardRef<
 
   // Stable index-only data array. Only re-created when count or ITG changes.
   // Each CircuitItem reads its own form data — we never pass CircuitConfig here.
+  // selectedItgIndex is intentionally included: when switching ITG tabs the items
+  // represent a different ITG's circuits, so we must create fresh identity objects
+  // even when circuitsCount hasn't changed.
   const stableData = useMemo<CircuitIndexItem[]>(
     () => Array.from({ length: circuitsCount }, (_, i) => ({ _idx: i })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [circuitsCount, selectedItgIndex],
   );
 
@@ -389,22 +402,23 @@ const CircuitsConfigStep = forwardRef<
     [expandedIndices],
   );
 
-  // renderItem is now stable across expand/collapse and cnPrefix changes.
-  // - cnPrefix: each CircuitItem reads it via useWatch internally (Fix #5)
+  // renderItem is now stable across expand/collapse changes.
+  // - cnPrefix: passed as a prop from the single parent-level useWatch
   // - expandedSet: read from ref (Fix #8)
-  // - only `selectedItgIndex` and `toggleExpand` can change its identity
+  // - only `selectedItgIndex`, `toggleExpand`, and `cnPrefix` can change its identity
   const renderItem = useCallback(
     ({ item }: { item: CircuitIndexItem }) => (
       <View style={paddingStyle}>
         <CircuitItem
           index={item._idx}
           itgIndex={selectedItgIndex}
+          cnPrefix={cnPrefix}
           isExpanded={expandedSetRef.current.has(item._idx)}
           onToggleExpand={toggleExpand}
         />
       </View>
     ),
-    [selectedItgIndex, toggleExpand],
+    [selectedItgIndex, toggleExpand, cnPrefix],
   );
 
   // Memoize the header element so FlatList doesn't re-mount it
@@ -461,8 +475,8 @@ const CircuitsConfigStep = forwardRef<
         renderItem={renderItem}
         ListHeaderComponent={headerElement}
         initialNumToRender={5}
-        maxToRenderPerBatch={5}
-        windowSize={5}
+        maxToRenderPerBatch={3}
+        windowSize={3}
         // removeClippedSubviews can cause crashes with complex items
         // (TextInputs, pickers, nested views) on both platforms. For form-heavy
         // lists where stability is critical, keep it disabled.

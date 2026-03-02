@@ -164,11 +164,14 @@ export function usePanelConfiguration(
         diagramaUnifilarDirectorio: false,
       },
     },
-    // 'onBlur' prevents full Zod schema validation on every keystroke.
-    // With 'onChange', each character typed runs the entire PanelConfigurationSchema
-    // (including nested arrays with superRefine), causing significant lag.
-    // Step-level validation is handled explicitly in validateCurrentStep().
-    mode: 'onBlur',
+    // 'onSubmit' prevents the Zod resolver from running automatically on blur
+    // or change. With 'onBlur', every blur event runs the full
+    // PanelConfigurationSchema (including superRefine over all 30+ circuits),
+    // causing a noticeable freeze. All validation is handled explicitly:
+    // - Per-step via validateCurrentStep()
+    // - Per-ITG via validateCurrentItg() in CircuitsConfigStep
+    // - Final submit via the last step's goNext()
+    mode: 'onSubmit',
   });
 
   const { trigger, getValues, reset } = form;
@@ -204,30 +207,17 @@ export function usePanelConfiguration(
     }
   }, [getStorageKey, getValues, initialPanel?.id]);
 
-  // ── Auto-save: periodic interval + dirty flag ────────────────────────────
-  // Instead of saving on every keystroke (which caused lag with watch()),
-  // we use a lightweight dirty flag. The form.watch() subscription just
-  // flips the flag — zero serialization cost. A setInterval checks the
-  // flag every AUTO_SAVE_INTERVAL_MS and persists only when dirty.
-  const isDirtyRef = useRef(false);
+  // ── Auto-save: periodic interval ──────────────────────────────────────────
+  // Saves every AUTO_SAVE_INTERVAL_MS unconditionally. The cost per tick is
+  // one JSON.stringify + one AsyncStorage.setItem — negligible compared to
+  // the old form.watch() approach which deep-cloned the entire form values
+  // tree (300+ fields with 30 circuits) on *every single keystroke*.
   const saveDraftRef = useRef(saveDraft);
   saveDraftRef.current = saveDraft;
 
-  // Mark dirty on any form change (the subscription callback is very cheap)
-  useEffect(() => {
-    const subscription = form.watch(() => {
-      isDirtyRef.current = true;
-    });
-    return () => subscription.unsubscribe();
-  }, [form]);
-
-  // Periodic flush — only writes when dirty
   useEffect(() => {
     const interval = setInterval(() => {
-      if (isDirtyRef.current) {
-        isDirtyRef.current = false;
-        saveDraftRef.current();
-      }
+      saveDraftRef.current();
     }, AUTO_SAVE_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
@@ -238,10 +228,7 @@ export function usePanelConfiguration(
       // 'background' on Android, 'inactive' on iOS (when the app is about
       // to go to background or the task switcher is shown).
       if (nextState === 'background' || nextState === 'inactive') {
-        if (isDirtyRef.current) {
-          isDirtyRef.current = false;
-          saveDraftRef.current();
-        }
+        saveDraftRef.current();
       }
     };
 
