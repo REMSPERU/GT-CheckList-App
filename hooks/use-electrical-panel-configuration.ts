@@ -9,6 +9,7 @@ import {
   PanelConfigurationSchema,
   PanelConfigurationFormValues,
   PanelConfigurationDraftSchema,
+  DEFAULT_CIRCUIT,
 } from '@/schemas/panel-configuration';
 import { DatabaseService } from '@/services/database';
 import { syncQueue } from '@/services/sync-queue';
@@ -62,24 +63,6 @@ export function isFirstStep(stepId: StepId): boolean {
 // ============================================================================
 // DEFAULT VALUES
 // ============================================================================
-
-const DEFAULT_CIRCUIT: PanelConfigurationFormValues['itgCircuits'][number]['circuits'][number] =
-  {
-    interruptorType: 'itm',
-    phase: 'mono_2w',
-    amperaje: '',
-    diameter: '',
-    cableType: 'libre_halogeno',
-    supply: '',
-    hasID: false,
-    phaseID: undefined,
-    amperajeID: '',
-    diameterID: '',
-    cableTypeID: undefined,
-    hasSubITMs: false,
-    subITMsCount: '1',
-    subITMs: [],
-  };
 
 // Helper labels — defined once at module level to avoid re-creation on each save
 const PHASE_LABELS: Record<string, string> = {

@@ -327,7 +327,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
   itgIndex,
   onToggleExpand,
 }: Omit<CircuitItemProps, 'isExpanded'>) {
-  const { control, setValue, getValues, getFieldState } =
+  const { control, setValue, getValues } =
     useFormContext<PanelConfigurationFormValues>();
 
   const prefix = `itgCircuits.${itgIndex}.circuits.${index}` as const;
@@ -477,17 +477,16 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
     }
   }, [prefix, hasID, setValue]);
 
-  // Read errors imperatively via getFieldState() — avoids subscribing to
-  // the entire formState.errors tree which would cause this component to
-  // re-render on any validation error anywhere in the form.
-  const amperajeState = getFieldState(`${prefix}.amperaje` as any);
-  const diameterState = getFieldState(`${prefix}.diameter` as any);
-  const cableTypeState = getFieldState(`${prefix}.cableType` as any);
-  const hasErrors = !!(
-    amperajeState.error ||
-    diameterState.error ||
-    cableTypeState.error
-  );
+  // Track individual field errors via local state — updated by each Controller's
+  // fieldState.error. This replaces the imperative getFieldState() calls that
+  // couldn't trigger re-renders when validation errors were set/cleared by trigger().
+  const [fieldErrors, setFieldErrors] = useState({
+    amperaje: false,
+    diameter: false,
+    cableType: false,
+  });
+  const hasErrors =
+    fieldErrors.amperaje || fieldErrors.diameter || fieldErrors.cableType;
 
   // Build stable base paths for sub-ITM forms to avoid string concatenation in render
   const subITMBasePath = `${prefix}.subITMs`;
@@ -597,91 +596,126 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
             />
 
             <Text style={styles.cnLabel}>AMPERAJE:</Text>
-            <View style={styles.inputWithUnitWrapper}>
-              <Controller
-                control={control}
-                name={`${prefix}.amperaje`}
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    style={[
-                      styles.itgInputWithUnit,
-                      amperajeState.error && styles.inputError,
-                    ]}
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    placeholder="Ingrese amperaje"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="numeric"
-                  />
-                )}
-              />
-              <Text style={styles.unitText}>A</Text>
-            </View>
-            {amperajeState.error && (
-              <Text style={styles.errorText}>
-                {amperajeState.error.message}
-              </Text>
-            )}
+            <Controller
+              control={control}
+              name={`${prefix}.amperaje`}
+              render={({
+                field: { onChange, onBlur, value },
+                fieldState: { error: amperajeError },
+              }) => {
+                const hasError = !!amperajeError;
+                if (hasError !== fieldErrors.amperaje) {
+                  setFieldErrors(prev => ({ ...prev, amperaje: hasError }));
+                }
+                return (
+                  <>
+                    <View style={styles.inputWithUnitWrapper}>
+                      <TextInput
+                        style={[
+                          styles.itgInputWithUnit,
+                          amperajeError && styles.inputError,
+                        ]}
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        placeholder="Ingrese amperaje"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="numeric"
+                      />
+                      <Text style={styles.unitText}>A</Text>
+                    </View>
+                    {amperajeError && (
+                      <Text style={styles.errorText}>
+                        {amperajeError.message}
+                      </Text>
+                    )}
+                  </>
+                );
+              }}
+            />
 
             {/* Diametro */}
             <Text style={styles.cnLabel}>DIAMETRO:</Text>
-            <View
-              style={[
-                styles.inputWithUnitWrapper,
-                diameterState.error && errorBorderStyle,
-              ]}>
-              <Controller
-                control={control}
-                name={`${prefix}.diameter`}
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    style={styles.itgInputWithUnit}
-                    value={value || ''}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    placeholder="Ingrese diametro"
-                    placeholderTextColor="#9CA3AF"
-                    keyboardType="numeric"
-                  />
-                )}
-              />
-              <Text style={styles.unitText}>mm2</Text>
-            </View>
-            {diameterState.error && (
-              <Text style={styles.errorText}>
-                {diameterState.error.message}
-              </Text>
-            )}
+            <Controller
+              control={control}
+              name={`${prefix}.diameter`}
+              render={({
+                field: { onChange, onBlur, value },
+                fieldState: { error: diameterError },
+              }) => {
+                const hasError = !!diameterError;
+                if (hasError !== fieldErrors.diameter) {
+                  setFieldErrors(prev => ({ ...prev, diameter: hasError }));
+                }
+                return (
+                  <>
+                    <View
+                      style={[
+                        styles.inputWithUnitWrapper,
+                        diameterError && errorBorderStyle,
+                      ]}>
+                      <TextInput
+                        style={styles.itgInputWithUnit}
+                        value={value || ''}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        placeholder="Ingrese diametro"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="numeric"
+                      />
+                      <Text style={styles.unitText}>mm2</Text>
+                    </View>
+                    {diameterError && (
+                      <Text style={styles.errorText}>
+                        {diameterError.message}
+                      </Text>
+                    )}
+                  </>
+                );
+              }}
+            />
 
             {/* Tipo de Cable */}
             <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
             <Controller
               control={control}
               name={`${prefix}.cableType`}
-              render={({ field: { onChange, value } }) => (
-                <RNPickerSelect
-                  onValueChange={onChange}
-                  items={CABLE_TYPE_PICKER_ITEMS}
-                  placeholder={GENERIC_PLACEHOLDER}
-                  value={value}
-                  style={
-                    cableTypeState.error
-                      ? pickerErrorStyleWithIcon
-                      : pickerStyleWithIcon
-                  }
-                  useNativeAndroidPickerStyle={false}
-                  Icon={
-                    cableTypeState.error
-                      ? PickerChevronErrorIcon
-                      : PickerChevronIcon
-                  }
-                />
-              )}
+              render={({
+                field: { onChange, value },
+                fieldState: { error: cableTypeError },
+              }) => {
+                const hasError = !!cableTypeError;
+                if (hasError !== fieldErrors.cableType) {
+                  setFieldErrors(prev => ({ ...prev, cableType: hasError }));
+                }
+                return (
+                  <>
+                    <RNPickerSelect
+                      onValueChange={onChange}
+                      items={CABLE_TYPE_PICKER_ITEMS}
+                      placeholder={GENERIC_PLACEHOLDER}
+                      value={value}
+                      style={
+                        cableTypeError
+                          ? pickerErrorStyleWithIcon
+                          : pickerStyleWithIcon
+                      }
+                      useNativeAndroidPickerStyle={false}
+                      Icon={
+                        cableTypeError
+                          ? PickerChevronErrorIcon
+                          : PickerChevronIcon
+                      }
+                    />
+                    {cableTypeError && (
+                      <Text style={styles.errorText}>
+                        Seleccione tipo de cable
+                      </Text>
+                    )}
+                  </>
+                );
+              }}
             />
-            {cableTypeState.error && (
-              <Text style={styles.errorText}>Seleccione tipo de cable</Text>
-            )}
 
             {/* ── ITM-specific sections ── */}
             {interruptorType === 'itm' && (

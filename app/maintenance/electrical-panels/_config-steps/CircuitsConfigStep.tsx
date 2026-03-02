@@ -12,9 +12,11 @@ import { useFormContext, Controller, useWatch } from 'react-hook-form';
 import {
   CircuitsConfigStepProps,
   CircuitsConfigStepRef,
-  CircuitConfig,
 } from '@/types/panel-configuration';
-import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
+import {
+  PanelConfigurationFormValues,
+  DEFAULT_CIRCUIT,
+} from '@/schemas/panel-configuration';
 import {
   useState,
   useEffect,
@@ -28,24 +30,6 @@ import {
 import ProgressTabs from '@/components/progress-tabs';
 import { styles } from './_styles';
 import CircuitItem from './CircuitItem';
-
-const DEFAULT_CIRCUIT: CircuitConfig = {
-  name: undefined,
-  interruptorType: 'itm',
-  phase: 'mono_2w',
-  amperaje: '',
-  diameter: '',
-  cableType: undefined,
-  supply: '',
-  hasID: false,
-  phaseID: undefined,
-  amperajeID: '',
-  diameterID: '',
-  cableTypeID: 'libre_halogeno',
-  hasSubITMs: false,
-  subITMsCount: '1',
-  subITMs: [],
-};
 
 // ─── Extracted Header Component ──────────────────────────────────────────────
 // Extracted as a separate memoized component so that TextInput focus is never
@@ -65,23 +49,13 @@ const ListHeader = memo(function ListHeader({
   itgDescription,
   onCircuitsCountChange,
 }: HeaderProps) {
-  const { control, setValue, getValues, getFieldState } =
+  const { control, setValue, getValues } =
     useFormContext<PanelConfigurationFormValues>();
 
   const tabLabels = useMemo(
     () =>
       Array.from({ length: itgCircuitsLength }, (_, i) => `IT - G${i + 1} `),
     [itgCircuitsLength],
-  );
-
-  // Read errors imperatively — avoids subscribing to the entire formState.errors tree.
-  // We trigger field-level validation on blur / submit; here we just need to
-  // display the state after trigger() has run.
-  const prefixState = getFieldState(
-    `itgCircuits.${selectedItgIndex}.cnPrefix` as any,
-  );
-  const countState = getFieldState(
-    `itgCircuits.${selectedItgIndex}.circuitsCount` as any,
   );
 
   // Circuits count handler — local to the header so it doesn't force
@@ -151,20 +125,25 @@ const ListHeader = memo(function ListHeader({
         <Controller
           control={control}
           name={`itgCircuits.${selectedItgIndex}.cnPrefix` as const}
-          render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
-              style={[styles.input, prefixState.error && styles.inputError]}
-              value={value}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="CN, SA"
-              placeholderTextColor="#9CA3AF"
-            />
+          render={({
+            field: { onChange, onBlur, value },
+            fieldState: { error: prefixError },
+          }) => (
+            <>
+              <TextInput
+                style={[styles.input, prefixError && styles.inputError]}
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="CN, SA"
+                placeholderTextColor="#9CA3AF"
+              />
+              {prefixError && (
+                <Text style={styles.errorText}>{prefixError.message}</Text>
+              )}
+            </>
           )}
         />
-        {prefixState.error && (
-          <Text style={styles.errorText}>{prefixState.error.message}</Text>
-        )}
       </View>
 
       {/* ¿Cuántos circuitos tienes? */}
@@ -173,21 +152,23 @@ const ListHeader = memo(function ListHeader({
         <Controller
           control={control}
           name={`itgCircuits.${selectedItgIndex}.circuitsCount` as const}
-          render={({ field: { value } }) => (
-            <TextInput
-              style={[styles.countInput, countState.error && styles.inputError]}
-              value={value}
-              onChangeText={updateCircuitsCount}
-              keyboardType="numeric"
-              placeholder="1"
-              placeholderTextColor="#9CA3AF"
-            />
+          render={({ field: { value }, fieldState: { error: countError } }) => (
+            <>
+              <TextInput
+                style={[styles.countInput, countError && styles.inputError]}
+                value={value}
+                onChangeText={updateCircuitsCount}
+                keyboardType="numeric"
+                placeholder="1"
+                placeholderTextColor="#9CA3AF"
+              />
+              {countError && (
+                <Text style={styles.errorText}>{countError.message}</Text>
+              )}
+            </>
           )}
         />
       </View>
-      {countState.error && (
-        <Text style={styles.errorText}>{countState.error.message}</Text>
-      )}
     </View>
   );
 });

@@ -159,6 +159,42 @@ export type PanelConfigurationFormValues = z.infer<
 >;
 
 // ============================================================================
+// DEFAULT VALUES (single source of truth)
+// ============================================================================
+// Shared across the hook, CircuitsConfigStep, and ITGConfigStep so that
+// circuits created from any code path have identical defaults.
+
+export const DEFAULT_CIRCUIT: PanelConfigurationFormValues['itgCircuits'][number]['circuits'][number] =
+  {
+    name: undefined,
+    interruptorType: 'itm',
+    phase: 'mono_2w',
+    amperaje: '',
+    diameter: '',
+    cableType: 'libre_halogeno',
+    supply: '',
+    hasID: false,
+    phaseID: undefined,
+    amperajeID: '',
+    diameterID: '',
+    cableTypeID: 'libre_halogeno',
+    hasSubITMs: false,
+    subITMsCount: '1',
+    subITMs: [],
+  };
+
+export const DEFAULT_ITG_CIRCUIT: PanelConfigurationFormValues['itgCircuits'][number] =
+  {
+    cnPrefix: 'CN',
+    circuitsCount: '1',
+    circuits: [{ ...DEFAULT_CIRCUIT }],
+    phaseITG: 'mono_2w',
+    amperajeITG: '',
+    diameterITG: '',
+    cableTypeITG: 'libre_halogeno',
+  };
+
+// ============================================================================
 // DRAFT SCHEMA (permisivo)
 // ============================================================================
 // Esquema que solo valida la estructura/tipos sin reglas de negocio.

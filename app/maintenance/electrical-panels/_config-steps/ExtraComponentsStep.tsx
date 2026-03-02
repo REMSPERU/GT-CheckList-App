@@ -1,7 +1,7 @@
 import { View, Text, Switch, TextInput, StyleSheet } from 'react-native';
 import { useFormContext, Controller, useWatch } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ExtraComponentsStepProps,
   ExtraComponentType,
@@ -100,8 +100,10 @@ const ComponentFormItem = memo(function ComponentFormItem({
 });
 
 // ── Per-type ComponentCard (memoized) ───────────────────────────────────────
-// Each card watches only its own slice of the form via useWatch. This means
-// editing "Contactores" never re-renders "Relays", "Timers", etc.
+// Uses local `itemCount` state instead of useWatch on the full component array.
+// This means typing in any ComponentFormItem description field does NOT
+// re-render the ComponentCard or sibling ComponentFormItems. The count is
+// synced via the `onUpdateQuantity` callback (which also sets form state).
 interface ComponentCardProps {
   type: ExtraComponentType;
   label: string;
@@ -119,16 +121,40 @@ const ComponentCard = memo(function ComponentCard({
   onToggle,
   onUpdateQuantity,
 }: ComponentCardProps) {
-  const { control } = useFormContext<PanelConfigurationFormValues>();
+  const { getValues } = useFormContext<PanelConfigurationFormValues>();
 
-  // Each card watches only its own component list — changes to other
-  // component types won't cause this card to re-render.
-  const componentList =
-    useWatch({
-      control,
-      name: `extraComponents.${type}`,
-      defaultValue: [],
-    }) || [];
+  // Local state for item count — seeded from the form array length.
+  // Updated when the user changes the quantity TextInput.
+  const [itemCount, setItemCount] = useState(() => {
+    const list = getValues(`extraComponents.${type}`) || [];
+    return (list as any[]).length;
+  });
+
+  // Re-seed itemCount when the card becomes enabled (the parent's toggleComponent
+  // may have initialized the array to 1 item).
+  useEffect(() => {
+    if (isEnabled) {
+      const list = getValues(`extraComponents.${type}`) || [];
+      setItemCount((list as any[]).length);
+    }
+  }, [isEnabled, getValues, type]);
+
+  // Wrap onUpdateQuantity to also update local count state
+  const handleUpdateQuantity = useCallback(
+    (val: string) => {
+      const parsed = parseInt(val || '0', 10);
+      const qty = isNaN(parsed) ? 0 : Math.max(0, parsed);
+      setItemCount(qty);
+      onUpdateQuantity(val);
+    },
+    [onUpdateQuantity],
+  );
+
+  // Stable index array — only re-created when count changes
+  const itemIndices = useMemo(
+    () => Array.from({ length: itemCount }, (_, i) => i),
+    [itemCount],
+  );
 
   return (
     <View style={styles.componentCard}>
@@ -156,22 +182,20 @@ const ComponentCard = memo(function ComponentCard({
             <Text style={styles.countLabel}>Cuantos tienes?</Text>
             <TextInput
               style={styles.countInput}
-              value={String(componentList.length)}
-              onChangeText={onUpdateQuantity}
+              value={String(itemCount)}
+              onChangeText={handleUpdateQuantity}
               keyboardType="numeric"
             />
           </View>
 
-          {componentList.map(
-            (_item: { id: string; description: string }, idx: number) => (
-              <ComponentFormItem
-                key={`${type}-${idx}`}
-                type={type}
-                index={idx}
-                label={label}
-              />
-            ),
-          )}
+          {itemIndices.map(idx => (
+            <ComponentFormItem
+              key={`${type}-${idx}`}
+              type={type}
+              index={idx}
+              label={label}
+            />
+          ))}
         </View>
       )}
     </View>

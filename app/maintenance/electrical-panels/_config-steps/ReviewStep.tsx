@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useFormContext } from 'react-hook-form';
 import { memo } from 'react';
 import { ReviewStepProps } from '@/types/panel-configuration';
@@ -88,11 +88,9 @@ function ReviewStep({ panel }: ReviewStepProps) {
       </Text>
       <Text style={styles.stepTitleStrong}>Resumen Final</Text>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        style={localStyles.scrollView}>
+      <View style={localStyles.scrollView}>
         <PanelDetailContent data={mappedDetail} />
-      </ScrollView>
+      </View>
     </View>
   );
 }

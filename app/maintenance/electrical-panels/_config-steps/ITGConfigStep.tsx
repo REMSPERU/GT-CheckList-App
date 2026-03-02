@@ -3,7 +3,6 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  ScrollView,
   Platform,
   Keyboard,
 } from 'react-native';
@@ -15,7 +14,10 @@ import {
   CableType,
   PhaseType,
 } from '@/types/panel-configuration';
-import { PanelConfigurationFormValues } from '@/schemas/panel-configuration';
+import {
+  PanelConfigurationFormValues,
+  DEFAULT_ITG_CIRCUIT,
+} from '@/schemas/panel-configuration';
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { styles } from './_styles';
 
@@ -135,34 +137,30 @@ const pickerErrorStyleWithIcon = {
 const errorBorderStyle = { borderColor: '#EF4444', borderWidth: 1.5 } as const;
 
 // ── Memoized ITGCard ─────────────────────────────────────────────────────────
-// Each card reads only its own errors via getFieldState() and its own
-// description via Controller. Editing ITG-1 won't re-render ITG-2.
+// Each card reads its own errors reactively via Controller fieldState and its
+// own description via Controller. Editing ITG-1 won't re-render ITG-2.
 interface ITGCardProps {
   idx: number;
 }
 
 const ITGCard = memo(function ITGCard({ idx }: ITGCardProps) {
-  const { control, getFieldState } =
-    useFormContext<PanelConfigurationFormValues>();
+  const { control } = useFormContext<PanelConfigurationFormValues>();
 
-  // Read errors imperatively — avoids subscribing to the entire errors tree
-  const phaseError = getFieldState(`itgCircuits.${idx}.phaseITG` as any).error;
-  const amperajeError = getFieldState(
-    `itgCircuits.${idx}.amperajeITG` as any,
-  ).error;
-  const diameterError = getFieldState(
-    `itgCircuits.${idx}.diameterITG` as any,
-  ).error;
-  const cableTypeError = getFieldState(
-    `itgCircuits.${idx}.cableTypeITG` as any,
-  ).error;
+  // Track individual field errors via local state — updated by each Controller's
+  // fieldState.error. This replaces the imperative getFieldState() calls that
+  // couldn't trigger re-renders when validation errors were set/cleared.
+  const [fieldErrors, setFieldErrors] = useState({
+    phase: false,
+    amperaje: false,
+    diameter: false,
+    cableType: false,
+  });
 
-  const hasErrors = !!(
-    phaseError ||
-    amperajeError ||
-    diameterError ||
-    cableTypeError
-  );
+  const hasErrors =
+    fieldErrors.phase ||
+    fieldErrors.amperaje ||
+    fieldErrors.diameter ||
+    fieldErrors.cableType;
 
   return (
     <View style={[styles.itgCard, hasErrors && errorBorderStyle]}>
@@ -180,98 +178,151 @@ const ITGCard = memo(function ITGCard({ idx }: ITGCardProps) {
       <Controller
         control={control}
         name={`itgCircuits.${idx}.phaseITG`}
-        render={({ field: { onChange, value } }) => (
-          <RNPickerSelect
-            onValueChange={onChange}
-            items={PHASE_PICKER_ITEMS}
-            placeholder={PHASE_PLACEHOLDER}
-            value={value}
-            style={phaseError ? pickerErrorStyleWithIcon : pickerStyleWithIcon}
-            useNativeAndroidPickerStyle={false}
-            Icon={phaseError ? PickerChevronErrorIcon : PickerChevronIcon}
-          />
-        )}
+        render={({
+          field: { onChange, value },
+          fieldState: { error: phaseError },
+        }) => {
+          // Sync error state for the parent card's hasErrors badge
+          const hasError = !!phaseError;
+          if (hasError !== fieldErrors.phase) {
+            setFieldErrors(prev => ({ ...prev, phase: hasError }));
+          }
+          return (
+            <>
+              <RNPickerSelect
+                onValueChange={onChange}
+                items={PHASE_PICKER_ITEMS}
+                placeholder={PHASE_PLACEHOLDER}
+                value={value}
+                style={
+                  phaseError ? pickerErrorStyleWithIcon : pickerStyleWithIcon
+                }
+                useNativeAndroidPickerStyle={false}
+                Icon={phaseError ? PickerChevronErrorIcon : PickerChevronIcon}
+              />
+              {phaseError && (
+                <Text style={styles.errorText}>{phaseError.message}</Text>
+              )}
+            </>
+          );
+        }}
       />
-      {phaseError && <Text style={styles.errorText}>{phaseError.message}</Text>}
 
       {/* Amperaje */}
       <Text style={styles.cnLabel}>AMPERAJE:</Text>
-      <View
-        style={[
-          styles.inputWithUnitWrapper,
-          amperajeError && errorBorderStyle,
-        ]}>
-        <Controller
-          control={control}
-          name={`itgCircuits.${idx}.amperajeITG`}
-          render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
-              style={styles.itgInputWithUnit}
-              value={value || ''}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="Ingrese amperaje"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="numeric"
-            />
-          )}
-        />
-        <Text style={styles.unitText}>A</Text>
-      </View>
-      {amperajeError && (
-        <Text style={styles.errorText}>{amperajeError.message}</Text>
-      )}
+      <Controller
+        control={control}
+        name={`itgCircuits.${idx}.amperajeITG`}
+        render={({
+          field: { onChange, onBlur, value },
+          fieldState: { error: amperajeError },
+        }) => {
+          const hasError = !!amperajeError;
+          if (hasError !== fieldErrors.amperaje) {
+            setFieldErrors(prev => ({ ...prev, amperaje: hasError }));
+          }
+          return (
+            <>
+              <View
+                style={[
+                  styles.inputWithUnitWrapper,
+                  amperajeError && errorBorderStyle,
+                ]}>
+                <TextInput
+                  style={styles.itgInputWithUnit}
+                  value={value || ''}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholder="Ingrese amperaje"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                />
+                <Text style={styles.unitText}>A</Text>
+              </View>
+              {amperajeError && (
+                <Text style={styles.errorText}>{amperajeError.message}</Text>
+              )}
+            </>
+          );
+        }}
+      />
 
       {/* Diámetro */}
       <Text style={styles.cnLabel}>DIÁMETRO:</Text>
-      <View
-        style={[
-          styles.inputWithUnitWrapper,
-          diameterError && errorBorderStyle,
-        ]}>
-        <Controller
-          control={control}
-          name={`itgCircuits.${idx}.diameterITG`}
-          render={({ field: { onChange, onBlur, value } }) => (
-            <TextInput
-              style={styles.itgInputWithUnit}
-              value={value || ''}
-              onChangeText={onChange}
-              onBlur={onBlur}
-              placeholder="Ingrese diámetro"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="numeric"
-            />
-          )}
-        />
-        <Text style={styles.unitText}>mm²</Text>
-      </View>
-      {diameterError && (
-        <Text style={styles.errorText}>{diameterError.message}</Text>
-      )}
+      <Controller
+        control={control}
+        name={`itgCircuits.${idx}.diameterITG`}
+        render={({
+          field: { onChange, onBlur, value },
+          fieldState: { error: diameterError },
+        }) => {
+          const hasError = !!diameterError;
+          if (hasError !== fieldErrors.diameter) {
+            setFieldErrors(prev => ({ ...prev, diameter: hasError }));
+          }
+          return (
+            <>
+              <View
+                style={[
+                  styles.inputWithUnitWrapper,
+                  diameterError && errorBorderStyle,
+                ]}>
+                <TextInput
+                  style={styles.itgInputWithUnit}
+                  value={value || ''}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholder="Ingrese diámetro"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                />
+                <Text style={styles.unitText}>mm²</Text>
+              </View>
+              {diameterError && (
+                <Text style={styles.errorText}>{diameterError.message}</Text>
+              )}
+            </>
+          );
+        }}
+      />
 
       {/* Tipo de Cable */}
       <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
       <Controller
         control={control}
         name={`itgCircuits.${idx}.cableTypeITG`}
-        render={({ field: { onChange, value } }) => (
-          <RNPickerSelect
-            onValueChange={onChange}
-            items={CABLE_TYPE_PICKER_ITEMS}
-            placeholder={GENERIC_PLACEHOLDER}
-            value={value}
-            style={
-              cableTypeError ? pickerErrorStyleWithIcon : pickerStyleWithIcon
-            }
-            useNativeAndroidPickerStyle={false}
-            Icon={cableTypeError ? PickerChevronErrorIcon : PickerChevronIcon}
-          />
-        )}
+        render={({
+          field: { onChange, value },
+          fieldState: { error: cableTypeError },
+        }) => {
+          const hasError = !!cableTypeError;
+          if (hasError !== fieldErrors.cableType) {
+            setFieldErrors(prev => ({ ...prev, cableType: hasError }));
+          }
+          return (
+            <>
+              <RNPickerSelect
+                onValueChange={onChange}
+                items={CABLE_TYPE_PICKER_ITEMS}
+                placeholder={GENERIC_PLACEHOLDER}
+                value={value}
+                style={
+                  cableTypeError
+                    ? pickerErrorStyleWithIcon
+                    : pickerStyleWithIcon
+                }
+                useNativeAndroidPickerStyle={false}
+                Icon={
+                  cableTypeError ? PickerChevronErrorIcon : PickerChevronIcon
+                }
+              />
+              {cableTypeError && (
+                <Text style={styles.errorText}>Seleccione tipo de cable</Text>
+              )}
+            </>
+          );
+        }}
       />
-      {cableTypeError && (
-        <Text style={styles.errorText}>Seleccione tipo de cable</Text>
-      )}
 
       {/* Suministro eléctrico */}
       <Text style={[styles.itgSubtitle, localStyles.marginTop12]}>
@@ -299,16 +350,13 @@ const ITGCard = memo(function ITGCard({ idx }: ITGCardProps) {
 // memo prevents re-renders when only the parent re-renders (e.g., step
 // navigation state change), since `panel` prop is stable between renders.
 export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
-  const { control, setValue, getValues, getFieldState } =
+  const { control, setValue, getValues } =
     useFormContext<PanelConfigurationFormValues>();
 
   // Watch only the scalar count — not the entire itgDescriptions array.
   // The number of ITG cards to render is derived from this count.
   const itgCount = useWatch({ control, name: 'itgCount' }) || '1';
   const itgCountNum = Math.max(0, parseInt(itgCount, 10) || 0);
-
-  // Read itgCount error imperatively
-  const itgCountError = getFieldState('itgCount').error;
 
   // Handler that updates count and syncs arrays — wrapped in useCallback to
   // avoid re-creating on every render (prevents unnecessary Controller re-renders)
@@ -336,31 +384,8 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
         const newCircuits = [...currentCircuits];
         while (newCircuits.length < n) {
           newCircuits.push({
-            cnPrefix: 'CN',
-            circuitsCount: '1',
-            circuits: [
-              {
-                interruptorType: 'itm',
-                phase: 'mono_2w',
-                amperaje: '',
-                diameter: '',
-                cableType: 'libre_halogeno',
-                supply: '',
-                hasID: false,
-                phaseID: undefined,
-                amperajeID: '',
-                diameterID: '',
-                cableTypeID: 'libre_halogeno',
-                hasSubITMs: false,
-                subITMsCount: '1',
-                subITMs: [],
-              },
-            ],
-            // New IT-G specific fields (required)
-            phaseITG: 'mono_2w',
-            amperajeITG: '',
-            diameterITG: '',
-            cableTypeITG: 'libre_halogeno',
+            ...DEFAULT_ITG_CIRCUIT,
+            circuits: [{ ...DEFAULT_ITG_CIRCUIT.circuits[0] }],
           });
         }
         setValue('itgCircuits', newCircuits);
@@ -409,9 +434,7 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
   );
 
   return (
-    <ScrollView
-      contentContainerStyle={dynamicPadding}
-      keyboardShouldPersistTaps="handled">
+    <View style={dynamicPadding}>
       <View style={styles.contentWrapper}>
         {/* Equipo */}
         <Text style={styles.equipmentLabel}>
@@ -427,22 +450,30 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
           <Controller
             control={control}
             name="itgCount"
-            render={({ field: { onBlur, value } }) => (
-              <TextInput
-                style={[styles.countInput, itgCountError && styles.inputError]}
-                value={value}
-                onChangeText={updateCount}
-                onBlur={onBlur}
-                keyboardType="numeric"
-                placeholder="1"
-                placeholderTextColor="#9CA3AF"
-              />
+            render={({
+              field: { onBlur, value },
+              fieldState: { error: itgCountError },
+            }) => (
+              <>
+                <TextInput
+                  style={[
+                    styles.countInput,
+                    itgCountError && styles.inputError,
+                  ]}
+                  value={value}
+                  onChangeText={updateCount}
+                  onBlur={onBlur}
+                  keyboardType="numeric"
+                  placeholder="1"
+                  placeholderTextColor="#9CA3AF"
+                />
+                {itgCountError && (
+                  <Text style={styles.errorText}>{itgCountError.message}</Text>
+                )}
+              </>
             )}
           />
         </View>
-        {itgCountError && (
-          <Text style={styles.errorText}>{itgCountError.message}</Text>
-        )}
 
         {/* Lista IT-G — each card is a memoized component */}
         <View style={localStyles.itgListContainer}>
@@ -451,7 +482,7 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
           ))}
         </View>
       </View>
-    </ScrollView>
+    </View>
   );
 });
 
