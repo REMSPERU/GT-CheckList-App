@@ -343,7 +343,6 @@ class SyncService {
 
         // C. Save
         await supabaseGroundingWellService.saveChecklistResponse(
-          checklist.panel_id,
           checklist.maintenance_id,
           detail,
           checklist.user_created,
