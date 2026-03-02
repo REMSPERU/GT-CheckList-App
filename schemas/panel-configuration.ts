@@ -22,7 +22,7 @@ export const ExtraComponentTypeSchema = z.enum([
 ]);
 export const InterruptorTypeSchema = z.enum(['itm', 'id', 'reserva']);
 
-// Esquema para ITM hijo dentro de un ID
+// Esquema para ITM hijo dentro de un ITM (máx 30) o un ID (máx 3)
 export const SubITMSchema = z.object({
   phaseITM: PhaseTypeSchema,
   amperajeITM: z.string().min(1, 'Amperaje requerido'),
@@ -30,6 +30,10 @@ export const SubITMSchema = z.object({
   cableType: CableTypeSchema.optional(),
   supply: z.string().optional(),
 });
+
+// Límites de sub-ITMs por tipo de interruptor
+export const SUB_ITMS_MAX_ITM = 30;
+export const SUB_ITMS_MAX_ID = 3;
 
 export const DefaultCircuitSchema = z
   .object({
@@ -50,7 +54,8 @@ export const DefaultCircuitSchema = z
     diameterID: z.string().optional(),
     cableTypeID: CableTypeSchema.optional(),
 
-    // Para ID: ITMs hijos (1-3)
+    // Sub-ITMs hijos (ITM: 0-30, ID: 1-3)
+    hasSubITMs: z.boolean().optional(),
     subITMsCount: z.string().optional(),
     subITMs: z.array(SubITMSchema).optional(),
   })
@@ -75,6 +80,19 @@ export const DefaultCircuitSchema = z
           code: z.ZodIssueCode.custom,
           message: 'Diámetro requerido',
           path: ['diameter'],
+        });
+      }
+    }
+
+    // Validar límite de sub-ITMs según tipo
+    if (data.subITMs && data.subITMs.length > 0) {
+      const max =
+        data.interruptorType === 'itm' ? SUB_ITMS_MAX_ITM : SUB_ITMS_MAX_ID;
+      if (data.subITMs.length > max) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Máximo ${max} sub-ITMs para tipo ${data.interruptorType.toUpperCase()}`,
+          path: ['subITMs'],
         });
       }
     }
@@ -168,6 +186,7 @@ const CircuitDraftSchema = z.object({
   amperajeID: z.string().optional(),
   diameterID: z.string().optional(),
   cableTypeID: CableTypeSchema.optional(),
+  hasSubITMs: z.boolean().optional(),
   subITMsCount: z.string().optional(),
   subITMs: z.array(SubITMDraftSchema).optional(),
 });

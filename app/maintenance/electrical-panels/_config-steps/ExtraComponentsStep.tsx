@@ -57,14 +57,56 @@ const localStyles = StyleSheet.create({
   itemSubtitle: { marginBottom: 8 },
 });
 
+// ── Per-item form row (memoized) ────────────────────────────────────────────
+// Each item reads its own Controller slice, so editing item N does NOT
+// re-render items 0..N-1 or N+1..max.
+interface ComponentFormItemProps {
+  type: ExtraComponentType;
+  index: number;
+  label: string;
+}
+
+const ComponentFormItem = memo(function ComponentFormItem({
+  type,
+  index,
+  label,
+}: ComponentFormItemProps) {
+  const { control } = useFormContext<PanelConfigurationFormValues>();
+
+  return (
+    <View style={localStyles.itemContainer}>
+      <Text style={[styles.cnLabel, localStyles.itemLabel]}>
+        {label.toUpperCase()} {index + 1}
+      </Text>
+      <Text style={[styles.itgSubtitle, localStyles.itemSubtitle]}>
+        Que suministra electricamente?
+      </Text>
+      <Controller
+        control={control}
+        name={`extraComponents.${type}.${index}.description`}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            style={styles.itgInput}
+            value={value}
+            onChangeText={onChange}
+            onBlur={onBlur}
+            placeholder="Ingrese descripcion"
+            placeholderTextColor="#9CA3AF"
+          />
+        )}
+      />
+    </View>
+  );
+});
+
 // ── Per-type ComponentCard (memoized) ───────────────────────────────────────
-// Isolates re-renders: toggling/editing "Contactores" won't re-render "Relays".
+// Each card watches only its own slice of the form via useWatch. This means
+// editing "Contactores" never re-renders "Relays", "Timers", etc.
 interface ComponentCardProps {
   type: ExtraComponentType;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   isEnabled: boolean;
-  componentList: { id: string; description: string }[];
   onToggle: () => void;
   onUpdateQuantity: (val: string) => void;
 }
@@ -74,11 +116,19 @@ const ComponentCard = memo(function ComponentCard({
   label,
   icon,
   isEnabled,
-  componentList,
   onToggle,
   onUpdateQuantity,
 }: ComponentCardProps) {
   const { control } = useFormContext<PanelConfigurationFormValues>();
+
+  // Each card watches only its own component list — changes to other
+  // component types won't cause this card to re-render.
+  const componentList =
+    useWatch({
+      control,
+      name: `extraComponents.${type}`,
+      defaultValue: [],
+    }) || [];
 
   return (
     <View style={styles.componentCard}>
@@ -112,30 +162,16 @@ const ComponentCard = memo(function ComponentCard({
             />
           </View>
 
-          {componentList.map((item, idx) => (
-            <View key={`${type}-${idx}`} style={localStyles.itemContainer}>
-              <Text style={[styles.cnLabel, localStyles.itemLabel]}>
-                {label.toUpperCase()} {idx + 1}
-              </Text>
-              <Text style={[styles.itgSubtitle, localStyles.itemSubtitle]}>
-                Que suministra electricamente?
-              </Text>
-              <Controller
-                control={control}
-                name={`extraComponents.${type}.${idx}.description`}
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    style={styles.itgInput}
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    placeholder="Ingrese descripcion"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                )}
+          {componentList.map(
+            (_item: { id: string; description: string }, idx: number) => (
+              <ComponentFormItem
+                key={`${type}-${idx}`}
+                type={type}
+                index={idx}
+                label={label}
               />
-            </View>
-          ))}
+            ),
+          )}
         </View>
       )}
     </View>
@@ -149,47 +185,41 @@ const ComponentCard = memo(function ComponentCard({
 export default memo(function ExtraComponentsStep({
   panel,
 }: ExtraComponentsStepProps) {
-  const { control, setValue } = useFormContext<PanelConfigurationFormValues>();
+  const { control, setValue, getValues } =
+    useFormContext<PanelConfigurationFormValues>();
 
+  // Only watch the lightweight string array — not the entire extraComponents object.
   const enabledComponents = useWatch({
     control,
     name: 'enabledComponents',
     defaultValue: [],
   });
 
-  const extraComponents = useWatch({
-    control,
-    name: 'extraComponents',
-    defaultValue: {
-      contactores: [],
-      relays: [],
-      ventiladores: [],
-      termostato: [],
-      medidores: [],
-      timers: [],
-    },
-  });
-
+  // Toggle uses getValues() imperatively — no dependency on extraComponents,
+  // so the callback reference stays stable across edits.
   const toggleComponent = useCallback(
     (type: ExtraComponentType) => {
-      const isEnabled = enabledComponents.includes(type);
+      const currentEnabled = getValues('enabledComponents') || [];
+      const isEnabled = currentEnabled.includes(type);
 
       if (isEnabled) {
-        const newEnabled = enabledComponents.filter(t => t !== type);
+        const newEnabled = currentEnabled.filter(
+          (t: ExtraComponentType) => t !== type,
+        );
         setValue('enabledComponents', newEnabled, {
           shouldValidate: true,
           shouldDirty: true,
           shouldTouch: true,
         });
       } else {
-        const newEnabled = [...enabledComponents, type];
+        const newEnabled = [...currentEnabled, type];
         setValue('enabledComponents', newEnabled, {
           shouldValidate: true,
           shouldDirty: true,
           shouldTouch: true,
         });
         // Initialize if empty
-        const currentList = extraComponents[type] || [];
+        const currentList = getValues(`extraComponents.${type}`) || [];
         if (currentList.length === 0) {
           setValue(`extraComponents.${type}`, [{ id: '1', description: '' }], {
             shouldValidate: true,
@@ -199,14 +229,15 @@ export default memo(function ExtraComponentsStep({
         }
       }
     },
-    [enabledComponents, extraComponents, setValue],
+    [getValues, setValue],
   );
 
+  // updateQuantity also reads current data imperatively
   const updateQuantity = useCallback(
     (type: ExtraComponentType, qtyStr: string) => {
       const parsed = parseInt(qtyStr || '0', 10);
       const qty = isNaN(parsed) ? 0 : Math.max(0, parsed);
-      const currentList = extraComponents[type] || [];
+      const currentList = getValues(`extraComponents.${type}`) || [];
       const newList = [...currentList];
 
       if (qty > newList.length) {
@@ -221,12 +252,12 @@ export default memo(function ExtraComponentsStep({
         shouldTouch: true,
       });
     },
-    [extraComponents, setValue],
+    [getValues, setValue],
   );
 
-  // Pre-create stable per-type callbacks so ComponentCard memo actually works.
-  // Without this, inline arrows `() => toggleComponent(def.type)` create new
-  // references on every render, defeating the memo on all 6 cards.
+  // Pre-create stable per-type callbacks. Because toggleComponent and
+  // updateQuantity no longer depend on watched data (they use getValues),
+  // these handlers stay referentially stable across field edits.
   const handlers = useMemo(() => {
     const result: Record<
       ExtraComponentType,
@@ -250,7 +281,6 @@ export default memo(function ExtraComponentsStep({
 
       {COMPONENT_DEFINITIONS.map(def => {
         const isEnabled = enabledComponents.includes(def.type);
-        const componentList = extraComponents[def.type] || [];
 
         return (
           <ComponentCard
@@ -259,7 +289,6 @@ export default memo(function ExtraComponentsStep({
             label={def.label}
             icon={def.icon}
             isEnabled={isEnabled}
-            componentList={componentList}
             onToggle={handlers[def.type].onToggle}
             onUpdateQuantity={handlers[def.type].onUpdateQuantity}
           />
