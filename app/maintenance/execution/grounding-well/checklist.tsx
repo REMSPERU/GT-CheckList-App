@@ -866,7 +866,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border,
@@ -880,6 +880,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: COLORS.textSecondary,
+    flexShrink: 1,
   },
   typeButtonTextSelected: {
     color: COLORS.primary,
