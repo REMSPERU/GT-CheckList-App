@@ -461,6 +461,25 @@ export function usePanelConfiguration(
                       : undefined,
                     diametro_cable: subItm.diameter,
                     suministra: subItm.supply || 'N/A',
+                    // Diferencial del sub-ITM (solo para ITM padre)
+                    ...(circuit.interruptorType === 'itm' && {
+                      diferencial: {
+                        existe: !!subItm.hasID,
+                        ...(subItm.hasID && {
+                          fases: subItm.phaseID
+                            ? PHASE_LABELS[subItm.phaseID] || subItm.phaseID
+                            : undefined,
+                          amperaje: subItm.amperajeID
+                            ? Number(subItm.amperajeID)
+                            : undefined,
+                          tipo_cable: subItm.cableTypeID
+                            ? CABLE_TYPE_LABELS[subItm.cableTypeID] ||
+                              subItm.cableTypeID
+                            : undefined,
+                          diametro_cable: subItm.diameterID,
+                        }),
+                      },
+                    }),
                   })),
                 }),
               suministra: circuit.supply || 'N/A',

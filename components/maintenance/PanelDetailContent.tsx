@@ -51,6 +51,13 @@ export interface PanelDetailProps {
           suministra: string;
           tipo_cable: string;
           diametro_cable: string;
+          diferencial?: {
+            fases: string;
+            existe: boolean;
+            amperaje: number | string;
+            tipo_cable?: string;
+            diametro_cable?: string;
+          };
         }[];
       }[];
     }[];
@@ -289,6 +296,32 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = memo(
                                 </Text>
                               </View>
                             </View>
+
+                            {/* Diferencial del sub-ITM */}
+                            {subItm.diferencial?.existe && (
+                              <View style={styles.subItmDifferentialBox}>
+                                <View style={styles.diffHeader}>
+                                  <MaterialCommunityIcons
+                                    name="current-ac"
+                                    size={12}
+                                    color={Colors.light.tint}
+                                  />
+                                  <Text style={styles.subItmDiffTitle}>
+                                    Diferencial
+                                  </Text>
+                                </View>
+                                <Text style={styles.subItmDiffValue}>
+                                  {subItm.diferencial.amperaje}A -{' '}
+                                  {subItm.diferencial.fases}
+                                </Text>
+                                {subItm.diferencial.tipo_cable && (
+                                  <Text style={styles.subItmDiffCable}>
+                                    {subItm.diferencial.tipo_cable} |{' '}
+                                    {subItm.diferencial.diametro_cable} mm²
+                                  </Text>
+                                )}
+                              </View>
+                            )}
                           </View>
                         ))}
                       </View>
@@ -833,6 +866,32 @@ const styles = StyleSheet.create({
   subItmCable: {
     fontSize: 10,
     color: '#94A3B8',
+  },
+
+  // Sub-ITM Differential
+  subItmDifferentialBox: {
+    marginTop: 8,
+    backgroundColor: '#F0F9FF',
+    borderRadius: 6,
+    padding: 8,
+    borderLeftWidth: 2,
+    borderLeftColor: Colors.light.tint,
+  },
+  subItmDiffTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    color: Colors.light.tint,
+  },
+  subItmDiffValue: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#0369a1',
+  },
+  subItmDiffCable: {
+    fontSize: 10,
+    marginTop: 2,
+    color: '#0ea5e9',
   },
 
   // ── Extracted inline styles ───────────────────────────────────────────

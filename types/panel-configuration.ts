@@ -10,6 +10,13 @@ export interface SubITM {
   diameter: string;
   cableType?: CableType;
   supply: string;
+
+  // ID (Interruptor Diferencial) opcional — solo para sub-ITMs dentro de ITM
+  hasID: boolean;
+  phaseID?: PhaseType;
+  amperajeID?: string;
+  diameterID?: string;
+  cableTypeID?: CableType;
 }
 
 export interface CircuitConfig {

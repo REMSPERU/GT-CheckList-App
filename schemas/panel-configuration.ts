@@ -29,6 +29,12 @@ export const SubITMSchema = z.object({
   diameter: z.string().min(1, 'Diámetro requerido'),
   cableType: CableTypeSchema.optional(),
   supply: z.string().optional(),
+  // ID (Interruptor Diferencial) opcional — solo para sub-ITMs dentro de ITM
+  hasID: z.boolean().optional(),
+  phaseID: PhaseTypeSchema.optional(),
+  amperajeID: z.string().optional(),
+  diameterID: z.string().optional(),
+  cableTypeID: CableTypeSchema.optional(),
 });
 
 // Límites de sub-ITMs por tipo de interruptor
@@ -207,6 +213,12 @@ const SubITMDraftSchema = z.object({
   diameter: z.string(),
   cableType: CableTypeSchema.optional(),
   supply: z.string().optional(),
+  // ID opcional
+  hasID: z.boolean().optional(),
+  phaseID: PhaseTypeSchema.optional(),
+  amperajeID: z.string().optional(),
+  diameterID: z.string().optional(),
+  cableTypeID: CableTypeSchema.optional(),
 });
 
 const CircuitDraftSchema = z.object({

@@ -67,6 +67,17 @@ function ReviewStep({ panel }: ReviewStepProps) {
                 tipo_cable: sub.cableType || 'no_libre_halogeno',
                 diametro_cable: sub.diameter,
                 suministra: sub.supply || '',
+                // Diferencial del sub-ITM (solo para ITM padre)
+                diferencial:
+                  itm.interruptorType === 'itm'
+                    ? {
+                        existe: !!sub.hasID,
+                        amperaje: sub.amperajeID || 0,
+                        fases: sub.phaseID || '',
+                        tipo_cable: sub.cableTypeID || '',
+                        diametro_cable: sub.diameterID || '',
+                      }
+                    : undefined,
               }))
             : undefined,
       })),

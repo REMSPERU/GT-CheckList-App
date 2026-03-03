@@ -37,6 +37,11 @@ const DEFAULT_SUB_ITM: SubITM = {
   diameter: '',
   cableType: 'libre_halogeno',
   supply: '',
+  hasID: false,
+  phaseID: undefined,
+  amperajeID: '',
+  diameterID: '',
+  cableTypeID: 'libre_halogeno',
 };
 
 const pickerSelectStyles = StyleSheet.create({
@@ -174,13 +179,39 @@ interface SubITMFormItemProps {
   control: Control<PanelConfigurationFormValues>;
   basePath: string; // e.g. "itgCircuits.0.circuits.0.subITMs.0"
   subIdx: number;
+  showIDToggle: boolean; // true cuando el circuito padre es tipo ITM
 }
 
 const SubITMFormItem = memo(function SubITMFormItem({
   control,
   basePath,
   subIdx,
+  showIDToggle,
 }: SubITMFormItemProps) {
+  const { setValue } = useFormContext<PanelConfigurationFormValues>();
+
+  // Only subscribe to hasID when the toggle is shown (ITM parent)
+  const hasID = useWatch({
+    control,
+    name: `${basePath}.hasID` as any,
+    disabled: !showIDToggle,
+  });
+
+  const toggleID = useCallback(() => {
+    const newValue = !hasID;
+    setValue(`${basePath}.hasID` as any, newValue);
+    if (newValue) {
+      setValue(`${basePath}.phaseID` as any, 'mono_2w');
+      setValue(`${basePath}.amperajeID` as any, '');
+      setValue(`${basePath}.cableTypeID` as any, 'libre_halogeno');
+    } else {
+      setValue(`${basePath}.phaseID` as any, undefined);
+      setValue(`${basePath}.amperajeID` as any, undefined);
+      setValue(`${basePath}.diameterID` as any, undefined);
+      setValue(`${basePath}.cableTypeID` as any, undefined);
+    }
+  }, [basePath, hasID, setValue]);
+
   return (
     <View style={localStyles.subItmContainer}>
       <Text style={[styles.cnSectionTitle, localStyles.noMarginTop]}>
@@ -276,6 +307,111 @@ const SubITMFormItem = memo(function SubITMFormItem({
           />
         )}
       />
+
+      {/* Toggle ID (Interruptor Diferencial) — solo para sub-ITMs dentro de ITM */}
+      {showIDToggle && (
+        <View style={localStyles.marginTop12}>
+          <TouchableOpacity
+            style={[styles.toggleRow, hasID && styles.toggleRowActive]}
+            onPress={toggleID}>
+            <View style={styles.toggleIconRow}>
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={18}
+                color={hasID ? '#0891B2' : '#6B7280'}
+              />
+              <Text
+                style={[styles.toggleLabel, hasID && styles.toggleLabelActive]}>
+                Diferencial (ID)
+              </Text>
+            </View>
+            <View
+              style={[styles.toggleSwitch, hasID && styles.toggleSwitchActive]}>
+              <View
+                style={[styles.toggleThumb, hasID && styles.toggleThumbActive]}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {hasID && (
+            <View style={localStyles.marginTop12}>
+              <Text style={styles.cnLabel}>FASES</Text>
+              <Controller
+                control={control}
+                name={`${basePath}.phaseID` as any}
+                render={({ field: { onChange, value } }) => (
+                  <RNPickerSelect
+                    onValueChange={onChange}
+                    items={PHASE_PICKER_ITEMS}
+                    placeholder={PHASE_PLACEHOLDER}
+                    value={value}
+                    style={pickerStyleWithIcon}
+                    useNativeAndroidPickerStyle={false}
+                    Icon={PickerChevronIcon}
+                  />
+                )}
+              />
+
+              <Text style={styles.cnLabel}>AMPERAJE:</Text>
+              <View style={styles.inputWithUnitWrapper}>
+                <Controller
+                  control={control}
+                  name={`${basePath}.amperajeID` as any}
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      style={styles.itgInputWithUnit}
+                      value={value || ''}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="Ingrese amperaje"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="numeric"
+                    />
+                  )}
+                />
+                <Text style={styles.unitText}>A</Text>
+              </View>
+
+              <Text style={styles.cnLabel}>DIAMETRO:</Text>
+              <View style={styles.inputWithUnitWrapper}>
+                <Controller
+                  control={control}
+                  name={`${basePath}.diameterID` as any}
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      style={styles.itgInputWithUnit}
+                      value={value || ''}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="Ingrese diametro"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="numeric"
+                    />
+                  )}
+                />
+                <Text style={styles.unitText}>mm2</Text>
+              </View>
+
+              <Text style={styles.cnLabel}>TIPO DE CABLE:</Text>
+              <Controller
+                control={control}
+                name={`${basePath}.cableTypeID` as any}
+                render={({ field: { onChange, value } }) => (
+                  <RNPickerSelect
+                    onValueChange={onChange}
+                    items={CABLE_TYPE_PICKER_ITEMS}
+                    placeholder={GENERIC_PLACEHOLDER}
+                    value={value}
+                    style={pickerStyleWithIcon}
+                    useNativeAndroidPickerStyle={false}
+                    Icon={PickerChevronIcon}
+                  />
+                )}
+              />
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 });
@@ -893,6 +1029,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                           control={control}
                           basePath={`${subITMBasePath}.${subIdx}`}
                           subIdx={subIdx}
+                          showIDToggle={true}
                         />
                       ))}
                     </View>
@@ -932,6 +1069,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                     control={control}
                     basePath={`${subITMBasePath}.${subIdx}`}
                     subIdx={subIdx}
+                    showIDToggle={false}
                   />
                 ))}
               </View>
