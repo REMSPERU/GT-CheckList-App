@@ -5,6 +5,7 @@ export type InterruptorType = 'itm' | 'id' | 'reserva';
 
 // ITM hijo que vive dentro de un ITM (máx 30) o un ID (máx 3)
 export interface SubITM {
+  name?: string; // Nombre editable (default: "ITM {n}")
   phaseITM: PhaseType;
   amperajeITM: string;
   diameter: string;
@@ -41,6 +42,7 @@ export interface CircuitConfig {
   // Para ITM: 0-30 sub-ITMs opcionales (toggle hasSubITMs)
   // Para ID: 1-3 ITMs hijos obligatorios
   hasSubITMs: boolean;
+  subITMsPrefix: string; // Prefijo editable para sub-ITMs (default: "ITM")
   subITMsCount: string;
   subITMs: SubITM[];
 }

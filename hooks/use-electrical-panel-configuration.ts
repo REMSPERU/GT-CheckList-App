@@ -454,6 +454,10 @@ export function usePanelConfiguration(
                 circuit.subITMs.length > 0 && {
                   sub_itms: circuit.subITMs.map((subItm, sIdx) => ({
                     id: `${itg.cnPrefix}-${cIdx + 1}-${sIdx + 1}`,
+                    nombre:
+                      subItm.name && subItm.name.trim() !== ''
+                        ? subItm.name
+                        : `${circuit.subITMsPrefix || 'ITM'} ${sIdx + 1}`,
                     fases: PHASE_LABELS[subItm.phaseITM] || subItm.phaseITM,
                     amperaje: Number(subItm.amperajeITM),
                     tipo_cable: subItm.cableType

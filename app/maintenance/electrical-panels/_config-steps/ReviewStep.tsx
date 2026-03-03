@@ -62,6 +62,10 @@ function ReviewStep({ panel }: ReviewStepProps) {
             itm.subITMs.length > 0)
             ? itm.subITMs?.map((sub, sIdx) => ({
                 id: `${itg.cnPrefix}${cIdx + 1}-${sIdx + 1}`,
+                nombre:
+                  sub.name && sub.name.trim() !== ''
+                    ? sub.name
+                    : `${itm.subITMsPrefix || 'ITM'} ${sIdx + 1}`,
                 amperaje: sub.amperajeITM,
                 fases: sub.phaseITM,
                 tipo_cable: sub.cableType || 'no_libre_halogeno',

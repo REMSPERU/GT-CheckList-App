@@ -46,6 +46,7 @@ export interface PanelDetailProps {
         };
         sub_itms?: {
           id: string;
+          nombre?: string;
           fases: string;
           amperaje: number | string;
           suministra: string;
@@ -271,7 +272,7 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = memo(
                             <View style={styles.subItmRow}>
                               <View style={styles.subItmIdBox}>
                                 <Text style={styles.subItmIdText}>
-                                  {subItm.id}
+                                  {subItm.nombre || subItm.id}
                                 </Text>
                               </View>
                               <View style={styles.subItmContent}>

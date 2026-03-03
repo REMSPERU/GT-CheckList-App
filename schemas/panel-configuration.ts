@@ -24,6 +24,7 @@ export const InterruptorTypeSchema = z.enum(['itm', 'id', 'reserva']);
 
 // Esquema para ITM hijo dentro de un ITM (máx 30) o un ID (máx 3)
 export const SubITMSchema = z.object({
+  name: z.string().optional(),
   phaseITM: PhaseTypeSchema,
   amperajeITM: z.string().min(1, 'Amperaje requerido'),
   diameter: z.string().min(1, 'Diámetro requerido'),
@@ -62,6 +63,7 @@ export const DefaultCircuitSchema = z
 
     // Sub-ITMs hijos (ITM: 0-30, ID: 1-3)
     hasSubITMs: z.boolean().optional(),
+    subITMsPrefix: z.string().optional(),
     subITMsCount: z.string().optional(),
     subITMs: z.array(SubITMSchema).optional(),
   })
@@ -185,6 +187,7 @@ export const DEFAULT_CIRCUIT: PanelConfigurationFormValues['itgCircuits'][number
     diameterID: '',
     cableTypeID: 'libre_halogeno',
     hasSubITMs: false,
+    subITMsPrefix: 'ITM',
     subITMsCount: '1',
     subITMs: [],
   };
@@ -208,6 +211,7 @@ export const DEFAULT_ITG_CIRCUIT: PanelConfigurationFormValues['itgCircuits'][nu
 // Sin .min(), sin .refine(), sin .superRefine() — solo forma y tipos.
 
 const SubITMDraftSchema = z.object({
+  name: z.string().optional(),
   phaseITM: PhaseTypeSchema,
   amperajeITM: z.string(),
   diameter: z.string(),
@@ -235,6 +239,7 @@ const CircuitDraftSchema = z.object({
   diameterID: z.string().optional(),
   cableTypeID: CableTypeSchema.optional(),
   hasSubITMs: z.boolean().optional(),
+  subITMsPrefix: z.string().optional(),
   subITMsCount: z.string().optional(),
   subITMs: z.array(SubITMDraftSchema).optional(),
 });

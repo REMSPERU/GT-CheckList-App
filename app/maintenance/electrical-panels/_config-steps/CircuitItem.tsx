@@ -32,6 +32,7 @@ const PickerChevronErrorIcon = () => (
 
 // Default SubITM para nuevos circuitos
 const DEFAULT_SUB_ITM: SubITM = {
+  name: '',
   phaseITM: 'mono_2w',
   amperajeITM: '',
   diameter: '',
@@ -180,6 +181,7 @@ interface SubITMFormItemProps {
   basePath: string; // e.g. "itgCircuits.0.circuits.0.subITMs.0"
   subIdx: number;
   showIDToggle: boolean; // true cuando el circuito padre es tipo ITM
+  subITMsPrefix: string; // prefijo compartido desde el circuito padre (e.g. "ITM")
 }
 
 const SubITMFormItem = memo(function SubITMFormItem({
@@ -187,6 +189,7 @@ const SubITMFormItem = memo(function SubITMFormItem({
   basePath,
   subIdx,
   showIDToggle,
+  subITMsPrefix,
 }: SubITMFormItemProps) {
   const { setValue } = useFormContext<PanelConfigurationFormValues>();
 
@@ -214,9 +217,23 @@ const SubITMFormItem = memo(function SubITMFormItem({
 
   return (
     <View style={localStyles.subItmContainer}>
-      <Text style={[styles.cnSectionTitle, localStyles.noMarginTop]}>
-        ITM {subIdx + 1}
-      </Text>
+      <Controller
+        control={control}
+        name={`${basePath}.name` as any}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <View style={localStyles.subItmNameRow}>
+            <TextInput
+              style={[styles.cnSectionTitle, localStyles.subItmNameInput]}
+              value={value || ''}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              placeholder={`${subITMsPrefix || 'ITM'} ${subIdx + 1}`}
+              placeholderTextColor="#9CA3AF"
+            />
+            <Ionicons name="pencil" size={11} color="#9CA3AF" />
+          </View>
+        )}
+      />
 
       <Text style={styles.cnLabel}>FASES</Text>
       <Controller
@@ -497,6 +514,12 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
       control,
       name: `${prefix}.subITMsCount`,
     }) || '1';
+
+  const subITMsPrefix =
+    useWatch({
+      control,
+      name: `${prefix}.subITMsPrefix`,
+    }) || 'ITM';
 
   // Local state for the sub-ITMs count — same pattern as circuitsCount in
   // CircuitsConfigStep. We do NOT useWatch on the subITMs array (that would
@@ -1022,6 +1045,24 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                         <Text style={styles.unitText}>uds</Text>
                       </View>
 
+                      <Text style={styles.cnLabel}>PREFIJO SUB-ITMs:</Text>
+                      <Controller
+                        control={control}
+                        name={`${prefix}.subITMsPrefix`}
+                        render={({ field: { onChange, onBlur, value } }) => (
+                          <TextInput
+                            style={styles.itgInput}
+                            value={value || ''}
+                            onChangeText={onChange}
+                            onBlur={onBlur}
+                            placeholder="ITM"
+                            placeholderTextColor="#9CA3AF"
+                            maxLength={10}
+                            autoCapitalize="characters"
+                          />
+                        )}
+                      />
+
                       {/* Render each sub-ITM with memoized component */}
                       {subITMIndices.map(subIdx => (
                         <SubITMFormItem
@@ -1030,6 +1071,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                           basePath={`${subITMBasePath}.${subIdx}`}
                           subIdx={subIdx}
                           showIDToggle={true}
+                          subITMsPrefix={subITMsPrefix}
                         />
                       ))}
                     </View>
@@ -1062,6 +1104,24 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                   ))}
                 </View>
 
+                <Text style={styles.cnLabel}>PREFIJO ITMs:</Text>
+                <Controller
+                  control={control}
+                  name={`${prefix}.subITMsPrefix`}
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <TextInput
+                      style={styles.itgInput}
+                      value={value || ''}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      placeholder="ITM"
+                      placeholderTextColor="#9CA3AF"
+                      maxLength={10}
+                      autoCapitalize="characters"
+                    />
+                  )}
+                />
+
                 {/* Render each sub-ITM with memoized component */}
                 {subITMIndices.map(subIdx => (
                   <SubITMFormItem
@@ -1070,6 +1130,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                     basePath={`${subITMBasePath}.${subIdx}`}
                     subIdx={subIdx}
                     showIDToggle={false}
+                    subITMsPrefix={subITMsPrefix}
                   />
                 ))}
               </View>
@@ -1186,6 +1247,20 @@ const localStyles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+  },
+  subItmNameRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    marginBottom: 8,
+  },
+  subItmNameInput: {
+    padding: 0,
+    margin: 0,
+    marginTop: 0,
+    minWidth: 40,
+    flex: 1,
+    fontSize: 14,
   },
 });
 
