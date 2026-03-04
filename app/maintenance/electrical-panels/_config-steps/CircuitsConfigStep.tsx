@@ -84,10 +84,17 @@ const ListHeader = memo(function ListHeader({
   // runs once the user stops typing for 400ms.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // The actual heavy work: clamp, resize the circuits array, notify parent
+  // The actual heavy work: clamp, resize the circuits array, notify parent.
+  // `isBlur` indicates the call came from onBlur — in that case we always
+  // clamp empty → "0" so the form value is never left empty.
   const applyCircuitsCount = useCallback(
-    (raw: string) => {
+    (raw: string, isBlur = false) => {
       const cleaned = raw.replace(/[^0-9]/g, '');
+
+      // While typing, allow the field to stay empty so the user can clear
+      // and retype without seeing "0" appear. Only force "0" on blur.
+      if (cleaned === '' && !isBlur) return;
+
       const n = Math.min(
         Math.max(0, parseInt(cleaned || '0', 10) || 0),
         CIRCUITS_MAX_PER_ITG,
@@ -131,12 +138,17 @@ const ListHeader = memo(function ListHeader({
   // Called on every keystroke — lightweight, just updates local state + debounce
   const onCountTextChange = useCallback(
     (text: string) => {
+      // Strip non-digits and leading zeros (e.g. "02" → "2")
       const cleaned = text.replace(/[^0-9]/g, '');
-      setLocalCountText(cleaned);
+      const stripped =
+        cleaned.replace(/^0+/, '') || (cleaned.length > 0 ? '0' : '');
+      // If user clears the field entirely, allow empty string
+      const display = text === '' ? '' : stripped;
+      setLocalCountText(display);
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        applyCircuitsCount(cleaned);
+        applyCircuitsCount(display);
       }, 400);
     },
     [applyCircuitsCount],
@@ -148,7 +160,7 @@ const ListHeader = memo(function ListHeader({
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
-    applyCircuitsCount(localCountText);
+    applyCircuitsCount(localCountText, true);
   }, [applyCircuitsCount, localCountText]);
 
   // Cleanup debounce on unmount
@@ -380,9 +392,10 @@ const CircuitsConfigStep = forwardRef<
   );
 
   // ── Expand / Collapse ────────────────────────────────────────────────────
-  // Up to 2 circuits can be expanded at a time to balance usability and memory.
-  // expandedIndicesMap[itgIndex] holds a Set-like array of expanded circuit indices.
-  const MAX_EXPANDED = 2;
+  // Any number of circuits can be expanded simultaneously. The user controls
+  // which ones are open; we never force-close a circuit because the
+  // simultaneous unmount + mount of heavy ExpandedCircuitContent components
+  // in a single render pass can spike the JS thread and crash Android.
 
   const [expandedIndicesMap, setExpandedIndicesMap] = useState<
     Record<number, number[]>
@@ -401,14 +414,10 @@ const CircuitsConfigStep = forwardRef<
         const firstNewIndex = prevCircuitsCountRef.current;
         setExpandedIndicesMap(prev => {
           const current = prev[selectedItgIndex] ?? [];
-          // Add the first new circuit; if already at MAX_EXPANDED, drop the oldest
-          const updated = [...current, firstNewIndex];
+          if (current.includes(firstNewIndex)) return prev;
           return {
             ...prev,
-            [selectedItgIndex]:
-              updated.length > MAX_EXPANDED
-                ? updated.slice(updated.length - MAX_EXPANDED)
-                : updated,
+            [selectedItgIndex]: [...current, firstNewIndex],
           };
         });
       }
@@ -423,17 +432,9 @@ const CircuitsConfigStep = forwardRef<
         const current = prev[selectedItgIndex] ?? [];
         const isExpanded = current.includes(index);
 
-        let updated: number[];
-        if (isExpanded) {
-          // Collapse this circuit
-          updated = current.filter(i => i !== index);
-        } else {
-          // Expand this circuit; if already at MAX_EXPANDED, drop the oldest
-          updated = [...current, index];
-          if (updated.length > MAX_EXPANDED) {
-            updated = updated.slice(updated.length - MAX_EXPANDED);
-          }
-        }
+        const updated = isExpanded
+          ? current.filter(i => i !== index)
+          : [...current, index];
 
         return { ...prev, [selectedItgIndex]: updated };
       });

@@ -583,11 +583,15 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
     setItmCountInput(subITMsCount);
   }, [subITMsCount]);
 
-  // Accept raw text while typing — only digits allowed
+  // Accept raw text while typing — only digits allowed, strip leading zeros
   const onChangeItmCount = useCallback((text: string) => {
-    // Strip non-digits
     const cleaned = text.replace(/[^0-9]/g, '');
-    setItmCountInput(cleaned);
+    // Strip leading zeros: "02" → "2", but keep single "0" if user typed "0"
+    const stripped =
+      cleaned.replace(/^0+/, '') || (cleaned.length > 0 ? '0' : '');
+    // Allow empty string so user can clear and retype
+    const display = text === '' ? '' : stripped;
+    setItmCountInput(display);
   }, []);
 
   // Commit the value on blur: clamp to [1, max] and sync the sub-ITMs array

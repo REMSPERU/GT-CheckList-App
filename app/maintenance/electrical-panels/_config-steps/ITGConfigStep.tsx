@@ -402,10 +402,16 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
   // Debounce timer ref
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // The actual heavy work: clamp, resize arrays, update form state
+  // The actual heavy work: clamp, resize arrays, update form state.
+  // `isBlur` indicates the call came from onBlur — forces "0" for empty field.
   const applyItgCount = useCallback(
-    (raw: string) => {
+    (raw: string, isBlur = false) => {
       const cleaned = raw.replace(/[^0-9]/g, '');
+
+      // While typing, allow the field to stay empty so the user can clear
+      // and retype without seeing "0" appear. Only force "0" on blur.
+      if (cleaned === '' && !isBlur) return;
+
       const parsed = parseInt(cleaned || '0', 10);
       const n = isNaN(parsed) ? 0 : Math.min(Math.max(0, parsed), ITG_MAX);
       const clamped =
@@ -452,12 +458,16 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
   // Called on every keystroke — lightweight, just updates local state + debounce
   const onItgCountTextChange = useCallback(
     (text: string) => {
+      // Strip non-digits and leading zeros (e.g. "02" → "2")
       const cleaned = text.replace(/[^0-9]/g, '');
-      setLocalItgCountText(cleaned);
+      const stripped =
+        cleaned.replace(/^0+/, '') || (cleaned.length > 0 ? '0' : '');
+      const display = text === '' ? '' : stripped;
+      setLocalItgCountText(display);
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        applyItgCount(cleaned);
+        applyItgCount(display);
       }, 400);
     },
     [applyItgCount],
@@ -469,7 +479,7 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
-    applyItgCount(localItgCountText);
+    applyItgCount(localItgCountText, true);
   }, [applyItgCount, localItgCountText]);
 
   // Cleanup debounce on unmount
