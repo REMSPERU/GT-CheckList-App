@@ -13,6 +13,7 @@ import { UserRoleProvider } from '@/contexts/UserRoleContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { QueryProvider } from '@/lib/query-provider';
 import { useAppUpdate } from '@/hooks/use-app-update';
+import { useMemoryWarning } from '@/hooks/useMemoryWarning';
 import UpdateRequiredModal from '@/components/update-required-modal';
 
 import { useEffect } from 'react';
@@ -30,7 +31,10 @@ Sentry.init({
   enableLogs: true,
 
   // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
+  // Mobile Replay adds continuous screenshot/redaction overhead.
+  // Disabled for normal sessions to reduce memory pressure on Android;
+  // only capture replays when an error occurs.
+  replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 1,
   integrations: [Sentry.mobileReplayIntegration()],
 
@@ -41,6 +45,7 @@ Sentry.init({
 export default Sentry.wrap(function RootLayout() {
   const colorScheme = useColorScheme();
   const updateInfo = useAppUpdate();
+  useMemoryWarning();
 
   useEffect(() => {
     DatabaseService.initDatabase().catch(console.error);

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Sentry from '@sentry/react-native';
 import { PanelData } from '@/types/panel-configuration';
 import {
   PanelConfigurationSchema,
@@ -204,6 +205,44 @@ export function usePanelConfiguration(
     }, AUTO_SAVE_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
+
+  // ── Sentry form-size telemetry ────────────────────────────────────────────
+  // Every 30 s, snapshot the form dimensions so Sentry events that happen near
+  // OOM kills include the latest circuit/ITG counts. Cheap: one getValues()
+  // call + two array-length reads.
+  const SENTRY_CONTEXT_INTERVAL_MS = 30_000;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      try {
+        const vals = getValues();
+        const itgCircuits = vals.itgCircuits ?? [];
+        const totalCircuits = itgCircuits.reduce(
+          (sum, itg) => sum + (itg.circuits?.length ?? 0),
+          0,
+        );
+        const totalSubITMs = itgCircuits.reduce(
+          (sum, itg) =>
+            sum +
+            (itg.circuits ?? []).reduce(
+              (s, c) => s + (c.subITMs?.length ?? 0),
+              0,
+            ),
+          0,
+        );
+
+        Sentry.setContext('panel_form', {
+          itgCount: itgCircuits.length,
+          totalCircuits,
+          totalSubITMs,
+          panelId: initialPanel?.id ?? 'unknown',
+        });
+      } catch {
+        // getValues() can fail during unmount — ignore
+      }
+    }, SENTRY_CONTEXT_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [getValues, initialPanel?.id]);
 
   // ── Save on app background (user switches app / OS kills) ────────────────
   useEffect(() => {

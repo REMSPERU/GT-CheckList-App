@@ -42,6 +42,13 @@ export const SubITMSchema = z.object({
 export const SUB_ITMS_MAX_ITM = 30;
 export const SUB_ITMS_MAX_ID = 3;
 
+// Límites globales para circuitos e ITGs — previene OOM en dispositivos de gama baja.
+// react-hook-form mantiene TODOS los campos en memoria (no se beneficia de
+// virtualización de FlatList), así que limitar la cantidad total de objetos
+// es la defensa más efectiva contra crashes por memoria.
+export const CIRCUITS_MAX_PER_ITG = 80;
+export const ITG_MAX = 10;
+
 export const DefaultCircuitSchema = z
   .object({
     name: z.string().optional(),
@@ -108,10 +115,14 @@ export const DefaultCircuitSchema = z
 
 export const ITGCircuitDataSchema = z.object({
   cnPrefix: z.string().min(1, 'Prefijo requerido'),
-  circuitsCount: z.string().refine(val => !isNaN(Number(val)), {
-    message: 'Debe ser un numero',
-  }),
-  circuits: z.array(DefaultCircuitSchema),
+  circuitsCount: z.string().refine(
+    val => {
+      const n = Number(val);
+      return !isNaN(n) && n >= 0 && n <= CIRCUITS_MAX_PER_ITG;
+    },
+    { message: `Debe ser un numero entre 0 y ${CIRCUITS_MAX_PER_ITG}` },
+  ),
+  circuits: z.array(DefaultCircuitSchema).max(CIRCUITS_MAX_PER_ITG),
   // IT-G specific fields (required)
   phaseITG: PhaseTypeSchema,
   amperajeITG: z.string().min(1, 'Amperaje es requerido'),
@@ -132,9 +143,13 @@ export const PanelConfigurationSchema = z.object({
   phase: PhaseTypeSchema,
 
   // Step 2
-  itgCount: z.string().refine(val => !isNaN(Number(val)) && Number(val) > 0, {
-    message: 'Debe haber al menos 1 IT-G',
-  }),
+  itgCount: z.string().refine(
+    val => {
+      const n = Number(val);
+      return !isNaN(n) && n > 0 && n <= ITG_MAX;
+    },
+    { message: `Debe haber entre 1 y ${ITG_MAX} IT-G` },
+  ),
   itgDescriptions: z.array(z.string()),
 
   // Step 3

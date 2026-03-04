@@ -6,6 +6,8 @@ import {
   FlatList,
   Platform,
   Keyboard,
+  InteractionManager,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFormContext, Controller, useWatch } from 'react-hook-form';
@@ -16,6 +18,7 @@ import {
 import {
   PanelConfigurationFormValues,
   DEFAULT_CIRCUIT,
+  CIRCUITS_MAX_PER_ITG,
 } from '@/schemas/panel-configuration';
 import {
   useState,
@@ -27,6 +30,7 @@ import {
   forwardRef,
   memo,
 } from 'react';
+import * as Sentry from '@sentry/react-native';
 import ProgressTabs from '@/components/progress-tabs';
 import { styles } from './_styles';
 import CircuitItem from './CircuitItem';
@@ -58,11 +62,37 @@ const ListHeader = memo(function ListHeader({
     [itgCircuitsLength],
   );
 
-  // Circuits count handler — local to the header so it doesn't force
-  // the entire list to re-render.
-  const updateCircuitsCount = useCallback(
-    (value: string) => {
-      const n = Math.max(0, parseInt(value || '0', 10) || 0);
+  // ── Local text state for the circuits-count input ──────────────────────
+  // Keeps the TextInput responsive: keystrokes update local state instantly
+  // while the expensive array resize is deferred until the user pauses or
+  // blurs the field.
+  const formCount =
+    (getValues(`itgCircuits.${selectedItgIndex}.circuitsCount`) as string) ||
+    '';
+  const [localCountText, setLocalCountText] = useState(formCount);
+
+  // Re-seed when switching ITG tabs
+  useEffect(() => {
+    const current =
+      (getValues(`itgCircuits.${selectedItgIndex}.circuitsCount`) as string) ||
+      '';
+    setLocalCountText(current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItgIndex]);
+
+  // Debounce timer ref — cleared on each keystroke so the heavy work only
+  // runs once the user stops typing for 400ms.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // The actual heavy work: clamp, resize the circuits array, notify parent
+  const applyCircuitsCount = useCallback(
+    (raw: string) => {
+      const cleaned = raw.replace(/[^0-9]/g, '');
+      const n = Math.min(
+        Math.max(0, parseInt(cleaned || '0', 10) || 0),
+        CIRCUITS_MAX_PER_ITG,
+      );
+
       const currentCircuitsList =
         getValues(`itgCircuits.${selectedItgIndex}.circuits`) || [];
       const currentLength = currentCircuitsList.length;
@@ -81,14 +111,52 @@ const ListHeader = memo(function ListHeader({
       }
 
       setValue(`itgCircuits.${selectedItgIndex}.circuits`, newCircuits as any);
-      setValue(`itgCircuits.${selectedItgIndex}.circuitsCount`, value);
+      setValue(`itgCircuits.${selectedItgIndex}.circuitsCount`, String(n));
 
-      // Notify the parent of the new circuits count so it can update the
-      // FlatList data without watching the entire circuits array.
+      // Update local text to the clamped value (e.g. "99" → "80")
+      setLocalCountText(String(n));
+
+      Sentry.addBreadcrumb({
+        category: 'circuits',
+        message: `Set circuits count to ${n} for ITG-${selectedItgIndex + 1}`,
+        level: 'info',
+        data: { itgIndex: selectedItgIndex, circuitsCount: n },
+      });
+
       onCircuitsCountChange(n);
     },
     [selectedItgIndex, getValues, setValue, onCircuitsCountChange],
   );
+
+  // Called on every keystroke — lightweight, just updates local state + debounce
+  const onCountTextChange = useCallback(
+    (text: string) => {
+      const cleaned = text.replace(/[^0-9]/g, '');
+      setLocalCountText(cleaned);
+
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        applyCircuitsCount(cleaned);
+      }, 400);
+    },
+    [applyCircuitsCount],
+  );
+
+  // On blur, apply immediately (don't wait for debounce)
+  const onCountBlur = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    applyCircuitsCount(localCountText);
+  }, [applyCircuitsCount, localCountText]);
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   return (
     <View style={styles.contentWrapper}>
@@ -148,19 +216,23 @@ const ListHeader = memo(function ListHeader({
 
       {/* ¿Cuántos circuitos tienes? */}
       <View style={styles.rowBetween}>
-        <Text style={styles.countLabel}>¿Cuántos circuitos tienes?</Text>
+        <Text style={styles.countLabel}>
+          ¿Cuántos circuitos tienes? (máx {CIRCUITS_MAX_PER_ITG})
+        </Text>
         <Controller
           control={control}
           name={`itgCircuits.${selectedItgIndex}.circuitsCount` as const}
-          render={({ field: { value }, fieldState: { error: countError } }) => (
+          render={({ fieldState: { error: countError } }) => (
             <>
               <TextInput
                 style={[styles.countInput, countError && styles.inputError]}
-                value={value}
-                onChangeText={updateCircuitsCount}
+                value={localCountText}
+                onChangeText={onCountTextChange}
+                onBlur={onCountBlur}
                 keyboardType="numeric"
                 placeholder="1"
                 placeholderTextColor="#9CA3AF"
+                maxLength={2}
               />
               {countError && (
                 <Text style={styles.errorText}>{countError.message}</Text>
@@ -308,15 +380,15 @@ const CircuitsConfigStep = forwardRef<
   );
 
   // ── Expand / Collapse ────────────────────────────────────────────────────
+  // Up to 2 circuits can be expanded at a time to balance usability and memory.
+  // expandedIndicesMap[itgIndex] holds a Set-like array of expanded circuit indices.
+  const MAX_EXPANDED = 2;
 
   const [expandedIndicesMap, setExpandedIndicesMap] = useState<
     Record<number, number[]>
   >({});
 
-  const expandedIndices = useMemo(
-    () => expandedIndicesMap[selectedItgIndex] || [],
-    [expandedIndicesMap, selectedItgIndex],
-  );
+  const expandedIndices = expandedIndicesMap[selectedItgIndex] ?? [];
 
   // Track previous circuits count to detect new additions
   const prevCircuitsCountRef = useRef(circuitsCount);
@@ -325,17 +397,20 @@ const CircuitsConfigStep = forwardRef<
   useEffect(() => {
     if (prevItgIndexRef.current === selectedItgIndex) {
       if (circuitsCount > prevCircuitsCountRef.current) {
-        const newIndices = Array.from(
-          { length: circuitsCount - prevCircuitsCountRef.current },
-          (_, i) => prevCircuitsCountRef.current + i,
-        );
-        setExpandedIndicesMap(prev => ({
-          ...prev,
-          [selectedItgIndex]: [
-            ...(prev[selectedItgIndex] || []),
-            ...newIndices,
-          ],
-        }));
+        // Only expand the FIRST new circuit — not all of them.
+        const firstNewIndex = prevCircuitsCountRef.current;
+        setExpandedIndicesMap(prev => {
+          const current = prev[selectedItgIndex] ?? [];
+          // Add the first new circuit; if already at MAX_EXPANDED, drop the oldest
+          const updated = [...current, firstNewIndex];
+          return {
+            ...prev,
+            [selectedItgIndex]:
+              updated.length > MAX_EXPANDED
+                ? updated.slice(updated.length - MAX_EXPANDED)
+                : updated,
+          };
+        });
       }
     }
     prevCircuitsCountRef.current = circuitsCount;
@@ -345,11 +420,28 @@ const CircuitsConfigStep = forwardRef<
   const toggleExpand = useCallback(
     (index: number) => {
       setExpandedIndicesMap(prev => {
-        const currentIndices = prev[selectedItgIndex] || [];
-        const newIndices = currentIndices.includes(index)
-          ? currentIndices.filter((i: number) => i !== index)
-          : [...currentIndices, index];
-        return { ...prev, [selectedItgIndex]: newIndices };
+        const current = prev[selectedItgIndex] ?? [];
+        const isExpanded = current.includes(index);
+
+        let updated: number[];
+        if (isExpanded) {
+          // Collapse this circuit
+          updated = current.filter(i => i !== index);
+        } else {
+          // Expand this circuit; if already at MAX_EXPANDED, drop the oldest
+          updated = [...current, index];
+          if (updated.length > MAX_EXPANDED) {
+            updated = updated.slice(updated.length - MAX_EXPANDED);
+          }
+        }
+
+        return { ...prev, [selectedItgIndex]: updated };
+      });
+
+      Sentry.addBreadcrumb({
+        category: 'circuits',
+        message: `Toggle circuit ${index} in ITG-${selectedItgIndex + 1}`,
+        level: 'info',
       });
     },
     [selectedItgIndex],
@@ -373,19 +465,16 @@ const CircuitsConfigStep = forwardRef<
     [selectedItgIndex],
   );
 
-  // Store expandedSet in a ref so that `renderItem` identity doesn't change
+  // Store expandedIndices in a ref so that `renderItem` identity doesn't change
   // when the user expands/collapses a circuit. Each CircuitItem receives
   // `isExpanded` via the ref lookup — the FlatList won't re-render ALL items
-  // on expand/collapse; only the toggled item re-renders (via its own state).
-  const expandedSetRef = useRef(new Set<number>());
-  expandedSetRef.current = useMemo(
-    () => new Set(expandedIndices),
-    [expandedIndices],
-  );
+  // on expand/collapse; only the toggled items re-render (via their own state).
+  const expandedIndicesRef = useRef<number[]>([]);
+  expandedIndicesRef.current = expandedIndices;
 
   // renderItem is now stable across expand/collapse changes.
   // - cnPrefix: passed as a prop from the single parent-level useWatch
-  // - expandedSet: read from ref (Fix #8)
+  // - expandedIndices: read from ref
   // - only `selectedItgIndex`, `toggleExpand`, and `cnPrefix` can change its identity
   const renderItem = useCallback(
     ({ item }: { item: CircuitIndexItem }) => (
@@ -394,7 +483,7 @@ const CircuitsConfigStep = forwardRef<
           index={item._idx}
           itgIndex={selectedItgIndex}
           cnPrefix={cnPrefix}
-          isExpanded={expandedSetRef.current.has(item._idx)}
+          isExpanded={expandedIndicesRef.current.includes(item._idx)}
           onToggleExpand={toggleExpand}
         />
       </View>
@@ -455,9 +544,9 @@ const CircuitsConfigStep = forwardRef<
         keyExtractor={getCircuitKey}
         renderItem={renderItem}
         ListHeaderComponent={headerElement}
-        initialNumToRender={5}
-        maxToRenderPerBatch={3}
-        windowSize={3}
+        initialNumToRender={8}
+        maxToRenderPerBatch={5}
+        windowSize={5}
         // removeClippedSubviews can cause crashes with complex items
         // (TextInputs, pickers, nested views) on both platforms. For form-heavy
         // lists where stability is critical, keep it disabled.
@@ -465,7 +554,7 @@ const CircuitsConfigStep = forwardRef<
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={dynamicContentPadding}
         // Force re-render of visible items when expand/collapse state changes.
-        // This is needed because we read from expandedSetRef in renderItem.
+        // This is needed because we read from expandedIndexRef in renderItem.
         extraData={expandedIndices}
       />
     </View>
