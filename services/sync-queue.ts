@@ -32,12 +32,18 @@ class SyncQueueService {
   private retryTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private netInfoUnsubscribe: (() => void) | null = null;
   private listeners: Set<() => void> = new Set();
+  private initialized = false;
 
-  constructor() {
-    this.init();
+  /**
+   * Start the sync queue service. Must be called after DatabaseService.initDatabase().
+   */
+  async start() {
+    if (this.initialized) return;
+    this.initialized = true;
+    this.initListeners();
   }
 
-  private init() {
+  private initListeners() {
     // Listen for network changes to trigger sync on reconnect
     this.netInfoUnsubscribe = NetInfo.addEventListener((state: any) => {
       if (state.isConnected) {

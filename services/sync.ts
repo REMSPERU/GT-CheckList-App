@@ -6,6 +6,16 @@ import { supabaseGroundingWellService } from './supabase-grounding-well.service'
 import NetInfo from '@react-native-community/netinfo';
 import { syncQueue } from './sync-queue';
 
+// --- Constants ---
+/** Maximum rows fetched per table to prevent OOM on mobile devices */
+const SYNC_ROW_LIMIT = 5000;
+
+/** Minimum interval between pull syncs to prevent rapid successive downloads */
+const MIN_PULL_INTERVAL_MS = 30000;
+
+/** Polling interval for background sync checks */
+const POLL_INTERVAL_MS = 30000;
+
 // --- Interfaces ---
 interface OfflineMaintenance {
   local_id: number;
@@ -35,28 +45,64 @@ interface OfflineSessionPhoto {
   status: string;
 }
 
+/**
+ * Helper to safely fetch data from a Supabase table with a row limit.
+ * Returns { data, failed } — when the query errors, data is null and failed is true.
+ * This prevents silent data wipes in smartSyncTable.
+ */
+async function safeFetch<T = any>(
+  queryFn: () => PromiseLike<{ data: T[] | null; error: any }>,
+): Promise<{ data: T[] | null; failed: boolean }> {
+  try {
+    const { data, error } = await queryFn();
+    if (error) {
+      console.error('[SYNC] Supabase query error:', error.message || error);
+      return { data: null, failed: true };
+    }
+    return { data: data ?? [], failed: false };
+  } catch (err) {
+    console.error('[SYNC] Supabase query exception:', err);
+    return { data: null, failed: true };
+  }
+}
+
 // --- Class Definition ---
 class SyncService {
   private isConnected = false;
   // Use 'any' to avoid NodeJS.Timer vs number conflicts in React Native
   private pollIntervalId: any = null;
   private isSyncing = false;
+  private isPushing = false;
   private currentSyncPromise: Promise<boolean> | null = null;
   private netInfoUnsubscribe: (() => void) | null = null;
+  private initialized = false;
+  private lastPullTimestamp = 0;
 
   constructor() {
-    this.init();
-    this.registerSyncHandlers();
+    // Intentionally empty — do NOT start timers or network listeners here.
+    // Call start() explicitly after DatabaseService.initDatabase() resolves.
   }
 
-  init() {
+  /**
+   * Start the sync service. Must be called AFTER DatabaseService.initDatabase() resolves.
+   */
+  async start() {
+    if (this.initialized) return;
+    this.initialized = true;
+
+    await DatabaseService.ensureInitialized();
+    this.registerSyncHandlers();
+    this.initListeners();
+  }
+
+  private initListeners() {
     // Initial check
     this.checkNetworkAndMaybeSync();
 
-    // Polling safety check every 15s
+    // Polling safety check
     this.pollIntervalId = setInterval(() => {
       this.checkNetworkAndMaybeSync();
-    }, 15000);
+    }, POLL_INTERVAL_MS);
 
     // Network event listener
     this.netInfoUnsubscribe = NetInfo.addEventListener((state: any) => {
@@ -89,12 +135,16 @@ class SyncService {
   }
 
   private async checkNetworkAndMaybeSync() {
-    const state = await NetInfo.fetch();
-    const wasConnected = this.isConnected;
-    this.isConnected = state.isConnected ?? false;
+    try {
+      const state = await NetInfo.fetch();
+      const wasConnected = this.isConnected;
+      this.isConnected = state.isConnected ?? false;
 
-    if (this.isConnected && !wasConnected) {
-      this.syncOnReconnect();
+      if (this.isConnected && !wasConnected) {
+        this.syncOnReconnect();
+      }
+    } catch (err) {
+      console.error('[SYNC] Network check failed:', err);
     }
   }
 
@@ -112,27 +162,34 @@ class SyncService {
 
   /**
    * MAIN UPLOAD ORCHESTRATOR
-   * Executes sub-tasks sequentially.
+   * Executes sub-tasks sequentially. Uses a mutex to prevent duplicate uploads.
    */
   async pushData() {
-    await DatabaseService.ensureInitialized();
-    if (!this.isConnected) return;
+    if (this.isPushing) return;
+    this.isPushing = true;
 
-    console.log('[SYNC] Starting Batch Upload...');
+    try {
+      await DatabaseService.ensureInitialized();
+      if (!this.isConnected) return;
 
-    // 1. Sync Maintenances
-    await this.syncPendingMaintenances();
+      console.log('[SYNC] Starting Batch Upload...');
 
-    // 2. Sync Panel Configurations
-    await this.syncPendingPanelConfigs();
+      // 1. Sync Maintenances
+      await this.syncPendingMaintenances();
 
-    // 3. Sync Grounding Wells
-    await this.syncPendingGroundingWells();
+      // 2. Sync Panel Configurations
+      await this.syncPendingPanelConfigs();
 
-    // 4. Sync Session Photos
-    await this.syncPendingSessionPhotos();
+      // 3. Sync Grounding Wells
+      await this.syncPendingGroundingWells();
 
-    console.log('[SYNC] Batch Upload Finished.');
+      // 4. Sync Session Photos
+      await this.syncPendingSessionPhotos();
+
+      console.log('[SYNC] Batch Upload Finished.');
+    } finally {
+      this.isPushing = false;
+    }
   }
 
   // ----------------------------------------------------------------
@@ -422,86 +479,121 @@ class SyncService {
   }
 
   // ----------------------------------------------------------------
-  // PULL DATA
+  // PULL DATA — with limits and error checking
   // ----------------------------------------------------------------
   async pullData(): Promise<boolean> {
     await DatabaseService.ensureInitialized();
     if (this.currentSyncPromise) return this.currentSyncPromise;
     if (!this.isConnected) return false;
 
+    // Throttle: skip if last pull was less than MIN_PULL_INTERVAL_MS ago
+    const now = Date.now();
+    if (now - this.lastPullTimestamp < MIN_PULL_INTERVAL_MS) {
+      console.log('[SYNC] Pull throttled — too soon since last pull');
+      return true;
+    }
+
     this.isSyncing = true;
     this.currentSyncPromise = (async () => {
       try {
         console.log('Starting Down-Sync...');
 
-        // Execute promises in parallel for better network speed
+        // Fetch all tables in parallel WITH limits and error checking
         const [
-          equipos,
-          properties,
-          instrumentos,
-          equipamentos,
-          equipamentosProperty,
-          scheduledMaintenances,
-          sessions,
-          userSessions,
-          sessionPhotos,
+          equiposResult,
+          propertiesResult,
+          instrumentosResult,
+          equipamentosResult,
+          equipamentosPropertyResult,
+          scheduledMaintenancesResult,
+          sessionsResult,
+          userSessionsResult,
+          sessionPhotosResult,
         ] = await Promise.all([
-          supabase
-            .from('equipos')
-            .select('*')
-            .then(r => r.data),
-          supabase
-            .from('properties')
-            .select('*')
-            .then(r => r.data),
-          supabase
-            .from('instrumentos')
-            .select('*')
-            .then(r => r.data),
-          supabase
-            .from('equipamentos')
-            .select('*')
-            .then(r => r.data),
-          supabase
-            .from('equipamentos_property')
-            .select('*')
-            .then(r => r.data),
-          supabase
-            .from('mantenimientos')
-            .select(
-              `
-                id, dia_programado, tipo_mantenimiento, observations, estatus, codigo, id_equipo, id_sesion
-             `,
-            )
-            .order('dia_programado', { ascending: true })
-            .then(r => r.data),
-          supabase
-            .from('sesion_mantenimiento')
-            .select('*')
-            .then(r => r.data),
-          supabase
-            .from('user_sesion_mantenimiento')
-            .select('id_user, id_sesion')
-            .then(r => r.data),
-          supabase
-            .from('sesion_mantenimiento_fotos')
-            .select('*')
-            .then(r => r.data),
+          safeFetch(() =>
+            supabase.from('equipos').select('*').limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
+            supabase.from('properties').select('*').limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
+            supabase.from('instrumentos').select('*').limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
+            supabase.from('equipamentos').select('*').limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
+            supabase
+              .from('equipamentos_property')
+              .select('*')
+              .limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
+            supabase
+              .from('mantenimientos')
+              .select(
+                `id, dia_programado, tipo_mantenimiento, observations, estatus, codigo, id_equipo, id_sesion`,
+              )
+              .order('dia_programado', { ascending: true })
+              .limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
+            supabase
+              .from('sesion_mantenimiento')
+              .select('*')
+              .limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
+            supabase
+              .from('user_sesion_mantenimiento')
+              .select('id_user, id_sesion')
+              .limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
+            supabase
+              .from('sesion_mantenimiento_fotos')
+              .select('*')
+              .limit(SYNC_ROW_LIMIT),
+          ),
         ]);
 
+        // Log any failures (but continue syncing successful tables)
+        const failedTables: string[] = [];
+        if (equiposResult.failed) failedTables.push('equipos');
+        if (propertiesResult.failed) failedTables.push('properties');
+        if (instrumentosResult.failed) failedTables.push('instrumentos');
+        if (equipamentosResult.failed) failedTables.push('equipamentos');
+        if (equipamentosPropertyResult.failed)
+          failedTables.push('equipamentos_property');
+        if (scheduledMaintenancesResult.failed)
+          failedTables.push('mantenimientos');
+        if (sessionsResult.failed) failedTables.push('sesion_mantenimiento');
+        if (userSessionsResult.failed)
+          failedTables.push('user_sesion_mantenimiento');
+        if (sessionPhotosResult.failed)
+          failedTables.push('sesion_mantenimiento_fotos');
+
+        if (failedTables.length > 0) {
+          console.warn(
+            `[SYNC] ${failedTables.length} table(s) failed to fetch: ${failedTables.join(', ')}. Local data preserved for failed tables.`,
+          );
+        }
+
+        // Pass null for failed tables — bulkInsertMirrorData will skip them
         await DatabaseService.bulkInsertMirrorData(
-          equipos || [],
-          properties || [],
-          [],
-          instrumentos || [],
-          equipamentos || [],
-          equipamentosProperty || [],
-          scheduledMaintenances || [],
-          sessions || [],
-          userSessions || [],
-          sessionPhotos || [],
+          equiposResult.data,
+          propertiesResult.data,
+          [], // users — not fetched in pull
+          instrumentosResult.data,
+          equipamentosResult.data,
+          equipamentosPropertyResult.data,
+          scheduledMaintenancesResult.data,
+          sessionsResult.data,
+          userSessionsResult.data,
+          sessionPhotosResult.data,
         );
 
+        this.lastPullTimestamp = Date.now();
         console.log('Down-Sync Completed.');
         return true;
       } catch (error) {

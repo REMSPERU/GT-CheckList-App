@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
   ReactNode,
 } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
@@ -47,17 +48,22 @@ interface UserRoleProviderProps {
   children: ReactNode;
 }
 
+/** Minimum interval between foreground role re-fetches (ms) */
+const ROLE_FETCH_THROTTLE_MS = 60_000;
+
 export function UserRoleProvider({ children }: UserRoleProviderProps) {
   const { user } = useAuth();
   const [localRole, setLocalRole] = useState<UserRole>('TECNICO');
   const [remoteRole, setRemoteRole] = useState<UserRole | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const lastFetchTime = useRef<number>(0);
 
   // Fetch role from Supabase (remote)
   const fetchRemoteRole = useCallback(async () => {
     if (!user?.id) return;
 
     try {
+      lastFetchTime.current = Date.now();
       const { data, error } = await supabase
         .from('users')
         .select('role')
@@ -107,11 +113,14 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     fetchRemoteRole();
   }, [user?.id, fetchRemoteRole]);
 
-  // Optionally refresh role when app comes back to foreground
+  // Optionally refresh role when app comes back to foreground (throttled)
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active' && user?.id) {
-        fetchRemoteRole();
+        const elapsed = Date.now() - lastFetchTime.current;
+        if (elapsed >= ROLE_FETCH_THROTTLE_MS) {
+          fetchRemoteRole();
+        }
       }
     };
 

@@ -15,9 +15,12 @@ import { QueryProvider } from '@/lib/query-provider';
 import { useAppUpdate } from '@/hooks/use-app-update';
 import { useMemoryWarning } from '@/hooks/useMemoryWarning';
 import UpdateRequiredModal from '@/components/update-required-modal';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 import { useEffect } from 'react';
 import { DatabaseService } from '@/services/database';
+import { syncService } from '@/services/sync';
+import { syncQueue } from '@/services/sync-queue';
 import * as Sentry from '@sentry/react-native';
 
 Sentry.init({
@@ -42,13 +45,44 @@ Sentry.init({
   // spotlight: __DEV__,
 });
 
+// Global handler for unhandled promise rejections — captures to Sentry
+// instead of letting the app crash silently.
+if (typeof global !== 'undefined') {
+  const originalHandler = (global as any).ErrorUtils?.getGlobalHandler?.();
+
+  (global as any).ErrorUtils?.setGlobalHandler?.(
+    (error: Error, isFatal?: boolean) => {
+      Sentry.captureException(error, {
+        tags: { fatal: String(!!isFatal), handler: 'global' },
+      });
+      if (__DEV__) {
+        console.error('[Global Error]', error);
+      }
+      // Call original handler so RN's red box still works in dev
+      originalHandler?.(error, isFatal);
+    },
+  );
+}
+
 export default Sentry.wrap(function RootLayout() {
   const colorScheme = useColorScheme();
   const updateInfo = useAppUpdate();
   useMemoryWarning();
 
+  // Ordered initialization: DB first, then sync services
   useEffect(() => {
-    DatabaseService.initDatabase().catch(console.error);
+    (async () => {
+      try {
+        await DatabaseService.initDatabase();
+        // Only start sync services after DB is ready
+        await syncQueue.start();
+        await syncService.start();
+        console.log('[Init] Database and sync services initialized');
+      } catch (err) {
+        console.error('[Init] Initialization failed:', err);
+        Sentry.captureException(err);
+      }
+    })();
   }, []);
 
   return (
@@ -57,10 +91,12 @@ export default Sentry.wrap(function RootLayout() {
         <UserRoleProvider>
           <ThemeProvider
             value={colorScheme === 'light' ? DefaultTheme : DarkTheme}>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="auth" />
-              <Stack.Screen name="(tabs)" />
-            </Stack>
+            <ErrorBoundary fallbackMessage="La aplicación tuvo un error inesperado. Presiona reintentar para continuar.">
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="auth" />
+                <Stack.Screen name="(tabs)" />
+              </Stack>
+            </ErrorBoundary>
             <StatusBar style="dark" />
 
             {/* Update Required Modal */}

@@ -39,10 +39,16 @@ export default function PreMaintenancePhotosScreen() {
   const panelId = params.panelId;
   const maintenanceId = params.maintenanceId;
 
-  // Deserialize building for context if present
-  const buildingData = params.building
-    ? JSON.parse(params.building as string)
-    : undefined;
+  // Deserialize building for context if present (safe parse)
+  let buildingData: any;
+  try {
+    buildingData = params.building
+      ? JSON.parse(params.building as string)
+      : undefined;
+  } catch {
+    console.error('[PrePhotos] Failed to parse building param');
+    buildingData = undefined;
+  }
 
   const { session, loading, addPhoto, removePhoto } = useMaintenanceSession(
     panelId || '',

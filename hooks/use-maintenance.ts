@@ -1,8 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '../services/db';
-import { syncService } from '@/services/sync';
 import {
   MaintenanceCreateRequest,
   MaintenanceStatusEnum,
@@ -173,16 +171,8 @@ export const useCreateMaintenance = () => {
 };
 
 // Fetch Scheduled Maintenances (Offline First)
+// Sync is handled by SyncService polling — no need to trigger pullData per hook.
 export const useScheduledMaintenances = () => {
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    // Trigger background sync when hook mounts
-    syncService.pullData().then(() => {
-      queryClient.invalidateQueries({ queryKey: ['scheduled-maintenances'] });
-    });
-  }, [queryClient]);
-
   return useQuery({
     queryKey: ['scheduled-maintenances'],
     queryFn: async () => {
@@ -203,19 +193,6 @@ export const useScheduledMaintenances = () => {
 
 // Fetch Maintenances by Property ID (Offline First)
 export const useMaintenanceByProperty = (propertyId: string) => {
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    if (propertyId) {
-      // Trigger background sync when hook mounts
-      syncService.pullData().then(() => {
-        queryClient.invalidateQueries({
-          queryKey: ['maintenance-by-property', propertyId],
-        });
-      });
-    }
-  }, [propertyId, queryClient]);
-
   return useQuery({
     queryKey: ['maintenance-by-property', propertyId],
     queryFn: async () => {
@@ -239,18 +216,6 @@ export const useMaintenanceByProperty = (propertyId: string) => {
 
 // Fetch real maintenance sessions for a property (Offline First)
 export const useMaintenanceSessions = (propertyId: string) => {
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    if (propertyId) {
-      syncService.pullData().then(() => {
-        queryClient.invalidateQueries({
-          queryKey: ['maintenance-sessions', propertyId],
-        });
-      });
-    }
-  }, [propertyId, queryClient]);
-
   return useQuery({
     queryKey: ['maintenance-sessions', propertyId],
     queryFn: async () => {

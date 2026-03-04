@@ -81,49 +81,53 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const {
       data: { subscription },
     } = supabaseAuthService.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        setHasSession(true);
-        setIsAuthenticated(true);
+      try {
+        if (event === 'SIGNED_IN' && session) {
+          setHasSession(true);
+          setIsAuthenticated(true);
 
-        // Update local session
-        if (session.user) {
-          await DatabaseService.saveSession({
-            user_id: session.user.id,
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            user_metadata: session.user.user_metadata,
-            expires_at: session.expires_at || 0,
-            last_active: new Date().toISOString(),
-          });
+          // Update local session
+          if (session.user) {
+            await DatabaseService.saveSession({
+              user_id: session.user.id,
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+              user_metadata: session.user.user_metadata,
+              expires_at: session.expires_at || 0,
+              last_active: new Date().toISOString(),
+            });
 
-          // Also save as current user for role lookups
-          await saveUserToLocalDb(session.user);
-        }
+            // Also save as current user for role lookups
+            await saveUserToLocalDb(session.user);
+          }
 
-        // Fetch fresh data if needed
-        if (!hasInitialFetch.current) {
-          await refetchUser();
+          // Fetch fresh data if needed
+          if (!hasInitialFetch.current) {
+            await refetchUser();
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setHasSession(false);
+          setIsAuthenticated(false);
+          setLocalUser(null);
+          hasInitialFetch.current = false;
+          await DatabaseService.clearSession();
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          setHasSession(true);
+          setIsAuthenticated(true);
+          // Update tokens in local storage
+          if (session.user) {
+            await DatabaseService.saveSession({
+              user_id: session.user.id,
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+              user_metadata: session.user.user_metadata,
+              expires_at: session.expires_at || 0,
+              last_active: new Date().toISOString(),
+            });
+          }
         }
-      } else if (event === 'SIGNED_OUT') {
-        setHasSession(false);
-        setIsAuthenticated(false);
-        setLocalUser(null);
-        hasInitialFetch.current = false;
-        await DatabaseService.clearSession();
-      } else if (event === 'TOKEN_REFRESHED' && session) {
-        setHasSession(true);
-        setIsAuthenticated(true);
-        // Update tokens in local storage
-        if (session.user) {
-          await DatabaseService.saveSession({
-            user_id: session.user.id,
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            user_metadata: session.user.user_metadata,
-            expires_at: session.expires_at || 0,
-            last_active: new Date().toISOString(),
-          });
-        }
+      } catch (err) {
+        console.error('[AuthContext] onAuthStateChange error:', err);
       }
     });
 

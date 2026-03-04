@@ -667,6 +667,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
     fieldErrors.amperaje || fieldErrors.diameter || fieldErrors.cableType;
 
   // Flush pending error changes after render (avoids setState during render)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally runs every render to sync ref → state
   useEffect(() => {
     const pending = pendingErrorsRef.current;
     setFieldErrors(prev => {
