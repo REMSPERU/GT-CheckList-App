@@ -1,4 +1,11 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   View,
   Text,
@@ -9,6 +16,7 @@ import {
 import { Control, Controller, useFormContext, useWatch } from 'react-hook-form';
 import RNPickerSelect from 'react-native-picker-select';
 import { Ionicons } from '@expo/vector-icons';
+import * as Sentry from '@sentry/react-native';
 import { styles } from './_styles';
 import {
   PhaseType,
@@ -164,6 +172,9 @@ const INTERRUPTOR_OPTIONS: {
 
 // Segment options for ID sub-ITM count (1-3)
 const ID_SUB_ITM_COUNT_OPTIONS = ['1', '2', '3'];
+
+// Sub-ITMs pagination: render this many initially, then +PAGE_SIZE on "show more"
+const SUB_ITM_PAGE_SIZE = 5;
 
 interface CircuitItemProps {
   index: number;
@@ -572,11 +583,15 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
     setItmCountInput(subITMsCount);
   }, [subITMsCount]);
 
-  // Accept raw text while typing — only digits allowed
+  // Accept raw text while typing — only digits allowed, strip leading zeros
   const onChangeItmCount = useCallback((text: string) => {
-    // Strip non-digits
     const cleaned = text.replace(/[^0-9]/g, '');
-    setItmCountInput(cleaned);
+    // Strip leading zeros: "02" → "2", but keep single "0" if user typed "0"
+    const stripped =
+      cleaned.replace(/^0+/, '') || (cleaned.length > 0 ? '0' : '');
+    // Allow empty string so user can clear and retype
+    const display = text === '' ? '' : stripped;
+    setItmCountInput(display);
   }, []);
 
   // Commit the value on blur: clamp to [1, max] and sync the sub-ITMs array
@@ -636,9 +651,13 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
     }
   }, [prefix, hasID, setValue]);
 
-  // Track individual field errors via local state — updated by each Controller's
-  // fieldState.error. This replaces the imperative getFieldState() calls that
-  // couldn't trigger re-renders when validation errors were set/cleared by trigger().
+  // Track individual field errors via refs updated inside Controller render props,
+  // then synced to state via useEffect to avoid setState-during-render.
+  const pendingErrorsRef = useRef({
+    amperaje: false,
+    diameter: false,
+    cableType: false,
+  });
   const [fieldErrors, setFieldErrors] = useState({
     amperaje: false,
     diameter: false,
@@ -646,6 +665,22 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
   });
   const hasErrors =
     fieldErrors.amperaje || fieldErrors.diameter || fieldErrors.cableType;
+
+  // Flush pending error changes after render (avoids setState during render)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally runs every render to sync ref → state
+  useEffect(() => {
+    const pending = pendingErrorsRef.current;
+    setFieldErrors(prev => {
+      if (
+        prev.amperaje === pending.amperaje &&
+        prev.diameter === pending.diameter &&
+        prev.cableType === pending.cableType
+      ) {
+        return prev; // no change, skip re-render
+      }
+      return { ...pending };
+    });
+  });
 
   // Build stable base paths for sub-ITM forms to avoid string concatenation in render
   const subITMBasePath = `${prefix}.subITMs`;
@@ -655,6 +690,34 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
     () => Array.from({ length: subITMsLength }, (_, i) => i),
     [subITMsLength],
   );
+
+  // ── Sub-ITM pagination: only render SUB_ITM_PAGE_SIZE at a time ──
+  const [subITMVisibleCount, setSubITMVisibleCount] =
+    useState(SUB_ITM_PAGE_SIZE);
+
+  // Reset visible count when subITMs count changes (e.g. user toggles off/on)
+  useEffect(() => {
+    setSubITMVisibleCount(SUB_ITM_PAGE_SIZE);
+  }, [subITMsLength]);
+
+  const visibleSubITMIndices = useMemo(
+    () => subITMIndices.slice(0, subITMVisibleCount),
+    [subITMIndices, subITMVisibleCount],
+  );
+
+  const hasMoreSubITMs = subITMVisibleCount < subITMsLength;
+
+  const showMoreSubITMs = useCallback(() => {
+    setSubITMVisibleCount(prev =>
+      Math.min(prev + SUB_ITM_PAGE_SIZE, subITMsLength),
+    );
+
+    Sentry.addBreadcrumb({
+      category: 'circuits',
+      message: `Show more sub-ITMs (now showing ${Math.min(subITMVisibleCount + SUB_ITM_PAGE_SIZE, subITMsLength)}/${subITMsLength})`,
+      level: 'info',
+    });
+  }, [subITMsLength, subITMVisibleCount]);
 
   // Whether to show the main supply field:
   // - For ITM: only if there are no sub-ITMs active (each sub-ITM has its own supply)
@@ -762,10 +825,8 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                 field: { onChange, onBlur, value },
                 fieldState: { error: amperajeError },
               }) => {
-                const hasError = !!amperajeError;
-                if (hasError !== fieldErrors.amperaje) {
-                  setFieldErrors(prev => ({ ...prev, amperaje: hasError }));
-                }
+                // Update ref (will be flushed to state via useEffect after render)
+                pendingErrorsRef.current.amperaje = !!amperajeError;
                 return (
                   <>
                     <View style={styles.inputWithUnitWrapper}>
@@ -802,10 +863,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                 field: { onChange, onBlur, value },
                 fieldState: { error: diameterError },
               }) => {
-                const hasError = !!diameterError;
-                if (hasError !== fieldErrors.diameter) {
-                  setFieldErrors(prev => ({ ...prev, diameter: hasError }));
-                }
+                pendingErrorsRef.current.diameter = !!diameterError;
                 return (
                   <>
                     <View
@@ -843,10 +901,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                 field: { onChange, value },
                 fieldState: { error: cableTypeError },
               }) => {
-                const hasError = !!cableTypeError;
-                if (hasError !== fieldErrors.cableType) {
-                  setFieldErrors(prev => ({ ...prev, cableType: hasError }));
-                }
+                pendingErrorsRef.current.cableType = !!cableTypeError;
                 return (
                   <>
                     <RNPickerSelect
@@ -1063,8 +1118,8 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                         )}
                       />
 
-                      {/* Render each sub-ITM with memoized component */}
-                      {subITMIndices.map(subIdx => (
+                      {/* Render each sub-ITM with memoized component (paginated) */}
+                      {visibleSubITMIndices.map(subIdx => (
                         <SubITMFormItem
                           key={subIdx}
                           control={control}
@@ -1074,6 +1129,21 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                           subITMsPrefix={subITMsPrefix}
                         />
                       ))}
+                      {hasMoreSubITMs && (
+                        <TouchableOpacity
+                          style={localStyles.showMoreBtn}
+                          onPress={showMoreSubITMs}
+                          activeOpacity={0.7}>
+                          <Ionicons
+                            name="add-circle-outline"
+                            size={18}
+                            color="#0891B2"
+                          />
+                          <Text style={localStyles.showMoreText}>
+                            Mostrar más ({subITMVisibleCount}/{subITMsLength})
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
                 </View>
@@ -1261,6 +1331,24 @@ const localStyles = StyleSheet.create({
     minWidth: 40,
     flex: 1,
     fontSize: 14,
+  },
+  showMoreBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#0891B2',
+    borderRadius: 8,
+    borderStyle: 'dashed' as const,
+    backgroundColor: '#F0FDFA',
+  },
+  showMoreText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#0891B2',
   },
 });
 

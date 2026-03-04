@@ -46,15 +46,19 @@ export class SupabaseEquipamentoService {
     if (error) throw error;
 
     // Transformar la respuesta de Supabase al formato esperado
+    // Filter out null joins (orphaned foreign keys)
     const items =
-      data?.map(item => {
-        const equipamento = (item as any).equipamentos;
-        return {
-          id: equipamento.id,
-          nombre: equipamento.nombre,
-          abreviatura: equipamento.abreviatura,
-        } as EquipamentoResponse;
-      }) || [];
+      data
+        ?.map(item => {
+          const equipamento = (item as any).equipamentos;
+          if (!equipamento) return null;
+          return {
+            id: equipamento.id,
+            nombre: equipamento.nombre,
+            abreviatura: equipamento.abreviatura,
+          } as EquipamentoResponse;
+        })
+        .filter((item): item is EquipamentoResponse => item !== null) || [];
 
     return {
       items,

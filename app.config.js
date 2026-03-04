@@ -88,6 +88,14 @@ export default ({ config }) => {
       ],
       'expo-web-browser',
       'expo-sqlite',
+      // Sentry: uploads source maps on EAS build and configures the native SDK
+      // [
+      //   '@sentry/react-native/expo',
+      //   {
+      //     organization: process.env.SENTRY_ORG,
+      //     project: process.env.SENTRY_PROJECT,
+      //   },
+      // ],
     ],
 
     experiments: {

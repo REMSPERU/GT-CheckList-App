@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 
 interface Props {
   children: ReactNode;
@@ -24,10 +25,15 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    // Report to Sentry in all environments so crash data is always captured
+    Sentry.captureException(error, {
+      contexts: {
+        react: { componentStack: info.componentStack ?? undefined },
+      },
+    });
     if (__DEV__) {
       console.error('ErrorBoundary caught:', error, info);
     }
-    // In production, Sentry / Crashlytics would capture this automatically
   }
 
   handleReset = () => {

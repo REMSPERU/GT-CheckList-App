@@ -17,8 +17,9 @@ import {
 import {
   PanelConfigurationFormValues,
   DEFAULT_ITG_CIRCUIT,
+  ITG_MAX,
 } from '@/schemas/panel-configuration';
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { styles } from './_styles';
 
 // ── Stable Icon components for RNPickerSelect (avoid inline re-creation) ────
@@ -147,13 +148,35 @@ const ITGCard = memo(function ITGCard({ idx }: ITGCardProps) {
   const { control } = useFormContext<PanelConfigurationFormValues>();
 
   // Track individual field errors via local state — updated by each Controller's
-  // fieldState.error. This replaces the imperative getFieldState() calls that
-  // couldn't trigger re-renders when validation errors were set/cleared.
+  // fieldState.error. Uses a ref + useEffect to avoid calling setState during render.
   const [fieldErrors, setFieldErrors] = useState({
     phase: false,
     amperaje: false,
     diameter: false,
     cableType: false,
+  });
+
+  // Pending error updates collected during render, flushed in useEffect
+  const pendingErrorsRef = useRef<Partial<typeof fieldErrors> | null>(null);
+
+  useEffect(() => {
+    if (pendingErrorsRef.current) {
+      const pending = pendingErrorsRef.current;
+      pendingErrorsRef.current = null;
+      setFieldErrors(prev => {
+        // Only update if something actually changed
+        let changed = false;
+        for (const key of Object.keys(
+          pending,
+        ) as (keyof typeof fieldErrors)[]) {
+          if (prev[key] !== pending[key]) {
+            changed = true;
+            break;
+          }
+        }
+        return changed ? { ...prev, ...pending } : prev;
+      });
+    }
   });
 
   const hasErrors =
@@ -182,10 +205,13 @@ const ITGCard = memo(function ITGCard({ idx }: ITGCardProps) {
           field: { onChange, value },
           fieldState: { error: phaseError },
         }) => {
-          // Sync error state for the parent card's hasErrors badge
+          // Queue error state update for the next useEffect flush
           const hasError = !!phaseError;
           if (hasError !== fieldErrors.phase) {
-            setFieldErrors(prev => ({ ...prev, phase: hasError }));
+            pendingErrorsRef.current = {
+              ...pendingErrorsRef.current,
+              phase: hasError,
+            };
           }
           return (
             <>
@@ -219,7 +245,10 @@ const ITGCard = memo(function ITGCard({ idx }: ITGCardProps) {
         }) => {
           const hasError = !!amperajeError;
           if (hasError !== fieldErrors.amperaje) {
-            setFieldErrors(prev => ({ ...prev, amperaje: hasError }));
+            pendingErrorsRef.current = {
+              ...pendingErrorsRef.current,
+              amperaje: hasError,
+            };
           }
           return (
             <>
@@ -258,7 +287,10 @@ const ITGCard = memo(function ITGCard({ idx }: ITGCardProps) {
         }) => {
           const hasError = !!diameterError;
           if (hasError !== fieldErrors.diameter) {
-            setFieldErrors(prev => ({ ...prev, diameter: hasError }));
+            pendingErrorsRef.current = {
+              ...pendingErrorsRef.current,
+              diameter: hasError,
+            };
           }
           return (
             <>
@@ -297,7 +329,10 @@ const ITGCard = memo(function ITGCard({ idx }: ITGCardProps) {
         }) => {
           const hasError = !!cableTypeError;
           if (hasError !== fieldErrors.cableType) {
-            setFieldErrors(prev => ({ ...prev, cableType: hasError }));
+            pendingErrorsRef.current = {
+              ...pendingErrorsRef.current,
+              cableType: hasError,
+            };
           }
           return (
             <>
@@ -358,28 +393,47 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
   const itgCount = useWatch({ control, name: 'itgCount' }) || '1';
   const itgCountNum = Math.max(0, parseInt(itgCount, 10) || 0);
 
-  // Handler that updates count and syncs arrays — wrapped in useCallback to
-  // avoid re-creating on every render (prevents unnecessary Controller re-renders)
-  const updateCount = useCallback(
-    (text: string) => {
+  // ── Local text state for the ITG count input ──────────────────────────
+  // Keeps the TextInput responsive: keystrokes update local state instantly
+  // while the expensive array resize is deferred until the user pauses (400ms)
+  // or blurs the field.
+  const [localItgCountText, setLocalItgCountText] = useState(itgCount);
+
+  // Debounce timer ref
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // The actual heavy work: clamp, resize arrays, update form state.
+  // `isBlur` indicates the call came from onBlur — forces "0" for empty field.
+  const applyItgCount = useCallback(
+    (raw: string, isBlur = false) => {
+      const cleaned = raw.replace(/[^0-9]/g, '');
+
+      // While typing, allow the field to stay empty so the user can clear
+      // and retype without seeing "0" appear. Only force "0" on blur.
+      if (cleaned === '' && !isBlur) return;
+
+      const parsed = parseInt(cleaned || '0', 10);
+      const n = isNaN(parsed) ? 0 : Math.min(Math.max(0, parsed), ITG_MAX);
+      const clamped =
+        String(n || '') === '0' && cleaned === '' ? '' : String(n);
+
+      // Update local text to the clamped value
+      setLocalItgCountText(clamped || cleaned);
+
       // 1. Update the count field
-      setValue('itgCount', text, { shouldValidate: true });
+      setValue('itgCount', clamped || cleaned, { shouldValidate: true });
 
       // 2. Sync itgDescriptions array
-      const parsed = parseInt(text || '0', 10);
-      const n = isNaN(parsed) ? 0 : Math.max(0, parsed);
       const currentDescriptions = getValues('itgDescriptions');
       const currentLength = currentDescriptions.length;
 
       if (n > currentLength) {
-        // Add items
         const newDescriptions = [...currentDescriptions];
         while (newDescriptions.length < n) {
           newDescriptions.push('');
         }
         setValue('itgDescriptions', newDescriptions);
 
-        // Also sync itgCircuits
         const currentCircuits = getValues('itgCircuits');
         const newCircuits = [...currentCircuits];
         while (newCircuits.length < n) {
@@ -390,11 +444,9 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
         }
         setValue('itgCircuits', newCircuits);
       } else if (n < currentLength) {
-        // Remove items from the end
         const newDescriptions = currentDescriptions.slice(0, n);
         setValue('itgDescriptions', newDescriptions);
 
-        // Also sync itgCircuits
         const currentCircuits = getValues('itgCircuits');
         const newCircuits = currentCircuits.slice(0, n);
         setValue('itgCircuits', newCircuits);
@@ -402,6 +454,40 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
     },
     [setValue, getValues],
   );
+
+  // Called on every keystroke — lightweight, just updates local state + debounce
+  const onItgCountTextChange = useCallback(
+    (text: string) => {
+      // Strip non-digits and leading zeros (e.g. "02" → "2")
+      const cleaned = text.replace(/[^0-9]/g, '');
+      const stripped =
+        cleaned.replace(/^0+/, '') || (cleaned.length > 0 ? '0' : '');
+      const display = text === '' ? '' : stripped;
+      setLocalItgCountText(display);
+
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        applyItgCount(display);
+      }, 400);
+    },
+    [applyItgCount],
+  );
+
+  // On blur, apply immediately (don't wait for debounce)
+  const onItgCountBlur = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    applyItgCount(localItgCountText, true);
+  }, [applyItgCount, localItgCountText]);
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   // Stable index array for rendering ITG cards
   const itgIndices = useMemo(
@@ -450,22 +536,20 @@ export default memo(function ITGConfigStep({ panel }: ITGConfigStepProps) {
           <Controller
             control={control}
             name="itgCount"
-            render={({
-              field: { onBlur, value },
-              fieldState: { error: itgCountError },
-            }) => (
+            render={({ fieldState: { error: itgCountError } }) => (
               <>
                 <TextInput
                   style={[
                     styles.countInput,
                     itgCountError && styles.inputError,
                   ]}
-                  value={value}
-                  onChangeText={updateCount}
-                  onBlur={onBlur}
+                  value={localItgCountText}
+                  onChangeText={onItgCountTextChange}
+                  onBlur={onItgCountBlur}
                   keyboardType="numeric"
                   placeholder="1"
                   placeholderTextColor="#9CA3AF"
+                  maxLength={2}
                 />
                 {itgCountError && (
                   <Text style={styles.errorText}>{itgCountError.message}</Text>
