@@ -272,6 +272,10 @@ export function usePanelConfiguration(
 
       try {
         const savedDraft = await AsyncStorage.getItem(storageKey);
+
+        // If in edit mode and no draft exists, or draft is very old,
+        // we could hydrate from initialPanel.
+        // For now, let's prioritize the draft if it exists.
         if (savedDraft) {
           const parsed = JSON.parse(savedDraft);
           if (__DEV__)
@@ -279,10 +283,6 @@ export function usePanelConfiguration(
 
           // Restore form values — validate against the DRAFT schema (lenient)
           // which only checks structure/types, not business rules.
-          // A half-filled form is expected when restoring a draft; the strict
-          // PanelConfigurationSchema would reject any empty required field
-          // (amperaje, diameter, cnPrefix, etc.), causing every in-progress
-          // draft to be discarded.
           if (parsed.formValues) {
             const validation = PanelConfigurationDraftSchema.safeParse(
               parsed.formValues,
@@ -306,6 +306,160 @@ export function usePanelConfiguration(
           ) {
             setCurrentStepId(parsed.currentStepId);
           }
+        } else if (isEditMode && initialPanel?.equipment_detail) {
+          // Hydrate from existing panel data if no draft exists
+          if (__DEV__)
+            console.log(
+              '[CONFIG] No draft found. Hydrating from initialPanel:',
+              initialPanel.id,
+            );
+
+          const detail = initialPanel.equipment_detail;
+
+          // Helper to reverse map labels to keys
+          const reversePhaseMapping: Record<string, string> = Object.fromEntries(
+            Object.entries(PHASE_LABELS).map(([k, v]) => [v, k]),
+          );
+          const reverseCableMapping: Record<string, string> = Object.fromEntries(
+            Object.entries(CABLE_TYPE_LABELS).map(([k, v]) => [v, k]),
+          );
+
+          const getPhaseKey = (label?: string) =>
+            label ? reversePhaseMapping[label] || label : 'mono_2w';
+          const getCableKey = (label?: string) =>
+            label ? reverseCableMapping[label] || label : 'libre_halogeno';
+
+          const techDetail = detail.detalle_tecnico || {};
+
+          // Map equipment_detail (Supabase/DB format) back to form values
+          const hydratedValues: Partial<PanelConfigurationFormValues> = {
+            panelType: (techDetail.tipo_tablero?.toLowerCase() ||
+              'adosado') as any,
+            voltage: techDetail.voltaje?.toString() || '220',
+            phase: getPhaseKey(techDetail.fases) as any,
+            itgCount: (detail.itgs?.length || 1).toString(),
+            itgDescriptions: detail.itgs?.map((i: any) => i.suministra) || [''],
+            itgCircuits:
+              detail.itgs?.map((itg: any) => ({
+                cnPrefix: itg.prefijo || 'CN',
+                circuitsCount: (itg.itms?.length || 0).toString(),
+                phaseITG: getPhaseKey(itg.fases),
+                amperajeITG: itg.amperaje?.toString() || '',
+                diameterITG: itg.diametro_cable || '',
+                cableTypeITG: getCableKey(itg.tipo_cable),
+                circuits:
+                  itg.itms?.map((itm: any) => ({
+                    interruptorType:
+                      itm.tipo === 'ID'
+                        ? 'id'
+                        : itm.tipo === 'Reserva'
+                          ? 'reserva'
+                          : 'itm',
+                    phase: getPhaseKey(itm.fases),
+                    amperaje: itm.amperaje?.toString() || '',
+                    diameter: itm.diametro_cable || '',
+                    cableType: getCableKey(itm.tipo_cable),
+                    supply: itm.suministra || '',
+                    hasID: !!itm.diferencial?.existe,
+                    phaseID: getPhaseKey(itm.diferencial?.fases),
+                    amperajeID: itm.diferencial?.amperaje?.toString() || '',
+                    diameterID: itm.diferencial?.diametro_cable || '',
+                    cableTypeID: getCableKey(itm.diferencial?.tipo_cable),
+                    hasSubITMs: !!(itm.sub_itms && itm.sub_itms.length > 0),
+                    subITMsPrefix:
+                      itm.sub_itms?.[0]?.id?.split('-')?.slice(0, -1)?.join('-') ||
+                      'ITM',
+                    subITMsCount: (itm.sub_itms?.length || 0).toString(),
+                    subITMs: itm.sub_itms?.map((sub: any) => ({
+                      name: sub.nombre || '',
+                      phaseITM: getPhaseKey(sub.fases),
+                      amperajeITM: sub.amperaje?.toString() || '',
+                      diameter: sub.diametro_cable || '',
+                      cableType: getCableKey(sub.tipo_cable),
+                      supply: sub.suministra || '',
+                      hasID: !!sub.diferencial?.existe,
+                      phaseID: getPhaseKey(sub.diferencial?.fases),
+                      amperajeID: sub.diferencial?.amperaje?.toString() || '',
+                      diameterID: sub.diferencial?.diametro_cable || '',
+                      cableTypeID: getCableKey(sub.diferencial?.tipo_cable),
+                    })),
+                  })) || [],
+              })) || [],
+            enabledComponents: detail.componentes?.map((c: any) =>
+              c.tipo.toLowerCase().endsWith('s')
+                ? c.tipo.toLowerCase()
+                : `${c.tipo.toLowerCase()}s`,
+            ) || [],
+            extraComponents: {
+              contactores:
+                detail.componentes
+                  ?.find((c: any) => c.tipo === 'CONTACTOR')
+                  ?.items?.map((i: any) => ({
+                    id: i.codigo,
+                    description: i.suministra,
+                  })) || [],
+              relays:
+                detail.componentes
+                  ?.find((c: any) => c.tipo === 'RELAY')
+                  ?.items?.map((i: any) => ({
+                    id: i.codigo,
+                    description: i.suministra,
+                  })) || [],
+              ventiladores:
+                detail.componentes
+                  ?.find((c: any) => c.tipo === 'VENTILADOR')
+                  ?.items?.map((i: any) => ({
+                    id: i.codigo,
+                    description: i.suministra,
+                  })) || [],
+              termostato:
+                detail.componentes
+                  ?.find((c: any) => c.tipo === 'TERMOSTATO')
+                  ?.items?.map((i: any) => ({
+                    id: i.codigo,
+                    description: i.suministra,
+                  })) || [],
+              medidores:
+                detail.componentes
+                  ?.find((c: any) => c.tipo === 'MEDIDOR')
+                  ?.items?.map((i: any) => ({
+                    id: i.codigo,
+                    description: i.suministra,
+                  })) || [],
+              timers:
+                detail.componentes
+                  ?.find((c: any) => c.tipo === 'TIMER')
+                  ?.items?.map((i: any) => ({
+                    id: i.codigo,
+                    description: i.suministra,
+                  })) || [],
+            },
+            extraConditions: {
+              mandilProteccion:
+                !!detail.condiciones_especiales?.mandil_proteccion,
+              puertaMandilAterrados:
+                !!detail.condiciones_especiales?.puerta_mandil_aterrados,
+              barraTierra: !!detail.condiciones_especiales?.barra_tierra,
+              terminalesElectricos:
+                !!detail.condiciones_especiales?.terminal_electrico,
+              mangasTermoContraibles:
+                !!detail.condiciones_especiales?.mangas_termo_contraibles,
+              diagramaUnifilarDirectorio:
+                !!detail.condiciones_especiales?.diagrama_unifilar_directorio,
+            },
+          };
+
+          const validation =
+            PanelConfigurationDraftSchema.safeParse(hydratedValues);
+          if (validation.success) {
+            reset(hydratedValues as PanelConfigurationFormValues);
+          } else {
+            if (__DEV__)
+              console.warn(
+                '[CONFIG] Hydration data schema mismatch',
+                validation.error.issues,
+              );
+          }
         }
       } catch (error) {
         if (__DEV__) console.error('[CONFIG] Error loading draft:', error);
@@ -315,7 +469,7 @@ export function usePanelConfiguration(
     };
 
     loadDraft();
-  }, [getStorageKey, initialPanel?.id, reset]);
+  }, [getStorageKey, initialPanel, reset, isEditMode]);
 
   // Save draft on unmount so user doesn't lose data if they navigate away
   useEffect(() => {
