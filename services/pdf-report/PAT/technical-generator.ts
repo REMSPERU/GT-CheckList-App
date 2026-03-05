@@ -172,6 +172,50 @@ function getPATStyles(): string {
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
+interface PATChecklistItem {
+  value: boolean;
+  observation?: string;
+  photo?: string | null;
+}
+
+interface PATEquipmentData {
+  maintenanceType?: 'conventional' | 'conductive-cement' | null;
+  preMeasurement?: string;
+  preMeasurementPhoto?: string | null;
+  greaseApplicationPhoto?: string | null;
+  thorGelPhoto?: string | null;
+  postMeasurement?: string;
+  postMeasurementPhoto?: string | null;
+  generalObservation?: string;
+  lidStatus?: 'good' | 'bad' | null;
+  lidStatusObservation?: string;
+  lidStatusPhoto?: string | null;
+  hasSignage?: PATChecklistItem;
+  connectorsOk?: PATChecklistItem;
+  hasAccess?: PATChecklistItem;
+}
+
+function getPatData(eq: any): PATEquipmentData {
+  const pat = (eq?.patData || {}) as PATEquipmentData;
+
+  return {
+    maintenanceType: pat.maintenanceType || null,
+    preMeasurement: pat.preMeasurement || eq.voltage || '',
+    preMeasurementPhoto: pat.preMeasurementPhoto || null,
+    greaseApplicationPhoto: pat.greaseApplicationPhoto || null,
+    thorGelPhoto: pat.thorGelPhoto || null,
+    postMeasurement: pat.postMeasurement || eq.amperage || '',
+    postMeasurementPhoto: pat.postMeasurementPhoto || null,
+    generalObservation: pat.generalObservation || eq.observations || '',
+    lidStatus: pat.lidStatus || null,
+    lidStatusObservation: pat.lidStatusObservation || '',
+    lidStatusPhoto: pat.lidStatusPhoto || null,
+    hasSignage: pat.hasSignage,
+    connectorsOk: pat.connectorsOk,
+    hasAccess: pat.hasAccess,
+  };
+}
+
 function renderPhoto(
   url: string | undefined | null,
   caption: string,
@@ -201,10 +245,12 @@ function generateCompanyHeader(): string {
 // ─── Page Generators ─────────────────────────────────────────────────
 
 function generateCoverPage(data: MaintenanceSessionReport): string {
+  const firstEquipment = data.equipments[0] as any;
+  const firstPat = firstEquipment ? getPatData(firstEquipment) : null;
   const coverPhoto =
-    data.equipments.length > 0 && data.equipments[0].prePhotos.length > 0
-      ? data.equipments[0].prePhotos[0].url
-      : null;
+    firstPat?.preMeasurementPhoto ||
+    firstPat?.lidStatusPhoto ||
+    (firstEquipment?.prePhotos?.[0]?.url ?? null);
 
   return `
     <div class="page">
@@ -389,21 +435,22 @@ function generatePreMeasurementPages(data: MaintenanceSessionReport): string {
         ${batch
           .map((eq, j) => {
             const idx = i + j + 1;
-            // Pre-measurement photo: use thermoPhotos[0] or prePhotos[1] (first prePhoto is cover)
+            const pat = getPatData(eq as any);
             const measurePhoto =
-              eq.thermoPhotos.length > 0
-                ? eq.thermoPhotos[0].url
-                : eq.prePhotos.length > 1
-                  ? eq.prePhotos[1].url
-                  : null;
+              pat.preMeasurementPhoto ||
+              eq.thermoPhotos.find(photo => photo.caption === 'preMeasurement')
+                ?.url ||
+              eq.thermoPhotos[0]?.url ||
+              null;
             const typeLabel = eq.type || 'POZO A TIERRA';
             const isGrid = typeLabel.toUpperCase().includes('MALLA');
             const prefix = isGrid ? `MALLA 1, ` : '';
+            const measurementValue = pat.preMeasurement || eq.voltage || 'N/A';
 
             return `
             ${renderPhoto(measurePhoto, `MEDICIÓN POZO ${eq.label || ''} ${idx}`, true)}
             <p class="measurement">
-              ${prefix}POZO A TIERRA N°${idx}: ${eq.voltage || 'N/A'} &Omega;<br/>
+              ${prefix}POZO A TIERRA N°${idx}: ${measurementValue} &Omega;<br/>
               (${eq.label || ''})
             </p>
           `;
@@ -417,22 +464,25 @@ function generatePreMeasurementPages(data: MaintenanceSessionReport): string {
 }
 
 function generateTreatmentPages(data: MaintenanceSessionReport): string {
-  // Collect treatment photos from all equipments
-  // postPhotos are used for treatment (thor-gel, grease) and post-measurement
-  // We'll use prePhotos beyond index 1 for treatment photos if available
   const thorGelPhotos: string[] = [];
   const greasePhotos: string[] = [];
 
   data.equipments.forEach(eq => {
-    // Use postPhotos for treatment: first half for thor-gel, second half for grease
-    if (eq.postPhotos.length > 0) {
-      // Convention: use specific photos if available
-      eq.postPhotos.forEach((p, idx) => {
-        if (idx % 2 === 0) {
+    const pat = getPatData(eq as any);
+
+    const explicitThor = pat.thorGelPhoto;
+    const explicitGrease = pat.greaseApplicationPhoto;
+
+    if (explicitThor) thorGelPhotos.push(explicitThor);
+    if (explicitGrease) greasePhotos.push(explicitGrease);
+
+    if (!explicitThor || !explicitGrease) {
+      eq.postPhotos.forEach(p => {
+        const caption = (p.caption || '').toLowerCase();
+        if (!explicitThor && caption.includes('thor'))
           thorGelPhotos.push(p.url);
-        } else {
+        if (!explicitGrease && caption.includes('grease'))
           greasePhotos.push(p.url);
-        }
       });
     }
   });
@@ -491,19 +541,24 @@ function generatePostMeasurementPages(data: MaintenanceSessionReport): string {
         ${batch
           .map((eq, j) => {
             const idx = i + j + 1;
-            // Post-measurement photo: use thermoPhotos[1] or last thermoPhoto
+            const pat = getPatData(eq as any);
             const measurePhoto =
-              eq.thermoPhotos.length > 1
+              pat.postMeasurementPhoto ||
+              eq.thermoPhotos.find(photo => photo.caption === 'postMeasurement')
+                ?.url ||
+              (eq.thermoPhotos.length > 1
                 ? eq.thermoPhotos[eq.thermoPhotos.length - 1].url
-                : null;
+                : null);
             const typeLabel = eq.type || 'POZO A TIERRA';
             const isGrid = typeLabel.toUpperCase().includes('MALLA');
             const prefix = isGrid ? `MALLA 1, ` : '';
+            const measurementValue =
+              pat.postMeasurement || eq.amperage || 'N/A';
 
             return `
             ${renderPhoto(measurePhoto, `MEDICIÓN POST-MANTENIMIENTO ${eq.label || ''} ${idx}`, true)}
             <p class="measurement">
-              ${prefix}POZO A TIERRA N°${idx}: ${eq.amperage || 'N/A'} &Omega;<br/>
+              ${prefix}POZO A TIERRA N°${idx}: ${measurementValue} &Omega;<br/>
               (${eq.label || ''})
             </p>
           `;
@@ -516,12 +571,115 @@ function generatePostMeasurementPages(data: MaintenanceSessionReport): string {
   return pages;
 }
 
+function generateInspectionChecklistPages(
+  data: MaintenanceSessionReport,
+): string {
+  const equipments = data.equipments;
+  if (equipments.length === 0) return '';
+
+  return `
+    <div class="page">
+      ${generateCompanyHeader()}
+
+      <h2>8.- INSPECCIÓN DETALLADA DE LOS POZOS</h2>
+      ${equipments
+        .map((eq, index) => {
+          const pat = getPatData(eq as any);
+          const lidStatusLabel =
+            pat.lidStatus === 'bad'
+              ? 'MALO'
+              : pat.lidStatus === 'good'
+                ? 'BUENO'
+                : 'NO REGISTRADO';
+          const maintenanceTypeLabel =
+            pat.maintenanceType === 'conventional'
+              ? 'CONVENCIONAL'
+              : pat.maintenanceType === 'conductive-cement'
+                ? 'CEMENTO CONDUCTIVO'
+                : 'NO REGISTRADO';
+
+          const checklistRows = [
+            {
+              label: 'SEÑALÉTICA NUMÉRICA',
+              item: pat.hasSignage,
+            },
+            {
+              label: 'CONECTORES EN BUEN ESTADO',
+              item: pat.connectorsOk,
+            },
+            {
+              label: 'ACCESO DISPONIBLE',
+              item: pat.hasAccess,
+            },
+          ];
+
+          return `
+            <h2 style="margin-top: ${index === 0 ? '5px' : '20px'};">POZO ${index + 1}: ${eq.label || 'SIN DENOMINACIÓN'}</h2>
+            <table class="data-table">
+              <tr>
+                <th>ÍTEM</th>
+                <th>ESTADO / DETALLE</th>
+              </tr>
+              <tr>
+                <td>TIPO DE MANTENIMIENTO</td>
+                <td>${maintenanceTypeLabel}</td>
+              </tr>
+              <tr>
+                <td>ESTADO DE TAPA</td>
+                <td>${lidStatusLabel}</td>
+              </tr>
+              <tr>
+                <td>OBSERVACIÓN DE TAPA</td>
+                <td>${pat.lidStatusObservation || 'Sin observaciones'}</td>
+              </tr>
+              ${checklistRows
+                .map(
+                  row => `
+                <tr>
+                  <td>${row.label}</td>
+                  <td>
+                    ${row.item?.value ? 'CONFORME' : 'OBSERVADO'}
+                    ${row.item?.observation ? `<br/>${row.item.observation}` : ''}
+                  </td>
+                </tr>
+              `,
+                )
+                .join('')}
+              <tr>
+                <td>OBSERVACIÓN GENERAL</td>
+                <td>${pat.generalObservation || 'Sin observaciones generales'}</td>
+              </tr>
+            </table>
+
+            ${renderPhoto(pat.lidStatusPhoto, `ESTADO DE TAPA - ${eq.label || ''}`, true)}
+            ${renderPhoto(
+              pat.hasSignage?.photo,
+              `SEÑALÉTICA NUMÉRICA - ${eq.label || ''}`,
+              true,
+            )}
+            ${renderPhoto(
+              pat.connectorsOk?.photo,
+              `CONECTORES - ${eq.label || ''}`,
+              true,
+            )}
+            ${renderPhoto(
+              pat.hasAccess?.photo,
+              `ACCESO - ${eq.label || ''}`,
+              true,
+            )}
+          `;
+        })
+        .join('')}
+    </div>
+  `;
+}
+
 function generateResistanceTablePage(): string {
   return `
     <div class="page">
       ${generateCompanyHeader()}
 
-      <h2>8.- VALORES MÁXIMOS DE RESISTENCIA DE PUESTA A TIERRA</h2>
+      <h2>9.- VALORES MÁXIMOS DE RESISTENCIA DE PUESTA A TIERRA</h2>
       <p style="text-align: center; font-style: italic;">
         Tabla 3.1. Valores máximos de resistencia de puesta a tierra
       </p>
@@ -574,14 +732,14 @@ function generateRecommendationsAndConclusionsPage(
     <div class="page">
       ${generateCompanyHeader()}
 
-      <h2>9.- RECOMENDACIONES</h2>
+      <h2>10.- RECOMENDACIONES</h2>
       ${
         data.recommendations
           ? `<p>${data.recommendations}</p>`
           : defaultRecommendations
       }
 
-      <h2>10.- CONCLUSIONES:</h2>
+      <h2>11.- CONCLUSIONES:</h2>
       ${data.conclusions ? `<p>${data.conclusions}</p>` : defaultConclusions}
 
       <div class="signature-section">
@@ -624,6 +782,7 @@ export function generatePATReportHTML(data: MaintenanceSessionReport): string {
   ${generatePreMeasurementPages(data)}
   ${generateTreatmentPages(data)}
   ${generatePostMeasurementPages(data)}
+  ${generateInspectionChecklistPages(data)}
   ${generateResistanceTablePage()}
   ${generateRecommendationsAndConclusionsPage(data)}
 </body>

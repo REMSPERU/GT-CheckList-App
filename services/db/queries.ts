@@ -327,6 +327,18 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
   });
 }
 
+export async function getLocalScheduledMaintenanceById(maintenanceId: string) {
+  await ensureInitialized();
+  const db = await dbPromise;
+
+  const row = await db.getFirstAsync(
+    'SELECT id, id_equipo, id_sesion FROM local_scheduled_maintenances WHERE id = ? LIMIT 1',
+    [maintenanceId],
+  );
+
+  return row;
+}
+
 /**
  * Get real maintenance sessions for a property from local mirror.
  * Returns sessions with their maintenance counts and technicians.
