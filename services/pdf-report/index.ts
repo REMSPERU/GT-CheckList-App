@@ -25,6 +25,9 @@ export { generateProtocolPageHTML } from './electrical-panels/protocol-generator
 // Operability Certificate Generator
 export { generateOperabilityCertificateHTML } from './electrical-panels/operability-generator';
 
+// HTML Generators (PAT - Pozo a Tierra Report)
+export { generatePATReportHTML } from './PAT/technical-generator';
+
 // HTML Generators (Legacy - deprecated)
 export {
   generateCoverPageHTML,

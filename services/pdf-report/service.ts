@@ -27,6 +27,7 @@ import {
   generateHeaderPageHTML as generateELHeader,
   generateSummaryAndObservationsHTML as generateELSummary,
 } from './emergency-lights/technical-generator';
+import { generatePATReportHTML } from './PAT/technical-generator';
 
 /**
  * PDF Report Generation Service
@@ -112,6 +113,13 @@ class PDFReportService {
   }
 
   /**
+   * Generate PAT (Pozo a Tierra) report HTML
+   */
+  generatePATReportHTML(data: MaintenanceSessionReport): string {
+    return generatePATReportHTML(data);
+  }
+
+  /**
    * Generate PDF based on report type
    * @returns URI of the generated PDF file
    */
@@ -130,6 +138,9 @@ class PDFReportService {
         break;
       case ReportType.EMERGENCY_LIGHTS:
         html = this.generateEmergencyLightsReportHTML(data);
+        break;
+      case ReportType.PAT:
+        html = this.generatePATReportHTML(data);
         break;
       case ReportType.TECHNICAL:
       default:

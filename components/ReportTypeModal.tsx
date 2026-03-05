@@ -23,18 +23,22 @@ export function ReportTypeModal({
 }: ReportTypeModalProps) {
   // Filter options based on equipment type
   const filteredOptions = React.useMemo(() => {
-    const isEmergencyLight = equipmentType
-      ?.toLowerCase()
-      .includes('emergencia');
+    const lowerType = equipmentType?.toLowerCase() || '';
+    const isEmergencyLight = lowerType.includes('emergencia');
+    const isGroundingWell = lowerType.includes('pozo');
 
     if (isEmergencyLight) {
       return REPORT_TYPE_OPTIONS.filter(
         opt => opt.type === ReportType.EMERGENCY_LIGHTS,
       );
+    } else if (isGroundingWell) {
+      return REPORT_TYPE_OPTIONS.filter(opt => opt.type === ReportType.PAT);
     } else {
-      // Default to "Electrical Panel" reports (exclude Emergency Lights)
+      // Default to "Electrical Panel" reports (exclude Emergency Lights and PAT)
       return REPORT_TYPE_OPTIONS.filter(
-        opt => opt.type !== ReportType.EMERGENCY_LIGHTS,
+        opt =>
+          opt.type !== ReportType.EMERGENCY_LIGHTS &&
+          opt.type !== ReportType.PAT,
       );
     }
   }, [equipmentType]);

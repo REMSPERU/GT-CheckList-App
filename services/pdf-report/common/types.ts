@@ -8,6 +8,7 @@ export enum ReportType {
   OPERABILITY = 'operability',
   PROTOCOL = 'protocol',
   EMERGENCY_LIGHTS = 'emergency_lights',
+  PAT = 'pat',
 }
 
 export interface ReportTypeOption {
@@ -41,6 +42,12 @@ export const REPORT_TYPE_OPTIONS: ReportTypeOption[] = [
     name: 'Reporte Luces de Emergencia',
     description: 'Informe técnico específico para luces de emergencia',
     icon: 'bulb',
+  },
+  {
+    type: ReportType.PAT,
+    name: 'Informe Técnico SPAT',
+    description: 'Informe de mantenimiento de sistema de puesta a tierra',
+    icon: 'flash',
   },
 ];
 
