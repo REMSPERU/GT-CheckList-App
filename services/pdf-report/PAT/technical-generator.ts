@@ -60,7 +60,7 @@ function getPATStyles(): string {
     }
     .info-table td {
       border: 2px solid #000;
-      padding: 10px;
+      padding: 5px 10px;
       text-transform: uppercase;
     }
     .info-table td:first-child {
@@ -78,10 +78,11 @@ function getPATStyles(): string {
     .data-table th,
     .data-table td {
       border: 1px solid #000;
-      padding: 8px;
+      padding: 4px 8px;
     }
     .data-table th {
-      background-color: #f2f2f2;
+      background-color: #fc5126;
+      color: #000;
       font-weight: bold;
     }
     .photo-container {
@@ -163,6 +164,9 @@ function getPATStyles(): string {
       border: none;
       margin-top: 20px;
     }
+    .header .division {
+      color: #fc7c6e;
+    }
   `;
 }
 
@@ -181,14 +185,14 @@ function renderPhoto(
       </div>
     `;
   }
-  return `<div class="photo-placeholder ${small ? 'small' : ''}">[${caption}]</div>`;
+  return '';
 }
 
 function generateCompanyHeader(): string {
   return `
     <div class="header">
       <span class="bold">PROPIEDAD ELITE S.R.L.</span><br/>
-      <span class="bold">DIVISIÓN ELÉCTRICA</span><br/>
+      <span class="bold division">DIVISIÓN ELÉCTRICA</span><br/>
       RUC: 20538436209 | Teléfono: (511) 979351357 | Correo: Gianmarco.Isique@rems.pe
     </div>
   `;
@@ -208,7 +212,7 @@ function generateCoverPage(data: MaintenanceSessionReport): string {
 
       <div class="header cover-header">
         <span class="bold">PROPIEDAD ELITE S.R.L.</span><br/>
-        <span class="bold">DIVISIÓN ELÉCTRICA</span><br/>
+        <span class="bold division">DIVISIÓN ELÉCTRICA</span><br/>
         RUC: 20538436209<br/>
         Teléfono: (511) 979351357<br/>
         Correo: Gianmarco.Isique@rems.pe
@@ -216,7 +220,7 @@ function generateCoverPage(data: MaintenanceSessionReport): string {
 
       <table class="info-table">
         <tr>
-          <td colspan="2" style="text-align: center; font-size: 16px;">
+          <td colspan="2" style="text-align: center; font-size: 16px; background-color: #fc5126;">
             INFORME TÉCNICO
           </td>
         </tr>
