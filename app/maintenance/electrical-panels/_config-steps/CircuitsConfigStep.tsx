@@ -6,8 +6,6 @@ import {
   FlatList,
   Platform,
   Keyboard,
-  InteractionManager,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFormContext, Controller, useWatch } from 'react-hook-form';
