@@ -8,20 +8,78 @@ export interface MaintenanceResponse {
   protocol?: any;
 }
 
+export interface PhotoUploadContext {
+  sessionId?: string | null;
+  equipmentId?: string | null;
+  maintenanceId?: string | null;
+  category: 'pre' | 'post' | 'observation' | 'grounding-well' | 'session-start';
+  observationKey?: string | null;
+  itemKey?: string | null;
+}
+
 export class SupabaseMaintenanceService {
   private bucketName = 'maintenance';
   private tableName = 'maintenance_response';
 
+  private normalizePathSegment(value: string): string {
+    return value
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-zA-Z0-9._-]/g, '_');
+  }
+
+  private buildPhotoPath(
+    fileName: string,
+    context: PhotoUploadContext,
+  ): string {
+    const safeFileName = this.normalizePathSegment(fileName);
+
+    if (context.category === 'session-start') {
+      if (context.sessionId) {
+        return `execution/sessions/${this.normalizePathSegment(context.sessionId)}/session-start/${safeFileName}`;
+      }
+      return `execution/session-start/${safeFileName}`;
+    }
+
+    const sessionSegment = context.sessionId
+      ? `sessions/${this.normalizePathSegment(context.sessionId)}`
+      : 'adhoc';
+    const equipmentSegment = context.equipmentId
+      ? `equipments/${this.normalizePathSegment(context.equipmentId)}`
+      : 'equipments/unassigned';
+    const maintenanceSegment = context.maintenanceId
+      ? `maintenances/${this.normalizePathSegment(context.maintenanceId)}`
+      : 'maintenances/unassigned';
+
+    if (context.category === 'observation') {
+      const observationKey = context.observationKey
+        ? this.normalizePathSegment(context.observationKey)
+        : 'general';
+      return `execution/${sessionSegment}/${equipmentSegment}/${maintenanceSegment}/observation/${observationKey}/${safeFileName}`;
+    }
+
+    if (context.category === 'grounding-well') {
+      const itemKey = context.itemKey
+        ? this.normalizePathSegment(context.itemKey)
+        : 'general';
+      return `execution/${sessionSegment}/${equipmentSegment}/${maintenanceSegment}/grounding-well/${itemKey}/${safeFileName}`;
+    }
+
+    return `execution/${sessionSegment}/${equipmentSegment}/${maintenanceSegment}/${context.category}/${safeFileName}`;
+  }
+
   /**
    * Upload a photo to Supabase Storage
    * @param uri Local file URI
-   * @param folder Target folder path in storage
+   * @param context Path metadata used to build storage hierarchy
    */
-  async uploadPhoto(uri: string, folder: string): Promise<string> {
+  async uploadPhoto(uri: string, context: PhotoUploadContext): Promise<string> {
     try {
       // Ensure file:// prefix for local URIs on mobile
       const cleanUri =
-        uri.startsWith('http') || uri.startsWith('file://') || uri.startsWith('content://')
+        uri.startsWith('http') ||
+        uri.startsWith('file://') ||
+        uri.startsWith('content://')
           ? uri
           : `file://${uri}`;
 
@@ -46,7 +104,7 @@ export class SupabaseMaintenanceService {
                 (reader.result as string).split(',')[1],
               );
               const fileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
-              const filePath = `execution/${folder}/${fileName}`;
+              const filePath = this.buildPhotoPath(fileName, context);
 
               console.log(`[STORAGE] Uploading to Supabase: ${filePath}...`);
               const { data, error } = await supabase.storage

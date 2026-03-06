@@ -45,6 +45,12 @@ interface OfflineSessionPhoto {
   status: string;
 }
 
+interface MaintenanceRouteContext {
+  id: string;
+  id_equipo: string | null;
+  id_sesion: string | null;
+}
+
 /**
  * Helper to safely fetch data from a Supabase table with a row limit.
  * Returns { data, failed } — when the query errors, data is null and failed is true.
@@ -206,6 +212,14 @@ class SyncService {
       try {
         await DatabaseService.updateMaintenanceStatus(item.local_id, 'syncing');
 
+        let routeContext: MaintenanceRouteContext | null = null;
+        if (item.id_mantenimiento) {
+          routeContext =
+            (await DatabaseService.getLocalScheduledMaintenanceById(
+              item.id_mantenimiento,
+            )) as MaintenanceRouteContext | null;
+        }
+
         // A. Upload Photos
         const photos = (await DatabaseService.getPendingPhotos(
           item.local_id,
@@ -214,22 +228,23 @@ class SyncService {
 
         for (const photo of photos) {
           try {
-            // Determine folder based on type
-            const folder =
-              photo.type === 'pre'
-                ? 'pre'
-                : photo.type === 'post'
-                  ? 'post'
-                  : photo.type === 'session'
-                    ? 'session'
-                    : 'observations';
-
-            console.log(
-              `[SYNC] Uploading photo ${photo.id}: ${photo.local_uri} to /${folder}`,
-            );
             const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
               photo.local_uri,
-              folder,
+              {
+                sessionId: routeContext?.id_sesion || null,
+                equipmentId: routeContext?.id_equipo || null,
+                maintenanceId:
+                  item.id_mantenimiento || `offline-${item.local_id}`,
+                category:
+                  photo.type === 'pre'
+                    ? 'pre'
+                    : photo.type === 'post'
+                      ? 'post'
+                      : photo.type === 'session'
+                        ? 'session-start'
+                        : 'observation',
+                observationKey: photo.observation_key || null,
+              },
             );
             console.log(`[SYNC] Photo ${photo.id} uploaded: ${remoteUrl}`);
 
@@ -367,17 +382,35 @@ class SyncService {
           'syncing',
         );
 
+        let routeContext: MaintenanceRouteContext | null = null;
+        if (checklist.maintenance_id) {
+          routeContext =
+            (await DatabaseService.getLocalScheduledMaintenanceById(
+              checklist.maintenance_id,
+            )) as MaintenanceRouteContext | null;
+        }
+
         // A. Upload Photos
         const photos =
           (await DatabaseService.getPendingGroundingWellChecklistPhotos(
             checklist.local_id,
           )) as { id: number; local_uri: string; item_key: string }[];
         const photoUrlMap: Record<string, string> = {};
+        const photoItemMap: Record<string, string> = {};
 
         for (const photo of photos) {
           const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
             photo.local_uri,
-            'grounding-well',
+            {
+              sessionId: routeContext?.id_sesion || null,
+              equipmentId:
+                checklist.panel_id || routeContext?.id_equipo || null,
+              maintenanceId:
+                checklist.maintenance_id ||
+                `grounding-offline-${checklist.local_id}`,
+              category: 'grounding-well',
+              itemKey: photo.item_key,
+            },
           );
           await DatabaseService.updateGroundingWellChecklistPhotoStatus(
             photo.id,
@@ -385,17 +418,38 @@ class SyncService {
             remoteUrl,
           );
           photoUrlMap[photo.local_uri] = remoteUrl;
+          photoItemMap[photo.item_key] = remoteUrl;
         }
 
         // B. Replace URLs in JSON
         const detail = JSON.parse(checklist.checklist_data);
         const replaceUri = (uri: string) => photoUrlMap[uri] || uri;
 
-        if (detail.lidStatusPhoto)
-          detail.lidStatusPhoto = replaceUri(detail.lidStatusPhoto);
+        const directPhotoFieldMap: Record<string, string> = {
+          preMeasurement: 'preMeasurementPhoto',
+          greaseApplication: 'greaseApplicationPhoto',
+          thorGel: 'thorGelPhoto',
+          postMeasurement: 'postMeasurementPhoto',
+          lidStatus: 'lidStatusPhoto',
+        };
+
+        Object.entries(directPhotoFieldMap).forEach(
+          ([itemKey, detailField]) => {
+            if (photoItemMap[itemKey]) {
+              detail[detailField] = photoItemMap[itemKey];
+            } else if (detail[detailField]) {
+              detail[detailField] = replaceUri(detail[detailField]);
+            }
+          },
+        );
+
         ['hasSignage', 'connectorsOk', 'hasAccess'].forEach(key => {
-          if (detail[key]?.photo)
+          if (photoItemMap[key]) {
+            if (!detail[key]) detail[key] = { value: true, observation: '' };
+            detail[key].photo = photoItemMap[key];
+          } else if (detail[key]?.photo) {
             detail[key].photo = replaceUri(detail[key].photo);
+          }
         });
 
         // C. Save
@@ -404,6 +458,14 @@ class SyncService {
           detail,
           checklist.user_created,
         );
+
+        // D. Update maintenance status to FINALIZADO in Supabase
+        if (checklist.maintenance_id) {
+          await supabaseMaintenanceService.updateMaintenanceStatus(
+            checklist.maintenance_id,
+            'FINALIZADO',
+          );
+        }
 
         await DatabaseService.updateGroundingWellChecklistStatus(
           checklist.local_id,
@@ -439,7 +501,10 @@ class SyncService {
         // 1. Upload to Storage
         const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
           photo.local_uri,
-          `session/${photo.id_sesion}`,
+          {
+            sessionId: photo.id_sesion,
+            category: 'session-start',
+          },
         );
         console.log(
           `[SYNC-SESSION-PHOTO] Photo ${photo.id} uploaded: ${remoteUrl}`,

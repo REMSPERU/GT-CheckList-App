@@ -159,6 +159,7 @@ const ITGCard = memo(function ITGCard({ idx }: ITGCardProps) {
   // Pending error updates collected during render, flushed in useEffect
   const pendingErrorsRef = useRef<Partial<typeof fieldErrors> | null>(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (pendingErrorsRef.current) {
       const pending = pendingErrorsRef.current;

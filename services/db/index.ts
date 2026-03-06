@@ -41,6 +41,7 @@ import {
   getEquipmentByProperty,
   getLocalScheduledMaintenances,
   getLocalMaintenancesByProperty,
+  getLocalScheduledMaintenanceById,
   getLocalSessionsByProperty,
   getInstrumentsByEquipmentType,
 } from './queries';
@@ -114,6 +115,7 @@ export const DatabaseService = {
   getEquipmentByProperty,
   getLocalScheduledMaintenances,
   getLocalMaintenancesByProperty,
+  getLocalScheduledMaintenanceById,
   getLocalSessionsByProperty,
   getInstrumentsByEquipmentType,
 

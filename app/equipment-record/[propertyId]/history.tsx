@@ -167,6 +167,10 @@ export default function SessionHistoryScreen() {
         title = 'Informe Técnico';
         progress = 'Generando informe técnico...';
         break;
+      case ReportType.PAT:
+        title = 'Informe Técnico SPAT';
+        progress = 'Generando informe técnico de pozo a tierra...';
+        break;
       case ReportType.PROTOCOL:
         title = 'Protocolo de Mantenimiento';
         progress = 'Generando protocolo...';
@@ -181,6 +185,16 @@ export default function SessionHistoryScreen() {
     setGenerationProgress(progress);
 
     try {
+      const isPATReport = type === ReportType.PAT;
+      const normalizePhotoUrl = (photo: any): string | undefined => {
+        if (!photo) return undefined;
+        if (typeof photo === 'string') return photo;
+        if (typeof photo === 'object') {
+          return photo.url || photo.uri || photo.remote_url || undefined;
+        }
+        return undefined;
+      };
+
       const maintenanceIds = selectedSession.maintenances
         .filter((m: any) => m.estatus === MaintenanceStatusEnum.FINALIZADO)
         .map((m: any) => m.id);
@@ -229,6 +243,153 @@ export default function SessionHistoryScreen() {
           (r: any) => r.id_mantenimiento === maint.id,
         );
         const detail = response?.detail_maintenance || {};
+
+        if (
+          isPATReport &&
+          (detail.type === 'grounding_well_checklist' ||
+            detail.preMeasurement !== undefined ||
+            detail.postMeasurement !== undefined)
+        ) {
+          const checklistKeys = ['hasSignage', 'connectorsOk', 'hasAccess'];
+          const checklistItems = checklistKeys.map(key => ({
+            key,
+            item: detail[key] || { value: true, observation: '', photo: null },
+          }));
+
+          totalOkItems += checklistItems.filter(
+            entry => entry.item.value,
+          ).length;
+          totalIssueItems += checklistItems.filter(
+            entry => !entry.item.value,
+          ).length;
+
+          const prePhotos: { url: string; caption?: string }[] = [];
+          const thermoPhotos: { url: string; caption?: string }[] = [];
+          const postPhotos: { url: string; caption?: string }[] = [];
+
+          const preMeasurementPhoto = normalizePhotoUrl(
+            detail.preMeasurementPhoto,
+          );
+          const greasePhoto = normalizePhotoUrl(detail.greaseApplicationPhoto);
+          const thorGelPhoto = normalizePhotoUrl(detail.thorGelPhoto);
+          const postMeasurementPhoto = normalizePhotoUrl(
+            detail.postMeasurementPhoto,
+          );
+          const lidStatusPhoto = normalizePhotoUrl(detail.lidStatusPhoto);
+
+          if (preMeasurementPhoto) {
+            thermoPhotos.push({
+              url: preMeasurementPhoto,
+              caption: 'preMeasurement',
+            });
+          }
+          if (greasePhoto) {
+            postPhotos.push({ url: greasePhoto, caption: 'greaseApplication' });
+          }
+          if (thorGelPhoto) {
+            postPhotos.push({ url: thorGelPhoto, caption: 'thorGel' });
+          }
+          if (postMeasurementPhoto) {
+            thermoPhotos.push({
+              url: postMeasurementPhoto,
+              caption: 'postMeasurement',
+            });
+          }
+          if (lidStatusPhoto) {
+            prePhotos.push({ url: lidStatusPhoto, caption: 'lidStatus' });
+          }
+
+          checklistItems.forEach(({ key, item }) => {
+            const photoUrl = normalizePhotoUrl(item.photo);
+            if (photoUrl) {
+              prePhotos.push({ url: photoUrl, caption: key });
+            }
+          });
+
+          equipments.push({
+            code: maint.equipos?.codigo || 'N/A',
+            label: maint.equipos?.nombre || maint.equipos?.codigo || 'N/A',
+            type: 'POZO A TIERRA',
+            model: 'N/A',
+            location: maint.equipos?.ubicacion || 'N/A',
+            voltage: detail.preMeasurement || undefined,
+            amperage: detail.postMeasurement || undefined,
+            cableSize: undefined,
+            circuits: checklistItems.length,
+            prePhotos,
+            thermoPhotos,
+            postPhotos,
+            observations: detail.generalObservation || '',
+            itemObservations: {
+              lidStatus: {
+                note:
+                  detail.lidStatus === 'bad'
+                    ? detail.lidStatusObservation || 'Tapa en mal estado'
+                    : 'Tapa en buen estado',
+                photoUrl: lidStatusPhoto,
+              },
+              hasSignage: {
+                note:
+                  detail.hasSignage?.observation ||
+                  (detail.hasSignage?.value
+                    ? 'Conforme'
+                    : 'Sin observación registrada'),
+                photoUrl: normalizePhotoUrl(detail.hasSignage?.photo),
+              },
+              connectorsOk: {
+                note:
+                  detail.connectorsOk?.observation ||
+                  (detail.connectorsOk?.value
+                    ? 'Conforme'
+                    : 'Sin observación registrada'),
+                photoUrl: normalizePhotoUrl(detail.connectorsOk?.photo),
+              },
+              hasAccess: {
+                note:
+                  detail.hasAccess?.observation ||
+                  (detail.hasAccess?.value
+                    ? 'Conforme'
+                    : 'Sin observación registrada'),
+                photoUrl: normalizePhotoUrl(detail.hasAccess?.photo),
+              },
+            },
+            protocol: {
+              hasSignage: detail.hasSignage?.value ?? true,
+              connectorsOk: detail.connectorsOk?.value ?? true,
+              hasAccess: detail.hasAccess?.value ?? true,
+            },
+            patData: {
+              maintenanceType: detail.maintenanceType || null,
+              preMeasurement: detail.preMeasurement || '',
+              preMeasurementPhoto,
+              greaseApplicationPhoto: greasePhoto,
+              thorGelPhoto,
+              postMeasurement: detail.postMeasurement || '',
+              postMeasurementPhoto,
+              generalObservation: detail.generalObservation || '',
+              lidStatus: detail.lidStatus || null,
+              lidStatusObservation: detail.lidStatusObservation || '',
+              lidStatusPhoto,
+              hasSignage: detail.hasSignage || {
+                value: true,
+                observation: '',
+                photo: null,
+              },
+              connectorsOk: detail.connectorsOk || {
+                value: true,
+                observation: '',
+                photo: null,
+              },
+              hasAccess: detail.hasAccess || {
+                value: true,
+                observation: '',
+                photo: null,
+              },
+            },
+          });
+
+          continue;
+        }
 
         const checklist = detail.checklist || {};
         totalOkItems += Object.values(checklist).filter(
@@ -279,17 +440,26 @@ export default function SessionHistoryScreen() {
         clientName: 'CORPORACION MG SAC',
         address: 'Av. Del Pinar 180, Surco',
         locationName: propertyName || 'Propiedad',
-        serviceDescription: 'MANTENIMIENTO PREVENTIVO DE TABLEROS ELÉCTRICOS',
+        serviceDescription: isPATReport
+          ? 'MANTENIMIENTO PREVENTIVO DE SISTEMA DE PUESTA A TIERRA'
+          : 'MANTENIMIENTO PREVENTIVO DE TABLEROS ELÉCTRICOS',
         serviceDate: selectedSession.date,
         generatedAt: new Date().toISOString(),
         sessionCode: selectedSession.codigo,
         equipments,
-        measurementInstrument: {
-          name: 'PINZA MULTIMÉTRICA',
-          brand: 'FLUKE',
-          model: '376FC',
-          serial: 'VERIFICAR',
-        },
+        measurementInstrument: isPATReport
+          ? {
+              name: 'TELURÓMETRO',
+              brand: 'HIOKI',
+              model: 'N/A',
+              serial: 'N/A',
+            }
+          : {
+              name: 'PINZA MULTIMÉTRICA',
+              brand: 'FLUKE',
+              model: '376FC',
+              serial: 'VERIFICAR',
+            },
       };
 
       setGenerationProgress('Generando archivo PDF...');

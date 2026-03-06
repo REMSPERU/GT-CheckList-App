@@ -37,7 +37,7 @@ export default function SelectDeviceScreen() {
     } else {
       console.warn('SelectDevice: No building param received!');
     }
-  }, [params.building]);
+  }, [params.building]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [equipamentos, setEquipamentos] = useState<EquipamentoResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);

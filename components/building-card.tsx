@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 
@@ -7,7 +8,7 @@ interface BuildingCardProps {
   onPress?: () => void;
 }
 
-export default function BuildingCard({
+const BuildingCard = memo(function BuildingCard({
   initial,
   name,
   onPress,
@@ -26,7 +27,9 @@ export default function BuildingCard({
       <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
     </TouchableOpacity>
   );
-}
+});
+
+export default BuildingCard;
 
 const styles = StyleSheet.create({
   container: {
