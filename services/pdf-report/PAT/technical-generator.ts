@@ -245,17 +245,8 @@ function generateCompanyHeader(): string {
 // ─── Page Generators ─────────────────────────────────────────────────
 
 function generateCoverPage(data: MaintenanceSessionReport): string {
-  const firstEquipment = data.equipments[0] as any;
-  const firstPat = firstEquipment ? getPatData(firstEquipment) : null;
-  const coverPhoto =
-    firstPat?.preMeasurementPhoto ||
-    firstPat?.lidStatusPhoto ||
-    (firstEquipment?.prePhotos?.[0]?.url ?? null);
-
   return `
     <div class="page">
-      ${renderPhoto(coverPhoto, 'FOTOGRAFÍA FACHADA DEL EDIFICIO')}
-
       <div class="header cover-header">
         <span class="bold">PROPIEDAD ELITE S.R.L.</span><br/>
         <span class="bold division">DIVISIÓN ELÉCTRICA</span><br/>
