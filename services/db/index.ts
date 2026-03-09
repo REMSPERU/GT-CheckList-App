@@ -1,6 +1,10 @@
 // Import all functions first (ESLint requires imports at top)
 import { initDatabase, ensureInitialized, withLock } from './connection';
-import { clearMirrorTables, bulkInsertMirrorData } from './sync';
+import {
+  clearMirrorTables,
+  bulkInsertMirrorData,
+  cleanupOfflineQueue,
+} from './sync';
 import {
   saveOfflineMaintenance,
   getPendingMaintenances,
@@ -74,6 +78,7 @@ export const DatabaseService = {
   // Sync
   clearMirrorTables,
   bulkInsertMirrorData,
+  cleanupOfflineQueue,
 
   // Maintenance
   saveOfflineMaintenance,

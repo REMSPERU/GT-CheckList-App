@@ -111,7 +111,7 @@ export const useCreateMaintenance = () => {
           fecha_programada: commonData.dia_programado,
           created_by: user.id,
           id_property: propertyId,
-          estatus: 'NO INICIADO',
+          estatus: 'NO_INICIADO',
         })
         .select()
         .single();

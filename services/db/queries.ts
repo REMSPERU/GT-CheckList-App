@@ -2,6 +2,19 @@ import { dbPromise, ensureInitialized, withLock } from './connection';
 
 // --- READ METHODS FOR UI ---
 
+function normalizeMaintenanceStatus(status: unknown): string | null {
+  if (!status || typeof status !== 'string') return null;
+
+  switch (status) {
+    case 'NO INICIADO':
+      return 'NO_INICIADO';
+    case 'EN PROGRESO':
+      return 'EN_PROGRESO';
+    default:
+      return status;
+  }
+}
+
 export async function getLocalEquipments() {
   await ensureInitialized();
   const db = await dbPromise;
@@ -302,7 +315,7 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
     return rows.map((row: any) => ({
       id: row.id,
       dia_programado: row.dia_programado,
-      estatus: row.estatus,
+      estatus: normalizeMaintenanceStatus(row.estatus),
       tipo_mantenimiento: row.tipo_mantenimiento,
       codigo: row.codigo,
       id_sesion: row.id_sesion || null,
@@ -354,7 +367,7 @@ export async function getLocalSessionsByProperty(propertyId: string) {
         s.*,
         COUNT(m.id) as total_count,
         SUM(CASE WHEN m.estatus = 'FINALIZADO' THEN 1 ELSE 0 END) as completed_count,
-        SUM(CASE WHEN m.estatus = 'EN PROGRESO' THEN 1 ELSE 0 END) as in_progress_count,
+        SUM(CASE WHEN m.estatus IN ('EN_PROGRESO', 'EN PROGRESO') THEN 1 ELSE 0 END) as in_progress_count,
         (
           SELECT GROUP_CONCAT(DISTINCT eq.nombre)
           FROM local_scheduled_maintenances m2
@@ -376,7 +389,7 @@ export async function getLocalSessionsByProperty(propertyId: string) {
       nombre: row.nombre,
       descripcion: row.descripcion,
       fecha_programada: row.fecha_programada,
-      estatus: row.estatus || 'NO INICIADO',
+      estatus: normalizeMaintenanceStatus(row.estatus) || 'NO_INICIADO',
       id_property: row.id_property,
       created_by: row.created_by,
       created_at: row.created_at,

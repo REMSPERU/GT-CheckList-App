@@ -256,14 +256,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   /**
    * Handle authentication failure
    */
-  const handleAuthFailure = async () => {
+  const handleAuthFailure = async (options?: {
+    skipRemoteSignOut?: boolean;
+  }) => {
     try {
       setHasSession(false);
       setIsAuthenticated(false);
       setLocalUser(null);
       setError(null);
       await DatabaseService.clearSession();
-      await supabaseAuthService.signOut();
+
+      if (!options?.skipRemoteSignOut) {
+        await supabaseAuthService.signOut();
+      }
 
       setIsInitialized(true);
       router.replace('/auth/login');
@@ -312,10 +317,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async () => {
     try {
       await logoutMutation.mutateAsync();
-      await handleAuthFailure();
+      await handleAuthFailure({ skipRemoteSignOut: true });
     } catch (err) {
       console.error('Logout error:', err);
-      await handleAuthFailure();
+      await handleAuthFailure({ skipRemoteSignOut: true });
     }
   };
 

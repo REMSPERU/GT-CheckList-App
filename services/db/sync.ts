@@ -249,7 +249,7 @@ export async function bulkInsertMirrorData(
             item.nombre,
             item.descripcion || null,
             item.fecha_programada || null,
-            item.estatus || 'NO INICIADO',
+            item.estatus || 'NO_INICIADO',
             item.id_property || null,
             item.created_by || null,
             item.created_at || null,
@@ -293,5 +293,61 @@ export async function bulkInsertMirrorData(
     });
 
     console.log('[SmartSync] Mirror data sync completed');
+  });
+}
+
+/**
+ * Cleanup synced rows from offline queue tables to keep SQLite lean over time.
+ * Keeps pending/error rows for retries and user visibility.
+ */
+export async function cleanupOfflineQueue() {
+  await ensureInitialized();
+
+  return withLock(async () => {
+    const db = await dbPromise;
+
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(`
+        DELETE FROM offline_photos
+        WHERE status = 'synced'
+      `);
+
+      await db.runAsync(`
+        DELETE FROM offline_grounding_well_photos
+        WHERE status = 'synced'
+      `);
+
+      await db.runAsync(`
+        DELETE FROM offline_sesion_fotos
+        WHERE status = 'synced'
+      `);
+
+      await db.runAsync(`
+        DELETE FROM offline_maintenance_response
+        WHERE status = 'synced'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM offline_photos p
+            WHERE p.maintenance_local_id = offline_maintenance_response.local_id
+              AND p.status != 'synced'
+          )
+      `);
+
+      await db.runAsync(`
+        DELETE FROM offline_grounding_well_checklist
+        WHERE status = 'synced'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM offline_grounding_well_photos p
+            WHERE p.checklist_local_id = offline_grounding_well_checklist.local_id
+              AND p.status != 'synced'
+          )
+      `);
+
+      await db.runAsync(`
+        DELETE FROM offline_panel_configurations
+        WHERE status = 'synced'
+      `);
+    });
   });
 }
