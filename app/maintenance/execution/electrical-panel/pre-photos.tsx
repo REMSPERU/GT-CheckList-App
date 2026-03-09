@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -39,34 +39,45 @@ export default function PreMaintenancePhotosScreen() {
   const panelId = params.panelId;
   const maintenanceId = params.maintenanceId;
 
-  // Deserialize building for context if present (safe parse)
-  let buildingData: any;
-  try {
-    buildingData = params.building
-      ? JSON.parse(params.building as string)
-      : undefined;
-  } catch {
-    console.error('[PrePhotos] Failed to parse building param');
-    buildingData = undefined;
-  }
+  const buildingData = useMemo(() => {
+    if (!params.building) return undefined;
+    try {
+      return JSON.parse(params.building as string);
+    } catch {
+      console.error('[PrePhotos] Failed to parse building param');
+      return undefined;
+    }
+  }, [params.building]);
 
-  const { session, loading, addPhoto, removePhoto } = useMaintenanceSession(
-    panelId || '',
-    maintenanceId,
-    {
+  const sessionContext = useMemo(
+    () => ({
       building: buildingData,
       maintenanceType: params.maintenanceType,
       propertyId: params.propertyId,
       propertyName: params.propertyName,
-      // Session context
       sessionTotal: params.sessionTotal
-        ? parseInt(params.sessionTotal)
+        ? parseInt(params.sessionTotal, 10)
         : undefined,
       sessionCompleted: params.sessionCompleted
-        ? parseInt(params.sessionCompleted)
+        ? parseInt(params.sessionCompleted, 10)
         : undefined,
       sessionDate: params.sessionDate,
-    },
+    }),
+    [
+      buildingData,
+      params.maintenanceType,
+      params.propertyId,
+      params.propertyName,
+      params.sessionCompleted,
+      params.sessionDate,
+      params.sessionTotal,
+    ],
+  );
+
+  const { session, loading, addPhoto, removePhoto } = useMaintenanceSession(
+    panelId || '',
+    maintenanceId,
+    sessionContext,
   );
 
   // Panel type state for photo requirements
@@ -101,7 +112,10 @@ export default function PreMaintenancePhotosScreen() {
   }, [panelId]);
 
   // Determine maximum photos based on panel type
-  const MAX_PHOTOS = tipoTablero === 'distribucion' ? 1 : 2;
+  const MAX_PHOTOS = useMemo(
+    () => (tipoTablero === 'distribucion' ? 1 : 2),
+    [tipoTablero],
+  );
 
   // Request permissions on mount
   useEffect(() => {
@@ -115,67 +129,9 @@ export default function PreMaintenancePhotosScreen() {
     })();
   }, []);
 
-  const openSelectionModal = (section: 'panel' | 'thermo') => {
-    // Validate max photos before opening modal
-    const currentPhotos =
-      session?.prePhotos.filter(p =>
-        section === 'panel'
-          ? !p.category || p.category === 'visual'
-          : p.category === 'thermo',
-      ) || [];
-
-    if (currentPhotos.length >= MAX_PHOTOS) {
-      Alert.alert(
-        'Límite alcanzado',
-        `Ya has agregado el máximo de ${MAX_PHOTOS} foto(s) para esta sección.`,
-      );
-      return;
-    }
-
-    setCurrentSection(section);
-    setModalVisible(true);
-  };
-
-  const handleCamera = async () => {
-    setModalVisible(false);
-    if (!currentSection) return;
-
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.5,
-      });
-
-      handleImageResult(result, currentSection);
-    } catch {
-      Alert.alert('Error', 'No se pudo abrir la cámara.');
-    }
-  };
-
-  const handleGallery = async () => {
-    setModalVisible(false);
-    if (!currentSection) return;
-
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.5,
-      });
-
-      handleImageResult(result, currentSection);
-    } catch {
-      Alert.alert('Error', 'No se pudo abrir la galería.');
-    }
-  };
-
-  const handleImageResult = async (
-    result: ImagePicker.ImagePickerResult,
-    section: 'panel' | 'thermo',
-  ) => {
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      // Validate max photos before adding
+  const openSelectionModal = useCallback(
+    (section: 'panel' | 'thermo') => {
+      // Validate max photos before opening modal
       const currentPhotos =
         session?.prePhotos.filter(p =>
           section === 'panel'
@@ -191,24 +147,90 @@ export default function PreMaintenancePhotosScreen() {
         return;
       }
 
-      const asset = result.assets[0];
-      const newPhoto: PhotoItem = {
-        id: asset.uri, // Using URI as ID for now
-        uri: asset.uri,
-        status: 'pending', // Will be uploaded later
-        category: section === 'panel' ? 'visual' : 'thermo',
-      };
+      setCurrentSection(section);
+      setModalVisible(true);
+    },
+    [MAX_PHOTOS, session?.prePhotos],
+  );
 
-      // Add to PRE photos
-      addPhoto('pre', newPhoto);
+  const handleImageResult = useCallback(
+    async (
+      result: ImagePicker.ImagePickerResult,
+      section: 'panel' | 'thermo',
+    ) => {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Validate max photos before adding
+        const currentPhotos =
+          session?.prePhotos.filter(p =>
+            section === 'panel'
+              ? !p.category || p.category === 'visual'
+              : p.category === 'thermo',
+          ) || [];
+
+        if (currentPhotos.length >= MAX_PHOTOS) {
+          Alert.alert(
+            'Límite alcanzado',
+            `Ya has agregado el máximo de ${MAX_PHOTOS} foto(s) para esta sección.`,
+          );
+          return;
+        }
+
+        const asset = result.assets[0];
+        const newPhoto: PhotoItem = {
+          id: asset.uri, // Using URI as ID for now
+          uri: asset.uri,
+          status: 'pending', // Will be uploaded later
+          category: section === 'panel' ? 'visual' : 'thermo',
+        };
+
+        addPhoto('pre', newPhoto);
+      }
+    },
+    [MAX_PHOTOS, addPhoto, session?.prePhotos],
+  );
+
+  const handleCamera = useCallback(async () => {
+    setModalVisible(false);
+    if (!currentSection) return;
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.5,
+      });
+
+      await handleImageResult(result, currentSection);
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir la cámara.');
     }
-  };
+  }, [currentSection, handleImageResult]);
 
-  const handleRemoveItem = (id: string) => {
-    removePhoto('pre', id);
-  };
+  const handleGallery = useCallback(async () => {
+    setModalVisible(false);
+    if (!currentSection) return;
 
-  const handleContinue = () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.5,
+      });
+
+      await handleImageResult(result, currentSection);
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir la galería.');
+    }
+  }, [currentSection, handleImageResult]);
+
+  const handleRemoveItem = useCallback(
+    (id: string) => {
+      removePhoto('pre', id);
+    },
+    [removePhoto],
+  );
+
+  const handleContinue = useCallback(() => {
     // Navigate to instrument selection
     router.push({
       pathname:
@@ -218,27 +240,41 @@ export default function PreMaintenancePhotosScreen() {
         maintenanceId: maintenanceId,
       },
     });
-  };
+  }, [maintenanceId, panelId, router]);
+
+  // Filter photos for display
+  const panelPhotos = useMemo(
+    () =>
+      (session?.prePhotos || []).filter(
+        p => !p.category || p.category === 'visual',
+      ),
+    [session?.prePhotos],
+  );
+  const thermoPhotos = useMemo(
+    () => (session?.prePhotos || []).filter(p => p.category === 'thermo'),
+    [session?.prePhotos],
+  );
+
+  // Validation - panel photos required, thermo only if 'autosoportado'
+  const isThermoRequired = useMemo(
+    () => tipoTablero === 'autosoportado',
+    [tipoTablero],
+  );
+  const isFormValid = useMemo(
+    () =>
+      panelPhotos.length >= 1 &&
+      (!isThermoRequired || thermoPhotos.length >= 1),
+    [isThermoRequired, panelPhotos.length, thermoPhotos.length],
+  );
 
   if (loading || panelLoading || !session) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#06B6D4" />
-        <Text style={{ marginTop: 10 }}>Cargando sesión...</Text>
+        <Text style={styles.loadingText}>Cargando sesión...</Text>
       </View>
     );
   }
-
-  // Filter photos for display
-  const panelPhotos = session.prePhotos.filter(
-    p => !p.category || p.category === 'visual',
-  );
-  const thermoPhotos = session.prePhotos.filter(p => p.category === 'thermo');
-
-  // Validation - panel photos required, thermo only if 'autosoportado'
-  const isThermoRequired = tipoTablero === 'autosoportado';
-  const isFormValid =
-    panelPhotos.length >= 1 && (!isThermoRequired || thermoPhotos.length >= 1);
 
   const PhotoBoxSection = ({
     title,
@@ -299,8 +335,12 @@ export default function PreMaintenancePhotosScreen() {
             horizontal
             keyExtractor={item => item.id}
             style={styles.photoList}
-            contentContainerStyle={{ gap: 12 }}
+            contentContainerStyle={styles.photoListContent}
             showsHorizontalScrollIndicator={false}
+            initialNumToRender={3}
+            maxToRenderPerBatch={4}
+            windowSize={3}
+            removeClippedSubviews={true}
             renderItem={({ item }) => (
               <View style={styles.photoThumbnail}>
                 <Image source={{ uri: item.uri }} style={styles.thumbImage} />
@@ -372,7 +412,7 @@ export default function PreMaintenancePhotosScreen() {
           />
         )}
 
-        <View style={{ height: 40 }} />
+        <View style={styles.footerSpacer} />
       </ScrollView>
 
       {/* Footer */}
@@ -433,6 +473,14 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
   },
   content: {
     flex: 1,
@@ -534,6 +582,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     maxHeight: 110,
   },
+  photoListContent: {
+    gap: 12,
+  },
   photoThumbnail: {
     width: 100,
     height: 100,
@@ -625,6 +676,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#EF4444',
     marginTop: 4,
+  },
+  footerSpacer: {
+    height: 40,
   },
   // Modal Styles
   modalOverlay: {

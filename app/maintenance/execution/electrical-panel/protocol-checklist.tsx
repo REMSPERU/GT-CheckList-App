@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -45,6 +45,14 @@ const PROTOCOL_ITEMS = [
   },
 ];
 
+const DEFAULT_PROTOCOL_STATE = PROTOCOL_ITEMS.reduce<Record<string, boolean>>(
+  (acc, item) => {
+    acc[item.key] = true;
+    return acc;
+  },
+  {},
+);
+
 export default function ProtocolChecklistScreen() {
   const router = useRouter();
   const { panelId, maintenanceId } = useLocalSearchParams<{
@@ -57,14 +65,9 @@ export default function ProtocolChecklistScreen() {
     maintenanceId,
   );
 
-  const [protocol, setProtocol] = useState<Record<string, boolean>>(() => {
-    // Default all to true
-    const defaults: Record<string, boolean> = {};
-    PROTOCOL_ITEMS.forEach(item => {
-      defaults[item.key] = true;
-    });
-    return defaults;
-  });
+  const [protocol, setProtocol] = useState<Record<string, boolean>>(
+    DEFAULT_PROTOCOL_STATE,
+  );
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -75,14 +78,16 @@ export default function ProtocolChecklistScreen() {
     }
   }, [session?.protocol]);
 
-  const toggleItem = (key: string) => {
+  const toggleItem = useCallback((key: string) => {
     setProtocol(prev => ({
       ...prev,
       [key]: !prev[key],
     }));
-  };
+  }, []);
 
-  const handleContinue = async () => {
+  const protocolRows = useMemo(() => PROTOCOL_ITEMS, []);
+
+  const handleContinue = useCallback(async () => {
     if (!session) return;
 
     setIsSaving(true);
@@ -93,7 +98,7 @@ export default function ProtocolChecklistScreen() {
         protocol,
         lastUpdated: new Date().toISOString(),
       };
-      await saveSession(updatedSession);
+      await saveSession(updatedSession, { immediate: true });
 
       // 2. Try to update Supabase if online
       const netState = await NetInfo.fetch();
@@ -124,7 +129,7 @@ export default function ProtocolChecklistScreen() {
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [maintenanceId, panelId, protocol, router, saveSession, session]);
 
   if (loading || !session) {
     return (
@@ -156,12 +161,12 @@ export default function ProtocolChecklistScreen() {
         </View>
 
         <View style={styles.checklistCard}>
-          {PROTOCOL_ITEMS.map((item, index) => (
+          {protocolRows.map((item, index) => (
             <View
               key={item.key}
               style={[
                 styles.itemRow,
-                index === PROTOCOL_ITEMS.length - 1 && styles.lastItem,
+                index === protocolRows.length - 1 && styles.lastItem,
               ]}>
               <Text style={styles.itemLabel}>{item.label}</Text>
               <View style={styles.switchContainer}>

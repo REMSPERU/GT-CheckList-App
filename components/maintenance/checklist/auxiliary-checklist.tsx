@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ChecklistItem } from './check-list-item';
 import { ItemObservation } from '@/types/maintenance-session';
@@ -13,47 +13,28 @@ interface AuxiliaryChecklistProps {
   onPhotoPress: (itemId: string) => void;
 }
 
-export const AuxiliaryChecklist: React.FC<AuxiliaryChecklistProps> = ({
+const getIconForType = (type: string): keyof typeof Ionicons.glyphMap => {
+  const t = type.toLowerCase();
+  if (t.includes('contactor')) return 'hardware-chip-outline';
+  if (t.includes('relay') || t.includes('rele')) return 'return-down-forward';
+  if (t.includes('ventilador')) return 'snow-outline';
+  if (t.includes('termostato')) return 'thermometer-outline';
+  if (t.includes('medidor')) return 'speedometer-outline';
+  if (t.includes('timer')) return 'timer-outline';
+  return 'cube-outline';
+};
+
+export const AuxiliaryChecklist = React.memo(function AuxiliaryChecklist({
   components,
   checklist,
   itemObservations,
   onStatusChange,
   onObservationChange,
   onPhotoPress,
-}) => {
-  // Initialize items that don't have a status with default true
-  useEffect(() => {
-    if (!components || components.length === 0) return;
-
-    components.forEach((comp: any) => {
-      comp.items.forEach((item: any) => {
-        const itemId = `comp_${comp.tipo}_${item.codigo}`;
-        if (checklist[itemId] === undefined) {
-          onStatusChange(itemId, true);
-        }
-      });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [components]);
-
-  if (!components || components.length === 0) return null;
-
-  const getIconForType = (type: string): keyof typeof Ionicons.glyphMap => {
-    const t = type.toLowerCase();
-    if (t.includes('contactor')) return 'hardware-chip-outline';
-    if (t.includes('relay') || t.includes('rele')) return 'return-down-forward';
-    if (t.includes('ventilador')) return 'snow-outline';
-    if (t.includes('termostato')) return 'thermometer-outline';
-    if (t.includes('medidor')) return 'speedometer-outline';
-    if (t.includes('timer')) return 'timer-outline';
-    return 'cube-outline';
-  };
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Equipamientos extras</Text>
-
-      {components.flatMap((comp: any) =>
+}: AuxiliaryChecklistProps) {
+  const renderedItems = useMemo(
+    () =>
+      components.flatMap((comp: any) =>
         comp.items.map((item: any) => {
           const itemId = `comp_${comp.tipo}_${item.codigo}`;
           const status = checklist[itemId];
@@ -64,9 +45,7 @@ export const AuxiliaryChecklist: React.FC<AuxiliaryChecklistProps> = ({
               key={itemId}
               label={`${comp.tipo} ${item.codigo ? item.codigo : ''}`}
               icon={getIconForType(comp.tipo)}
-              status={
-                status === undefined ? true : status === true ? true : false
-              }
+              status={status === undefined ? true : status === true}
               onStatusChange={val => onStatusChange(itemId, val)}
               observation={obs?.note}
               onObservationChange={text => onObservationChange(itemId, text)}
@@ -76,10 +55,27 @@ export const AuxiliaryChecklist: React.FC<AuxiliaryChecklistProps> = ({
             />
           );
         }),
-      )}
+      ),
+    [
+      checklist,
+      components,
+      itemObservations,
+      onObservationChange,
+      onPhotoPress,
+      onStatusChange,
+    ],
+  );
+
+  if (!components || components.length === 0) return null;
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.sectionTitle}>Equipamientos extras</Text>
+
+      {renderedItems}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

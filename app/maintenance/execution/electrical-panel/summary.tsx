@@ -1,4 +1,10 @@
-import React, { useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   View,
   Text,
@@ -62,10 +68,8 @@ export default function SummaryScreen() {
   }>();
   const { panelId, maintenanceId } = params;
 
-  const { session, clearSession, saveSession } = useMaintenanceSession(
-    panelId || '',
-    maintenanceId,
-  );
+  const { session, clearSession, saveSession, updateSession, flushSession } =
+    useMaintenanceSession(panelId || '', maintenanceId);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
 
@@ -74,17 +78,86 @@ export default function SummaryScreen() {
   const [modalStatus, setModalStatus] = useState<SaveFeedbackStatus>('loading');
   const [modalMessage, setModalMessage] = useState<string | undefined>();
 
-  if (!session) return <ActivityIndicator />;
+  const [observationsInput, setObservationsInput] = useState('');
+  const [recommendationsInput, setRecommendationsInput] = useState('');
+  const [conclusionsInput, setConclusionsInput] = useState('');
+  const initializedSessionIdRef = useRef<string | null>(null);
+
+  const sessionObservations = session?.observations || '';
+  const sessionRecommendations = session?.recommendations || '';
+  const sessionConclusions = session?.conclusions || '';
+
+  useEffect(() => {
+    if (!session) return;
+    if (initializedSessionIdRef.current === session.sessionId) return;
+
+    initializedSessionIdRef.current = session.sessionId;
+    setObservationsInput(session.observations || '');
+    setRecommendationsInput(session.recommendations || '');
+    setConclusionsInput(session.conclusions || '');
+  }, [session]);
+
+  useEffect(() => {
+    if (!session || observationsInput === sessionObservations) return;
+    const timeoutId = setTimeout(() => {
+      void updateSession(prevSession => ({
+        ...prevSession,
+        observations: observationsInput,
+        lastUpdated: new Date().toISOString(),
+      }));
+    }, 400);
+
+    return () => clearTimeout(timeoutId);
+  }, [observationsInput, session, sessionObservations, updateSession]);
+
+  useEffect(() => {
+    if (!session || recommendationsInput === sessionRecommendations) return;
+    const timeoutId = setTimeout(() => {
+      void updateSession(prevSession => ({
+        ...prevSession,
+        recommendations: recommendationsInput,
+        lastUpdated: new Date().toISOString(),
+      }));
+    }, 400);
+
+    return () => clearTimeout(timeoutId);
+  }, [recommendationsInput, session, sessionRecommendations, updateSession]);
+
+  useEffect(() => {
+    if (!session || conclusionsInput === sessionConclusions) return;
+    const timeoutId = setTimeout(() => {
+      void updateSession(prevSession => ({
+        ...prevSession,
+        conclusions: conclusionsInput,
+        lastUpdated: new Date().toISOString(),
+      }));
+    }, 400);
+
+    return () => clearTimeout(timeoutId);
+  }, [conclusionsInput, session, sessionConclusions, updateSession]);
 
   // Determine if this is the last equipment in the session
-  const isLastEquipment = (() => {
+  const isLastEquipment = useMemo(() => {
+    if (!session) return false;
     const total = session.sessionTotal ?? 1;
     const completed = session.sessionCompleted ?? 0;
     // We're completing this one, so if completed + 1 >= total, it's the last
     return completed + 1 >= total;
-  })();
+  }, [session]);
 
-  const handleFinalize = async () => {
+  const preVisualPhotos = useMemo(
+    () =>
+      session?.prePhotos.filter(p => !p.category || p.category === 'visual') ||
+      [],
+    [session?.prePhotos],
+  );
+  const preThermoPhotos = useMemo(
+    () => session?.prePhotos.filter(p => p.category === 'thermo') || [],
+    [session?.prePhotos],
+  );
+
+  const handleFinalize = useCallback(async () => {
+    if (!session) return;
     setIsUploading(true);
     setUploadProgress('Guardando...');
     setModalVisible(true);
@@ -92,6 +165,22 @@ export default function SummaryScreen() {
     setModalMessage('Guardando mantenimiento...');
 
     try {
+      const effectiveSession = {
+        ...session,
+        observations: observationsInput,
+        recommendations: recommendationsInput,
+        conclusions: conclusionsInput,
+      };
+
+      await saveSession(
+        {
+          ...effectiveSession,
+          lastUpdated: new Date().toISOString(),
+        },
+        { immediate: true },
+      );
+      await flushSession();
+
       // 0. Get Current User
       const {
         data: { user },
@@ -103,14 +192,14 @@ export default function SummaryScreen() {
       // 1. Prepare Data for Local Storage
       // We keep local URIs in the 'url' field for now, SyncService will replace them later.
 
-      const prePhotosDetails = session.prePhotos.map(p => ({
+      const prePhotosDetails = effectiveSession.prePhotos.map(p => ({
         url: p.uri, // Local URI
         id: p.id,
         type: 'pre',
         category: p.category || 'visual',
       }));
 
-      const postPhotosDetails = session.postPhotos.map(p => ({
+      const postPhotosDetails = effectiveSession.postPhotos.map(p => ({
         url: p.uri, // Local URI
         id: p.id,
         type: 'post',
@@ -118,10 +207,10 @@ export default function SummaryScreen() {
       }));
 
       const itemObservationsFinal: Record<string, any> = {};
-      const observationKeys = Object.keys(session.itemObservations);
+      const observationKeys = Object.keys(effectiveSession.itemObservations);
 
       for (const key of observationKeys) {
-        const obs = session.itemObservations[key];
+        const obs = effectiveSession.itemObservations[key];
         itemObservationsFinal[key] = {
           note: obs.note,
           photoUrl: obs.photoUri, // Local URI
@@ -132,34 +221,34 @@ export default function SummaryScreen() {
       const detailMaintenance = {
         prePhotos: prePhotosDetails,
         postPhotos: postPhotosDetails,
-        checklist: session.checklist,
-        measurements: session.measurements,
+        checklist: effectiveSession.checklist,
+        measurements: effectiveSession.measurements,
         itemObservations: itemObservationsFinal,
-        observations: session.observations,
-        recommendations: session.recommendations || '',
-        conclusions: session.conclusions || '',
-        extraConditions: session.extraConditions,
-        protocol: session.protocol,
-        selectedInstruments: session.selectedInstruments,
+        observations: effectiveSession.observations,
+        recommendations: effectiveSession.recommendations || '',
+        conclusions: effectiveSession.conclusions || '',
+        extraConditions: effectiveSession.extraConditions,
+        protocol: effectiveSession.protocol,
+        selectedInstruments: effectiveSession.selectedInstruments,
         completedAt: new Date().toISOString(),
       };
 
       // 3. Extract Photos for separate tracking in DB
       const allPhotos = [
-        ...session.prePhotos.map(p => ({
+        ...effectiveSession.prePhotos.map(p => ({
           uri: p.uri,
           type: 'pre',
           category: p.category,
         })),
-        ...session.postPhotos.map(p => ({
+        ...effectiveSession.postPhotos.map(p => ({
           uri: p.uri,
           type: 'post',
           category: 'visual',
         })),
         ...observationKeys
-          .filter(k => session.itemObservations[k].photoUri)
+          .filter(k => effectiveSession.itemObservations[k].photoUri)
           .map(k => ({
-            uri: session.itemObservations[k].photoUri!,
+            uri: effectiveSession.itemObservations[k].photoUri!,
             type: 'observation',
             observationKey: k,
           })),
@@ -174,7 +263,7 @@ export default function SummaryScreen() {
         cleanMaintenanceId,
         detailMaintenance,
         allPhotos,
-        session.protocol,
+        effectiveSession.protocol,
       );
 
       console.log('SUCCESS: Saved locally');
@@ -190,13 +279,17 @@ export default function SummaryScreen() {
           await syncService.pushData();
 
           // Save session notes if this is the last equipment
-          if (isLastEquipment && session.propertyId && session.sessionDate) {
+          if (
+            isLastEquipment &&
+            effectiveSession.propertyId &&
+            effectiveSession.sessionDate
+          ) {
             try {
               await saveSessionNotes(
-                session.propertyId,
-                session.sessionDate,
-                session.recommendations || '',
-                session.conclusions || '',
+                effectiveSession.propertyId,
+                effectiveSession.sessionDate,
+                effectiveSession.recommendations || '',
+                effectiveSession.conclusions || '',
               );
               console.log('Session notes saved to Supabase');
             } catch (notesError) {
@@ -235,7 +328,16 @@ export default function SummaryScreen() {
     } finally {
       setIsUploading(false);
     }
-  };
+  }, [
+    conclusionsInput,
+    flushSession,
+    isLastEquipment,
+    maintenanceId,
+    observationsInput,
+    recommendationsInput,
+    saveSession,
+    session,
+  ]);
 
   const handleModalClose = async () => {
     // Nota el async
@@ -306,32 +408,25 @@ export default function SummaryScreen() {
     handleFinalize();
   };
 
-  const handleObservationsChange = (text: string) => {
-    if (!session) return;
-    saveSession({
-      ...session,
-      observations: text,
-      lastUpdated: new Date().toISOString(),
-    });
-  };
+  const handleObservationsChange = useCallback((text: string) => {
+    setObservationsInput(text);
+  }, []);
 
-  const handleRecommendationsChange = (text: string) => {
-    if (!session) return;
-    saveSession({
-      ...session,
-      recommendations: text,
-      lastUpdated: new Date().toISOString(),
-    });
-  };
+  const handleRecommendationsChange = useCallback((text: string) => {
+    setRecommendationsInput(text);
+  }, []);
 
-  const handleConclusionsChange = (text: string) => {
-    if (!session) return;
-    saveSession({
-      ...session,
-      conclusions: text,
-      lastUpdated: new Date().toISOString(),
-    });
-  };
+  const handleConclusionsChange = useCallback((text: string) => {
+    setConclusionsInput(text);
+  }, []);
+
+  if (!session) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#06B6D4" />
+      </View>
+    );
+  }
 
   const renderPhotoGrid = (photos: PhotoItem[]) => {
     if (photos.length === 0)
@@ -475,18 +570,12 @@ export default function SummaryScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Fotos Previas (Visual)</Text>
-          {renderPhotoGrid(
-            session.prePhotos.filter(
-              p => !p.category || p.category === 'visual',
-            ),
-          )}
+          {renderPhotoGrid(preVisualPhotos)}
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Fotos Termográficas</Text>
-          {renderPhotoGrid(
-            session.prePhotos.filter(p => p.category === 'thermo'),
-          )}
+          {renderPhotoGrid(preThermoPhotos)}
         </View>
 
         <View style={styles.card}>
@@ -502,7 +591,7 @@ export default function SummaryScreen() {
               <TextInput
                 style={styles.observationsInput}
                 placeholder="Ingrese las recomendaciones para el cliente..."
-                value={session.recommendations}
+                value={recommendationsInput}
                 onChangeText={handleRecommendationsChange}
                 multiline
                 numberOfLines={4}
@@ -515,7 +604,7 @@ export default function SummaryScreen() {
               <TextInput
                 style={styles.observationsInput}
                 placeholder="Ingrese las conclusiones del mantenimiento..."
-                value={session.conclusions}
+                value={conclusionsInput}
                 onChangeText={handleConclusionsChange}
                 multiline
                 numberOfLines={4}
@@ -530,7 +619,7 @@ export default function SummaryScreen() {
           <TextInput
             style={styles.observationsInput}
             placeholder="Ingrese comentarios sobre el mantenimiento..."
-            value={session.observations}
+            value={observationsInput}
             onChangeText={handleObservationsChange}
             multiline
             numberOfLines={4}
@@ -608,6 +697,11 @@ export default function SummaryScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   content: { flex: 1, backgroundColor: '#F3F7FA', padding: 16 },
   card: {
     backgroundColor: '#fff',

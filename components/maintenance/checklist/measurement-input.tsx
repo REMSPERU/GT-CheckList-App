@@ -15,7 +15,7 @@ interface MeasurementInputProps {
   editable?: boolean;
 }
 
-export const MeasurementInput: React.FC<MeasurementInputProps> = ({
+export const MeasurementInput = React.memo(function MeasurementInput({
   label,
   value,
   onChange,
@@ -26,7 +26,7 @@ export const MeasurementInput: React.FC<MeasurementInputProps> = ({
   errorMessage,
   showIncomplete,
   editable = true,
-}) => {
+}: MeasurementInputProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
@@ -60,7 +60,7 @@ export const MeasurementInput: React.FC<MeasurementInputProps> = ({
       {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -26,7 +26,7 @@ interface ChecklistItemProps {
   style?: any;
 }
 
-export const ChecklistItem: React.FC<ChecklistItemProps> = ({
+export const ChecklistItem = React.memo(function ChecklistItem({
   label,
   icon,
   status,
@@ -39,7 +39,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
   onPhotoPress,
   onRemovePhoto,
   style,
-}) => {
+}: ChecklistItemProps) {
   // Combine legacy photoUri with photoUris array for backward compatibility
   const allPhotos = photoUri
     ? [photoUri, ...photoUris.filter(uri => uri !== photoUri)]
@@ -111,7 +111,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
