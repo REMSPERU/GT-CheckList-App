@@ -23,8 +23,10 @@ import { syncService } from '@/services/sync';
 import { syncQueue } from '@/services/sync-queue';
 import * as Sentry from '@sentry/react-native';
 
+const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
+
 Sentry.init({
-  dsn: process.env.SENTRY_DSN,
+  dsn: sentryDsn,
 
   // Adds more context data to events (IP address, cookies, user, etc.)
   // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/

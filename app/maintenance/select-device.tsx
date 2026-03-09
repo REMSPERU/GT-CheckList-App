@@ -19,25 +19,42 @@ import type { EquipamentoResponse } from '@/types/api';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
 
+interface BuildingParam {
+  id: string;
+  name: string;
+  address?: string;
+  image_url?: string;
+}
+
+function parseJsonParam<T>(value: string | string[] | undefined): T | null {
+  if (typeof value !== 'string') return null;
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
+const log = (...args: unknown[]) => {
+  if (__DEV__) {
+    console.log(...args);
+  }
+};
+
 export default function SelectDeviceScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [building, setBuilding] = useState<any>(null);
+  const [building, setBuilding] = useState<BuildingParam | null>(null);
 
   useEffect(() => {
-    console.log('SelectDevice Params:', params);
-    if (params.building) {
-      try {
-        const parsedBuilding = JSON.parse(params.building as string);
-        setBuilding(parsedBuilding);
-        console.log('SelectDevice: Parsed building ID:', parsedBuilding.id);
-      } catch (e) {
-        console.error('SelectDevice: Error parsing building param:', e);
-      }
-    } else {
-      console.warn('SelectDevice: No building param received!');
+    const parsedBuilding = parseJsonParam<BuildingParam>(params.building);
+
+    if (parsedBuilding) {
+      setBuilding(parsedBuilding);
+      log('SelectDevice: Parsed building ID:', parsedBuilding.id);
     }
-  }, [params.building]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [params.building]);
 
   const [equipamentos, setEquipamentos] = useState<EquipamentoResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -81,8 +98,8 @@ export default function SelectDeviceScreen() {
   }, [loadData]);
 
   const handleEquipamentoPress = (equipamento: EquipamentoResponse) => {
-    console.log('Selected equipamento:', equipamento);
-    console.log('Building:', building);
+    log('Selected equipamento:', equipamento);
+    log('Building:', building);
 
     // Route based on equipment abbreviation from DB
     switch (equipamento.abreviatura) {
@@ -118,14 +135,14 @@ export default function SelectDeviceScreen() {
         break;
       default:
         // Fallback for other equipment types
-        console.log('No route configured for:', equipamento.abreviatura);
+        log('No route configured for:', equipamento.abreviatura);
         break;
     }
   };
 
   const getIconForEquipamento = (abreviatura: string) => {
     // Map equipment abbreviations to icons
-    const iconMap: Record<string, any> = {
+    const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
       TBELEC: 'stats-chart-outline', // Tablero electrico
       LUZ: 'flashlight-outline', // Luces de Emergencia
       PT: 'construct-outline',
