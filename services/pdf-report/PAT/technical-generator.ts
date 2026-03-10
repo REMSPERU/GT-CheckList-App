@@ -4,6 +4,25 @@
 import { MaintenanceSessionReport } from '../common/types';
 import { formatDate } from '../common/utils';
 
+const DEFAULT_PAT_PROCEDURE_STEPS = [
+  'Inspección visual e identificación de los pozos.',
+  'Delimitar el área de trabajo con conos y separadores.',
+  'Destapar las tapas de los pozos a tierra. Usar barreta si en caso sea necesario.',
+  'Desconectar los conectores terminales tipo AB de cada pozo.',
+  'Medición de la resistencia con telurómetro.',
+  'Usar la lija para limpiar la sulfatación de la varilla y conductor de cobre desnudo.',
+  'Revisión de los conectores tipo Split - bolt y tipo gar.',
+  'Cambio de los conectores tipo AB y limpieza de otros tipos de conectores.',
+  'Cambio de conectores tipo Split-bolt y tipo gar si se encuentran en mal estado.',
+  'Inspección de la naturaleza del terreno: condiciones, humedad relativa de la tierra.',
+  'Retirar la tierra de chacra en caso se encuentre tapando gran cantidad del conductor.',
+  'Segunda medición de la resistencia con telurómetro.',
+  'Registro de la resistencia con telurómetro y estado de las instalaciones.',
+  'Aplicación de grasa conductiva a la varilla y conductores de cobre.',
+  'Limpieza de las tapas de los pozos a tierra para visualizar de mejor manera su denominación.',
+  'Conformidad del cliente con el servicio.',
+];
+
 // ─── Styles ──────────────────────────────────────────────────────────
 
 function getPATStyles(): string {
@@ -245,17 +264,8 @@ function generateCompanyHeader(): string {
 // ─── Page Generators ─────────────────────────────────────────────────
 
 function generateCoverPage(data: MaintenanceSessionReport): string {
-  const firstEquipment = data.equipments[0] as any;
-  const firstPat = firstEquipment ? getPatData(firstEquipment) : null;
-  const coverPhoto =
-    firstPat?.preMeasurementPhoto ||
-    firstPat?.lidStatusPhoto ||
-    (firstEquipment?.prePhotos?.[0]?.url ?? null);
-
   return `
     <div class="page">
-      ${renderPhoto(coverPhoto, 'FOTOGRAFÍA FACHADA DEL EDIFICIO')}
-
       <div class="header cover-header">
         <span class="bold">PROPIEDAD ELITE S.R.L.</span><br/>
         <span class="bold division">DIVISIÓN ELÉCTRICA</span><br/>
@@ -300,27 +310,10 @@ function generateCoverPage(data: MaintenanceSessionReport): string {
 }
 
 function generateProcedurePage(data: MaintenanceSessionReport): string {
-  const defaultSteps = [
-    'Inspección visual e identificación de los pozos.',
-    'Delimitar el área de trabajo con conos y separadores.',
-    'Destapar las tapas de los pozos a tierra. Usar barreta si en caso sea necesario.',
-    'Desconectar los conectores terminales tipo AB de cada pozo.',
-    'Medición de la resistencia con telurómetro.',
-    'Usar la lija para limpiar la sulfatación de la varilla y conductor de cobre desnudo.',
-    'Revisión de los conectores tipo Split - bolt y tipo gar.',
-    'Cambio de los conectores tipo AB y limpieza de otros tipos de conectores.',
-    'Cambio de conectores tipo Split-bolt y tipo gar si se encuentran en mal estado.',
-    'Inspección de la naturaleza del terreno: condiciones, humedad relativa de la tierra.',
-    'Retirar la tierra de chacra en caso se encuentre tapando gran cantidad del conductor.',
-    'Segunda medición de la resistencia con telurómetro.',
-    'Registro de la resistencia con telurómetro y estado de las instalaciones.',
-    'Aplicación de grasa conductiva a la varilla y conductores de cobre.',
-  ];
-
   const steps =
     data.procedureSteps && data.procedureSteps.length > 0
       ? data.procedureSteps
-      : defaultSteps;
+      : DEFAULT_PAT_PROCEDURE_STEPS;
 
   const instrument = data.measurementInstrument;
 
@@ -336,10 +329,6 @@ function generateProcedurePage(data: MaintenanceSessionReport): string {
 
       <ul class="dash-list">
         ${steps.map(step => `<li>${step}</li>`).join('')}
-      </ul>
-      <ul class="arrow-list">
-        <li>Limpieza de las tapas de los pozos a tierra para visualizar de mejor manera su denominación.</li>
-        <li>Conformidad del cliente con el servicio.</li>
       </ul>
 
       <h2>2.- NORMATIVA:</h2>

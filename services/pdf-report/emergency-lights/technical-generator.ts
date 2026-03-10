@@ -4,16 +4,34 @@ import {
 } from '../common/types';
 import { formatDate } from '../common/utils';
 
+const DEFAULT_PROCEDURE_STEPS = [
+  'Inspección visual para verificar el estado actual de las luces de emergencia, ya que pueden estar dañada parte de la estructura del equipo.',
+  'Test de operatividad: Desenergización del circuito de luces de emergencia o desconexión manual si se encuentran conectadas a tomacorrientes.',
+  "Registro del momento de inicio de la desconexión para el control de la duración de la autonomía de la luminaria no menor a noventa minutos (90') para ser certificable.",
+  'Uso del luxómetro para verificar la intensidad de luz en las zonas de evacuación.',
+  'Se realizará la anotación de todas las luces de emergencia del edificio para tener el registro de las cantidades, marca, modelo y numeración.',
+  'Se emitirá el protocolo de todas las luces intervenidas.',
+  'Se emitirá solo el certificado a los equipos que cumplan con la autonomía requerida.',
+];
+
+const DEFAULT_NORMATIVE_STEPS = [
+  'Siguiendo con El Reglamento Nacional de Edificaciones Regla A130 Articulo 40: “Todos los medios de evacuación deberán ser provistos de iluminación de emergencia que garanticen un periodo de 1½ hora (90 minutos) en el caso de un corte de fluido eléctrico”',
+  'El Artículo 7.1.2.1. del Código Nacional de Electricidad (CNE) Tomo V - Sistema de Utilización establece los requisitos específicos para la alimentación de sistemas de emergencia en edificaciones.',
+  'CNE – UTILIZACIÓN 240-304 (4) se refiere a una sección específica del Código Nacional de Electricidad (CNE) del Perú, específicamente al capítulo de Utilización, que trata sobre requisitos de instalaciones eléctricas en edificaciones, y dentro de ella, la Sección 240-304 se enfoca en la instalación y ubicación de equipos individuales, como las luces de emergencia.',
+  'NTP (APARTADO 22.11.1). «Las conexiones eléctricas deben ser permanentes o tener una provisión para prevenir toda desconexión accidental».',
+];
+
 /**
  * Generate the header page with client info and procedure
  */
 export function generateHeaderPageHTML(data: MaintenanceSessionReport): string {
   const serviceDate = formatDate(data.serviceDate, 'short');
+  const procedureSteps = data.procedureSteps || DEFAULT_PROCEDURE_STEPS;
 
   return `
     <div class="page">
       <header>
-        <h1>INFORME TÉCNICO DEL SERVICIOA</h1>
+        <h1>INFORME TÉCNICO DEL SERVICIO</h1>
         <div class="date-header">FECHA: ${serviceDate}</div>
       </header>
 
@@ -30,22 +48,13 @@ export function generateHeaderPageHTML(data: MaintenanceSessionReport): string {
         En el EDIFICIO ${data.clientName.toUpperCase()} se realizó la inspección técnica de las luces de emergencia, la cual se toma en cuenta los siguientes puntos:
       </p>
       <ul>
-        <li>Inspección visual para verificar el estado actual de las luces de emergencia, ya que pueden estar dañada parte de la estructura del equipo.</li>
-        <li>Test de operatividad: Desenergización del circuito de luces de emergencia o desconexión manual si se encuentran conectadas a tomacorrientes.</li>
-        <li>Registro del momento de inicio de la desconexión para el control de la duración de la autonomía de la luminaria no menor a noventa minutos (90’) para ser certificable.</li>
-        <li>Uso del luxómetro para verificar la intensidad de luz en las zonas de evacuación.</li>
-        <li>Se realizará la anotación de todas las luces de emergencia del edificio para tener el registro de las cantidades, marca, modelo y numeración.</li>
-        <li>Se emitirá el protocolo de todas las luces intervenidas.</li>
-        <li>Se emitirá solo el certificado a los equipos que cumplan con la autonomía requerida.</li>
+        ${procedureSteps.map(step => `<li>${step}</li>`).join('')}
       </ul>
 
       <h2>2. NORMATIVA</h2>
       <div class="normativa">
         <ul>
-          <li>Siguiendo con El Reglamento Nacional de Edificaciones Regla A130 Articulo 40: “Todos los medios de evacuación deberán ser provistos de iluminación de emergencia que garanticen un periodo de 1½ hora (90 minutos) en el caso de un corte de fluido eléctrico”</li>
-          <li>El Artículo 7.1.2.1. del Código Nacional de Electricidad (CNE) Tomo V - Sistema de Utilización establece los requisitos específicos para la alimentación de sistemas de emergencia en edificaciones.</li>
-          <li>CNE – UTILIZACIÓN 240-304 (4) se refiere a una sección específica del Código Nacional de Electricidad (CNE) del Perú, específicamente al capítulo de Utilización, que trata sobre requisitos de instalaciones eléctricas en edificaciones, y dentro de ella, la Sección 240-304 se enfoca en la instalación y ubicación de equipos individuales, como las luces de emergencia</li>
-          <li>NTP (APARTADO 22.11.1). «Las conexiones eléctricas deben ser permanentes o tener una provisión para prevenir toda desconexión accidental»</li>
+          ${DEFAULT_NORMATIVE_STEPS.map(step => `<li>${step}</li>`).join('')}
         </ul>
       </div>
     </div>

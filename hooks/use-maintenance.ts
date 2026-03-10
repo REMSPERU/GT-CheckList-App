@@ -7,6 +7,12 @@ import {
   User,
 } from '@/types/api';
 
+const log = (...args: unknown[]) => {
+  if (__DEV__) {
+    console.log(...args);
+  }
+};
+
 // Fetch technicians (Users with role TECNICO)
 export const useTechnicians = () => {
   return useQuery({
@@ -90,7 +96,7 @@ export const useCreateMaintenance = () => {
         }
       }
       const codigo = `${codePrefix}-${String(seqNum).padStart(3, '0')}`;
-      console.log('Generated maintenance code:', codigo);
+      log('Generated maintenance code:', codigo);
 
       // 4. Build session name: "{Propiedad} - {Tipo} - {Fecha}"
       const fechaDisplay = dateObj.toLocaleDateString('es-PE', {
@@ -102,7 +108,7 @@ export const useCreateMaintenance = () => {
       const propertyId = (firstPanel.properties as any)?.id || null;
 
       // 5. Create the sesion_mantenimiento record
-      console.log('Creating sesion_mantenimiento:', sessionName);
+      log('Creating sesion_mantenimiento:', sessionName);
       const { data: sessionData, error: sessionError } = await supabase
         .from('sesion_mantenimiento')
         .insert({
@@ -111,7 +117,7 @@ export const useCreateMaintenance = () => {
           fecha_programada: commonData.dia_programado,
           created_by: user.id,
           id_property: propertyId,
-          estatus: 'NO INICIADO',
+          estatus: 'NO_INICIADO',
         })
         .select()
         .single();
@@ -121,7 +127,7 @@ export const useCreateMaintenance = () => {
         throw new Error('Failed to create maintenance session');
       }
       const sessionId = sessionData.id;
-      console.log('Session created:', sessionId);
+      log('Session created:', sessionId);
 
       // 6. Create maintenance records linked to the session
       const maintenanceInserts = panel_ids.map(panelId => ({
@@ -135,7 +141,7 @@ export const useCreateMaintenance = () => {
         id_sesion: sessionId,
       }));
 
-      console.log('Saving Maintenances:', maintenanceInserts.length, 'records');
+      log('Saving Maintenances:', maintenanceInserts.length, 'records');
       const { data: maintenanceData, error: maintenanceError } = await supabase
         .from('mantenimientos')
         .insert(maintenanceInserts)
@@ -152,7 +158,7 @@ export const useCreateMaintenance = () => {
           id_sesion: sessionId,
         }));
 
-        console.log('Assigning technicians to session:', userSessionInserts);
+        log('Assigning technicians to session:', userSessionInserts);
         const { error: assignError } = await supabase
           .from('user_sesion_mantenimiento')
           .insert(userSessionInserts);
@@ -176,11 +182,11 @@ export const useScheduledMaintenances = () => {
   return useQuery({
     queryKey: ['scheduled-maintenances'],
     queryFn: async () => {
-      console.log(
+      log(
         'DEBUG: useScheduledMaintenances hook calling getLocalScheduledMaintenances',
       );
       const data = await DatabaseService.getLocalScheduledMaintenances();
-      console.log(
+      log(
         'DEBUG: useScheduledMaintenances hook received:',
         data?.length,
         'items',
@@ -197,17 +203,13 @@ export const useMaintenanceByProperty = (propertyId: string) => {
     queryKey: ['maintenance-by-property', propertyId],
     queryFn: async () => {
       if (!propertyId) return [];
-      console.log(
+      log(
         'DEBUG: useMaintenanceByProperty calling getLocalMaintenancesByProperty for',
         propertyId,
       );
       const data =
         await DatabaseService.getLocalMaintenancesByProperty(propertyId);
-      console.log(
-        'DEBUG: useMaintenanceByProperty received:',
-        data?.length,
-        'items',
-      );
+      log('DEBUG: useMaintenanceByProperty received:', data?.length, 'items');
       return data;
     },
     enabled: !!propertyId,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -43,7 +43,25 @@ export default function PostMaintenancePhotosScreen() {
     })();
   }, []);
 
-  const handleCamera = async () => {
+  const handleImageResult = useCallback(
+    async (result: ImagePicker.ImagePickerResult) => {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const newPhoto: PhotoItem = {
+          id: asset.uri,
+          uri: asset.uri,
+          status: 'pending',
+          category: 'visual', // Default for post photos
+        };
+
+        // Add to POST photos
+        addPhoto('post', newPhoto);
+      }
+    },
+    [addPhoto],
+  );
+
+  const handleCamera = useCallback(async () => {
     setModalVisible(false);
     try {
       const result = await ImagePicker.launchCameraAsync({
@@ -52,13 +70,13 @@ export default function PostMaintenancePhotosScreen() {
         quality: 0.5,
       });
 
-      handleImageResult(result);
+      await handleImageResult(result);
     } catch {
       Alert.alert('Error', 'No se pudo abrir la cámara.');
     }
-  };
+  }, [handleImageResult]);
 
-  const handleGallery = async () => {
+  const handleGallery = useCallback(async () => {
     setModalVisible(false);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -67,38 +85,37 @@ export default function PostMaintenancePhotosScreen() {
         quality: 0.5,
       });
 
-      handleImageResult(result);
+      await handleImageResult(result);
     } catch {
       Alert.alert('Error', 'No se pudo abrir la galería.');
     }
-  };
+  }, [handleImageResult]);
 
-  const handleImageResult = async (result: ImagePicker.ImagePickerResult) => {
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      const asset = result.assets[0];
-      const newPhoto: PhotoItem = {
-        id: asset.uri,
-        uri: asset.uri,
-        status: 'pending',
-        category: 'visual', // Default for post photos
-      };
+  const handleRemoveItem = useCallback(
+    (id: string) => {
+      removePhoto('post', id);
+    },
+    [removePhoto],
+  );
 
-      // Add to POST photos
-      addPhoto('post', newPhoto);
-    }
-  };
-
-  const handleRemoveItem = (id: string) => {
-    removePhoto('post', id);
-  };
-
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     router.push({
       pathname:
         '/maintenance/execution/electrical-panel/protocol-checklist' as any,
       params: { panelId, maintenanceId },
     });
-  };
+  }, [maintenanceId, panelId, router]);
+
+  const photos = useMemo(
+    () => session?.postPhotos || [],
+    [session?.postPhotos],
+  );
+
+  const MIN_PHOTOS = 1; // Maybe optional? or min 1?
+  const isFormValid = useMemo(
+    () => photos.length >= MIN_PHOTOS,
+    [photos.length],
+  );
 
   if (loading || !session) {
     return (
@@ -107,11 +124,6 @@ export default function PostMaintenancePhotosScreen() {
       </View>
     );
   }
-
-  const photos = session.postPhotos;
-
-  const MIN_PHOTOS = 1; // Maybe optional? or min 1?
-  const isFormValid = photos.length >= MIN_PHOTOS;
 
   const PhotoBoxSection = ({
     title,
@@ -143,8 +155,12 @@ export default function PostMaintenancePhotosScreen() {
             horizontal
             keyExtractor={item => item.id}
             style={styles.photoList}
-            contentContainerStyle={{ gap: 12 }}
+            contentContainerStyle={styles.photoListContent}
             showsHorizontalScrollIndicator={false}
+            initialNumToRender={3}
+            maxToRenderPerBatch={4}
+            windowSize={3}
+            removeClippedSubviews={true}
             renderItem={({ item }) => (
               <View style={styles.photoThumbnail}>
                 <Image source={{ uri: item.uri }} style={styles.thumbImage} />
@@ -178,7 +194,7 @@ export default function PostMaintenancePhotosScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <PhotoBoxSection title="Fotos Finales (Después)" photos={photos} />
-        <View style={{ height: 40 }} />
+        <View style={styles.footerSpacer} />
       </ScrollView>
 
       <View style={styles.footer}>
@@ -247,6 +263,7 @@ const styles = StyleSheet.create({
   counterPending: { color: '#EF4444' },
   counterSuccess: { color: '#10B981' },
   photoList: { marginBottom: 16, maxHeight: 110 },
+  photoListContent: { gap: 12 },
   photoThumbnail: {
     width: 100,
     height: 100,
@@ -304,6 +321,7 @@ const styles = StyleSheet.create({
   },
   disabledBtn: { backgroundColor: '#D1D5DB' },
   continueBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  footerSpacer: { height: 40 },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

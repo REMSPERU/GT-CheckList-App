@@ -4,25 +4,31 @@ import {
 } from '../common/types';
 import { formatDate } from '../common/utils';
 
+const DEFAULT_PROCEDURE_STEPS = [
+  'Inspección visual inicial y despeje del área de trabajo, verificando condiciones de seguridad, accesibilidad y estado general del tablero.',
+  'Registro fotográfico y termográfico previo al inicio de las actividades, mediante cámara termográfica, para identificar posibles puntos calientes, sobrecalentamientos o anomalías eléctricas existentes.',
+  'Desenergización segura de los tableros eléctricos, siguiendo los procedimientos de bloqueo y señalización correspondientes, a fin de garantizar la seguridad del personal técnico.',
+  'Retiro de mandiles del tablero eléctrico, permitiendo el acceso a los componentes internos.',
+  'Limpieza interna de la estructura del tablero eléctrico, eliminando polvo y suciedad que puedan afectar la operación o generar riesgos eléctricos.',
+  'Limpieza y aplicación de solvente dieléctrico en interruptores eléctricos, asegurando la remoción de residuos sin afectar las propiedades aislantes de los componentes.',
+  'Limpieza y aplicación de solvente dieléctrico en barras eléctricas de cobre, preservando su conductividad y reduciendo el riesgo de fallas por acumulación de contaminantes.',
+  'Ajuste mecánico de terminales y conexiones, incluyendo cables, interruptores y barras eléctricas, para prevenir falsos contactos y sobrecalentamientos.',
+  'Pruebas mecánicas de interruptores termomagnéticos y diferenciales, verificando el correcto accionamiento, firmeza y estado físico de los dispositivos de protección.',
+  'Pruebas eléctricas de interruptores termomagnéticos y diferenciales, con el fin de validar su correcto funcionamiento y capacidad de respuesta ante condiciones anómalas.',
+  'Registro visual del estado del tablero energizado, una vez culminadas las actividades de mantenimiento y restablecido el suministro eléctrico.',
+  'Registro fotográfico y termográfico final, mediante cámara termográfica, para comparar el estado inicial y final del tablero.',
+  'Conformidad del cliente, mediante acta o documento de aceptación del servicio realizado.',
+];
+
+const DEFAULT_NORMATIVE_TEXT =
+  'CNE-U 010-010 Inspecciones Iniciales y Periódicas de las Instalaciones Eléctricas (3): "Todas las instalaciones eléctricas deben ser objeto de mantenimiento oportuno y apropiado, por personal calificado y acreditado por la respectiva Autoridad competente, con la finalidad que se garantice el buen estado, el funcionamiento adecuado y seguro de todas las partes de la instalación eléctrica, tales como las protecciones, los aislamientos, los sistemas de puesta a tierra, etc."';
+
 /**
  * Generate the header page with client info and procedure
  */
 export function generateHeaderPageHTML(data: MaintenanceSessionReport): string {
   const serviceDate = formatDate(data.serviceDate, 'short');
-
-  const defaultProcedure = [
-    'Inspección visual y despeje del área de trabajo.',
-    'Desenergización de tableros eléctricos.',
-    'Retiro de mandil y tapas de los tableros eléctricos.',
-    'Limpieza de estructura del tablero eléctrico.',
-    'Limpieza y pulverizado con solvente dieléctrico de interruptores eléctricos.',
-    'Limpieza y pulverizado con solvente dieléctrico de barras eléctricas de cobre.',
-    'Ajuste mecánico de terminales en cables, interruptores y barras eléctricas.',
-    'Pruebas mecánicas y eléctricas de los interruptores termomagnéticos y diferenciales.',
-    'Registro visual de las condiciones del tablero energizado y conformidad del cliente.',
-  ];
-
-  const procedure = data.procedureSteps || defaultProcedure;
+  const procedure = data.procedureSteps || DEFAULT_PROCEDURE_STEPS;
 
   return `
     <div class="page">
@@ -47,7 +53,7 @@ export function generateHeaderPageHTML(data: MaintenanceSessionReport): string {
 
       <h2>2. NORMATIVA</h2>
       <div class="normativa">
-        <strong>CNE-U 010-010 Inspecciones Iniciales y Periódicas:</strong> "Todas las instalaciones eléctricas deben ser objeto de mantenimiento oportuno y apropiado, por personal calificado y acreditado por la respectiva Autoridad competente, con la finalidad que se garantice el buen estado, el funcionamiento adecuado y seguro de todas las partes de la instalación eléctrica, tales como las protecciones, los aislamientos, los sistemas de puesta a tierra, etc."
+        <strong>${DEFAULT_NORMATIVE_TEXT}</strong>
       </div>
 
 

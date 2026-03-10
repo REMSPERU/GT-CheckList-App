@@ -35,7 +35,7 @@ interface ITGChecklistProps {
   validationErrors?: Record<string, string[]>;
 }
 
-export const ITGChecklist: React.FC<ITGChecklistProps> = ({
+export const ITGChecklist = React.memo(function ITGChecklist({
   itgs,
   checklist,
   measurements = {},
@@ -47,7 +47,7 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
   onPhotoPress,
   configuredVoltage = 220,
   validationErrors = {},
-}) => {
+}: ITGChecklistProps) {
   const [activeTab, setActiveTab] = useState(0);
 
   if (!itgs || itgs.length === 0) return null;
@@ -118,6 +118,9 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
           const diffId = `diff_itg_${currentItg.id}_${itm.id}`;
           const diffMeasure = measurements[diffId] || {};
           const diffRatedAmps = parseFloat(itm.diferencial?.amperaje) || 0;
+          const testId = `test_itg_${currentItg.id}_${itm.id}`;
+          const testStatus = checklist[testId];
+          const testObs = itemObservations[testId];
 
           const validateDiffAmperage = (val: string) => {
             if (!val) return undefined;
@@ -252,133 +255,119 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                     Interruptor diferencial ID : ID-{itm.id}
                   </Text>
 
-                  {(() => {
-                    // diffId, diffMeasure, validateDiffAmperage, isDiffVoltValid, isDiffAmpValid
-                    // are already defined above in the parent scope
-                    const testId = `test_itg_${currentItg.id}_${itm.id}`;
-                    const testStatus = checklist[testId];
-                    const testObs = itemObservations[testId];
+                  <View style={styles.subSectionContent}>
+                    <MeasurementInput
+                      label="Voltaje Diferencial (V)"
+                      value={diffMeasure.voltage || ''}
+                      onChange={val =>
+                        onMeasurementChange(
+                          diffId,
+                          'voltage',
+                          val,
+                          validateVoltage(val) === true,
+                        )
+                      }
+                      unit="V"
+                      isValid={isDiffVoltValid}
+                      placeholder={`${configuredVoltage}`}
+                      showIncomplete={validationErrors[diffId]?.includes(
+                        'voltage',
+                      )}
+                      errorMessage={
+                        validationErrors[diffId]?.includes('voltage')
+                          ? 'Requerido'
+                          : undefined
+                      }
+                    />
 
-                    return (
-                      <View style={{ marginTop: 12, gap: 12 }}>
-                        <MeasurementInput
-                          label="Voltaje Diferencial (V)"
-                          value={diffMeasure.voltage || ''}
-                          onChange={val =>
-                            onMeasurementChange(
-                              diffId,
-                              'voltage',
-                              val,
-                              validateVoltage(val) === true,
-                            )
-                          }
-                          unit="V"
-                          isValid={isDiffVoltValid}
-                          placeholder={`${configuredVoltage}`}
-                          showIncomplete={validationErrors[diffId]?.includes(
-                            'voltage',
-                          )}
-                          errorMessage={
-                            validationErrors[diffId]?.includes('voltage')
-                              ? 'Requerido'
-                              : undefined
-                          }
-                        />
+                    <MeasurementInput
+                      label={`Amperaje Diferencial (Max ${itm.diferencial.amperaje || '-'} A)`}
+                      value={diffMeasure.amperage || ''}
+                      onChange={val =>
+                        onMeasurementChange(
+                          diffId,
+                          'amperage',
+                          val,
+                          validateDiffAmperage(val) === true,
+                        )
+                      }
+                      unit="A"
+                      isValid={isDiffAmpValid}
+                      placeholder="0.0"
+                      showIncomplete={validationErrors[diffId]?.includes(
+                        'amperage',
+                      )}
+                      errorMessage={
+                        validationErrors[diffId]?.includes('amperage')
+                          ? 'Requerido'
+                          : undefined
+                      }
+                    />
 
-                        <MeasurementInput
-                          label={`Amperaje Diferencial (Max ${itm.diferencial.amperaje || '-'} A)`}
-                          value={diffMeasure.amperage || ''}
-                          onChange={val =>
-                            onMeasurementChange(
-                              diffId,
-                              'amperage',
-                              val,
-                              validateDiffAmperage(val) === true,
-                            )
-                          }
-                          unit="A"
-                          isValid={isDiffAmpValid}
-                          placeholder="0.0"
-                          showIncomplete={validationErrors[diffId]?.includes(
-                            'amperage',
-                          )}
-                          errorMessage={
-                            validationErrors[diffId]?.includes('amperage')
-                              ? 'Requerido'
-                              : undefined
-                          }
-                        />
+                    {/* Editable Differential Cable fields */}
+                    <MeasurementInput
+                      label={`Diámetro de cable (Ref: ${itm.diferencial.diametro_cable || '-'})`}
+                      value={diffMeasure.cableDiameter || ''}
+                      onChange={val =>
+                        onCableChange(
+                          diffId,
+                          'cableDiameter',
+                          val,
+                          itm.diferencial.diametro_cable || '',
+                        )
+                      }
+                      placeholder={
+                        itm.diferencial.diametro_cable || 'Ej: 2.5mm'
+                      }
+                      keyboardType="default"
+                      showIncomplete={validationErrors[diffId]?.includes(
+                        'cableDiameter',
+                      )}
+                      errorMessage={
+                        validationErrors[diffId]?.includes('cableDiameter')
+                          ? 'Requerido'
+                          : undefined
+                      }
+                    />
 
-                        {/* Editable Differential Cable fields */}
-                        <MeasurementInput
-                          label={`Diámetro de cable (Ref: ${itm.diferencial.diametro_cable || '-'})`}
-                          value={diffMeasure.cableDiameter || ''}
-                          onChange={val =>
-                            onCableChange(
-                              diffId,
-                              'cableDiameter',
-                              val,
-                              itm.diferencial.diametro_cable || '',
-                            )
-                          }
-                          placeholder={
-                            itm.diferencial.diametro_cable || 'Ej: 2.5mm'
-                          }
-                          keyboardType="default"
-                          showIncomplete={validationErrors[diffId]?.includes(
-                            'cableDiameter',
-                          )}
-                          errorMessage={
-                            validationErrors[diffId]?.includes('cableDiameter')
-                              ? 'Requerido'
-                              : undefined
-                          }
-                        />
+                    <CableTypePicker
+                      label={`Tipo de cable (Ref: ${itm.diferencial.tipo_cable === 'libre_halogeno' ? 'Libre Halógeno' : itm.diferencial.tipo_cable === 'no_libre_halogeno' ? 'No Libre Halógeno' : '-'})`}
+                      value={diffMeasure.cableType || ''}
+                      onChange={val =>
+                        onCableChange(
+                          diffId,
+                          'cableType',
+                          val,
+                          itm.diferencial.tipo_cable || '',
+                        )
+                      }
+                      showIncomplete={validationErrors[diffId]?.includes(
+                        'cableType',
+                      )}
+                      errorMessage={
+                        validationErrors[diffId]?.includes('cableType')
+                          ? 'Requerido'
+                          : undefined
+                      }
+                    />
 
-                        <CableTypePicker
-                          label={`Tipo de cable (Ref: ${itm.diferencial.tipo_cable === 'libre_halogeno' ? 'Libre Halógeno' : itm.diferencial.tipo_cable === 'no_libre_halogeno' ? 'No Libre Halógeno' : '-'})`}
-                          value={diffMeasure.cableType || ''}
-                          onChange={val =>
-                            onCableChange(
-                              diffId,
-                              'cableType',
-                              val,
-                              itm.diferencial.tipo_cable || '',
-                            )
-                          }
-                          showIncomplete={validationErrors[diffId]?.includes(
-                            'cableType',
-                          )}
-                          errorMessage={
-                            validationErrors[diffId]?.includes('cableType')
-                              ? 'Requerido'
-                              : undefined
-                          }
-                        />
-
-                        <ChecklistItem
-                          label="Prueba Test"
-                          status={
-                            typeof testStatus === 'boolean' ? testStatus : true
-                          }
-                          onStatusChange={val => onStatusChange(testId, val)}
-                          observation={testObs?.note}
-                          onObservationChange={text =>
-                            onObservationChange(testId, text)
-                          }
-                          hasPhoto={true}
-                          photoUri={testObs?.photoUri}
-                          photoUris={testObs?.photoUris}
-                          onPhotoPress={() => onPhotoPress(testId)}
-                          style={{
-                            borderWidth: 0,
-                            shadowOpacity: 0,
-                            elevation: 0,
-                          }}
-                        />
-                      </View>
-                    );
-                  })()}
+                    <ChecklistItem
+                      label="Prueba Test"
+                      status={
+                        typeof testStatus === 'boolean' ? testStatus : true
+                      }
+                      onStatusChange={val => onStatusChange(testId, val)}
+                      observation={testObs?.note}
+                      onObservationChange={text =>
+                        onObservationChange(testId, text)
+                      }
+                      hasPhoto={true}
+                      photoUri={testObs?.photoUri}
+                      photoUris={testObs?.photoUris}
+                      onPhotoPress={() => onPhotoPress(testId)}
+                      style={styles.flatChecklistItem}
+                    />
+                  </View>
                 </View>
               )}
 
@@ -411,7 +400,7 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
                 photoUri={obs?.photoUri}
                 photoUris={obs?.photoUris}
                 onPhotoPress={() => onPhotoPress(itemId)}
-                style={{ borderWidth: 0, shadowOpacity: 0, elevation: 0 }}
+                style={styles.flatChecklistItem}
               />
             </View>
           );
@@ -419,7 +408,7 @@ export const ITGChecklist: React.FC<ITGChecklistProps> = ({
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -487,6 +476,10 @@ const styles = StyleSheet.create({
     color: '#11181C',
     marginBottom: 12,
   },
+  subSectionContent: {
+    marginTop: 12,
+    gap: 12,
+  },
   detailsContainer: {
     gap: 12,
   },
@@ -519,5 +512,10 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#E5E7EB',
     marginVertical: 16,
+  },
+  flatChecklistItem: {
+    borderWidth: 0,
+    shadowOpacity: 0,
+    elevation: 0,
   },
 });

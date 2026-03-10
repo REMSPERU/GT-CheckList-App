@@ -3,6 +3,12 @@ import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getEquipmentRoute } from '@/constants/equipment-routes';
 
+const log = (...args: unknown[]) => {
+  if (__DEV__) {
+    console.log(...args);
+  }
+};
+
 /**
  * Execution Router
  *
@@ -32,7 +38,7 @@ export default function ExecutionRouter() {
 
   const { panelId, maintenanceId, equipmentType } = params;
 
-  console.log('ExecutionRouter Params:', {
+  log('ExecutionRouter Params:', {
     panelId,
     maintenanceId,
     equipmentType,

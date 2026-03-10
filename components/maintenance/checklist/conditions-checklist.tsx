@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ChecklistItem } from './check-list-item';
 import { ItemObservation } from '@/types/maintenance-session';
@@ -31,44 +31,21 @@ const CONDITION_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   diagrama_unifilar_directorio: 'document-text-outline',
 };
 
-export const ConditionsChecklist: React.FC<ConditionsChecklistProps> = ({
+export const ConditionsChecklist = React.memo(function ConditionsChecklist({
   conditions,
   checklist,
   itemObservations,
   onStatusChange,
   onObservationChange,
   onPhotoPress,
-}) => {
+}: ConditionsChecklistProps) {
   // Filter keys that are actual conditions (boolean true usually means they SHOULD exist)
-  const conditionKeys = Object.keys(conditions);
+  const conditionKeys = useMemo(() => Object.keys(conditions), [conditions]);
 
-  // Initialize items that don't have a status with default true
-  useEffect(() => {
-    if (!conditions) return;
-
-    conditionKeys.forEach(key => {
-      if (!conditions[key]) return;
-      if (!CONDITION_LABELS[key]) return;
-
-      const itemId = `cond_${key}`;
-      if (checklist[itemId] === undefined) {
-        onStatusChange(itemId, true);
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conditionKeys.length]);
-
-  if (!conditions) return null;
-  if (conditionKeys.length === 0) return null;
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Condiciones extras</Text>
-
-      {conditionKeys.map(key => {
-        // Only show if condition is true in the source data
+  const renderedConditions = useMemo(
+    () =>
+      conditionKeys.map(key => {
         if (!conditions[key]) return null;
-        // Skip keys that might not be conditions if any
         if (!CONDITION_LABELS[key]) return null;
 
         const itemId = `cond_${key}`;
@@ -80,10 +57,7 @@ export const ConditionsChecklist: React.FC<ConditionsChecklistProps> = ({
             key={itemId}
             label={CONDITION_LABELS[key]}
             icon={CONDITION_ICONS[key] || 'checkbox-outline'}
-            // Default to true (OK) if undefined
-            status={
-              status === undefined ? true : status === true ? true : false
-            }
+            status={status === undefined ? true : status === true}
             onStatusChange={val => onStatusChange(itemId, val)}
             observation={obs?.note}
             onObservationChange={text => onObservationChange(itemId, text)}
@@ -92,10 +66,29 @@ export const ConditionsChecklist: React.FC<ConditionsChecklistProps> = ({
             onPhotoPress={() => onPhotoPress(itemId)}
           />
         );
-      })}
+      }),
+    [
+      checklist,
+      conditionKeys,
+      conditions,
+      itemObservations,
+      onObservationChange,
+      onPhotoPress,
+      onStatusChange,
+    ],
+  );
+
+  if (!conditions) return null;
+  if (conditionKeys.length === 0) return null;
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.sectionTitle}>Condiciones extras</Text>
+
+      {renderedConditions}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
