@@ -7,19 +7,15 @@ export default ({ config }) => {
   return {
     ...config,
 
-    name: isProd
-      ? 'Alexperto Checklist'
-      : isPreview
-        ? 'Alexperto Checklist (Preview)'
-        : 'Alexperto Checklist (Dev)',
+    name: isProd ? 'GEMA' : isPreview ? 'GEMA (Preview)' : 'GEMA (Dev)',
 
-    slug: 'alexpertochecklistapp',
+    slug: 'gema',
 
     version: '1.0.31',
     orientation: 'portrait',
 
     icon: './assets/images/icon.png',
-    scheme: 'alexpertochecklistapp',
+    scheme: 'gema',
 
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
@@ -35,10 +31,10 @@ export default ({ config }) => {
       predictiveBackGestureEnabled: false,
 
       package: isProd
-        ? 'pe.rems.alexpertochecklistapp'
+        ? 'pe.rems.gema'
         : isPreview
-          ? 'pe.rems.alexpertochecklistapp.preview'
-          : 'pe.rems.alexpertochecklistapp.dev',
+          ? 'pe.rems.gema.preview'
+          : 'pe.rems.gema.dev',
     },
 
     ios: {
@@ -106,7 +102,7 @@ export default ({ config }) => {
     extra: {
       router: {},
       eas: {
-        projectId: 'c940c4bd-e767-4ae5-8d78-9fb4443602a1',
+        projectId: 'b24cca70-6ef8-452b-b7ef-fe01ba8a46bb',
       },
     },
 
