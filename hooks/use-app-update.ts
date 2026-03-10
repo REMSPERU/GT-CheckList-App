@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
 
 // GitHub repository info
 const GITHUB_OWNER = 'REMSPERU';
@@ -51,6 +52,16 @@ export function useAppUpdate(): AppUpdateInfo {
   });
 
   useEffect(() => {
+    if (Platform.OS === 'web') {
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        needsUpdate: false,
+        error: null,
+      }));
+      return;
+    }
+
     // Skip update check in development mode
     if (__DEV__) {
       setState(prev => ({

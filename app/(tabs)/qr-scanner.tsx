@@ -5,10 +5,12 @@ import {
   CameraView,
   useCameraPermissions,
 } from 'expo-camera';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Alert,
+  Image,
   Linking,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -18,6 +20,9 @@ import {
 export default function QRScannerScreen() {
   const [isActive, setIsActive] = useState(true);
   const [scannedData, setScannedData] = useState<string | null>(null);
+  const [isWebScanning, setIsWebScanning] = useState(false);
+  const [webImagePreview, setWebImagePreview] = useState<string | null>(null);
+  const webFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -69,6 +74,109 @@ export default function QRScannerScreen() {
       );
     }
   };
+
+  const handleWebPickImage = () => {
+    webFileInputRef.current?.click();
+  };
+
+  const handleWebImageSelected = async (event: any) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const previewUrl = URL.createObjectURL(file);
+    setWebImagePreview(previewUrl);
+    setIsWebScanning(true);
+
+    try {
+      const BarcodeDetectorImpl = (window as any).BarcodeDetector;
+
+      if (!BarcodeDetectorImpl) {
+        throw new Error(
+          'Tu navegador no soporta lectura automática de QR por imagen.',
+        );
+      }
+
+      const detector = new BarcodeDetectorImpl({
+        formats: [
+          'qr_code',
+          'ean_13',
+          'ean_8',
+          'code_128',
+          'code_39',
+          'code_93',
+        ],
+      });
+
+      const bitmap = await createImageBitmap(file);
+      const barcodes = await detector.detect(bitmap);
+
+      if (!barcodes?.length) {
+        Alert.alert(
+          'Sin resultados',
+          'No se detectó ningún código en la imagen.',
+        );
+        return;
+      }
+
+      const first = barcodes[0];
+      const value = first.rawValue || 'Código sin valor';
+      setScannedData(value);
+      Alert.alert('Código Detectado', `Valor: ${value}`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'No se pudo leer la imagen';
+      Alert.alert('Error al escanear', message);
+    } finally {
+      setIsWebScanning(false);
+      event.target.value = '';
+    }
+  };
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[styles.container, { backgroundColor }]}>
+        <input
+          ref={webFileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: 'none' }}
+          onChange={handleWebImageSelected}
+        />
+
+        <MaterialIcons name="qr-code-scanner" size={80} color={tintColor} />
+        <Text style={[styles.permissionText, { color: textColor }]}>
+          En web puedes escanear QR/códigos desde una foto o captura de cámara.
+        </Text>
+
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: tintColor }]}
+          onPress={handleWebPickImage}>
+          <Text style={styles.buttonText}>
+            {isWebScanning ? 'Procesando...' : 'Seleccionar imagen'}
+          </Text>
+        </TouchableOpacity>
+
+        {webImagePreview && (
+          <Image
+            source={{ uri: webImagePreview }}
+            style={styles.previewImage}
+          />
+        )}
+
+        {scannedData && (
+          <View style={styles.webResultContainer}>
+            <Text style={[styles.resultText, { color: textColor }]}>
+              Resultado:
+            </Text>
+            <Text style={[styles.resultValue, { color: textColor }]}>
+              {scannedData}
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  }
 
   if (!permission) {
     // Los permisos aún están cargando
@@ -301,5 +409,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  previewImage: {
+    width: 260,
+    height: 260,
+    borderRadius: 12,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  webResultContainer: {
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    width: '85%',
   },
 });

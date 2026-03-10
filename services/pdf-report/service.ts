@@ -4,7 +4,6 @@ import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as IntentLauncher from 'expo-intent-launcher';
 import {
   MaintenanceSessionReport,
   SessionReportData,
@@ -34,6 +33,28 @@ import { generatePATReportHTML } from './PAT/technical-generator';
  * Corporate style with blue (#0056b3) and orange (#ff6600) color scheme
  */
 class PDFReportService {
+  private async downloadPdfInWeb(pdfUri: string, filename?: string) {
+    const response = await fetch(pdfUri);
+    if (!response.ok) {
+      throw new Error(`No se pudo descargar el PDF (${response.status})`);
+    }
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    const cleanName =
+      (filename || 'informe_mantenimiento').replace(/[^a-zA-Z0-9]/g, '_') +
+      '.pdf';
+
+    anchor.href = objectUrl;
+    anchor.download = cleanName;
+    anchor.rel = 'noopener noreferrer';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(objectUrl);
+  }
+
   /**
    * Generate full HTML for the maintenance session report (TECHNICAL REPORT)
    */
@@ -221,6 +242,14 @@ class PDFReportService {
    * On Android, uses IntentLauncher. On iOS, uses Sharing (native Open In flow)
    */
   async openPDF(pdfUri: string, filename?: string): Promise<void> {
+    if (Platform.OS === 'web') {
+      const opened = window.open(pdfUri, '_blank', 'noopener,noreferrer');
+      if (!opened) {
+        await this.downloadPdfInWeb(pdfUri, filename);
+      }
+      return;
+    }
+
     let uriToOpen = pdfUri;
 
     // Use descriptive name if provided
@@ -237,6 +266,7 @@ class PDFReportService {
 
     if (Platform.OS === 'android') {
       try {
+        const IntentLauncher = await import('expo-intent-launcher');
         const contentUri = await FileSystem.getContentUriAsync(uriToOpen);
         await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
           data: contentUri,
@@ -264,6 +294,41 @@ class PDFReportService {
     filename?: string,
     dialogTitle?: string,
   ): Promise<void> {
+    if (Platform.OS === 'web') {
+      const cleanName =
+        (filename || 'informe_mantenimiento').replace(/[^a-zA-Z0-9]/g, '_') +
+        '.pdf';
+
+      if (typeof navigator !== 'undefined' && 'share' in navigator) {
+        try {
+          const response = await fetch(pdfUri);
+          if (!response.ok) {
+            throw new Error(`No se pudo preparar el PDF (${response.status})`);
+          }
+          const blob = await response.blob();
+          const file = new File([blob], cleanName, { type: 'application/pdf' });
+
+          await (
+            navigator as Navigator & {
+              share: (data: {
+                title?: string;
+                files?: File[];
+              }) => Promise<void>;
+            }
+          ).share({
+            title: dialogTitle || 'Compartir Informe',
+            files: [file],
+          });
+          return;
+        } catch (error) {
+          console.warn('[PDF] Web share failed, fallback to download:', error);
+        }
+      }
+
+      await this.downloadPdfInWeb(pdfUri, filename);
+      return;
+    }
+
     const isAvailable = await Sharing.isAvailableAsync();
     if (!isAvailable) {
       throw new Error('Sharing is not available on this device');
