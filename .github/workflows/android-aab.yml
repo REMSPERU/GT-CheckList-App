@@ -1,0 +1,76 @@
+name: Build Android AAB (EAS Cloud)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-aab:
+    name: Android AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    concurrency:
+      group: aab-${{ github.ref }}
+      cancel-in-progress: true
+
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Build AAB on EAS
+        id: build
+        run: |
+          eas build --platform android --profile production --non-interactive --wait --json > build.json
+          BUILD_ID=$(node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync('build.json','utf8'));const build=Array.isArray(data)?data[0]:data;process.stdout.write(build.id);")
+          ARTIFACT_URL=$(node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync('build.json','utf8'));const build=Array.isArray(data)?data[0]:data;process.stdout.write(build.artifacts?.buildUrl || '');")
+          APP_VERSION=$(node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync('build.json','utf8'));const build=Array.isArray(data)?data[0]:data;process.stdout.write(String(build.appVersion || 'unknown'));")
+          VERSION_CODE=$(node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync('build.json','utf8'));const build=Array.isArray(data)?data[0]:data;process.stdout.write(String(build.appBuildVersion || 'unknown'));")
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+          echo "artifact_url=$ARTIFACT_URL" >> $GITHUB_OUTPUT
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+
+      - name: Download AAB artifact
+        run: |
+          if [[ -z "${{ steps.build.outputs.artifact_url }}" ]]; then
+            echo "No artifact URL returned by EAS build"
+            exit 1
+          fi
+          curl -L "${{ steps.build.outputs.artifact_url }}" -o "GEMA-v${{ steps.build.outputs.app_version }}-${{ steps.build.outputs.version_code }}.aab"
+
+      - name: Upload AAB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GEMA-v${{ steps.build.outputs.app_version }}-${{ steps.build.outputs.version_code }}.aab
+          path: GEMA-v${{ steps.build.outputs.app_version }}-${{ steps.build.outputs.version_code }}.aab
+          retention-days: 30
+
+      - name: Build summary
+        run: |
+          echo "EAS Build ID: ${{ steps.build.outputs.build_id }}"
+          echo "App version: ${{ steps.build.outputs.app_version }}"
+          echo "Version code: ${{ steps.build.outputs.version_code }}"
