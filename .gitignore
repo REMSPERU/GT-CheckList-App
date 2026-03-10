@@ -44,5 +44,7 @@ app-example
 /ios
 /android
 
+# secrets
+.secrets/
 
 .env.local
