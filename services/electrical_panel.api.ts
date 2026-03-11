@@ -20,6 +20,8 @@ export const electricalPanelApi = {
       propertyId,
       panelType,
       search,
+      config,
+      locations,
     );
   },
 

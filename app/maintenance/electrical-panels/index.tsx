@@ -19,7 +19,10 @@ import {
   EquipmentFilterModal,
   FilterState,
 } from '@/components/maintenance/EquipmentFilterModal';
-import type { TableroElectricoResponse } from '@/types/api';
+import type {
+  EquipamentoResponse,
+  TableroElectricoResponse,
+} from '@/types/api';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
 import { syncQueue } from '@/services/sync-queue';
@@ -28,13 +31,37 @@ import { useUserRole } from '@/hooks/use-user-role';
 // Constants
 const REFRESH_TIMEOUT_MS = 10000; // 10 seconds timeout for refresh
 
+interface BuildingParam {
+  id: string;
+  name: string;
+  image_url?: string;
+}
+
+function parseJsonParam<T>(value: string | string[] | undefined): T | null {
+  if (typeof value !== 'string') return null;
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
+const log = (...args: unknown[]) => {
+  if (__DEV__) {
+    console.log(...args);
+  }
+};
+
 export default function ElectricalPanelsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { building: buildingParam, equipamento: equipamentoParam } =
     useLocalSearchParams();
-  const [building, setBuilding] = useState<any>(null);
-  const [equipamento, setEquipamento] = useState<any>(null);
+  const [building, setBuilding] = useState<BuildingParam | null>(null);
+  const [equipamento, setEquipamento] = useState<EquipamentoResponse | null>(
+    null,
+  );
   const [panels, setPanels] = useState<TableroElectricoResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -62,21 +89,16 @@ export default function ElectricalPanelsScreen() {
   const navigationLockRef = useRef(false);
 
   useEffect(() => {
-    if (buildingParam) {
-      try {
-        const parsedBuilding = JSON.parse(buildingParam as string);
-        setBuilding(parsedBuilding);
-      } catch (e) {
-        console.error('Error parsing building param:', e);
-      }
+    const parsedBuilding = parseJsonParam<BuildingParam>(buildingParam);
+    const parsedEquipamento =
+      parseJsonParam<EquipamentoResponse>(equipamentoParam);
+
+    if (parsedBuilding) {
+      setBuilding(parsedBuilding);
     }
-    if (equipamentoParam) {
-      try {
-        const parsedEquipamento = JSON.parse(equipamentoParam as string);
-        setEquipamento(parsedEquipamento);
-      } catch (e) {
-        console.error('Error parsing equipamento param:', e);
-      }
+
+    if (parsedEquipamento) {
+      setEquipamento(parsedEquipamento);
     }
   }, [buildingParam, equipamentoParam]);
 
@@ -157,13 +179,14 @@ export default function ElectricalPanelsScreen() {
           reject(err);
         }
       });
-      console.log('[REFRESH] Sync completed successfully');
-    } catch (err: any) {
+      log('[REFRESH] Sync completed successfully');
+    } catch (err) {
       // Timeout or network error - proceed with local data
-      if (err.message === 'Refresh timeout') {
-        console.log('[REFRESH] Timeout reached, using local data');
+      const message = err instanceof Error ? err.message : String(err);
+      if (message === 'Refresh timeout') {
+        log('[REFRESH] Timeout reached, using local data');
       } else {
-        console.log('[REFRESH] Sync failed, using local data:', err.message);
+        log('[REFRESH] Sync failed, using local data:', message);
       }
     } finally {
       // Always reload from local DB (single source of truth)
@@ -274,10 +297,10 @@ export default function ElectricalPanelsScreen() {
    * Manual retry sync for a specific panel
    */
   const handleRetrySync = useCallback(async (panelId: string) => {
-    console.log('[RETRY] Manual retry requested for panel:', panelId);
+    log('[RETRY] Manual retry requested for panel:', panelId);
     const success = await syncQueue.retryItem(panelId, 'panel_config');
     if (success) {
-      console.log('[RETRY] Sync successful, reloading data...');
+      log('[RETRY] Sync successful, reloading data...');
     }
     // Data will be reloaded via syncQueue subscription
   }, []);

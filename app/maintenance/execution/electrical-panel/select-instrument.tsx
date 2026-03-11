@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -48,19 +48,13 @@ export default function SelectInstrumentScreen() {
   const [isLoadingInstruments, setIsLoadingInstruments] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (panel?.id_equipamento) {
-      loadInstruments(panel.id_equipamento);
-    }
-  }, [panel?.id_equipamento]);
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const instrumentById = useMemo(
+    () => new Map(instruments.map(item => [item.id, item])),
+    [instruments],
+  );
 
-  useEffect(() => {
-    if (session?.selectedInstruments) {
-      setSelectedIds(session.selectedInstruments.map(i => i.id));
-    }
-  }, [session]);
-
-  const loadInstruments = async (equipmentTypeId: string) => {
+  const loadInstruments = useCallback(async (equipmentTypeId: string) => {
     setIsLoadingInstruments(true);
     try {
       const data =
@@ -72,27 +66,42 @@ export default function SelectInstrumentScreen() {
     } finally {
       setIsLoadingInstruments(false);
     }
-  };
+  }, []);
 
-  const handleSelect = (instrument: Instrument) => {
-    setSelectedIds(prev => {
-      // Find instruments of DIFFERENT types
-      const otherTypeIds = prev.filter(id => {
-        const item = instruments.find(i => i.id === id);
-        return item && item.instrumento !== instrument.instrumento;
+  useEffect(() => {
+    if (panel?.id_equipamento) {
+      loadInstruments(panel.id_equipamento);
+    }
+  }, [loadInstruments, panel?.id_equipamento]);
+
+  useEffect(() => {
+    const selectedFromSession =
+      session?.selectedInstruments?.map(i => i.id) || [];
+    setSelectedIds(selectedFromSession);
+  }, [session?.selectedInstruments]);
+
+  const handleSelect = useCallback(
+    (instrument: Instrument) => {
+      setSelectedIds(prev => {
+        // Find instruments of DIFFERENT types
+        const otherTypeIds = prev.filter(id => {
+          const item = instruments.find(i => i.id === id);
+          return item && item.instrumento !== instrument.instrumento;
+        });
+
+        // Toggling
+        if (prev.includes(instrument.id)) {
+          return otherTypeIds; // Remove if already selected
+        }
+
+        // Add (replacing same type)
+        return [...otherTypeIds, instrument.id];
       });
+    },
+    [instruments],
+  );
 
-      // Toggling
-      if (prev.includes(instrument.id)) {
-        return otherTypeIds; // Remove if already selected
-      }
-
-      // Add (replacing same type)
-      return [...otherTypeIds, instrument.id];
-    });
-  };
-
-  const handleContinue = () => {
+  const handleContinue = useCallback(async () => {
     if (selectedIds.length === 0) {
       Alert.alert(
         'Selección requerida',
@@ -104,7 +113,7 @@ export default function SelectInstrumentScreen() {
     if (session) {
       const selectedInstrumentsData = selectedIds
         .map(id => {
-          const inst = instruments.find(i => i.id === id);
+          const inst = instrumentById.get(id);
           return inst || null;
         })
         .filter((item): item is Instrument => item !== null);
@@ -114,14 +123,73 @@ export default function SelectInstrumentScreen() {
         selectedInstruments: selectedInstrumentsData,
         lastUpdated: new Date().toISOString(),
       };
-      saveSession(updatedSession as any);
+      await saveSession(updatedSession as any, { immediate: true });
 
       router.push({
         pathname: '/maintenance/execution/electrical-panel/checklist' as any,
         params: { panelId, maintenanceId },
       });
     }
-  };
+  }, [
+    instrumentById,
+    maintenanceId,
+    panelId,
+    router,
+    saveSession,
+    selectedIds,
+    session,
+  ]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: Instrument }) => {
+      const isSelected = selectedSet.has(item.id);
+
+      return (
+        <TouchableOpacity
+          style={[styles.card, isSelected && styles.cardSelected]}
+          onPress={() => handleSelect(item)}>
+          <View style={styles.cardHeader}>
+            <Text
+              style={[
+                styles.instrumentName,
+                isSelected && styles.textSelected,
+              ]}>
+              {item.instrumento}
+            </Text>
+            {isSelected && (
+              <Ionicons
+                name="checkmark-circle"
+                size={24}
+                color={Colors.light.tint}
+              />
+            )}
+          </View>
+          <Text
+            style={[
+              styles.instrumentDetail,
+              isSelected && styles.textSelected,
+            ]}>
+            Marca: {item.marca}
+          </Text>
+          <Text
+            style={[
+              styles.instrumentDetail,
+              isSelected && styles.textSelected,
+            ]}>
+            Modelo: {item.modelo}
+          </Text>
+          <Text
+            style={[
+              styles.instrumentDetail,
+              isSelected && styles.textSelected,
+            ]}>
+            Serie: {item.serie}
+          </Text>
+        </TouchableOpacity>
+      );
+    },
+    [handleSelect, selectedSet],
+  );
 
   const isLoading = isSessionLoading || isPanelLoading || isLoadingInstruments;
 
@@ -150,6 +218,10 @@ export default function SelectInstrumentScreen() {
           data={instruments}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContainer}
+          initialNumToRender={8}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={true}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
@@ -157,52 +229,7 @@ export default function SelectInstrumentScreen() {
               </Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.card,
-                selectedIds.includes(item.id) && styles.cardSelected,
-              ]}
-              onPress={() => handleSelect(item)}>
-              <View style={styles.cardHeader}>
-                <Text
-                  style={[
-                    styles.instrumentName,
-                    selectedIds.includes(item.id) && styles.textSelected,
-                  ]}>
-                  {item.instrumento}
-                </Text>
-                {selectedIds.includes(item.id) && (
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={24}
-                    color={Colors.light.tint}
-                  />
-                )}
-              </View>
-              <Text
-                style={[
-                  styles.instrumentDetail,
-                  selectedIds.includes(item.id) && styles.textSelected,
-                ]}>
-                Marca: {item.marca}
-              </Text>
-              <Text
-                style={[
-                  styles.instrumentDetail,
-                  selectedIds.includes(item.id) && styles.textSelected,
-                ]}>
-                Modelo: {item.modelo}
-              </Text>
-              <Text
-                style={[
-                  styles.instrumentDetail,
-                  selectedIds.includes(item.id) && styles.textSelected,
-                ]}>
-                Serie: {item.serie}
-              </Text>
-            </TouchableOpacity>
-          )}
+          renderItem={renderItem}
         />
       </View>
 

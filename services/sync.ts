@@ -16,6 +16,12 @@ const MIN_PULL_INTERVAL_MS = 30000;
 /** Polling interval for background sync checks */
 const POLL_INTERVAL_MS = 30000;
 
+const log = (...args: unknown[]) => {
+  if (__DEV__) {
+    console.log(...args);
+  }
+};
+
 // --- Interfaces ---
 interface OfflineMaintenance {
   local_id: number;
@@ -156,11 +162,11 @@ class SyncService {
 
   private async syncOnReconnect() {
     if (this.isSyncing) return;
-    console.log('Auto-sync triggered on reconnect...');
+    log('Auto-sync triggered on reconnect...');
     try {
       await this.pushData(); // Upload local changes
       await this.pullData(); // Download new data
-      console.log('Auto-sync completed');
+      log('Auto-sync completed');
     } catch (error) {
       console.error('Auto-sync failed:', error);
     }
@@ -178,7 +184,7 @@ class SyncService {
       await DatabaseService.ensureInitialized();
       if (!this.isConnected) return;
 
-      console.log('[SYNC] Starting Batch Upload...');
+      log('[SYNC] Starting Batch Upload...');
 
       // 1. Sync Maintenances
       await this.syncPendingMaintenances();
@@ -192,7 +198,13 @@ class SyncService {
       // 4. Sync Session Photos
       await this.syncPendingSessionPhotos();
 
-      console.log('[SYNC] Batch Upload Finished.');
+      try {
+        await DatabaseService.cleanupOfflineQueue();
+      } catch (cleanupError) {
+        console.warn('[SYNC] Offline queue cleanup failed:', cleanupError);
+      }
+
+      log('[SYNC] Batch Upload Finished.');
     } finally {
       this.isPushing = false;
     }
@@ -206,7 +218,7 @@ class SyncService {
       (await DatabaseService.getPendingMaintenances()) as OfflineMaintenance[];
     if (pendingItems.length === 0) return;
 
-    console.log(`[SYNC-MAIN] Found ${pendingItems.length} pending items`);
+    log(`[SYNC-MAIN] Found ${pendingItems.length} pending items`);
 
     for (const item of pendingItems) {
       try {
@@ -246,7 +258,7 @@ class SyncService {
                 observationKey: photo.observation_key || null,
               },
             );
-            console.log(`[SYNC] Photo ${photo.id} uploaded: ${remoteUrl}`);
+            log(`[SYNC] Photo ${photo.id} uploaded: ${remoteUrl}`);
 
             await DatabaseService.updatePhotoStatus(
               photo.id,
@@ -335,7 +347,7 @@ class SyncService {
 
     if (configsToSync.length === 0) return;
 
-    console.log(`[SYNC-PANEL] Syncing ${configsToSync.length} configs`);
+    log(`[SYNC-PANEL] Syncing ${configsToSync.length} configs`);
 
     for (const config of configsToSync) {
       try {
@@ -373,7 +385,7 @@ class SyncService {
       (await DatabaseService.getPendingGroundingWellChecklists()) as any[];
     if (pendingChecklists.length === 0) return;
 
-    console.log(`[SYNC-GROUND] Syncing ${pendingChecklists.length} checklists`);
+    log(`[SYNC-GROUND] Syncing ${pendingChecklists.length} checklists`);
 
     for (const checklist of pendingChecklists) {
       try {
@@ -490,7 +502,7 @@ class SyncService {
       (await DatabaseService.getPendingSessionPhotos()) as OfflineSessionPhoto[];
     if (pendingPhotos.length === 0) return;
 
-    console.log(
+    log(
       `[SYNC-SESSION-PHOTO] Found ${pendingPhotos.length} pending session photos`,
     );
 
@@ -506,9 +518,7 @@ class SyncService {
             category: 'session-start',
           },
         );
-        console.log(
-          `[SYNC-SESSION-PHOTO] Photo ${photo.id} uploaded: ${remoteUrl}`,
-        );
+        log(`[SYNC-SESSION-PHOTO] Photo ${photo.id} uploaded: ${remoteUrl}`);
 
         // 2. Insert into Supabase table
         const { error } = await supabase
@@ -554,14 +564,14 @@ class SyncService {
     // Throttle: skip if last pull was less than MIN_PULL_INTERVAL_MS ago
     const now = Date.now();
     if (now - this.lastPullTimestamp < MIN_PULL_INTERVAL_MS) {
-      console.log('[SYNC] Pull throttled — too soon since last pull');
+      log('[SYNC] Pull throttled — too soon since last pull');
       return true;
     }
 
     this.isSyncing = true;
     this.currentSyncPromise = (async () => {
       try {
-        console.log('Starting Down-Sync...');
+        log('Starting Down-Sync...');
 
         // Fetch all tables in parallel WITH limits and error checking
         const [
@@ -648,7 +658,7 @@ class SyncService {
         await DatabaseService.bulkInsertMirrorData(
           equiposResult.data,
           propertiesResult.data,
-          [], // users — not fetched in pull
+          null, // users — not fetched in pull
           instrumentosResult.data,
           equipamentosResult.data,
           equipamentosPropertyResult.data,
@@ -659,7 +669,7 @@ class SyncService {
         );
 
         this.lastPullTimestamp = Date.now();
-        console.log('Down-Sync Completed.');
+        log('Down-Sync Completed.');
         return true;
       } catch (error) {
         console.error('Down-Sync Error:', error);

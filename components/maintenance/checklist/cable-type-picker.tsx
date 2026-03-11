@@ -18,14 +18,14 @@ interface CableTypePickerProps {
   placeholder?: string;
 }
 
-export const CableTypePicker: React.FC<CableTypePickerProps> = ({
+export const CableTypePicker = React.memo(function CableTypePicker({
   label,
   value,
   onChange,
   showIncomplete,
   errorMessage,
   placeholder,
-}) => {
+}: CableTypePickerProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
@@ -65,7 +65,7 @@ export const CableTypePicker: React.FC<CableTypePickerProps> = ({
       {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

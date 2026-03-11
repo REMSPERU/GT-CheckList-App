@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -29,7 +29,7 @@ export default function MaintenanceChecklistScreen() {
   const { panelId, maintenanceId } = params;
 
   // Load Session
-  const { session, saveSession } = useMaintenanceSession(
+  const { session, updateSession } = useMaintenanceSession(
     panelId || '',
     maintenanceId,
   );
@@ -39,224 +39,282 @@ export default function MaintenanceChecklistScreen() {
     panelId || '',
   );
   const detail = panel?.equipment_detail;
+  const itgs = useMemo(() => detail?.itgs || [], [detail?.itgs]);
+  const components = useMemo(
+    () => detail?.componentes || [],
+    [detail?.componentes],
+  );
+  const conditions = useMemo<Record<string, boolean>>(
+    () =>
+      (detail?.condiciones_especiales as Record<string, boolean> | undefined) ||
+      {},
+    [detail?.condiciones_especiales],
+  );
+
+  useEffect(() => {
+    if (!session) return;
+
+    const defaultChecklistValues: Record<string, boolean> = {};
+
+    components.forEach((comp: any) => {
+      comp.items.forEach((item: any) => {
+        const itemId = `comp_${comp.tipo}_${item.codigo}`;
+        if (session.checklist[itemId] === undefined) {
+          defaultChecklistValues[itemId] = true;
+        }
+      });
+    });
+
+    Object.keys(conditions).forEach(key => {
+      if (!conditions[key]) return;
+      const itemId = `cond_${key}`;
+      if (session.checklist[itemId] === undefined) {
+        defaultChecklistValues[itemId] = true;
+      }
+    });
+
+    const hasDefaults = Object.keys(defaultChecklistValues).length > 0;
+    if (!hasDefaults) return;
+
+    void updateSession(prevSession => ({
+      ...prevSession,
+      checklist: {
+        ...prevSession.checklist,
+        ...defaultChecklistValues,
+      },
+      lastUpdated: new Date().toISOString(),
+    }));
+  }, [components, conditions, session, updateSession]);
 
   // Validation errors state for inline validation
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string[]>
   >({});
 
-  const handleStatusChange = (itemId: string, status: boolean) => {
-    if (!session) return;
-    const updatedSession = { ...session };
-
-    // Check if measurements block status change (if invalid, cannot be OK)
-    // We need to re-validate here if we want strictly robust logic,
-    // but the UI component already tries to enforce visual feedback.
-    // Let's enforce it:
-    const measurements = updatedSession.measurements?.[itemId];
-    if (measurements && status === true) {
-      if (
-        measurements.isVoltageInRange === false ||
-        measurements.isAmperageInRange === false
-      ) {
-        Alert.alert(
-          'Medición Fuera de Rango',
-          'No se puede marcar como OK si las mediciones están fuera de rango. Debe registrar una observación y foto.',
-        );
-        return;
+  const handleStatusChange = useCallback(
+    (itemId: string, status: boolean) => {
+      const measurements = session?.measurements?.[itemId];
+      if (measurements && status === true) {
+        if (
+          measurements.isVoltageInRange === false ||
+          measurements.isAmperageInRange === false
+        ) {
+          Alert.alert(
+            'Medición Fuera de Rango',
+            'No se puede marcar como OK si las mediciones están fuera de rango. Debe registrar una observación y foto.',
+          );
+          return;
+        }
       }
-    }
 
-    updatedSession.checklist = {
-      ...updatedSession.checklist,
-      [itemId]: status,
-    };
+      void updateSession(prevSession => ({
+        ...prevSession,
+        checklist: {
+          ...prevSession.checklist,
+          [itemId]: status,
+        },
+        lastUpdated: new Date().toISOString(),
+      }));
+    },
+    [session?.measurements, updateSession],
+  );
 
-    // If status is OK (true), maybe clear observation note?
-    // Usually better to keep it unless explicitly cleared, but if they toggle OK, the Issue UI disappears.
-    // Let's decide to keep it to avoid data loss.
+  const handleMeasurementChange = useCallback(
+    (
+      itemId: string,
+      field: 'voltage' | 'amperage',
+      value: string,
+      isValid: boolean,
+    ) => {
+      if (value) {
+        setValidationErrors(prev => {
+          const current = prev[itemId] || [];
+          return {
+            ...prev,
+            [itemId]: current.filter(f => f !== field),
+          };
+        });
+      }
 
-    updatedSession.lastUpdated = new Date().toISOString();
-    saveSession(updatedSession);
-  };
+      void updateSession(prevSession => {
+        const currentMeasurement = prevSession.measurements?.[itemId] || {};
+        const nextMeasurement = {
+          ...currentMeasurement,
+          [field]: value,
+          ...(field === 'voltage'
+            ? { isVoltageInRange: isValid }
+            : { isAmperageInRange: isValid }),
+        };
 
-  const handleMeasurementChange = (
-    itemId: string,
-    field: 'voltage' | 'amperage',
-    value: string,
-    isValid: boolean,
-  ) => {
-    if (!session) return;
-    const updatedSession = { ...session };
-    if (!updatedSession.measurements) updatedSession.measurements = {};
-    if (!updatedSession.measurements[itemId]) {
-      updatedSession.measurements[itemId] = {};
-    }
-
-    updatedSession.measurements[itemId][field] = value;
-    if (field === 'voltage')
-      updatedSession.measurements[itemId].isVoltageInRange = isValid;
-    if (field === 'amperage')
-      updatedSession.measurements[itemId].isAmperageInRange = isValid;
-
-    // Clear validation error for this field if value is now filled
-    if (value) {
-      setValidationErrors(prev => {
-        const current = prev[itemId] || [];
         return {
-          ...prev,
-          [itemId]: current.filter(f => f !== field),
+          ...prevSession,
+          measurements: {
+            ...(prevSession.measurements || {}),
+            [itemId]: nextMeasurement,
+          },
+          checklist: !isValid
+            ? {
+                ...prevSession.checklist,
+                [itemId]: false,
+              }
+            : prevSession.checklist,
+          lastUpdated: new Date().toISOString(),
         };
       });
-    }
+    },
+    [updateSession],
+  );
 
-    // Auto-update status if invalid
-    if (!isValid) {
-      // If INVALID, force status to false (Observation)
-      updatedSession.checklist = {
-        ...updatedSession.checklist,
-        [itemId]: false,
-      };
-    } else {
-      // If VALID, do we auto-set to true?
-      // Only if BOTH are valid (or undefined/empty yet?).
-      // Let's check the other field.
-      const m = updatedSession.measurements[itemId];
-      const vValid = m.isVoltageInRange !== false; // true or undefined
-      const aValid = m.isAmperageInRange !== false;
-
-      if (vValid && aValid) {
-        // Both seem fine, we CAN set to true, but maybe user manually set to false?
-        // Let's NOT auto-set to true to avoid overriding user intent (e.g. physical visual damage).
-        // But we unblock them.
+  const handleCableChange = useCallback(
+    (
+      itemId: string,
+      field: 'cableDiameter' | 'cableType',
+      value: string,
+      originalValue: string,
+    ) => {
+      if (value) {
+        setValidationErrors(prev => {
+          const current = prev[itemId] || [];
+          return {
+            ...prev,
+            [itemId]: current.filter(f => f !== field),
+          };
+        });
       }
-    }
 
-    updatedSession.lastUpdated = new Date().toISOString();
-    saveSession(updatedSession);
-  };
+      void updateSession(prevSession => {
+        const currentMeasurement = prevSession.measurements?.[itemId] || {};
+        const originalFieldKey =
+          field === 'cableDiameter'
+            ? 'originalCableDiameter'
+            : 'originalCableType';
+        const originalStored =
+          currentMeasurement[originalFieldKey] || originalValue || '';
 
-  const handleCableChange = (
-    itemId: string,
-    field: 'cableDiameter' | 'cableType',
-    value: string,
-    originalValue: string,
-  ) => {
-    if (!session) return;
-    const updatedSession = { ...session };
-    if (!updatedSession.measurements) updatedSession.measurements = {};
-    if (!updatedSession.measurements[itemId]) {
-      updatedSession.measurements[itemId] = {};
-    }
+        const nextMeasurement = {
+          ...currentMeasurement,
+          [field]: value,
+          [originalFieldKey]: originalStored,
+        };
 
-    // Store the cable value
-    updatedSession.measurements[itemId][field] = value;
+        const forceObservation =
+          value.length > 0 &&
+          originalStored.length > 0 &&
+          value !== originalStored;
 
-    // Store original value for comparison if not already stored
-    const originalFieldKey =
-      field === 'cableDiameter' ? 'originalCableDiameter' : 'originalCableType';
-    if (!updatedSession.measurements[itemId][originalFieldKey]) {
-      updatedSession.measurements[itemId][originalFieldKey] = originalValue;
-    }
-
-    // Clear validation error for this field if value is now filled
-    if (value) {
-      setValidationErrors(prev => {
-        const current = prev[itemId] || [];
         return {
-          ...prev,
-          [itemId]: current.filter(f => f !== field),
+          ...prevSession,
+          measurements: {
+            ...(prevSession.measurements || {}),
+            [itemId]: nextMeasurement,
+          },
+          checklist: forceObservation
+            ? {
+                ...prevSession.checklist,
+                [itemId]: false,
+              }
+            : prevSession.checklist,
+          lastUpdated: new Date().toISOString(),
         };
       });
-    }
+    },
+    [updateSession],
+  );
 
-    // If cable value changed from original, force observation required
-    const storedOriginal =
-      updatedSession.measurements[itemId][originalFieldKey];
-    if (value && storedOriginal && value !== storedOriginal) {
-      updatedSession.checklist = {
-        ...updatedSession.checklist,
-        [itemId]: false, // Force to observation mode
-      };
-    }
-
-    updatedSession.lastUpdated = new Date().toISOString();
-    saveSession(updatedSession);
-  };
-
-  const handleObservationChange = (itemId: string, text: string) => {
-    if (!session) return;
-    const updatedSession = { ...session };
-
-    if (!updatedSession.itemObservations[itemId]) {
-      updatedSession.itemObservations[itemId] = { note: '' };
-    }
-    updatedSession.itemObservations[itemId].note = text;
-    updatedSession.lastUpdated = new Date().toISOString();
-    saveSession(updatedSession);
-  };
-
-  const handlePhotoPress = async (itemId: string) => {
-    // If photo exists, ask to remove? Or just overwrite.
-    // ChecklistItem UI shows a remove button if photo exists, which calls this with same ID?
-    // My ChecklistItem has `onPhotoPress`. If photoUri exists it shows X button which calls onPhotoPress.
-    // If photoUri is null, it shows Camera button which calls onPhotoPress.
-    // So I need to check if photo exists to decide whether to delete or add.
-
-    if (!session) return;
-    const currentPhoto = session.itemObservations[itemId]?.photoUri;
-
-    if (currentPhoto) {
-      // Remove photo
-      Alert.alert('Eliminar foto', '¿Estás seguro de eliminar la foto?', [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => {
-            const updatedSession = { ...session };
-            if (updatedSession.itemObservations[itemId]) {
-              updatedSession.itemObservations[itemId].photoUri = undefined;
-            }
-            saveSession(updatedSession);
+  const handleObservationChange = useCallback(
+    (itemId: string, text: string) => {
+      void updateSession(prevSession => ({
+        ...prevSession,
+        itemObservations: {
+          ...prevSession.itemObservations,
+          [itemId]: {
+            ...(prevSession.itemObservations[itemId] || { note: '' }),
+            note: text,
           },
         },
-      ]);
-    } else {
-      // Take photo
-      takePhoto(itemId);
-    }
-  };
+        lastUpdated: new Date().toISOString(),
+      }));
+    },
+    [updateSession],
+  );
 
-  const takePhoto = async (itemId: string) => {
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.5,
-      });
+  const takePhoto = useCallback(
+    async (itemId: string) => {
+      try {
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: false,
+          quality: 0.5,
+        });
 
-      if (!result.canceled && result.assets.length > 0) {
-        if (!session) return;
-        const updatedSession = { ...session };
-        if (!updatedSession.itemObservations[itemId]) {
-          updatedSession.itemObservations[itemId] = { note: '' };
+        if (!result.canceled && result.assets.length > 0) {
+          const photoUri = result.assets[0].uri;
+          await updateSession(
+            prevSession => ({
+              ...prevSession,
+              itemObservations: {
+                ...prevSession.itemObservations,
+                [itemId]: {
+                  ...(prevSession.itemObservations[itemId] || { note: '' }),
+                  photoUri,
+                },
+              },
+              lastUpdated: new Date().toISOString(),
+            }),
+            { immediate: true },
+          );
         }
-        updatedSession.itemObservations[itemId].photoUri = result.assets[0].uri;
-        updatedSession.lastUpdated = new Date().toISOString();
-        saveSession(updatedSession);
+      } catch {
+        Alert.alert('Error', 'No se pudo abrir la cámara');
       }
-    } catch {
-      Alert.alert('Error', 'No se pudo abrir la cámara');
-    }
-  };
+    },
+    [updateSession],
+  );
 
-  const handleContinue = () => {
+  const handlePhotoPress = useCallback(
+    async (itemId: string) => {
+      // If photo exists, ask to remove? Or just overwrite.
+      // ChecklistItem UI shows a remove button if photo exists, which calls this with same ID?
+      // My ChecklistItem has `onPhotoPress`. If photoUri exists it shows X button which calls onPhotoPress.
+      // If photoUri is null, it shows Camera button which calls onPhotoPress.
+      // So I need to check if photo exists to decide whether to delete or add.
+
+      const currentPhoto = session?.itemObservations[itemId]?.photoUri;
+
+      if (currentPhoto) {
+        Alert.alert('Eliminar foto', '¿Estás seguro de eliminar la foto?', [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: () => {
+              void updateSession(
+                prevSession => ({
+                  ...prevSession,
+                  itemObservations: {
+                    ...prevSession.itemObservations,
+                    [itemId]: {
+                      ...(prevSession.itemObservations[itemId] || { note: '' }),
+                      photoUri: undefined,
+                    },
+                  },
+                  lastUpdated: new Date().toISOString(),
+                }),
+                { immediate: true },
+              );
+            },
+          },
+        ]);
+      } else {
+        await takePhoto(itemId);
+      }
+    },
+    [session?.itemObservations, takePhoto, updateSession],
+  );
+
+  const handleContinue = useCallback(() => {
     // Validate all items and collect errors for inline display
     const newErrors: Record<string, string[]> = {};
-    const itgs = detail?.itgs || [];
-    // const components = detail?.componentes || [];
-
     // Check ITGs
     itgs.forEach((itg: any) => {
       itg.itms.forEach((itm: any) => {
@@ -339,7 +397,7 @@ export default function MaintenanceChecklistScreen() {
       pathname: '/maintenance/execution/electrical-panel/post-photos' as any,
       params: { panelId, maintenanceId },
     });
-  };
+  }, [itgs, maintenanceId, panelId, router, session]);
 
   if (isPanelLoading || !session) {
     return (
@@ -348,10 +406,6 @@ export default function MaintenanceChecklistScreen() {
       </View>
     );
   }
-
-  const itgs = detail?.itgs || [];
-  const components = detail?.componentes || [];
-  const conditions = detail?.condiciones_especiales || {};
 
   return (
     <SafeAreaView style={styles.container}>

@@ -14,6 +14,12 @@ import type { PropertyResponse as Property } from '@/types/api';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { syncService } from '@/services/sync';
 
+const log = (...args: unknown[]) => {
+  if (__DEV__) {
+    console.log(...args);
+  }
+};
+
 function normalizeText(value: string) {
   return value
     .normalize('NFD')
@@ -85,11 +91,11 @@ export default function MaintenanceScreen() {
     // Run sync in background without awaiting
     const backgroundSync = async () => {
       try {
-        console.log('Background sync starting...');
+        log('Background sync starting...');
         await syncService.pushData();
         await syncService.pullData();
         refetch();
-        console.log('Background sync completed.');
+        log('Background sync completed.');
       } catch (error) {
         console.error('Background sync failed:', error);
       }

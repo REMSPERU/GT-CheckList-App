@@ -13,7 +13,7 @@ import {
   EmergencyLightModal,
   EmergencyLightFormData,
 } from '@/components/maintenance/emergency-lights/EmergencyLightModal';
-import type { BaseEquipment } from '@/types/api';
+import type { BaseEquipment, EquipamentoResponse } from '@/types/api';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
 import { useUserRole } from '@/hooks/use-user-role';
@@ -24,12 +24,37 @@ import {
 } from '@/services/db/equipment';
 import { supabase } from '@/lib/supabase';
 
+interface BuildingParam {
+  id: string;
+  name: string;
+  address?: string;
+  image_url?: string;
+}
+
+function parseJsonParam<T>(value: string | string[] | undefined): T | null {
+  if (typeof value !== 'string') return null;
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
+const log = (...args: unknown[]) => {
+  if (__DEV__) {
+    console.log(...args);
+  }
+};
+
 export default function EmergencyLightsScreen() {
   const router = useRouter();
   const { building: buildingParam, equipamento: equipamentoParam } =
     useLocalSearchParams();
-  const [building, setBuilding] = useState<any>(null);
-  const [equipamento, setEquipamento] = useState<any>(null);
+  const [building, setBuilding] = useState<BuildingParam | null>(null);
+  const [equipamento, setEquipamento] = useState<EquipamentoResponse | null>(
+    null,
+  );
   const [lights, setLights] = useState<BaseEquipment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -48,21 +73,16 @@ export default function EmergencyLightsScreen() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (buildingParam) {
-      try {
-        const parsedBuilding = JSON.parse(buildingParam as string);
-        setBuilding(parsedBuilding);
-      } catch (e) {
-        console.error('Error parsing building param:', e);
-      }
+    const parsedBuilding = parseJsonParam<BuildingParam>(buildingParam);
+    const parsedEquipamento =
+      parseJsonParam<EquipamentoResponse>(equipamentoParam);
+
+    if (parsedBuilding) {
+      setBuilding(parsedBuilding);
     }
-    if (equipamentoParam) {
-      try {
-        const parsedEquipamento = JSON.parse(equipamentoParam as string);
-        setEquipamento(parsedEquipamento);
-      } catch (e) {
-        console.error('Error parsing equipamento param:', e);
-      }
+
+    if (parsedEquipamento) {
+      setEquipamento(parsedEquipamento);
     }
   }, [buildingParam, equipamentoParam]);
 
@@ -162,7 +182,7 @@ export default function EmergencyLightsScreen() {
   const handleItemPress = (item: BaseEquipment) => {
     if (!item.config) {
       // Navigate to configuration screen (to be implemented)
-      console.log('Navigate to configuration for:', item.id);
+      log('Navigate to configuration for:', item.id);
       return;
     }
 

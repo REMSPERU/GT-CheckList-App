@@ -206,6 +206,41 @@ export async function initDatabase() {
           created_by TEXT,
           created_at TEXT
         );
+
+        -- Performance indexes for frequent offline-first queries
+        CREATE INDEX IF NOT EXISTS idx_local_equipos_property ON local_equipos(id_property);
+        CREATE INDEX IF NOT EXISTS idx_local_equipos_equipamento ON local_equipos(id_equipamento);
+        CREATE INDEX IF NOT EXISTS idx_local_equipos_codigo ON local_equipos(codigo);
+        CREATE INDEX IF NOT EXISTS idx_local_equipos_ubicacion ON local_equipos(ubicacion);
+        CREATE INDEX IF NOT EXISTS idx_local_equipos_estatus ON local_equipos(estatus);
+
+        CREATE INDEX IF NOT EXISTS idx_local_sched_equipo ON local_scheduled_maintenances(id_equipo);
+        CREATE INDEX IF NOT EXISTS idx_local_sched_session ON local_scheduled_maintenances(id_sesion);
+        CREATE INDEX IF NOT EXISTS idx_local_sched_status ON local_scheduled_maintenances(estatus);
+        CREATE INDEX IF NOT EXISTS idx_local_sched_date ON local_scheduled_maintenances(dia_programado);
+
+        CREATE INDEX IF NOT EXISTS idx_local_session_property ON local_sesion_mantenimiento(id_property);
+        CREATE INDEX IF NOT EXISTS idx_local_session_date ON local_sesion_mantenimiento(fecha_programada);
+
+        CREATE INDEX IF NOT EXISTS idx_local_user_session_session ON local_user_sesion_mantenimiento(id_sesion);
+        CREATE INDEX IF NOT EXISTS idx_local_user_session_user ON local_user_sesion_mantenimiento(id_user);
+
+        CREATE INDEX IF NOT EXISTS idx_local_instrumentos_equipamento ON local_instrumentos(equipamento);
+        CREATE INDEX IF NOT EXISTS idx_local_equipamentos_property_property ON local_equipamentos_property(id_property);
+
+        CREATE INDEX IF NOT EXISTS idx_offline_maint_status ON offline_maintenance_response(status);
+        CREATE INDEX IF NOT EXISTS idx_offline_maint_created ON offline_maintenance_response(created_at);
+        CREATE INDEX IF NOT EXISTS idx_offline_photo_maint_status ON offline_photos(maintenance_local_id, status);
+
+        CREATE INDEX IF NOT EXISTS idx_offline_panel_status ON offline_panel_configurations(status);
+        CREATE INDEX IF NOT EXISTS idx_offline_panel_panel_status ON offline_panel_configurations(panel_id, status);
+
+        CREATE INDEX IF NOT EXISTS idx_offline_gw_status ON offline_grounding_well_checklist(status);
+        CREATE INDEX IF NOT EXISTS idx_offline_gw_maint ON offline_grounding_well_checklist(maintenance_id);
+        CREATE INDEX IF NOT EXISTS idx_offline_gw_photo_checklist_status ON offline_grounding_well_photos(checklist_local_id, status);
+
+        CREATE INDEX IF NOT EXISTS idx_offline_session_photo_session_status ON offline_sesion_fotos(id_sesion, status);
+        CREATE INDEX IF NOT EXISTS idx_local_session_photo_session_date ON local_sesion_fotos(id_sesion, created_at);
       `);
 
     // === MIGRATIONS ===

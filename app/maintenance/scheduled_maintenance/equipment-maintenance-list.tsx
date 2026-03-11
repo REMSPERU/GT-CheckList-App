@@ -5,12 +5,14 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  FlatList,
   TextInput,
   ActivityIndicator,
   Modal,
   RefreshControl,
   Image,
   Alert,
+  type ListRenderItem,
 } from 'react-native';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -23,6 +25,40 @@ import * as ImagePicker from 'expo-image-picker';
 import { DatabaseService } from '@/services/database';
 import { supabase } from '@/lib/supabase';
 import { syncService } from '@/services/sync';
+
+interface EquipmentInfo {
+  id: string;
+  codigo: string;
+  ubicacion: string;
+  equipment_detail?: {
+    rotulo?: string;
+  } | null;
+  equipamentos?: {
+    nombre?: string;
+  };
+}
+
+interface MaintenanceByPropertyItem {
+  id: string;
+  dia_programado: string;
+  estatus: string | null;
+  tipo_mantenimiento: string;
+  id_sesion?: string | null;
+  equipos: EquipmentInfo;
+}
+
+interface ExecutionRouteParams {
+  [key: string]: string | undefined;
+  panelId: string;
+  maintenanceId: string;
+  equipmentType?: string;
+  propertyId: string;
+  propertyName?: string;
+  maintenanceType: string;
+  sessionTotal: string;
+  sessionCompleted: string;
+  sessionId: string;
+}
 
 export default function EquipmentMaintenanceListScreen() {
   const router = useRouter();
@@ -51,12 +87,13 @@ export default function EquipmentMaintenanceListScreen() {
   // Session Photo Modal States
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [sessionPhotos, setSessionPhotos] = useState<string[]>([]);
-  const [pendingNavigation, setPendingNavigation] = useState<any>(null);
+  const [pendingNavigation, setPendingNavigation] =
+    useState<ExecutionRouteParams | null>(null);
   const [checkingPhotos, setCheckingPhotos] = useState(false);
 
   // Fetch Data
   const {
-    data: maintenanceData = [],
+    data: maintenanceData = [] as MaintenanceByPropertyItem[],
     isLoading,
     refetch,
     isRefetching,
@@ -65,15 +102,12 @@ export default function EquipmentMaintenanceListScreen() {
   // Derived Filters Options
   const { locations } = useMemo(() => {
     const locs = new Set<string>();
-    const typs = new Set<string>();
 
-    maintenanceData.forEach((item: any) => {
+    maintenanceData.forEach(item => {
       // Apply session filter for deriving filter options
       if (sessionId && item.id_sesion !== sessionId) return;
 
       if (item.equipos?.ubicacion) locs.add(item.equipos.ubicacion);
-      if (item.equipos?.equipamentos?.nombre)
-        typs.add(item.equipos.equipamentos.nombre);
     });
 
     return {
@@ -83,7 +117,7 @@ export default function EquipmentMaintenanceListScreen() {
 
   // Filter Logic
   const filteredData = useMemo(() => {
-    return maintenanceData.filter((item: any) => {
+    return maintenanceData.filter(item => {
       // 0. Filter by Session ID (if provided)
       if (sessionId && item.id_sesion !== sessionId) return false;
 
@@ -118,10 +152,10 @@ export default function EquipmentMaintenanceListScreen() {
     if (!sessionId) return { total: 0, completed: 0 };
 
     const sessionItems = maintenanceData.filter(
-      (item: any) => item.id_sesion === sessionId,
+      item => item.id_sesion === sessionId,
     );
     const completed = sessionItems.filter(
-      (item: any) => item.estatus === MaintenanceStatusEnum.FINALIZADO,
+      item => item.estatus === MaintenanceStatusEnum.FINALIZADO,
     ).length;
 
     return { total: sessionItems.length, completed };
@@ -145,7 +179,9 @@ export default function EquipmentMaintenanceListScreen() {
   };
 
   // --- Session Photo Logic for Luces de Emergencia ---
-  const handleEmergencyLightNavigation = async (navParams: any) => {
+  const handleEmergencyLightNavigation = async (
+    navParams: ExecutionRouteParams,
+  ) => {
     if (!sessionId) {
       router.push({ pathname: '/maintenance/execution', params: navParams });
       return;
@@ -223,7 +259,7 @@ export default function EquipmentMaintenanceListScreen() {
       // Close modal and navigate
       setShowPhotoModal(false);
       setSessionPhotos([]);
-      if (pendingNavigation) {
+      if (pendingNavigation !== null) {
         router.push({
           pathname: '/maintenance/execution',
           params: pendingNavigation,
@@ -237,6 +273,104 @@ export default function EquipmentMaintenanceListScreen() {
         'No se pudieron guardar las fotos. Intente nuevamente.',
       );
     }
+  };
+
+  const renderMaintenanceItem: ListRenderItem<MaintenanceByPropertyItem> = ({
+    item,
+  }) => {
+    const equipment = item.equipos || ({} as EquipmentInfo);
+
+    return (
+      <TouchableOpacity
+        key={item.id}
+        style={styles.card}
+        onPress={() => {
+          if (item.estatus === MaintenanceStatusEnum.FINALIZADO) {
+            router.push({
+              pathname:
+                '/maintenance/scheduled_maintenance/maintenance-response-detail',
+              params: {
+                maintenanceId: item.id,
+              },
+            });
+            return;
+          }
+
+          const navParams: ExecutionRouteParams = {
+            panelId: equipment.id,
+            maintenanceId: item.id,
+            equipmentType: equipment.equipamentos?.nombre,
+            propertyId: propertyId || '',
+            propertyName,
+            maintenanceType: item.tipo_mantenimiento,
+            sessionTotal: sessionTotals.total.toString(),
+            sessionCompleted: sessionTotals.completed.toString(),
+            sessionId: sessionId || '',
+          };
+
+          if (
+            equipment.equipamentos?.nombre === 'Luces de Emergencia' &&
+            sessionId
+          ) {
+            handleEmergencyLightNavigation(navParams);
+          } else {
+            router.push({
+              pathname: '/maintenance/execution',
+              params: navParams,
+            });
+          }
+        }}>
+        <View style={styles.cardHeader}>
+          <View style={styles.cardHeaderInfo}>
+            {equipment.equipment_detail?.rotulo && (
+              <Text style={styles.cardRotulo}>
+                {equipment.equipment_detail.rotulo}
+              </Text>
+            )}
+            <Text style={styles.cardCode}>{equipment.codigo || 'S/N'}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+        </View>
+
+        <View
+          style={[
+            styles.statusBadge,
+            {
+              backgroundColor: getStatusColor(item.estatus || '') + '20',
+            },
+          ]}>
+          <Text
+            style={[
+              styles.statusText,
+              { color: getStatusColor(item.estatus || '') },
+            ]}>
+            {item.estatus || 'SIN ESTADO'}
+          </Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Ionicons name="location-outline" size={18} color="#4B5563" />
+          <Text style={styles.infoLabel}>Ubicación:</Text>
+          <Text style={styles.infoValue}>{equipment.ubicacion || 'N/A'}</Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <MaterialIcons name="devices" size={18} color="#4B5563" />
+          <Text style={styles.infoLabel}>Tipo:</Text>
+          <Text style={styles.infoValue}>
+            {equipment.equipamentos?.nombre || 'N/A'}
+          </Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Ionicons name="calendar-outline" size={18} color="#4B5563" />
+          <Text style={styles.infoLabel}>Fecha:</Text>
+          <Text style={styles.infoValue}>
+            {new Date(item.dia_programado).toLocaleDateString()}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -348,138 +482,28 @@ export default function EquipmentMaintenanceListScreen() {
             <ActivityIndicator size="large" color="#06B6D4" />
           </View>
         ) : (
-          <ScrollView
+          <FlatList
             style={styles.listContainer}
-            showsVerticalScrollIndicator={false}
+            data={filteredData}
+            keyExtractor={item => item.id}
+            renderItem={renderMaintenanceItem}
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-            }>
-            {filteredData.length === 0 ? (
-              <View style={{ alignItems: 'center', marginTop: 40 }}>
-                <Text style={{ color: '#6B7280' }}>
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyStateContainer}>
+                <Text style={styles.emptyStateText}>
                   No se encontraron mantenimientos.
                 </Text>
               </View>
-            ) : (
-              filteredData.map((item: any, index: number) => {
-                const equipment = item.equipos || {};
-
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[
-                      styles.card,
-                      // index === 0 && activeTab === 'Preventivo' && styles.highlightedCard // Removed highlight logic for now
-                    ]}
-                    onPress={() => {
-                      // Navigate to response detail if finalized, otherwise directly to execution
-                      if (item.estatus === MaintenanceStatusEnum.FINALIZADO) {
-                        router.push({
-                          pathname:
-                            '/maintenance/scheduled_maintenance/maintenance-response-detail',
-                          params: {
-                            maintenanceId: item.id,
-                          },
-                        });
-                      } else {
-                        const navParams = {
-                          panelId: equipment.id,
-                          maintenanceId: item.id,
-                          equipmentType: equipment.equipamentos?.nombre,
-                          propertyId: propertyId,
-                          propertyName: propertyName,
-                          maintenanceType: item.tipo_mantenimiento,
-                          sessionTotal: sessionTotals.total.toString(),
-                          sessionCompleted: sessionTotals.completed.toString(),
-                          sessionId: sessionId || '',
-                        };
-
-                        // Intercept for Luces de Emergencia: check session photos
-                        if (
-                          equipment.equipamentos?.nombre ===
-                            'Luces de Emergencia' &&
-                          sessionId
-                        ) {
-                          handleEmergencyLightNavigation(navParams);
-                        } else {
-                          router.push({
-                            pathname: '/maintenance/execution',
-                            params: navParams,
-                          });
-                        }
-                      }
-                    }}>
-                    <View style={styles.cardHeader}>
-                      <View style={styles.cardHeaderInfo}>
-                        {equipment.equipment_detail?.rotulo && (
-                          <Text style={styles.cardRotulo}>
-                            {equipment.equipment_detail.rotulo}
-                          </Text>
-                        )}
-                        <Text style={styles.cardCode}>
-                          {equipment.codigo || 'S/N'}
-                        </Text>
-                      </View>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={20}
-                        color="#9CA3AF"
-                      />
-                    </View>
-
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        {
-                          backgroundColor: getStatusColor(item.estatus) + '20',
-                        },
-                      ]}>
-                      <Text
-                        style={[
-                          styles.statusText,
-                          { color: getStatusColor(item.estatus) },
-                        ]}>
-                        {item.estatus}
-                      </Text>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                      <Ionicons
-                        name="location-outline"
-                        size={18}
-                        color="#4B5563"
-                      />
-                      <Text style={styles.infoLabel}>Ubicación:</Text>
-                      <Text style={styles.infoValue}>
-                        {equipment.ubicacion || 'N/A'}
-                      </Text>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                      <MaterialIcons name="devices" size={18} color="#4B5563" />
-                      <Text style={styles.infoLabel}>Tipo:</Text>
-                      <Text style={styles.infoValue}>
-                        {equipment.equipamentos?.nombre || 'N/A'}
-                      </Text>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                      <Ionicons
-                        name="calendar-outline"
-                        size={18}
-                        color="#4B5563"
-                      />
-                      <Text style={styles.infoLabel}>Fecha:</Text>
-                      <Text style={styles.infoValue}>
-                        {new Date(item.dia_programado).toLocaleDateString()}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })
-            )}
-            <View style={{ height: 40 }} />
-          </ScrollView>
+            }
+            contentContainerStyle={styles.listContentContainer}
+            showsVerticalScrollIndicator={false}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
+          />
         )}
 
         {/* Filter Modal */}
@@ -724,6 +748,16 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     marginTop: 20,
+  },
+  listContentContainer: {
+    paddingBottom: 40,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    marginTop: 40,
+  },
+  emptyStateText: {
+    color: '#6B7280',
   },
   card: {
     backgroundColor: '#fff',

@@ -12,9 +12,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { UserRoleProvider } from '@/contexts/UserRoleContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { QueryProvider } from '@/lib/query-provider';
-import { useAppUpdate } from '@/hooks/use-app-update';
 import { useMemoryWarning } from '@/hooks/useMemoryWarning';
-import UpdateRequiredModal from '@/components/update-required-modal';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 import { useEffect } from 'react';
@@ -23,8 +21,10 @@ import { syncService } from '@/services/sync';
 import { syncQueue } from '@/services/sync-queue';
 import * as Sentry from '@sentry/react-native';
 
+const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
+
 Sentry.init({
-  dsn: process.env.SENTRY_DSN,
+  dsn: sentryDsn,
 
   // Adds more context data to events (IP address, cookies, user, etc.)
   // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
@@ -66,7 +66,6 @@ if (typeof global !== 'undefined') {
 
 export default Sentry.wrap(function RootLayout() {
   const colorScheme = useColorScheme();
-  const updateInfo = useAppUpdate();
   useMemoryWarning();
 
   // Ordered initialization: DB first, then sync services
@@ -98,18 +97,6 @@ export default Sentry.wrap(function RootLayout() {
               </Stack>
             </ErrorBoundary>
             <StatusBar style="dark" />
-
-            {/* Update Required Modal */}
-            {updateInfo.needsUpdate && updateInfo.latestVersion && (
-              <UpdateRequiredModal
-                visible={true}
-                currentVersion={updateInfo.currentVersion}
-                latestVersion={updateInfo.latestVersion}
-                downloadUrl={updateInfo.downloadUrl}
-                releaseUrl={updateInfo.releaseUrl}
-                releaseNotes={updateInfo.releaseNotes}
-              />
-            )}
           </ThemeProvider>
         </UserRoleProvider>
       </AuthProvider>
