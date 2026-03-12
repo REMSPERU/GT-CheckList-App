@@ -21,6 +21,7 @@ import {
   updateGroundingWellChecklistStatus,
   getPendingGroundingWellChecklistPhotos,
   updateGroundingWellChecklistPhotoStatus,
+  getGroundingWellChecklistByLocalId,
 } from './grounding-well';
 import { getPendingPhotos, updatePhotoStatus } from './photos';
 import {
@@ -96,6 +97,7 @@ export const DatabaseService = {
   updateGroundingWellChecklistStatus,
   getPendingGroundingWellChecklistPhotos,
   updateGroundingWellChecklistPhotoStatus,
+  getGroundingWellChecklistByLocalId,
 
   // Photos
   getPendingPhotos,

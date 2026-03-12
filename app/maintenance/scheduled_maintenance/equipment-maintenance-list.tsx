@@ -71,9 +71,6 @@ export default function EquipmentMaintenanceListScreen() {
     }>();
 
   // State
-  const [activeTab, setActiveTab] = useState<'Preventivo' | 'Correctivo'>(
-    'Preventivo',
-  );
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
@@ -121,18 +118,15 @@ export default function EquipmentMaintenanceListScreen() {
       // 0. Filter by Session ID (if provided)
       if (sessionId && item.id_sesion !== sessionId) return false;
 
-      // 1. Tab Filter (Tipo Mantenimiento)
-      if (item.tipo_mantenimiento !== activeTab) return false;
-
-      // 2. Status Filter
+      // 1. Status Filter
       if (selectedStatus && item.estatus !== selectedStatus) return false;
 
-      // 3. Search Filter (Only Code)
+      // 2. Search Filter (Only Code)
       const searchLower = searchQuery.toLowerCase();
       const code = item.equipos?.codigo?.toLowerCase() || '';
       if (!code.includes(searchLower)) return false;
 
-      // 4. Dynamic Filters
+      // 3. Dynamic Filters
       if (selectedLocation && item.equipos?.ubicacion !== selectedLocation)
         return false;
 
@@ -140,7 +134,6 @@ export default function EquipmentMaintenanceListScreen() {
     });
   }, [
     maintenanceData,
-    activeTab,
     searchQuery,
     selectedLocation,
     selectedStatus,
@@ -426,35 +419,6 @@ export default function EquipmentMaintenanceListScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Tabs */}
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'Preventivo' && styles.activeTab]}
-            onPress={() => setActiveTab('Preventivo')}>
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'Preventivo' && styles.activeTabText,
-              ]}>
-              Preventivo
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeTab === 'Correctivo' && styles.activeTabWhite,
-            ]}
-            onPress={() => setActiveTab('Correctivo')}>
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'Correctivo' && styles.activeTabTextDark,
-              ]}>
-              Correctivo
-            </Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Active Filters Display */}
         {selectedLocation && (
           <View
@@ -713,38 +677,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
     paddingHorizontal: 20,
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    marginTop: 20,
-    gap: 10,
-  },
-  tab: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  activeTab: {
-    backgroundColor: '#06B6D4',
-    borderColor: '#06B6D4',
-  },
-  activeTabWhite: {
-    backgroundColor: '#fff',
-    borderColor: '#E5E7EB',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  activeTabText: {
-    color: '#fff',
-  },
-  activeTabTextDark: {
-    color: '#11181C',
   },
   listContainer: {
     marginTop: 20,

@@ -1,6 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import DefaultHeader from '@/components/default-header';
@@ -49,6 +52,7 @@ const log = (...args: unknown[]) => {
 
 export default function EmergencyLightsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { building: buildingParam, equipamento: equipamentoParam } =
     useLocalSearchParams();
   const [building, setBuilding] = useState<BuildingParam | null>(null);
@@ -304,7 +308,7 @@ export default function EmergencyLightsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <DefaultHeader
         title="Luces de Emergencia"
         searchPlaceholder="Buscar por código"
@@ -352,12 +356,15 @@ export default function EmergencyLightsScreen() {
             </View>
           </>
         }
-        contentContainerStyle={{ paddingTop: 0, paddingBottom: 100 }}
+        contentContainerStyle={{
+          paddingTop: 0,
+          paddingBottom: 116 + insets.bottom,
+        }}
       />
 
       {/* Floating Action Bar for Scheduling - only for SUPERVISOR/SUPERADMIN */}
       {canScheduleMaintenance && isSelectionMode && selectedIds.size > 0 && (
-        <View style={styles.fabContainer}>
+        <View style={[styles.fabContainer, { bottom: 16 + insets.bottom }]}>
           <TouchableOpacity
             style={styles.fabButton}
             onPress={handleScheduleMaintenance}>
@@ -396,7 +403,7 @@ export default function EmergencyLightsScreen() {
       {/* Floating Add Button */}
       {!isSelectionMode && (
         <TouchableOpacity
-          style={styles.addButton}
+          style={[styles.addButton, { bottom: 96 + insets.bottom }]}
           onPress={handleOpenCreateModal}>
           <Ionicons name="add" size={28} color="white" />
         </TouchableOpacity>

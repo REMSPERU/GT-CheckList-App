@@ -8,7 +8,10 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -19,6 +22,7 @@ import { MaintenanceTypeEnum } from '@/types/api';
 
 export default function ScheduleMaintenanceScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const selectedCount = params.count ? Number(params.count) : 0;
   const buildingName = params.buildingName
@@ -173,7 +177,11 @@ export default function ScheduleMaintenanceScreen() {
         <Text style={styles.headerTitle}>Programar Mantenimiento</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 24 + Math.max(insets.bottom, 12) },
+        ]}>
         {/* Banner with Building Image */}
         <View style={styles.bannerContainer}>
           {buildingImageUrl ? (
@@ -367,8 +375,6 @@ export default function ScheduleMaintenanceScreen() {
                 : 'Confirmar Programación'}
           </Text>
         </TouchableOpacity>
-
-        <View style={{ height: 40 }} />
       </ScrollView>
 
       {/* Date Picker Modal (Simplified Custom) */}
@@ -378,7 +384,11 @@ export default function ScheduleMaintenanceScreen() {
         animationType="slide"
         onRequestClose={() => setShowDatePicker(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View
+            style={[
+              styles.modalContent,
+              { paddingBottom: 20 + Math.max(insets.bottom, 12) },
+            ]}>
             <Text style={styles.modalTitle}>Seleccionar Fecha</Text>
             {/* Simple list of next 30 days for demo "good UI" without native dep complexity */}
             <ScrollView style={{ maxHeight: 300 }}>
@@ -429,7 +439,11 @@ export default function ScheduleMaintenanceScreen() {
         animationType="slide"
         onRequestClose={() => setShowTimePicker(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View
+            style={[
+              styles.modalContent,
+              { paddingBottom: 20 + Math.max(insets.bottom, 12) },
+            ]}>
             <Text style={styles.modalTitle}>Seleccionar Hora</Text>
             <ScrollView style={{ maxHeight: 300 }}>
               {times.map(t => (
@@ -472,7 +486,11 @@ export default function ScheduleMaintenanceScreen() {
         animationType="slide"
         onRequestClose={() => setShowTechModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View
+            style={[
+              styles.modalContent,
+              { paddingBottom: 20 + Math.max(insets.bottom, 12) },
+            ]}>
             <Text style={styles.modalTitle}>Asignar Técnicos</Text>
             <ScrollView style={{ maxHeight: 300 }}>
               {loadingTechs ? (

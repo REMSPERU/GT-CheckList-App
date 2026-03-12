@@ -1,6 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import DefaultHeader from '@/components/default-header';
@@ -40,6 +43,7 @@ const log = (...args: unknown[]) => {
 
 export default function GroundingWellsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { building: buildingParam, equipamento: equipamentoParam } =
     useLocalSearchParams();
   const [building, setBuilding] = useState<BuildingParam | null>(null);
@@ -181,7 +185,7 @@ export default function GroundingWellsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <DefaultHeader
         title="Pozos a Tierra"
         searchPlaceholder="Buscar por código"
@@ -227,12 +231,15 @@ export default function GroundingWellsScreen() {
             </View>
           </>
         }
-        contentContainerStyle={{ paddingTop: 0, paddingBottom: 100 }}
+        contentContainerStyle={{
+          paddingTop: 0,
+          paddingBottom: 116 + insets.bottom,
+        }}
       />
 
       {/* Floating Action Bar for Scheduling - only for SUPERVISOR/SUPERADMIN */}
       {canScheduleMaintenance && isSelectionMode && selectedIds.size > 0 && (
-        <View style={styles.fabContainer}>
+        <View style={[styles.fabContainer, { bottom: 16 + insets.bottom }]}>
           <TouchableOpacity
             style={styles.fabButton}
             onPress={handleScheduleMaintenance}>

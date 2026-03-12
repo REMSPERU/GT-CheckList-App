@@ -351,7 +351,7 @@ export default function ElectricalPanelsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container}>
       {/* Header with Building Image */}
       <View style={styles.headerContainer}>
         {building?.image_url ? (
@@ -455,14 +455,17 @@ export default function ElectricalPanelsScreen() {
             )}
           </>
         }
-        contentContainerStyle={{ paddingTop: 0, paddingBottom: 100 }}
+        contentContainerStyle={{
+          paddingTop: 0,
+          paddingBottom: 112 + insets.bottom,
+        }}
       />
 
       {/* Floating Action Bar for Scheduling - only for SUPERVISOR/SUPERADMIN */}
       {canScheduleMaintenance &&
         isSelectionMode &&
         selectedPanelIds.size > 0 && (
-          <View style={[styles.fabContainer, { bottom: 24 + insets.bottom }]}>
+          <View style={[styles.fabContainer, { bottom: 16 + insets.bottom }]}>
             <TouchableOpacity
               style={styles.fabButton}
               onPress={handleScheduleMaintenance}>
