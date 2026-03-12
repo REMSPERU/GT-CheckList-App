@@ -1,4 +1,12 @@
-import { View, Text, Switch, TextInput, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  Switch,
+  TextInput,
+  StyleSheet,
+  Platform,
+  Keyboard,
+} from 'react-native';
 import { useFormContext, Controller, useWatch } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
@@ -92,6 +100,7 @@ const ComponentFormItem = memo(function ComponentFormItem({
             onBlur={onBlur}
             placeholder="Ingrese descripcion"
             placeholderTextColor="#9CA3AF"
+            scrollEnabled={false}
           />
         )}
       />
@@ -296,28 +305,54 @@ export default memo(function ExtraComponentsStep({
     return result;
   }, [toggleComponent, updateQuantity]);
 
+  // ── Track keyboard height on Android to add dynamic bottom padding ──
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const showSub = Keyboard.addListener('keyboardDidShow', e => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const dynamicPadding = useMemo(
+    () => ({ paddingBottom: keyboardHeight > 0 ? keyboardHeight : 24 }),
+    [keyboardHeight],
+  );
+
   return (
-    <View style={styles.contentWrapper}>
-      <Text style={styles.equipmentLabel}>
-        Equipo {panel?.equipment_detail?.rotulo || panel?.codigo || ''}
-      </Text>
-      <Text style={styles.stepTitleStrong}>Componentes adicionales</Text>
+    <View style={dynamicPadding}>
+      <View style={styles.contentWrapper}>
+        <Text style={styles.equipmentLabel}>
+          Equipo {panel?.equipment_detail?.rotulo || panel?.codigo || ''}
+        </Text>
+        <Text style={styles.stepTitleStrong}>Componentes adicionales</Text>
 
-      {COMPONENT_DEFINITIONS.map(def => {
-        const isEnabled = enabledComponents.includes(def.type);
+        {COMPONENT_DEFINITIONS.map(def => {
+          const isEnabled = enabledComponents.includes(def.type);
 
-        return (
-          <ComponentCard
-            key={def.type}
-            type={def.type}
-            label={def.label}
-            icon={def.icon}
-            isEnabled={isEnabled}
-            onToggle={handlers[def.type].onToggle}
-            onUpdateQuantity={handlers[def.type].onUpdateQuantity}
-          />
-        );
-      })}
+          return (
+            <ComponentCard
+              key={def.type}
+              type={def.type}
+              label={def.label}
+              icon={def.icon}
+              isEnabled={isEnabled}
+              onToggle={handlers[def.type].onToggle}
+              onUpdateQuantity={handlers[def.type].onUpdateQuantity}
+            />
+          );
+        })}
+      </View>
     </View>
   );
 });
