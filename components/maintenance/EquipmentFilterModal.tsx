@@ -18,6 +18,7 @@ import {
   PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DISMISS_THRESHOLD = 120;
@@ -45,6 +46,7 @@ export function EquipmentFilterModal({
   availableLocations = [],
   additionalFilters,
 }: EquipmentFilterModalProps) {
+  const insets = useSafeAreaInsets();
   const [tempConfig, setTempConfig] = useState<boolean | null>(
     initialFilters.config,
   );
@@ -324,7 +326,11 @@ export function EquipmentFilterModal({
           </ScrollView>
 
           {/* Footer */}
-          <View style={styles.footer}>
+          <View
+            style={[
+              styles.footer,
+              { paddingBottom: 16 + Math.max(insets.bottom, 12) },
+            ]}>
             <TouchableOpacity
               style={styles.resetBtn}
               onPress={handleReset}

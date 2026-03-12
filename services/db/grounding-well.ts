@@ -84,3 +84,15 @@ export async function updateGroundingWellChecklistPhotoStatus(
     [status, remoteUrl, errorMessage, photoId],
   );
 }
+
+export async function getGroundingWellChecklistByLocalId(localId: number) {
+  await ensureInitialized();
+  const db = await dbPromise;
+  return await db.getFirstAsync(
+    `SELECT local_id, status, error_message, synced_at
+     FROM offline_grounding_well_checklist
+     WHERE local_id = ?
+     LIMIT 1`,
+    [localId],
+  );
+}

@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  memo,
+} from 'react';
 import {
   View,
   Text,
@@ -10,12 +17,17 @@ import {
   Alert,
   TextInput,
   Image,
+  AppState,
+  type AppStateStatus,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { DatabaseService } from '../../../../services/db';
+import { syncService } from '../../../../services/sync';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -44,6 +56,14 @@ interface GroundingWellSession {
   connectorsOk: ChecklistItem;
   hasAccess: ChecklistItem;
 }
+
+type SaveStatus =
+  | 'sin-cambios'
+  | 'pendiente-local'
+  | 'guardado-local'
+  | 'sincronizando'
+  | 'sincronizado'
+  | 'error-sync';
 
 type DirectPhotoKey =
   | 'lidStatus'
@@ -92,6 +112,9 @@ const defaultSession: GroundingWellSession = {
   connectorsOk: { ...defaultItem },
   hasAccess: { ...defaultItem },
 };
+
+const STORAGE_KEY_PREFIX = 'grounding_well_session_';
+const SYNC_TIMEOUT_MS = 15000;
 
 // ─── Memoized Sub-Components ─────────────────────────────────────────
 
@@ -172,14 +195,41 @@ const TypeOption = memo(function TypeOption({
 export default function GroundingWellChecklistScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
-    panelId: string;
-    maintenanceId?: string;
+    panelId?: string | string[];
+    maintenanceId?: string | string[];
   }>();
   const { user } = useAuth();
-  const { panelId, maintenanceId } = params;
+  const normalizeParam = (value?: string | string[]) =>
+    Array.isArray(value) ? value[0] : value;
+
+  const panelId = normalizeParam(params.panelId) || '';
+  const rawMaintenanceId = normalizeParam(params.maintenanceId);
+  const maintenanceId =
+    rawMaintenanceId &&
+    rawMaintenanceId !== 'null' &&
+    rawMaintenanceId !== 'undefined'
+      ? rawMaintenanceId
+      : undefined;
+  const sessionKey = useMemo(
+    () => `${STORAGE_KEY_PREFIX}${panelId}_${maintenanceId || 'adhoc'}`,
+    [panelId, maintenanceId],
+  );
 
   const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const [data, setData] = useState<GroundingWellSession>(defaultSession);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('sin-cambios');
+  const [statusMessage, setStatusMessage] = useState('Sin cambios pendientes');
+  const [wellTitle, setWellTitle] = useState('');
+  const dataRef = useRef(data);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  const draftLog = useCallback((...args: unknown[]) => {
+    if (__DEV__) {
+      console.log('[GW Draft]', ...args);
+    }
+  }, []);
 
   const requestPermissions = useCallback(async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -188,19 +238,206 @@ export default function GroundingWellChecklistScreen() {
         'Permiso denegado',
         'Se necesita acceso a la cámara para tomar fotos.',
       );
+      return false;
     }
+    return true;
   }, []);
+
+  const persistDraft = useCallback(
+    async (
+      draft: GroundingWellSession,
+      successMessage = 'Borrador guardado localmente',
+    ) => {
+      try {
+        await AsyncStorage.setItem(sessionKey, JSON.stringify(draft));
+        setSaveStatus('guardado-local');
+        setStatusMessage(successMessage);
+        draftLog('Persist save OK', {
+          key: sessionKey,
+          preMeasurement: draft.preMeasurement,
+          hasPreMeasurementPhoto: !!draft.preMeasurementPhoto,
+        });
+      } catch (error) {
+        console.error('Error saving grounding well draft:', error);
+      }
+    },
+    [draftLog, sessionKey],
+  );
+
+  const persistDraftSilently = useCallback(
+    async (draft: GroundingWellSession) => {
+      try {
+        await AsyncStorage.setItem(sessionKey, JSON.stringify(draft));
+        draftLog('Silent save OK', {
+          key: sessionKey,
+          preMeasurement: draft.preMeasurement,
+          hasPreMeasurementPhoto: !!draft.preMeasurementPhoto,
+        });
+      } catch (error) {
+        console.error('Error silently saving grounding well draft:', error);
+      }
+    },
+    [draftLog, sessionKey],
+  );
+
+  const scheduleDraftSave = useCallback(
+    (next: GroundingWellSession) => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+
+      saveTimerRef.current = setTimeout(() => {
+        void persistDraftSilently(next);
+        setSaveStatus('guardado-local');
+        setStatusMessage('Borrador guardado automáticamente');
+        draftLog('Auto-save timer flushed', {
+          key: sessionKey,
+          preMeasurement: next.preMeasurement,
+          hasPreMeasurementPhoto: !!next.preMeasurementPhoto,
+        });
+      }, 450);
+    },
+    [draftLog, persistDraftSilently, sessionKey],
+  );
+
+  const updateData = useCallback(
+    (
+      updates: Partial<GroundingWellSession>,
+      options?: { persistDraft?: boolean },
+    ) => {
+      setData(prev => {
+        const next = { ...prev, ...updates };
+        dataRef.current = next;
+        if (options?.persistDraft) {
+          void persistDraft(next);
+        } else {
+          scheduleDraftSave(next);
+        }
+        return next;
+      });
+
+      if (options?.persistDraft) return;
+      setSaveStatus('pendiente-local');
+      setStatusMessage('Cambios pendientes por guardar en el celular');
+    },
+    [persistDraft, scheduleDraftSave],
+  );
 
   useEffect(() => {
-    requestPermissions();
-  }, [requestPermissions]);
+    let active = true;
 
-  const updateData = useCallback((updates: Partial<GroundingWellSession>) => {
-    setData(prev => ({ ...prev, ...updates }));
-  }, []);
+    const bootstrap = async () => {
+      try {
+        draftLog('Bootstrapping draft with key:', sessionKey);
+        const stored = await AsyncStorage.getItem(sessionKey);
+        if (!stored || !active) {
+          draftLog('No draft found for key:', sessionKey);
+          return;
+        }
+
+        const parsed = JSON.parse(stored) as Partial<GroundingWellSession>;
+        const restored = { ...defaultSession, ...parsed };
+        setData(restored);
+        dataRef.current = restored;
+        setSaveStatus('guardado-local');
+        setStatusMessage('Borrador restaurado desde el celular');
+        draftLog('Draft restored for key:', sessionKey, {
+          preMeasurement: restored.preMeasurement,
+          hasPreMeasurementPhoto: !!restored.preMeasurementPhoto,
+        });
+      } catch (error) {
+        console.error('Error loading grounding well draft:', error);
+      } finally {
+        if (active) {
+          setInitializing(false);
+          setHydrated(true);
+        }
+      }
+    };
+
+    bootstrap();
+
+    return () => {
+      active = false;
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      void persistDraftSilently(dataRef.current);
+    };
+  }, [draftLog, persistDraftSilently, sessionKey]);
+
+  const persistCurrentDraft = useCallback(() => {
+    if (!hydrated) return;
+    void persistDraft(data);
+  }, [data, hydrated, persistDraft]);
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    draftLog('Draft hydration completed for key:', sessionKey);
+  }, [draftLog, hydrated, sessionKey]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextState: AppStateStatus) => {
+        if (!hydrated) return;
+        if (nextState === 'background' || nextState === 'inactive') {
+          void persistDraft(
+            dataRef.current,
+            'Borrador guardado al salir de la app',
+          );
+        }
+      },
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, [hydrated, persistDraft]);
+
+  useEffect(() => {
+    if (!panelId) {
+      setWellTitle('');
+      return;
+    }
+
+    let active = true;
+    const loadWellInfo = async () => {
+      try {
+        const equipment = (await DatabaseService.getEquipmentById(panelId)) as {
+          codigo?: string;
+          equipment_detail?: { rotulo?: string } | null;
+        } | null;
+
+        if (!active) return;
+
+        const code = equipment?.codigo?.trim();
+        const label = equipment?.equipment_detail?.rotulo?.trim();
+        setWellTitle(code || label || panelId);
+      } catch (error) {
+        console.error('Error loading grounding well info:', error);
+        if (active) {
+          setWellTitle(panelId);
+        }
+      }
+    };
+
+    loadWellInfo();
+    return () => {
+      active = false;
+    };
+  }, [panelId]);
 
   const takePhoto = useCallback(
     async (itemKey: keyof GroundingWellSession | DirectPhotoKey) => {
+      const hasPermission = await requestPermissions();
+      if (!hasPermission) return;
+
       const result = await ImagePicker.launchCameraAsync({
         quality: 0.5,
         allowsEditing: false,
@@ -219,19 +456,26 @@ export default function GroundingWellChecklistScreen() {
 
       const photoField = directPhotoMap[itemKey as DirectPhotoKey];
       if (photoField) {
-        setData(prev => ({ ...prev, [photoField]: uri }));
+        updateData({ [photoField]: uri } as Partial<GroundingWellSession>, {
+          persistDraft: true,
+        });
       } else {
         const checklistKey = itemKey as
           | 'hasSignage'
           | 'connectorsOk'
           | 'hasAccess';
+
         setData(prev => {
           const item = prev[checklistKey];
-          return { ...prev, [checklistKey]: { ...item, photo: uri } };
+          const next = { ...prev, [checklistKey]: { ...item, photo: uri } };
+          dataRef.current = next;
+          scheduleDraftSave(next);
+          void persistDraft(next);
+          return next;
         });
       }
     },
-    [],
+    [persistDraft, requestPermissions, scheduleDraftSave, updateData],
   );
 
   const checklistKeys = useMemo<(keyof GroundingWellSession)[]>(
@@ -239,9 +483,38 @@ export default function GroundingWellChecklistScreen() {
     [],
   );
 
+  const withTimeout = useCallback(
+    <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('SYNC_TIMEOUT'));
+        }, timeoutMs);
+
+        promise
+          .then(result => {
+            clearTimeout(timeout);
+            resolve(result);
+          })
+          .catch(error => {
+            clearTimeout(timeout);
+            reject(error);
+          });
+      });
+    },
+    [],
+  );
+
   const handleContinue = useCallback(async () => {
     if (!user) {
       Alert.alert('Error', 'No se ha podido identificar al usuario.');
+      return;
+    }
+
+    if (!panelId) {
+      Alert.alert(
+        'Error',
+        'No se encontró el identificador del pozo a tierra.',
+      );
       return;
     }
 
@@ -336,20 +609,81 @@ export default function GroundingWellChecklistScreen() {
         }
       }
 
-      await DatabaseService.saveOfflineGroundingWellChecklist(
+      const localId = await DatabaseService.saveOfflineGroundingWellChecklist(
         panelId,
         maintenanceId || null,
         dataToSave,
         user.id,
         photosToSave,
       );
-      Alert.alert(
-        'Guardado',
-        'Los datos del checklist han sido guardados localmente.',
-        [{ text: 'OK', onPress: () => router.back() }],
-      );
+
+      if (localId === null) {
+        throw new Error('No se pudo obtener localId del checklist guardado');
+      }
+
+      await AsyncStorage.removeItem(sessionKey);
+      setSaveStatus('guardado-local');
+      setStatusMessage('Checklist guardado en el celular');
+
+      const network = await NetInfo.fetch();
+      const isOnline =
+        !!network.isConnected && network.isInternetReachable !== false;
+
+      if (!isOnline) {
+        Alert.alert(
+          'Guardado local',
+          'Se guardó en el dispositivo. Se sincronizará automáticamente cuando vuelva la conexión.',
+          [{ text: 'OK', onPress: () => router.back() }],
+        );
+        return;
+      }
+
+      setSaveStatus('sincronizando');
+      setStatusMessage('Sincronizando con el servidor...');
+
+      try {
+        await withTimeout(syncService.pushData(), SYNC_TIMEOUT_MS);
+
+        const syncedRecord =
+          (await DatabaseService.getGroundingWellChecklistByLocalId(
+            localId,
+          )) as {
+            status?: string;
+            error_message?: string | null;
+          } | null;
+
+        if (syncedRecord?.status === 'synced') {
+          setSaveStatus('sincronizado');
+          setStatusMessage('Checklist sincronizado correctamente');
+          Alert.alert(
+            'Sincronizado',
+            'Checklist guardado y sincronizado correctamente.',
+            [{ text: 'OK', onPress: () => router.back() }],
+          );
+          return;
+        }
+
+        setSaveStatus('error-sync');
+        setStatusMessage('Guardado local. Reintentando sincronización');
+        Alert.alert(
+          'Guardado local',
+          'Los datos quedaron guardados en el dispositivo. La app seguirá reintentando sincronizar automáticamente.',
+          [{ text: 'OK', onPress: () => router.back() }],
+        );
+      } catch (syncError) {
+        console.error('Grounding well immediate sync failed:', syncError);
+        setSaveStatus('error-sync');
+        setStatusMessage('Guardado local. Reintentando sincronización');
+        Alert.alert(
+          'Guardado local',
+          'Con internet lento o inestable, los datos no se pierden. Quedaron guardados en el celular y se reintentará automáticamente.',
+          [{ text: 'OK', onPress: () => router.back() }],
+        );
+      }
     } catch (error) {
       console.error('Error saving grounding well checklist:', error);
+      setSaveStatus('pendiente-local');
+      setStatusMessage('No se pudo guardar. Intenta nuevamente');
       Alert.alert(
         'Error',
         'No se pudo guardar el checklist. Intente de nuevo.',
@@ -357,7 +691,16 @@ export default function GroundingWellChecklistScreen() {
     } finally {
       setLoading(false);
     }
-  }, [data, user, panelId, maintenanceId, checklistKeys, router]);
+  }, [
+    checklistKeys,
+    data,
+    maintenanceId,
+    panelId,
+    router,
+    sessionKey,
+    user,
+    withTimeout,
+  ]);
 
   // ─── Render Helpers ──────────────────────────────────────────────
 
@@ -388,7 +731,10 @@ export default function GroundingWellChecklistScreen() {
               <Switch
                 value={item.value}
                 onValueChange={value =>
-                  updateData({ [itemKey]: { ...item, value } })
+                  updateData(
+                    { [itemKey]: { ...item, value } },
+                    { persistDraft: true },
+                  )
                 }
                 trackColor={{ false: '#E5E7EB', true: COLORS.primarySoft }}
                 thumbColor={item.value ? COLORS.primary : '#D1D5DB'}
@@ -406,6 +752,7 @@ export default function GroundingWellChecklistScreen() {
                 onChangeText={observation =>
                   updateData({ [itemKey]: { ...item, observation } })
                 }
+                onBlur={persistCurrentDraft}
                 multiline
               />
               <PhotoButton
@@ -419,10 +766,10 @@ export default function GroundingWellChecklistScreen() {
         </View>
       );
     },
-    [data, updateData, takePhoto],
+    [data, persistCurrentDraft, takePhoto, updateData],
   );
 
-  if (loading) {
+  if (loading || initializing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.accent} />
@@ -435,12 +782,20 @@ export default function GroundingWellChecklistScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => {
+            void persistDraftSilently(dataRef.current);
+            router.back();
+          }}
           style={styles.backBtn}
           activeOpacity={0.6}>
           <Ionicons name="chevron-back" size={22} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Pozo a Tierra</Text>
+        <View>
+          <Text style={styles.headerTitle}>Pozo a Tierra</Text>
+          {!!wellTitle && (
+            <Text style={styles.headerSubtitle}>{wellTitle}</Text>
+          )}
+        </View>
       </View>
 
       <ScrollView
@@ -473,6 +828,7 @@ export default function GroundingWellChecklistScreen() {
               placeholderTextColor={COLORS.textMuted}
               value={data.preMeasurement}
               onChangeText={text => updateData({ preMeasurement: text })}
+              onBlur={persistCurrentDraft}
               keyboardType="numeric"
             />
             <View style={styles.unitBadge}>
@@ -525,16 +881,26 @@ export default function GroundingWellChecklistScreen() {
             <TypeOption
               label="Convencional"
               selected={data.maintenanceType === 'conventional'}
-              onPress={() => updateData({ maintenanceType: 'conventional' })}
+              onPress={() =>
+                updateData(
+                  { maintenanceType: 'conventional' },
+                  { persistDraft: true },
+                )
+              }
             />
             <TypeOption
               label="Cemento Conductivo"
               selected={data.maintenanceType === 'conductive-cement'}
               onPress={() =>
-                updateData({
-                  maintenanceType: 'conductive-cement',
-                  thorGelPhoto: null,
-                })
+                updateData(
+                  {
+                    maintenanceType: 'conductive-cement',
+                    thorGelPhoto: null,
+                  },
+                  {
+                    persistDraft: true,
+                  },
+                )
               }
             />
           </View>
@@ -583,6 +949,7 @@ export default function GroundingWellChecklistScreen() {
               placeholderTextColor={COLORS.textMuted}
               value={data.postMeasurement}
               onChangeText={text => updateData({ postMeasurement: text })}
+              onBlur={persistCurrentDraft}
               keyboardType="numeric"
             />
             <View style={styles.unitBadge}>
@@ -619,6 +986,7 @@ export default function GroundingWellChecklistScreen() {
             placeholderTextColor={COLORS.textMuted}
             value={data.generalObservation}
             onChangeText={text => updateData({ generalObservation: text })}
+            onBlur={persistCurrentDraft}
             multiline
             numberOfLines={3}
             textAlignVertical="top"
@@ -654,7 +1022,10 @@ export default function GroundingWellChecklistScreen() {
               <Switch
                 value={data.lidStatus === 'good'}
                 onValueChange={value =>
-                  updateData({ lidStatus: value ? 'good' : 'bad' })
+                  updateData(
+                    { lidStatus: value ? 'good' : 'bad' },
+                    { persistDraft: true },
+                  )
                 }
                 trackColor={{ false: '#E5E7EB', true: COLORS.primarySoft }}
                 thumbColor={
@@ -674,6 +1045,7 @@ export default function GroundingWellChecklistScreen() {
                 onChangeText={text =>
                   updateData({ lidStatusObservation: text })
                 }
+                onBlur={persistCurrentDraft}
                 multiline
               />
               <PhotoButton
@@ -698,6 +1070,20 @@ export default function GroundingWellChecklistScreen() {
 
         <View style={{ height: 30 }} />
       </ScrollView>
+
+      <View style={styles.syncStatusWrap}>
+        <View
+          style={[
+            styles.syncStatusDot,
+            saveStatus === 'sincronizado' && styles.syncStatusDotSynced,
+            saveStatus === 'sincronizando' && styles.syncStatusDotSyncing,
+            saveStatus === 'error-sync' && styles.syncStatusDotError,
+            saveStatus === 'pendiente-local' && styles.syncStatusDotPending,
+            saveStatus === 'guardado-local' && styles.syncStatusDotLocal,
+          ]}
+        />
+        <Text style={styles.syncStatusText}>{statusMessage}</Text>
+      </View>
 
       {/* Footer */}
       <View style={styles.footer}>
@@ -742,6 +1128,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text,
     letterSpacing: -0.3,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
 
   // Content
@@ -954,6 +1345,42 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 8,
     alignSelf: 'center',
+  },
+
+  // Sync status
+  syncStatusWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 2,
+    backgroundColor: COLORS.white,
+  },
+  syncStatusDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: COLORS.textMuted,
+    marginRight: 8,
+  },
+  syncStatusDotSynced: {
+    backgroundColor: COLORS.success,
+  },
+  syncStatusDotSyncing: {
+    backgroundColor: COLORS.accent,
+  },
+  syncStatusDotError: {
+    backgroundColor: COLORS.error,
+  },
+  syncStatusDotPending: {
+    backgroundColor: '#F59E0B',
+  },
+  syncStatusDotLocal: {
+    backgroundColor: COLORS.primary,
+  },
+  syncStatusText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
   },
 
   // Footer
