@@ -14,6 +14,7 @@ import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useScheduledMaintenances } from '@/hooks/use-maintenance';
+import { syncService } from '@/services/sync';
 
 export default function ScheduledMaintenanceScreen() {
   const router = useRouter();
@@ -45,6 +46,7 @@ export default function ScheduledMaintenanceScreen() {
     'Todos',
   );
   const [searchQuery, setSearchQuery] = useState('');
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
   const {
     data: maintenanceData = [],
@@ -52,6 +54,37 @@ export default function ScheduledMaintenanceScreen() {
     refetch,
     isRefetching,
   } = useScheduledMaintenances();
+
+  useEffect(() => {
+    const syncInBackground = async () => {
+      try {
+        await syncService.pushData();
+        await syncService.pullData();
+        await refetch();
+      } catch (error) {
+        console.error(
+          'Background sync failed in scheduled-maintenance screen:',
+          error,
+        );
+      }
+    };
+
+    void syncInBackground();
+  }, [refetch]);
+
+  const handleRefresh = async () => {
+    setIsManualRefreshing(true);
+    try {
+      await syncService.pushData();
+      await syncService.pullData(true);
+      await refetch();
+    } catch (error) {
+      console.error('Manual refresh failed in scheduled-maintenance:', error);
+      await refetch();
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  };
 
   const filterData = () => {
     if (!maintenanceData) return [];
@@ -214,7 +247,10 @@ export default function ScheduledMaintenanceScreen() {
             style={styles.listContainer}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+              <RefreshControl
+                refreshing={isRefetching || isManualRefreshing}
+                onRefresh={handleRefresh}
+              />
             }>
             {groupedData.length === 0 ? (
               <View style={{ padding: 20, alignItems: 'center' }}>

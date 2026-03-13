@@ -556,14 +556,14 @@ class SyncService {
   // ----------------------------------------------------------------
   // PULL DATA — with limits and error checking
   // ----------------------------------------------------------------
-  async pullData(): Promise<boolean> {
+  async pullData(force = false): Promise<boolean> {
     await DatabaseService.ensureInitialized();
     if (this.currentSyncPromise) return this.currentSyncPromise;
     if (!this.isConnected) return false;
 
     // Throttle: skip if last pull was less than MIN_PULL_INTERVAL_MS ago
     const now = Date.now();
-    if (now - this.lastPullTimestamp < MIN_PULL_INTERVAL_MS) {
+    if (!force && now - this.lastPullTimestamp < MIN_PULL_INTERVAL_MS) {
       log('[SYNC] Pull throttled — too soon since last pull');
       return true;
     }

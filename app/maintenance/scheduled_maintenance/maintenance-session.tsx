@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceSessions } from '@/hooks/use-maintenance';
+import { syncService } from '@/services/sync';
 
 export default function MaintenanceSessionScreen() {
   const router = useRouter();
@@ -31,12 +32,34 @@ export default function MaintenanceSessionScreen() {
     refetch,
     isRefetching,
   } = useMaintenanceSessions(propertyId);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+
+  const runRefresh = useCallback(
+    async (forcePull = false) => {
+      await syncService.pushData();
+      await syncService.pullData(forcePull);
+      await refetch();
+    },
+    [refetch],
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setIsManualRefreshing(true);
+    try {
+      await runRefresh(true);
+    } catch (error) {
+      console.error('Manual refresh failed in maintenance-session:', error);
+      await refetch();
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  }, [refetch, runRefresh]);
 
   // Auto-refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      refetch();
-    }, [refetch]),
+      void runRefresh();
+    }, [runRefresh]),
   );
 
   const getSessionStatus = (session: any) => {
@@ -150,7 +173,10 @@ export default function MaintenanceSessionScreen() {
             style={styles.listContainer}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+              <RefreshControl
+                refreshing={isRefetching || isManualRefreshing}
+                onRefresh={handleRefresh}
+              />
             }>
             {pendingSessions.map((session: any) => {
               const status = getSessionStatus(session);

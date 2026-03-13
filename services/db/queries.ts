@@ -238,12 +238,6 @@ export async function getLocalScheduledMaintenances() {
   return withLock(async () => {
     const db = await dbPromise;
 
-    // Manual Join strategy for better control over JSON parsing
-    const maintenances = await db.getAllAsync(
-      'SELECT * FROM local_scheduled_maintenances ORDER BY dia_programado ASC',
-    );
-    if (!maintenances || maintenances.length === 0) return [];
-
     // Fetch related data
     const rows = await db.getAllAsync(`
       SELECT 
@@ -255,6 +249,8 @@ export async function getLocalScheduledMaintenances() {
       LEFT JOIN local_properties p ON e.id_property = p.id
       ORDER BY m.dia_programado ASC
     `);
+
+    if (!rows || rows.length === 0) return [];
 
     const results = rows.map((row: any) => ({
       id: row.id,

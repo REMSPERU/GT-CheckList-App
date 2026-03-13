@@ -32,12 +32,12 @@ function getPATStyles(): string {
       margin: 0;
       padding: 0;
       color: #000;
-      font-size: 12px;
-      line-height: 1.6;
+      font-size: 11px;
+      line-height: 1.4;
     }
     .page {
       page-break-after: always;
-      padding: 25mm;
+      padding: 16mm;
       box-sizing: border-box;
       position: relative;
     }
@@ -48,10 +48,10 @@ function getPATStyles(): string {
       text-align: right;
       font-size: 10px;
       color: #444;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
       line-height: 1.4;
       border-bottom: 2px solid #ddd;
-      padding-bottom: 10px;
+      padding-bottom: 6px;
     }
     .header .bold {
       font-weight: bold;
@@ -61,25 +61,26 @@ function getPATStyles(): string {
     h1 {
       text-align: center;
       font-size: 18px;
-      margin-top: 30px;
+      margin-top: 16px;
       font-weight: bold;
     }
     h2 {
-      font-size: 14px;
+      font-size: 12.5px;
       font-weight: bold;
-      margin-top: 20px;
+      margin-top: 12px;
+      margin-bottom: 6px;
       text-transform: uppercase;
     }
     .info-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
-      font-size: 12px;
+      margin-top: 12px;
+      font-size: 11px;
       font-weight: bold;
     }
     .info-table td {
-      border: 2px solid #000;
-      padding: 5px 10px;
+      border: 1.5px solid #000;
+      padding: 4px 6px;
       text-transform: uppercase;
     }
     .info-table td:first-child {
@@ -89,15 +90,17 @@ function getPATStyles(): string {
     .data-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 15px;
-      margin-bottom: 15px;
-      font-size: 11px;
+      margin-top: 8px;
+      margin-bottom: 8px;
+      font-size: 10.5px;
       text-align: center;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .data-table th,
     .data-table td {
       border: 1px solid #000;
-      padding: 4px 8px;
+      padding: 3px 5px;
     }
     .data-table th {
       background-color: #fc5126;
@@ -106,36 +109,80 @@ function getPATStyles(): string {
     }
     .photo-container {
       text-align: center;
-      margin: 15px 0;
+      margin: 6px 0;
     }
     .photo-container img {
       max-width: 100%;
-      max-height: 350px;
+      max-height: 210px;
       object-fit: contain;
     }
     .photo-small img {
-      max-height: 220px;
+      width: 100%;
+      max-height: 190px;
+      height: auto;
+      object-fit: contain;
+      background-color: #f3f4f6;
+    }
+    .photo-caption {
+      text-align: center;
+      font-size: 9px;
+      color: #666;
+      margin: 3px 0 0;
+      line-height: 1.2;
+    }
+    .photo-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 8px 0;
+    }
+    .photo-grid .photo-container {
+      width: calc(50% - 4px);
+      margin: 0;
+    }
+    .measurement-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+      align-items: flex-start;
+    }
+    .measurement-block {
+      width: calc(50% - 4px);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .inspection-block {
+      page-break-inside: avoid;
+      break-inside: avoid;
+      margin-bottom: 10px;
+    }
+    .section-subtitle {
+      font-size: 11px;
+      font-weight: bold;
+      margin-top: 4px;
+      margin-bottom: 4px;
     }
     .photo-placeholder {
       background-color: #eaeaea;
       border: 1px solid #ccc;
       color: #555;
-      height: 350px;
+      height: 210px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 15px 0;
+      margin: 6px 0;
       font-size: 14px;
       font-style: italic;
     }
     .photo-placeholder.small {
-      height: 220px;
+      height: 150px;
       margin: 5px 0;
     }
     p {
-      font-size: 12px;
-      line-height: 1.6;
-      margin-bottom: 10px;
+      font-size: 11px;
+      line-height: 1.4;
+      margin-bottom: 6px;
       text-align: justify;
     }
     ul {
@@ -144,8 +191,8 @@ function getPATStyles(): string {
       margin-top: 10px;
     }
     ul li {
-      margin-bottom: 8px;
-      font-size: 12px;
+      margin-bottom: 5px;
+      font-size: 11px;
       position: relative;
       padding-left: 15px;
       line-height: 1.4;
@@ -162,13 +209,15 @@ function getPATStyles(): string {
     }
     .measurement {
       font-weight: bold;
-      font-size: 13px;
-      margin-top: 15px;
+      font-size: 11px;
+      margin-top: 4px;
+      margin-bottom: 2px;
+      text-align: left;
     }
     .signature-section {
       display: flex;
       justify-content: space-between;
-      margin-top: 80px;
+      margin-top: 48px;
       text-align: center;
       font-size: 11px;
       font-weight: bold;
@@ -214,6 +263,12 @@ interface PATEquipmentData {
   hasAccess?: PATChecklistItem;
 }
 
+function formatPatState(value: 'good' | 'bad' | null | undefined): string {
+  if (value === 'good') return 'Conforme';
+  if (value === 'bad') return 'Observado';
+  return 'No registrado';
+}
+
 function getPatData(eq: any): PATEquipmentData {
   const pat = (eq?.patData || {}) as PATEquipmentData;
 
@@ -244,11 +299,25 @@ function renderPhoto(
     return `
       <div class="photo-container ${small ? 'photo-small' : ''}">
         <img src="${url}" alt="${caption}" />
-        <p style="text-align: center; font-size: 10px; color: #666;">${caption}</p>
+        <p class="photo-caption">${caption}</p>
       </div>
     `;
   }
   return '';
+}
+
+function renderPhotoGrid(
+  photos: Array<{ url?: string | null; caption: string }>,
+  small = true,
+): string {
+  const rendered = photos
+    .filter(photo => !!photo.url)
+    .map(photo => renderPhoto(photo.url || null, photo.caption, small))
+    .join('');
+
+  if (!rendered) return '';
+
+  return `<div class="photo-grid">${rendered}</div>`;
 }
 
 function generateCompanyHeader(): string {
@@ -355,11 +424,39 @@ function generateProcedurePage(data: MaintenanceSessionReport): string {
   `;
 }
 
-function generateWellListingPage(data: MaintenanceSessionReport): string {
-  const equipments = data.equipments;
-  const totalWells = equipments.length;
+function renderPreMeasurementBlock(eq: any, idx: number): string {
+  const pat = getPatData(eq as any);
+  const measurePhoto =
+    pat.preMeasurementPhoto ||
+    eq.thermoPhotos.find((photo: any) => photo.caption === 'preMeasurement')
+      ?.url ||
+    eq.thermoPhotos[0]?.url ||
+    null;
+  const typeLabel = eq.type || 'POZO A TIERRA';
+  const isGrid = typeLabel.toUpperCase().includes('MALLA');
+  const prefix = isGrid ? `MALLA 1, ` : '';
+  const measurementValue = pat.preMeasurement || eq.voltage || 'N/A';
 
   return `
+    <div class="measurement-block">
+      ${renderPhoto(measurePhoto, `MEDICIÓN POZO ${eq.label || ''} ${idx}`, true)}
+      <p class="measurement">
+        ${prefix}POZO A TIERRA N°${idx}: ${measurementValue} &Omega;<br/>
+        (${eq.label || ''})
+      </p>
+    </div>
+  `;
+}
+
+function generateWellListingAndPreMeasurementPages(
+  data: MaintenanceSessionReport,
+): string {
+  const equipments = data.equipments;
+  const totalWells = equipments.length;
+  const inlineMeasurementCount =
+    totalWells <= 4 ? totalWells : totalWells <= 6 ? 3 : 0;
+
+  let pages = `
     <div class="page">
       ${generateCompanyHeader()}
 
@@ -402,15 +499,36 @@ function generateWellListingPage(data: MaintenanceSessionReport): string {
           <td style="font-weight: bold;">${totalWells}</td>
         </tr>
       </table>
+
+      ${
+        inlineMeasurementCount > 0
+          ? `
+      <h2>5.- MEDICIONES DE LA RESISTENCIA DE LOS POZOS A TIERRA ANTES DEL MANTENIMIENTO</h2>
+      <div class="measurement-grid">
+        ${equipments
+          .slice(0, inlineMeasurementCount)
+          .map((eq, i) => renderPreMeasurementBlock(eq, i + 1))
+          .join('')}
+      </div>
+      `
+          : ''
+      }
     </div>
   `;
+
+  pages += generatePreMeasurementPages(data, inlineMeasurementCount);
+  return pages;
 }
 
-function generatePreMeasurementPages(data: MaintenanceSessionReport): string {
-  const equipments = data.equipments;
+function generatePreMeasurementPages(
+  data: MaintenanceSessionReport,
+  startIndex = 0,
+): string {
+  const equipments = data.equipments.slice(startIndex);
+  if (equipments.length === 0) return '';
+  const globalStart = startIndex;
   let pages = '';
-  // Group ~3 measurements per page
-  const perPage = 3;
+  const perPage = 6;
 
   for (let i = 0; i < equipments.length; i += perPage) {
     const batch = equipments.slice(i, i + perPage);
@@ -419,32 +537,20 @@ function generatePreMeasurementPages(data: MaintenanceSessionReport): string {
     pages += `
       <div class="page">
         ${generateCompanyHeader()}
-        ${isFirst ? `<h2>5.- MEDICIONES DE LA RESISTENCIA DE LOS POZOS A TIERRA ANTES DEL MANTENIMIENTO</h2>` : ''}
+        ${
+          isFirst
+            ? '<h2>5.- MEDICIONES DE LA RESISTENCIA DE LOS POZOS A TIERRA ANTES DEL MANTENIMIENTO</h2>'
+            : ''
+        }
 
+        <div class="measurement-grid">
         ${batch
           .map((eq, j) => {
-            const idx = i + j + 1;
-            const pat = getPatData(eq as any);
-            const measurePhoto =
-              pat.preMeasurementPhoto ||
-              eq.thermoPhotos.find(photo => photo.caption === 'preMeasurement')
-                ?.url ||
-              eq.thermoPhotos[0]?.url ||
-              null;
-            const typeLabel = eq.type || 'POZO A TIERRA';
-            const isGrid = typeLabel.toUpperCase().includes('MALLA');
-            const prefix = isGrid ? `MALLA 1, ` : '';
-            const measurementValue = pat.preMeasurement || eq.voltage || 'N/A';
-
-            return `
-            ${renderPhoto(measurePhoto, `MEDICIÓN POZO ${eq.label || ''} ${idx}`, true)}
-            <p class="measurement">
-              ${prefix}POZO A TIERRA N°${idx}: ${measurementValue} &Omega;<br/>
-              (${eq.label || ''})
-            </p>
-          `;
+            const idx = globalStart + i + j + 1;
+            return renderPreMeasurementBlock(eq, idx);
           })
           .join('')}
+        </div>
       </div>
     `;
   }
@@ -483,31 +589,66 @@ function generateTreatmentPages(data: MaintenanceSessionReport): string {
 
   let pages = '';
 
-  if (thorGelPhotos.length > 0) {
+  const thorBatch = thorGelPhotos.slice(0, 6);
+  const greaseBatch = greasePhotos.slice(0, 6);
+  const totalPhotos = thorBatch.length + greaseBatch.length;
+
+  if (totalPhotos <= 8) {
     pages += `
       <div class="page">
         ${generateCompanyHeader()}
         <h2>6.- REGISTRO FOTOGRÁFICO DE APLICACIÓN DE THORGEL Y GRASA CONDUCTIVA</h2>
-        <p>Aplicación dosis química thorgel</p>
-        ${thorGelPhotos
-          .slice(0, 4)
-          .map(url => renderPhoto(url, 'APLICACIÓN THORGEL', true))
-          .join('')}
+        ${
+          thorBatch.length > 0
+            ? `
+          <p class="section-subtitle">Aplicación dosis química thorgel</p>
+          ${renderPhotoGrid(
+            thorBatch.map(url => ({ url, caption: 'APLICACIÓN THORGEL' })),
+            true,
+          )}
+        `
+            : ''
+        }
+        ${
+          greaseBatch.length > 0
+            ? `
+          <p class="section-subtitle">Aplicación de grasa conductiva al conductor y varilla</p>
+          ${renderPhotoGrid(
+            greaseBatch.map(url => ({ url, caption: 'GRASA CONDUCTIVA' })),
+            true,
+          )}
+        `
+            : ''
+        }
       </div>
     `;
-  }
+  } else {
+    if (thorBatch.length > 0) {
+      pages += `
+        <div class="page">
+          ${generateCompanyHeader()}
+          <h2>6.- REGISTRO FOTOGRÁFICO DE APLICACIÓN DE THORGEL Y GRASA CONDUCTIVA</h2>
+          <p class="section-subtitle">Aplicación dosis química thorgel</p>
+          ${renderPhotoGrid(
+            thorBatch.map(url => ({ url, caption: 'APLICACIÓN THORGEL' })),
+            true,
+          )}
+        </div>
+      `;
+    }
 
-  if (greasePhotos.length > 0) {
-    pages += `
-      <div class="page">
-        ${generateCompanyHeader()}
-        <p>Aplicación de grasa conductiva al conductor y varilla</p>
-        ${greasePhotos
-          .slice(0, 4)
-          .map(url => renderPhoto(url, 'GRASA CONDUCTIVA', true))
-          .join('')}
-      </div>
-    `;
+    if (greaseBatch.length > 0) {
+      pages += `
+        <div class="page">
+          ${generateCompanyHeader()}
+          <p class="section-subtitle">Aplicación de grasa conductiva al conductor y varilla</p>
+          ${renderPhotoGrid(
+            greaseBatch.map(url => ({ url, caption: 'GRASA CONDUCTIVA' })),
+            true,
+          )}
+        </div>
+      `;
+    }
   }
 
   return pages;
@@ -516,7 +657,7 @@ function generateTreatmentPages(data: MaintenanceSessionReport): string {
 function generatePostMeasurementPages(data: MaintenanceSessionReport): string {
   const equipments = data.equipments;
   let pages = '';
-  const perPage = 3;
+  const perPage = 6;
 
   for (let i = 0; i < equipments.length; i += perPage) {
     const batch = equipments.slice(i, i + perPage);
@@ -525,8 +666,13 @@ function generatePostMeasurementPages(data: MaintenanceSessionReport): string {
     pages += `
       <div class="page">
         ${generateCompanyHeader()}
-        ${isFirst ? `<h2>7.- MEDICIONES DE LA RESISTENCIA DE LOS POZOS A TIERRA DESPUÉS DEL MANTENIMIENTO</h2>` : ''}
+        ${
+          isFirst
+            ? '<h2>7.- MEDICIONES DE LA RESISTENCIA DE LOS POZOS A TIERRA DESPUÉS DEL MANTENIMIENTO</h2>'
+            : ''
+        }
 
+        <div class="measurement-grid">
         ${batch
           .map((eq, j) => {
             const idx = i + j + 1;
@@ -545,14 +691,17 @@ function generatePostMeasurementPages(data: MaintenanceSessionReport): string {
               pat.postMeasurement || eq.amperage || 'N/A';
 
             return `
-            ${renderPhoto(measurePhoto, `MEDICIÓN POST-MANTENIMIENTO ${eq.label || ''} ${idx}`, true)}
-            <p class="measurement">
-              ${prefix}POZO A TIERRA N°${idx}: ${measurementValue} &Omega;<br/>
-              (${eq.label || ''})
-            </p>
+            <div class="measurement-block">
+              ${renderPhoto(measurePhoto, `MEDICIÓN POST-MANTENIMIENTO ${eq.label || ''} ${idx}`, true)}
+              <p class="measurement">
+                ${prefix}POZO A TIERRA N°${idx}: ${measurementValue} &Omega;<br/>
+                (${eq.label || ''})
+              </p>
+            </div>
           `;
           })
           .join('')}
+        </div>
       </div>
     `;
   }
@@ -566,101 +715,154 @@ function generateInspectionChecklistPages(
   const equipments = data.equipments;
   if (equipments.length === 0) return '';
 
-  return `
-    <div class="page">
-      ${generateCompanyHeader()}
+  const batches: (typeof equipments)[] = [];
+  let currentBatch: typeof equipments = [];
+  let currentWeight = 0;
 
-      <h2>8.- INSPECCIÓN DETALLADA DE LOS POZOS</h2>
-      ${equipments
-        .map((eq, index) => {
-          const pat = getPatData(eq as any);
-          const lidStatusLabel =
-            pat.lidStatus === 'bad'
-              ? 'MALO'
-              : pat.lidStatus === 'good'
-                ? 'BUENO'
-                : 'NO REGISTRADO';
-          const maintenanceTypeLabel =
-            pat.maintenanceType === 'conventional'
-              ? 'CONVENCIONAL'
-              : pat.maintenanceType === 'conductive-cement'
-                ? 'CEMENTO CONDUCTIVO'
-                : 'NO REGISTRADO';
+  equipments.forEach(eq => {
+    const pat = getPatData(eq as any);
+    const photoCount = [
+      pat.lidStatusPhoto,
+      pat.hasSignage?.photo,
+      pat.connectorsOk?.photo,
+      pat.hasAccess?.photo,
+    ].filter(Boolean).length;
+    const hasGeneralObservation = !!pat.generalObservation?.trim();
 
-          const checklistRows = [
-            {
-              label: 'SEÑALÉTICA NUMÉRICA',
-              item: pat.hasSignage,
-            },
-            {
-              label: 'CONECTORES EN BUEN ESTADO',
-              item: pat.connectorsOk,
-            },
-            {
-              label: 'ACCESO DISPONIBLE',
-              item: pat.hasAccess,
-            },
-          ];
+    const blockWeight =
+      2 + Math.min(photoCount, 4) * 0.8 + (hasGeneralObservation ? 0.4 : 0);
+    const maxWeightPerPage = 7.5;
+    const maxBlocksPerPage = 3;
 
-          return `
-            <h2 style="margin-top: ${index === 0 ? '5px' : '20px'};">POZO ${index + 1}: ${eq.label || 'SIN DENOMINACIÓN'}</h2>
-            <table class="data-table">
-              <tr>
-                <th>ÍTEM</th>
-                <th>ESTADO / DETALLE</th>
-              </tr>
-              <tr>
-                <td>TIPO DE MANTENIMIENTO</td>
-                <td>${maintenanceTypeLabel}</td>
-              </tr>
-              <tr>
-                <td>ESTADO DE TAPA</td>
-                <td>${lidStatusLabel}</td>
-              </tr>
-              <tr>
-                <td>OBSERVACIÓN DE TAPA</td>
-                <td>${pat.lidStatusObservation || 'Sin observaciones'}</td>
-              </tr>
-              ${checklistRows
-                .map(
-                  row => `
-                <tr>
-                  <td>${row.label}</td>
-                  <td>
-                    ${row.item?.value ? 'CONFORME' : 'OBSERVADO'}
-                    ${row.item?.observation ? `<br/>${row.item.observation}` : ''}
-                  </td>
-                </tr>
-              `,
-                )
-                .join('')}
-              <tr>
-                <td>OBSERVACIÓN GENERAL</td>
-                <td>${pat.generalObservation || 'Sin observaciones generales'}</td>
-              </tr>
-            </table>
+    if (
+      currentBatch.length > 0 &&
+      (currentWeight + blockWeight > maxWeightPerPage ||
+        currentBatch.length >= maxBlocksPerPage)
+    ) {
+      batches.push(currentBatch);
+      currentBatch = [];
+      currentWeight = 0;
+    }
 
-            ${renderPhoto(pat.lidStatusPhoto, `ESTADO DE TAPA - ${eq.label || ''}`, true)}
-            ${renderPhoto(
-              pat.hasSignage?.photo,
-              `SEÑALÉTICA NUMÉRICA - ${eq.label || ''}`,
-              true,
-            )}
-            ${renderPhoto(
-              pat.connectorsOk?.photo,
-              `CONECTORES - ${eq.label || ''}`,
-              true,
-            )}
-            ${renderPhoto(
-              pat.hasAccess?.photo,
-              `ACCESO - ${eq.label || ''}`,
-              true,
-            )}
-          `;
-        })
-        .join('')}
-    </div>
-  `;
+    currentBatch.push(eq);
+    currentWeight += blockWeight;
+  });
+
+  if (currentBatch.length > 0) {
+    batches.push(currentBatch);
+  }
+
+  let pages = '';
+
+  let absoluteIndexOffset = 0;
+
+  batches.forEach((batch, pageIndex) => {
+    const isFirst = pageIndex === 0;
+
+    pages += `
+      <div class="page">
+        ${generateCompanyHeader()}
+
+        ${isFirst ? '<h2>8.- INSPECCIÓN DETALLADA DE LOS POZOS</h2>' : ''}
+        ${batch
+          .map((eq, index) => {
+            const absoluteIndex = absoluteIndexOffset + index;
+            const pat = getPatData(eq as any);
+            const lidStatusLabel = formatPatState(pat.lidStatus);
+
+            const checklistRows = [
+              {
+                label: 'SEÑALÉTICA NUMÉRICA',
+                item: pat.hasSignage,
+              },
+              {
+                label: 'CONECTORES EN BUEN ESTADO',
+                item: pat.connectorsOk,
+              },
+              {
+                label: 'ACCESO DISPONIBLE',
+                item: pat.hasAccess,
+              },
+            ];
+
+            return `
+              <div class="inspection-block">
+                <h2 style="margin-top: ${index === 0 ? '4px' : '10px'};">POZO ${absoluteIndex + 1}: ${eq.label || 'SIN DENOMINACIÓN'}</h2>
+                <table class="data-table">
+                  <tr>
+                    <th>ÍTEM</th>
+                    <th>ESTADO / DETALLE</th>
+                  </tr>
+                  <tr>
+                    <td>ESTADO DE TAPA</td>
+                    <td>${lidStatusLabel}</td>
+                  </tr>
+                  ${
+                    pat.lidStatusObservation?.trim()
+                      ? `
+                  <tr>
+                    <td>OBSERVACIÓN DE TAPA</td>
+                    <td>${pat.lidStatusObservation}</td>
+                  </tr>
+                  `
+                      : ''
+                  }
+                  ${checklistRows
+                    .map(
+                      row => `
+                    <tr>
+                      <td>${row.label}</td>
+                      <td>
+                        ${row.item?.value ? 'Conforme' : 'Observado'}
+                        ${row.item?.observation ? `<br/>${row.item.observation}` : ''}
+                      </td>
+                    </tr>
+                  `,
+                    )
+                    .join('')}
+                  ${
+                    pat.generalObservation?.trim()
+                      ? `
+                  <tr>
+                    <td>OBSERVACIÓN GENERAL</td>
+                    <td>${pat.generalObservation}</td>
+                  </tr>
+                  `
+                      : ''
+                  }
+                </table>
+
+                ${renderPhotoGrid(
+                  [
+                    {
+                      url: pat.lidStatusPhoto,
+                      caption: `ESTADO DE TAPA - ${eq.label || ''}`,
+                    },
+                    {
+                      url: pat.hasSignage?.photo,
+                      caption: `SEÑALÉTICA NUMÉRICA - ${eq.label || ''}`,
+                    },
+                    {
+                      url: pat.connectorsOk?.photo,
+                      caption: `CONECTORES - ${eq.label || ''}`,
+                    },
+                    {
+                      url: pat.hasAccess?.photo,
+                      caption: `ACCESO - ${eq.label || ''}`,
+                    },
+                  ],
+                  true,
+                )}
+              </div>
+            `;
+          })
+          .join('')}
+      </div>
+    `;
+    absoluteIndexOffset += batch.length;
+  });
+
+  return pages;
 }
 
 function generateResistanceTablePage(): string {
@@ -767,8 +969,7 @@ export function generatePATReportHTML(data: MaintenanceSessionReport): string {
 <body>
   ${generateCoverPage(data)}
   ${generateProcedurePage(data)}
-  ${generateWellListingPage(data)}
-  ${generatePreMeasurementPages(data)}
+  ${generateWellListingAndPreMeasurementPages(data)}
   ${generateTreatmentPages(data)}
   ${generatePostMeasurementPages(data)}
   ${generateInspectionChecklistPages(data)}
