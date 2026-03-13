@@ -398,35 +398,8 @@ export async function cleanupOfflineQueue() {
       `);
 
       await db.runAsync(`
-        DELETE FROM offline_grounding_well_photos
-        WHERE status = 'synced'
-      `);
-
-      await db.runAsync(`
         DELETE FROM offline_sesion_fotos
         WHERE status = 'synced'
-      `);
-
-      await db.runAsync(`
-        DELETE FROM offline_maintenance_response
-        WHERE status = 'synced'
-          AND NOT EXISTS (
-            SELECT 1
-            FROM offline_photos p
-            WHERE p.maintenance_local_id = offline_maintenance_response.local_id
-              AND p.status != 'synced'
-          )
-      `);
-
-      await db.runAsync(`
-        DELETE FROM offline_grounding_well_checklist
-        WHERE status = 'synced'
-          AND NOT EXISTS (
-            SELECT 1
-            FROM offline_grounding_well_photos p
-            WHERE p.checklist_local_id = offline_grounding_well_checklist.local_id
-              AND p.status != 'synced'
-          )
       `);
 
       await db.runAsync(`

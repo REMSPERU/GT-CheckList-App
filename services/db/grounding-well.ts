@@ -36,25 +36,29 @@ export async function saveOfflineGroundingWellChecklist(
 
 export async function getPendingGroundingWellChecklists() {
   await ensureInitialized();
-  const db = await dbPromise;
-  const rows = await db.getAllAsync(`
-    SELECT * FROM offline_grounding_well_checklist WHERE status = 'pending' OR status = 'error'
-  `);
+  return withLock(async () => {
+    const db = await dbPromise;
+    const rows = await db.getAllAsync(`
+      SELECT * FROM offline_grounding_well_checklist WHERE status = 'pending' OR status = 'error'
+    `);
 
-  return rows;
+    return rows;
+  });
 }
 
 export async function getPendingGroundingWellChecklistPhotos(
   checklistLocalId: number,
 ) {
   await ensureInitialized();
-  const db = await dbPromise;
-  const rows = await db.getAllAsync(
-    `
-    SELECT * FROM offline_grounding_well_photos WHERE checklist_local_id = ? AND status = 'pending'`,
-    [checklistLocalId],
-  );
-  return rows;
+  return withLock(async () => {
+    const db = await dbPromise;
+    const rows = await db.getAllAsync(
+      `
+      SELECT * FROM offline_grounding_well_photos WHERE checklist_local_id = ? AND status = 'pending'`,
+      [checklistLocalId],
+    );
+    return rows;
+  });
 }
 
 export async function updateGroundingWellChecklistStatus(
@@ -63,12 +67,14 @@ export async function updateGroundingWellChecklistStatus(
   errorMessage: string | null = null,
 ) {
   await ensureInitialized();
-  const db = await dbPromise;
-  const now = status === 'synced' ? new Date().toISOString() : null;
-  await db.runAsync(
-    `UPDATE offline_grounding_well_checklist SET status = ?, error_message = ?, synced_at = ? WHERE local_id = ?`,
-    [status, errorMessage, now, localId],
-  );
+  return withLock(async () => {
+    const db = await dbPromise;
+    const now = status === 'synced' ? new Date().toISOString() : null;
+    await db.runAsync(
+      `UPDATE offline_grounding_well_checklist SET status = ?, error_message = ?, synced_at = ? WHERE local_id = ?`,
+      [status, errorMessage, now, localId],
+    );
+  });
 }
 
 export async function updateGroundingWellChecklistPhotoStatus(
@@ -78,21 +84,77 @@ export async function updateGroundingWellChecklistPhotoStatus(
   errorMessage: string | null = null,
 ) {
   await ensureInitialized();
-  const db = await dbPromise;
-  await db.runAsync(
-    `UPDATE offline_grounding_well_photos SET status = ?, remote_url = ?, error_message = ? WHERE id = ?`,
-    [status, remoteUrl, errorMessage, photoId],
-  );
+  return withLock(async () => {
+    const db = await dbPromise;
+    await db.runAsync(
+      `UPDATE offline_grounding_well_photos SET status = ?, remote_url = ?, error_message = ? WHERE id = ?`,
+      [status, remoteUrl, errorMessage, photoId],
+    );
+  });
 }
 
 export async function getGroundingWellChecklistByLocalId(localId: number) {
   await ensureInitialized();
-  const db = await dbPromise;
-  return await db.getFirstAsync(
-    `SELECT local_id, status, error_message, synced_at
-     FROM offline_grounding_well_checklist
-     WHERE local_id = ?
-     LIMIT 1`,
-    [localId],
-  );
+  return withLock(async () => {
+    const db = await dbPromise;
+    return await db.getFirstAsync(
+      `SELECT local_id, status, error_message, synced_at
+       FROM offline_grounding_well_checklist
+       WHERE local_id = ?
+       LIMIT 1`,
+      [localId],
+    );
+  });
+}
+
+export async function getLatestOfflineGroundingWellChecklistByMaintenanceId(
+  maintenanceId: string,
+) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+
+    return await db.getFirstAsync(
+      `SELECT local_id, maintenance_id, panel_id, user_created, checklist_data, status, error_message, created_at, synced_at
+       FROM offline_grounding_well_checklist
+       WHERE maintenance_id = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [maintenanceId],
+    );
+  });
+}
+
+export async function getGroundingWellChecklistPhotosByLocalId(
+  localId: number,
+) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+
+    return await db.getAllAsync(
+      `SELECT id, item_key, local_uri, remote_url, status
+       FROM offline_grounding_well_photos
+       WHERE checklist_local_id = ?`,
+      [localId],
+    );
+  });
+}
+
+export async function getLatestOfflineGroundingWellChecklistByPanelId(
+  panelId: string,
+) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+
+    return await db.getFirstAsync(
+      `SELECT local_id, maintenance_id, panel_id, user_created, checklist_data, status, error_message, created_at, synced_at
+       FROM offline_grounding_well_checklist
+       WHERE panel_id = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [panelId],
+    );
+  });
 }

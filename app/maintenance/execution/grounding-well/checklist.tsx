@@ -197,6 +197,9 @@ export default function GroundingWellChecklistScreen() {
   const params = useLocalSearchParams<{
     panelId?: string | string[];
     maintenanceId?: string | string[];
+    propertyId?: string | string[];
+    propertyName?: string | string[];
+    sessionId?: string | string[];
   }>();
   const { user } = useAuth();
   const normalizeParam = (value?: string | string[]) =>
@@ -204,6 +207,9 @@ export default function GroundingWellChecklistScreen() {
 
   const panelId = normalizeParam(params.panelId) || '';
   const rawMaintenanceId = normalizeParam(params.maintenanceId);
+  const propertyId = normalizeParam(params.propertyId) || '';
+  const propertyName = normalizeParam(params.propertyName) || '';
+  const sessionId = normalizeParam(params.sessionId) || '';
   const maintenanceId =
     rawMaintenanceId &&
     rawMaintenanceId !== 'null' &&
@@ -504,6 +510,38 @@ export default function GroundingWellChecklistScreen() {
     [],
   );
 
+  const navigateAfterSave = useCallback(() => {
+    if (propertyId && sessionId) {
+      router.replace({
+        pathname:
+          '/maintenance/scheduled_maintenance/equipment-maintenance-list',
+        params: {
+          propertyId,
+          sessionId,
+          propertyName,
+        },
+      });
+      return;
+    }
+
+    router.back();
+  }, [propertyId, propertyName, router, sessionId]);
+
+  const syncInBackground = useCallback(() => {
+    setSaveStatus('sincronizando');
+    setStatusMessage('Sincronizando con el servidor...');
+    void withTimeout(syncService.pushData(), SYNC_TIMEOUT_MS)
+      .then(() => {
+        setSaveStatus('sincronizado');
+        setStatusMessage('Checklist enviado. Sincronización en progreso');
+      })
+      .catch(syncError => {
+        console.error('Grounding well background sync failed:', syncError);
+        setSaveStatus('guardado-local');
+        setStatusMessage('Guardado local. Se reintentará automáticamente');
+      });
+  }, [withTimeout]);
+
   const handleContinue = useCallback(async () => {
     if (!user) {
       Alert.alert('Error', 'No se ha podido identificar al usuario.');
@@ -623,63 +661,26 @@ export default function GroundingWellChecklistScreen() {
 
       await AsyncStorage.removeItem(sessionKey);
       setSaveStatus('guardado-local');
-      setStatusMessage('Checklist guardado en el celular');
+      setStatusMessage('Guardado local. Pendiente de sincronizar');
+
+      if (maintenanceId) {
+        await DatabaseService.updateLocalScheduledMaintenanceStatus(
+          maintenanceId,
+          'FINALIZADO',
+        );
+      }
 
       const network = await NetInfo.fetch();
       const isOnline =
         !!network.isConnected && network.isInternetReachable !== false;
 
       if (!isOnline) {
-        Alert.alert(
-          'Guardado local',
-          'Se guardó en el dispositivo. Se sincronizará automáticamente cuando vuelva la conexión.',
-          [{ text: 'OK', onPress: () => router.back() }],
-        );
+        navigateAfterSave();
         return;
       }
 
-      setSaveStatus('sincronizando');
-      setStatusMessage('Sincronizando con el servidor...');
-
-      try {
-        await withTimeout(syncService.pushData(), SYNC_TIMEOUT_MS);
-
-        const syncedRecord =
-          (await DatabaseService.getGroundingWellChecklistByLocalId(
-            localId,
-          )) as {
-            status?: string;
-            error_message?: string | null;
-          } | null;
-
-        if (syncedRecord?.status === 'synced') {
-          setSaveStatus('sincronizado');
-          setStatusMessage('Checklist sincronizado correctamente');
-          Alert.alert(
-            'Sincronizado',
-            'Checklist guardado y sincronizado correctamente.',
-            [{ text: 'OK', onPress: () => router.back() }],
-          );
-          return;
-        }
-
-        setSaveStatus('error-sync');
-        setStatusMessage('Guardado local. Reintentando sincronización');
-        Alert.alert(
-          'Guardado local',
-          'Los datos quedaron guardados en el dispositivo. La app seguirá reintentando sincronizar automáticamente.',
-          [{ text: 'OK', onPress: () => router.back() }],
-        );
-      } catch (syncError) {
-        console.error('Grounding well immediate sync failed:', syncError);
-        setSaveStatus('error-sync');
-        setStatusMessage('Guardado local. Reintentando sincronización');
-        Alert.alert(
-          'Guardado local',
-          'Con internet lento o inestable, los datos no se pierden. Quedaron guardados en el celular y se reintentará automáticamente.',
-          [{ text: 'OK', onPress: () => router.back() }],
-        );
-      }
+      syncInBackground();
+      navigateAfterSave();
     } catch (error) {
       console.error('Error saving grounding well checklist:', error);
       setSaveStatus('pendiente-local');
@@ -695,11 +696,11 @@ export default function GroundingWellChecklistScreen() {
     checklistKeys,
     data,
     maintenanceId,
+    navigateAfterSave,
     panelId,
-    router,
     sessionKey,
+    syncInBackground,
     user,
-    withTimeout,
   ]);
 
   // ─── Render Helpers ──────────────────────────────────────────────
@@ -1108,7 +1109,12 @@ export default function GroundingWellChecklistScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+  },
 
   // Header
   header: {

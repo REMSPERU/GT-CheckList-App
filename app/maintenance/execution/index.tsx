@@ -30,6 +30,7 @@ export default function ExecutionRouter() {
     maintenanceType?: string;
     propertyId?: string;
     propertyName?: string;
+    sessionId?: string;
     // Session context for last equipment detection
     sessionTotal?: string;
     sessionCompleted?: string;
@@ -60,6 +61,7 @@ export default function ExecutionRouter() {
         maintenanceType: params.maintenanceType,
         propertyId: params.propertyId,
         propertyName: params.propertyName,
+        sessionId: params.sessionId,
         // Session context
         sessionTotal: params.sessionTotal,
         sessionCompleted: params.sessionCompleted,
@@ -76,6 +78,7 @@ export default function ExecutionRouter() {
     params.maintenanceType,
     params.propertyId,
     params.propertyName,
+    params.sessionId,
     params.sessionTotal,
     params.sessionCompleted,
     params.sessionDate,

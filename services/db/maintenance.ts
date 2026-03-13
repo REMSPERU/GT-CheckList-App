@@ -52,13 +52,15 @@ export async function saveOfflineMaintenance(
 
 export async function getPendingMaintenances() {
   await ensureInitialized();
-  const db = await dbPromise;
-  // Get headers
-  const rows = await db.getAllAsync(`
-    SELECT * FROM offline_maintenance_response WHERE status = 'pending' OR status = 'error'
-  `);
+  return withLock(async () => {
+    const db = await dbPromise;
+    // Get headers
+    const rows = await db.getAllAsync(`
+      SELECT * FROM offline_maintenance_response WHERE status = 'pending' OR status = 'error'
+    `);
 
-  return rows;
+    return rows;
+  });
 }
 
 export async function updateMaintenanceStatus(
@@ -67,10 +69,30 @@ export async function updateMaintenanceStatus(
   errorMessage: string | null = null,
 ) {
   await ensureInitialized();
-  const db = await dbPromise;
-  const now = status === 'synced' ? new Date().toISOString() : null;
-  await db.runAsync(
-    `UPDATE offline_maintenance_response SET status = ?, error_message = ?, synced_at = ? WHERE local_id = ?`,
-    [status, errorMessage, now, localId],
-  );
+  return withLock(async () => {
+    const db = await dbPromise;
+    const now = status === 'synced' ? new Date().toISOString() : null;
+    await db.runAsync(
+      `UPDATE offline_maintenance_response SET status = ?, error_message = ?, synced_at = ? WHERE local_id = ?`,
+      [status, errorMessage, now, localId],
+    );
+  });
+}
+
+export async function getLatestOfflineMaintenanceByMaintenanceId(
+  maintenanceId: string,
+) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+
+    return await db.getFirstAsync(
+      `SELECT local_id, id_mantenimiento, user_created, detail_maintenance, protocol, status, error_message, created_at, synced_at
+       FROM offline_maintenance_response
+       WHERE id_mantenimiento = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [maintenanceId],
+    );
+  });
 }

@@ -13,6 +13,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { DatabaseService } from '@/services/database';
 import MaintenanceHeader from '@/components/maintenance-header';
 
 export default function MaintenanceResponseDetailScreen() {
@@ -45,10 +46,128 @@ export default function MaintenanceResponseDetailScreen() {
         `,
         )
         .eq('id_mantenimiento', maintenanceId)
-        .single();
+        .order('created', { ascending: false })
+        .limit(1);
 
-      if (error) throw error;
-      return data;
+      if (!error && data && data.length > 0) {
+        return data[0];
+      }
+
+      const localMaintenance =
+        (await DatabaseService.getLatestOfflineMaintenanceByMaintenanceId(
+          maintenanceId,
+        )) as any;
+
+      if (localMaintenance) {
+        const detailMaintenance = (() => {
+          try {
+            return localMaintenance.detail_maintenance
+              ? JSON.parse(localMaintenance.detail_maintenance)
+              : {};
+          } catch {
+            return {};
+          }
+        })();
+
+        return {
+          id: `local-maint-${localMaintenance.local_id}`,
+          id_mantenimiento: localMaintenance.id_mantenimiento,
+          user_created: localMaintenance.user_created,
+          detail_maintenance: detailMaintenance,
+          created: localMaintenance.created_at,
+          users: null,
+        };
+      }
+
+      const localGrounding =
+        (await DatabaseService.getLatestOfflineGroundingWellChecklistByMaintenanceId(
+          maintenanceId,
+        )) as any;
+
+      let fallbackGrounding = localGrounding;
+
+      if (!fallbackGrounding) {
+        const localScheduled =
+          (await DatabaseService.getLocalScheduledMaintenanceById(
+            maintenanceId,
+          )) as { id_equipo?: string } | null;
+
+        if (localScheduled?.id_equipo) {
+          fallbackGrounding =
+            (await DatabaseService.getLatestOfflineGroundingWellChecklistByPanelId(
+              localScheduled.id_equipo,
+            )) as any;
+        }
+      }
+
+      if (fallbackGrounding) {
+        const detailMaintenance = (() => {
+          try {
+            return fallbackGrounding.checklist_data
+              ? JSON.parse(fallbackGrounding.checklist_data)
+              : {};
+          } catch {
+            return {};
+          }
+        })();
+
+        const photos =
+          (await DatabaseService.getGroundingWellChecklistPhotosByLocalId(
+            fallbackGrounding.local_id,
+          )) as {
+            item_key: string;
+            local_uri: string | null;
+            remote_url: string | null;
+          }[];
+
+        const photoByItem = photos.reduce<Record<string, string>>(
+          (acc, photo) => {
+            const uri = photo.remote_url || photo.local_uri;
+            if (uri) acc[photo.item_key] = uri;
+            return acc;
+          },
+          {},
+        );
+
+        const directPhotoFieldMap: Record<string, string> = {
+          preMeasurement: 'preMeasurementPhoto',
+          greaseApplication: 'greaseApplicationPhoto',
+          thorGel: 'thorGelPhoto',
+          postMeasurement: 'postMeasurementPhoto',
+          lidStatus: 'lidStatusPhoto',
+        };
+
+        Object.entries(directPhotoFieldMap).forEach(
+          ([itemKey, detailField]) => {
+            if (photoByItem[itemKey]) {
+              detailMaintenance[detailField] = photoByItem[itemKey];
+            }
+          },
+        );
+
+        ['hasSignage', 'connectorsOk', 'hasAccess'].forEach(key => {
+          if (photoByItem[key]) {
+            detailMaintenance[key] = {
+              ...(detailMaintenance[key] || {}),
+              photo: photoByItem[key],
+            };
+          }
+        });
+
+        return {
+          id: `local-gw-${fallbackGrounding.local_id}`,
+          id_mantenimiento: fallbackGrounding.maintenance_id,
+          user_created: fallbackGrounding.user_created,
+          detail_maintenance: {
+            type: 'grounding_well_checklist',
+            ...detailMaintenance,
+          },
+          created: fallbackGrounding.created_at,
+          users: null,
+        };
+      }
+
+      return null;
     },
     enabled: !!maintenanceId,
   });
@@ -87,6 +206,9 @@ export default function MaintenanceResponseDetailScreen() {
 
   const detail = responseData.detail_maintenance || {};
   const userData = (responseData as any).users;
+  const isGroundingWellChecklist =
+    detail?.type === 'grounding_well_checklist' ||
+    ('preMeasurement' in detail && 'postMeasurement' in detail);
 
   const renderPhotoGrid = (photos: any[], title: string) => {
     if (!photos || photos.length === 0) {
@@ -178,6 +300,54 @@ export default function MaintenanceResponseDetailScreen() {
     );
   };
 
+  const renderSinglePhoto = (title: string, uri?: string | null) => {
+    if (!uri) {
+      return (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{title}</Text>
+          <Text style={styles.emptyText}>Sin foto</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Image source={{ uri }} style={styles.groundingPhoto} />
+      </View>
+    );
+  };
+
+  const renderGroundingBooleanItem = (
+    label: string,
+    item: { value?: boolean; observation?: string; photo?: string | null },
+  ) => {
+    const isOk = item?.value !== false;
+
+    return (
+      <View style={styles.checklistItem}>
+        <View style={styles.checklistHeader}>
+          <Text style={styles.checklistLabel}>{label}</Text>
+          <View
+            style={[
+              styles.statusBadge,
+              isOk ? styles.statusOk : styles.statusIssue,
+            ]}>
+            <Text style={styles.statusBadgeText}>{isOk ? 'SI' : 'NO'}</Text>
+          </View>
+        </View>
+
+        {!isOk && !!item?.observation && (
+          <Text style={styles.groundingFieldValue}>{item.observation}</Text>
+        )}
+
+        {!isOk && !!item?.photo && (
+          <Image source={{ uri: item.photo }} style={styles.observationPhoto} />
+        )}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <MaintenanceHeader
@@ -196,8 +366,10 @@ export default function MaintenanceResponseDetailScreen() {
             <Ionicons name="person" size={18} color="#06B6D4" />
             <Text style={styles.metaLabel}>Técnico:</Text>
             <Text style={styles.metaValue}>
-              {userData?.first_name || ''}{' '}
-              {userData?.last_name || 'No especificado'}
+              {userData
+                ? `${userData?.first_name || ''} ${userData?.last_name || ''}`.trim() ||
+                  'No especificado'
+                : 'Registro local (pendiente de sincronizar)'}
             </Text>
           </View>
           <View style={styles.metaRow}>
@@ -211,40 +383,132 @@ export default function MaintenanceResponseDetailScreen() {
           </View>
         </View>
 
-        {/* Pre Photos */}
-        {renderPhotoGrid(
-          detail.prePhotos?.filter((p: any) => p.category !== 'thermo'),
-          'Fotos Previas (Visual)',
+        {isGroundingWellChecklist ? (
+          <>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Mediciones</Text>
+              <View style={styles.groundingFieldRow}>
+                <Text style={styles.groundingFieldLabel}>Antes:</Text>
+                <Text style={styles.groundingFieldValue}>
+                  {detail.preMeasurement || '-'} Ω
+                </Text>
+              </View>
+              <View style={styles.groundingFieldRow}>
+                <Text style={styles.groundingFieldLabel}>Después:</Text>
+                <Text style={styles.groundingFieldValue}>
+                  {detail.postMeasurement || '-'} Ω
+                </Text>
+              </View>
+              <View style={styles.groundingFieldRow}>
+                <Text style={styles.groundingFieldLabel}>Tipo:</Text>
+                <Text style={styles.groundingFieldValue}>
+                  {detail.maintenanceType === 'conductive-cement'
+                    ? 'Cemento Conductivo'
+                    : detail.maintenanceType === 'conventional'
+                      ? 'Convencional'
+                      : '-'}
+                </Text>
+              </View>
+            </View>
+
+            {renderSinglePhoto(
+              'Foto Medición Pre-Mantenimiento',
+              detail.preMeasurementPhoto,
+            )}
+            {renderSinglePhoto(
+              'Foto Aplicación de Grasa',
+              detail.greaseApplicationPhoto,
+            )}
+            {detail.maintenanceType === 'conventional' &&
+              renderSinglePhoto(
+                'Foto Aplicación Thor Gel',
+                detail.thorGelPhoto,
+              )}
+            {renderSinglePhoto(
+              'Foto Medición Post-Mantenimiento',
+              detail.postMeasurementPhoto,
+            )}
+
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Estado de Tapa</Text>
+              <View style={styles.groundingFieldRow}>
+                <Text style={styles.groundingFieldLabel}>Estado:</Text>
+                <Text style={styles.groundingFieldValue}>
+                  {detail.lidStatus === 'bad' ? 'Malo' : 'Bueno'}
+                </Text>
+              </View>
+              {!!detail.lidStatusObservation && (
+                <Text style={styles.groundingFieldValue}>
+                  {detail.lidStatusObservation}
+                </Text>
+              )}
+              {!!detail.lidStatusPhoto && (
+                <Image
+                  source={{ uri: detail.lidStatusPhoto }}
+                  style={styles.observationPhoto}
+                />
+              )}
+            </View>
+
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Inspección del Pozo</Text>
+              {renderGroundingBooleanItem(
+                'Señalética Numérica',
+                detail.hasSignage || {},
+              )}
+              {renderGroundingBooleanItem(
+                'Conectores en Buen Estado',
+                detail.connectorsOk || {},
+              )}
+              {renderGroundingBooleanItem(
+                'Acceso Disponible',
+                detail.hasAccess || {},
+              )}
+            </View>
+
+            {!!detail.generalObservation && (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Observación General</Text>
+                <Text style={styles.generalObservation}>
+                  {detail.generalObservation}
+                </Text>
+              </View>
+            )}
+          </>
+        ) : (
+          <>
+            {renderPhotoGrid(
+              detail.prePhotos?.filter((p: any) => p.category !== 'thermo'),
+              'Fotos Previas (Visual)',
+            )}
+            {renderPhotoGrid(
+              detail.prePhotos?.filter((p: any) => p.category === 'thermo'),
+              'Fotos Termográficas',
+            )}
+
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Verificación de Equipos</Text>
+              {Object.keys(detail.checklist || {}).length === 0 ? (
+                <Text style={styles.emptyText}>Sin items verificados</Text>
+              ) : (
+                Object.entries(detail.checklist || {}).map(([key, value]) =>
+                  renderChecklistItem(key, value as boolean),
+                )
+              )}
+            </View>
+
+            {detail.observations && (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Observaciones Generales</Text>
+                <Text style={styles.generalObservation}>
+                  {detail.observations}
+                </Text>
+              </View>
+            )}
+
+            {renderPhotoGrid(detail.postPhotos, 'Fotos Finales')}
+          </>
         )}
-
-        {/* Thermo Photos */}
-        {renderPhotoGrid(
-          detail.prePhotos?.filter((p: any) => p.category === 'thermo'),
-          'Fotos Termográficas',
-        )}
-
-        {/* Checklist */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Verificación de Equipos</Text>
-          {Object.keys(detail.checklist || {}).length === 0 ? (
-            <Text style={styles.emptyText}>Sin items verificados</Text>
-          ) : (
-            Object.entries(detail.checklist || {}).map(([key, value]) =>
-              renderChecklistItem(key, value as boolean),
-            )
-          )}
-        </View>
-
-        {/* General Observations */}
-        {detail.observations && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Observaciones Generales</Text>
-            <Text style={styles.generalObservation}>{detail.observations}</Text>
-          </View>
-        )}
-
-        {/* Post Photos */}
-        {renderPhotoGrid(detail.postPhotos, 'Fotos Finales')}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -406,6 +670,28 @@ const styles = StyleSheet.create({
   generalObservation: {
     fontSize: 14,
     color: '#374151',
+    lineHeight: 20,
+  },
+  groundingPhoto: {
+    width: '100%',
+    height: 220,
+    borderRadius: 8,
+    backgroundColor: '#E5E7EB',
+  },
+  groundingFieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  groundingFieldLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  groundingFieldValue: {
+    fontSize: 14,
+    color: '#11181C',
     lineHeight: 20,
   },
 });

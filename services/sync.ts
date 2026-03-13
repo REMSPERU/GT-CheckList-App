@@ -85,6 +85,7 @@ class SyncService {
   private pollIntervalId: any = null;
   private isSyncing = false;
   private isPushing = false;
+  private currentPushPromise: Promise<void> | null = null;
   private currentSyncPromise: Promise<boolean> | null = null;
   private netInfoUnsubscribe: (() => void) | null = null;
   private initialized = false;
@@ -141,7 +142,7 @@ class SyncService {
     if (typeof syncQueue !== 'undefined') {
       syncQueue.registerHandler('panel_config', async (panelId: string) => {
         console.log('[SYNC-HANDLER] Triggered for:', panelId);
-        await this.syncPendingPanelConfigs(panelId);
+        await this.pushData();
       });
     }
   }
@@ -177,36 +178,48 @@ class SyncService {
    * Executes sub-tasks sequentially. Uses a mutex to prevent duplicate uploads.
    */
   async pushData() {
-    if (this.isPushing) return;
-    this.isPushing = true;
+    await DatabaseService.ensureInitialized();
+    if (this.currentPushPromise) return this.currentPushPromise;
 
-    try {
-      await DatabaseService.ensureInitialized();
-      if (!this.isConnected) return;
-
-      log('[SYNC] Starting Batch Upload...');
-
-      // 1. Sync Maintenances
-      await this.syncPendingMaintenances();
-
-      // 2. Sync Panel Configurations
-      await this.syncPendingPanelConfigs();
-
-      // 3. Sync Grounding Wells
-      await this.syncPendingGroundingWells();
-
-      // 4. Sync Session Photos
-      await this.syncPendingSessionPhotos();
+    this.currentPushPromise = (async () => {
+      if (this.isPushing) return;
+      this.isPushing = true;
 
       try {
-        await DatabaseService.cleanupOfflineQueue();
-      } catch (cleanupError) {
-        console.warn('[SYNC] Offline queue cleanup failed:', cleanupError);
-      }
+        const state = await NetInfo.fetch();
+        this.isConnected = state.isConnected ?? false;
+        if (!this.isConnected || state.isInternetReachable === false) return;
 
-      log('[SYNC] Batch Upload Finished.');
+        log('[SYNC] Starting Batch Upload...');
+
+        // 1. Sync Maintenances
+        await this.syncPendingMaintenances();
+
+        // 2. Sync Panel Configurations
+        await this.syncPendingPanelConfigs();
+
+        // 3. Sync Grounding Wells
+        await this.syncPendingGroundingWells();
+
+        // 4. Sync Session Photos
+        await this.syncPendingSessionPhotos();
+
+        try {
+          await DatabaseService.cleanupOfflineQueue();
+        } catch (cleanupError) {
+          console.warn('[SYNC] Offline queue cleanup failed:', cleanupError);
+        }
+
+        log('[SYNC] Batch Upload Finished.');
+      } finally {
+        this.isPushing = false;
+      }
+    })();
+
+    try {
+      await this.currentPushPromise;
     } finally {
-      this.isPushing = false;
+      this.currentPushPromise = null;
     }
   }
 
@@ -558,8 +571,14 @@ class SyncService {
   // ----------------------------------------------------------------
   async pullData(force = false): Promise<boolean> {
     await DatabaseService.ensureInitialized();
+    if (this.currentPushPromise) {
+      await this.currentPushPromise;
+    }
     if (this.currentSyncPromise) return this.currentSyncPromise;
-    if (!this.isConnected) return false;
+
+    const state = await NetInfo.fetch();
+    this.isConnected = state.isConnected ?? false;
+    if (!this.isConnected || state.isInternetReachable === false) return false;
 
     // Throttle: skip if last pull was less than MIN_PULL_INTERVAL_MS ago
     const now = Date.now();

@@ -28,23 +28,25 @@ export async function saveOfflineSessionPhotos(
  */
 export async function sessionHasPhotos(sessionId: string): Promise<boolean> {
   await ensureInitialized();
-  const db = await dbPromise;
+  return withLock(async () => {
+    const db = await dbPromise;
 
-  // Check local mirror (already synced from server)
-  const mirrorRows = await db.getAllAsync(
-    'SELECT id FROM local_sesion_fotos WHERE id_sesion = ? LIMIT 1',
-    [sessionId],
-  );
-  if (mirrorRows && mirrorRows.length > 0) return true;
+    // Check local mirror (already synced from server)
+    const mirrorRows = await db.getAllAsync(
+      'SELECT id FROM local_sesion_fotos WHERE id_sesion = ? LIMIT 1',
+      [sessionId],
+    );
+    if (mirrorRows && mirrorRows.length > 0) return true;
 
-  // Check offline queue (pending upload)
-  const offlineRows = await db.getAllAsync(
-    `SELECT id FROM offline_sesion_fotos WHERE id_sesion = ? AND status != 'error' LIMIT 1`,
-    [sessionId],
-  );
-  if (offlineRows && offlineRows.length > 0) return true;
+    // Check offline queue (pending upload)
+    const offlineRows = await db.getAllAsync(
+      `SELECT id FROM offline_sesion_fotos WHERE id_sesion = ? AND status != 'error' LIMIT 1`,
+      [sessionId],
+    );
+    if (offlineRows && offlineRows.length > 0) return true;
 
-  return false;
+    return false;
+  });
 }
 
 /**
@@ -52,10 +54,12 @@ export async function sessionHasPhotos(sessionId: string): Promise<boolean> {
  */
 export async function getPendingSessionPhotos() {
   await ensureInitialized();
-  const db = await dbPromise;
-  return await db.getAllAsync(
-    `SELECT * FROM offline_sesion_fotos WHERE status = 'pending' OR status = 'error'`,
-  );
+  return withLock(async () => {
+    const db = await dbPromise;
+    return await db.getAllAsync(
+      `SELECT * FROM offline_sesion_fotos WHERE status = 'pending' OR status = 'error'`,
+    );
+  });
 }
 
 /**
@@ -68,11 +72,13 @@ export async function updateSessionPhotoStatus(
   errorMessage: string | null = null,
 ): Promise<void> {
   await ensureInitialized();
-  const db = await dbPromise;
-  await db.runAsync(
-    `UPDATE offline_sesion_fotos SET status = ?, remote_url = ?, error_message = ? WHERE id = ?`,
-    [status, remoteUrl, errorMessage, id],
-  );
+  return withLock(async () => {
+    const db = await dbPromise;
+    await db.runAsync(
+      `UPDATE offline_sesion_fotos SET status = ?, remote_url = ?, error_message = ? WHERE id = ?`,
+      [status, remoteUrl, errorMessage, id],
+    );
+  });
 }
 
 /**
@@ -80,9 +86,11 @@ export async function updateSessionPhotoStatus(
  */
 export async function getLocalSessionPhotos(sessionId: string) {
   await ensureInitialized();
-  const db = await dbPromise;
-  return await db.getAllAsync(
-    'SELECT * FROM local_sesion_fotos WHERE id_sesion = ? ORDER BY created_at ASC',
-    [sessionId],
-  );
+  return withLock(async () => {
+    const db = await dbPromise;
+    return await db.getAllAsync(
+      'SELECT * FROM local_sesion_fotos WHERE id_sesion = ? ORDER BY created_at ASC',
+      [sessionId],
+    );
+  });
 }

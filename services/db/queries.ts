@@ -17,56 +17,64 @@ function normalizeMaintenanceStatus(status: unknown): string | null {
 
 export async function getLocalEquipments() {
   await ensureInitialized();
-  const db = await dbPromise;
-  return await db.getAllAsync('SELECT * FROM local_equipos');
+  return withLock(async () => {
+    const db = await dbPromise;
+    return await db.getAllAsync('SELECT * FROM local_equipos');
+  });
 }
 
 export async function getEquipmentById(id: string) {
   await ensureInitialized();
-  const db = await dbPromise;
-  const row = (await db.getFirstAsync(
-    'SELECT * FROM local_equipos WHERE id = ?',
-    [id],
-  )) as any;
+  return withLock(async () => {
+    const db = await dbPromise;
+    const row = (await db.getFirstAsync(
+      'SELECT * FROM local_equipos WHERE id = ?',
+      [id],
+    )) as any;
 
-  if (!row) return null;
+    if (!row) return null;
 
-  try {
-    return {
-      ...row,
-      equipment_detail: row.equipment_detail
-        ? JSON.parse(row.equipment_detail)
-        : null,
-      config: row.config === 1,
-    };
-  } catch (e) {
-    console.error('Error parsing equipment detail:', e);
-    return row;
-  }
+    try {
+      return {
+        ...row,
+        equipment_detail: row.equipment_detail
+          ? JSON.parse(row.equipment_detail)
+          : null,
+        config: row.config === 1,
+      };
+    } catch (e) {
+      console.error('Error parsing equipment detail:', e);
+      return row;
+    }
+  });
 }
 
 export async function getLocalProperties() {
   await ensureInitialized();
-  const db = await dbPromise;
-  return await db.getAllAsync(
-    'SELECT * FROM local_properties ORDER BY name ASC',
-  );
+  return withLock(async () => {
+    const db = await dbPromise;
+    return await db.getAllAsync(
+      'SELECT * FROM local_properties ORDER BY name ASC',
+    );
+  });
 }
 
 export async function getEquipamentosByProperty(propertyId: string) {
   await ensureInitialized();
-  const db = await dbPromise;
-  // Join local_equipamentos and local_equipamentos_property
-  const rows = await db.getAllAsync(
-    `
-      SELECT e.id, e.nombre, e.abreviatura
-      FROM local_equipamentos e
-      JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
-      WHERE ep.id_property = ?
-      `,
-    [propertyId],
-  );
-  return rows;
+  return withLock(async () => {
+    const db = await dbPromise;
+    // Join local_equipamentos and local_equipamentos_property
+    const rows = await db.getAllAsync(
+      `
+        SELECT e.id, e.nombre, e.abreviatura
+        FROM local_equipamentos e
+        JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
+        WHERE ep.id_property = ?
+        `,
+      [propertyId],
+    );
+    return rows;
+  });
 }
 
 export async function getElectricalPanelsByProperty(
@@ -80,86 +88,79 @@ export async function getElectricalPanelsByProperty(
   },
 ) {
   await ensureInitialized();
-  const db = await dbPromise;
+  return withLock(async () => {
+    const db = await dbPromise;
 
-  // 1. Fetch panels with sync status from offline_panel_configurations
-  // Using LEFT JOIN to get the latest sync status for each panel
-  let query = `
-    SELECT e.*, 
-      (SELECT opc.status 
-       FROM offline_panel_configurations opc 
-       WHERE opc.panel_id = e.id 
-       ORDER BY opc.created_at DESC 
-       LIMIT 1) as sync_status
-    FROM local_equipos e
-    WHERE e.id_property = ?`;
-  const params: any[] = [propertyId];
+    // 1. Fetch panels with sync status from offline_panel_configurations
+    // Using LEFT JOIN to get the latest sync status for each panel
+    let query = `
+      SELECT e.*, 
+        (SELECT opc.status 
+         FROM offline_panel_configurations opc 
+         WHERE opc.panel_id = e.id 
+         ORDER BY opc.created_at DESC 
+         LIMIT 1) as sync_status
+      FROM local_equipos e
+      WHERE e.id_property = ?`;
+    const params: any[] = [propertyId];
 
-  if (filters?.equipamentoId) {
-    query += ' AND e.id_equipamento = ?';
-    params.push(filters.equipamentoId);
-  }
+    if (filters?.equipamentoId) {
+      query += ' AND e.id_equipamento = ?';
+      params.push(filters.equipamentoId);
+    }
 
-  const rows = (await db.getAllAsync(query, params)) as any[];
+    const rows = (await db.getAllAsync(query, params)) as any[];
 
-  // 2. Parse JSON and Apply Filters in Memory
-  return rows
-    .map(row => {
-      try {
-        // Determine effective sync status:
-        // - If panel has pending/syncing/error config in queue -> use that status
-        // - If panel is configured (config=1) and no pending sync -> 'synced'
-        // - If not configured -> null
-        let syncStatus = row.sync_status;
-        if (!syncStatus && row.config === 1) {
-          syncStatus = 'synced';
+    // 2. Parse JSON and Apply Filters in Memory
+    return rows
+      .map(row => {
+        try {
+          let syncStatus = row.sync_status;
+          if (!syncStatus && row.config === 1) {
+            syncStatus = 'synced';
+          }
+
+          return {
+            ...row,
+            equipment_detail: row.equipment_detail
+              ? JSON.parse(row.equipment_detail)
+              : null,
+            config: row.config === 1,
+            syncStatus,
+          };
+        } catch (e) {
+          console.error('Error parsing panel detail:', e);
+          return row;
+        }
+      })
+      .filter(panel => {
+        if (
+          filters?.type &&
+          panel.equipment_detail?.tipo_tablero !== filters.type
+        ) {
+          return false;
         }
 
-        return {
-          ...row,
-          equipment_detail: row.equipment_detail
-            ? JSON.parse(row.equipment_detail)
-            : null,
-          // Convert SQLite integer boolean (0/1) to true/false
-          config: row.config === 1,
-          syncStatus,
-        };
-      } catch (e) {
-        console.error('Error parsing panel detail:', e);
-        return row;
-      }
-    })
-    .filter(panel => {
-      // Filter by Type
-      if (
-        filters?.type &&
-        panel.equipment_detail?.tipo_tablero !== filters.type
-      ) {
-        return false;
-      }
+        if (filters?.config !== undefined && filters?.config !== null) {
+          if (panel.config !== filters.config) return false;
+        }
 
-      // Filter by Config Status (null means "All", so ignore if null/undefined)
-      if (filters?.config !== undefined && filters?.config !== null) {
-        if (panel.config !== filters.config) return false;
-      }
+        if (filters?.locations && filters.locations.length > 0) {
+          if (!filters.locations.includes(panel.ubicacion)) return false;
+        }
 
-      // Filter by Locations
-      if (filters?.locations && filters.locations.length > 0) {
-        if (!filters.locations.includes(panel.ubicacion)) return false;
-      }
+        if (filters?.search) {
+          const searchLower = filters.search.toLowerCase();
+          const matchesCode = panel.codigo?.toLowerCase().includes(searchLower);
+          const matchesLabel = panel.equipment_detail?.rotulo
+            ?.toLowerCase()
+            .includes(searchLower);
+          if (!matchesCode && !matchesLabel) return false;
+        }
 
-      // Filter by Search (Code or Label)
-      if (filters?.search) {
-        const searchLower = filters.search.toLowerCase();
-        const matchesCode = panel.codigo?.toLowerCase().includes(searchLower);
-        const matchesLabel = panel.equipment_detail?.rotulo
-          ?.toLowerCase()
-          .includes(searchLower);
-        if (!matchesCode && !matchesLabel) return false;
-      }
-
-      return true;
-    });
+        return true;
+      });
+  });
 }
 
 /**
@@ -176,56 +177,55 @@ export async function getEquipmentByProperty(
   },
 ) {
   await ensureInitialized();
-  const db = await dbPromise;
+  return withLock(async () => {
+    const db = await dbPromise;
 
-  let query =
-    'SELECT * FROM local_equipos WHERE id_property = ? AND (estatus IS NULL OR estatus != ?)';
-  const params: any[] = [propertyId, 'INACTIVO'];
+    let query =
+      'SELECT * FROM local_equipos WHERE id_property = ? AND (estatus IS NULL OR estatus != ?)';
+    const params: any[] = [propertyId, 'INACTIVO'];
 
-  if (filters?.equipamentoId) {
-    query += ' AND id_equipamento = ?';
-    params.push(filters.equipamentoId);
-  }
+    if (filters?.equipamentoId) {
+      query += ' AND id_equipamento = ?';
+      params.push(filters.equipamentoId);
+    }
 
-  const rows = (await db.getAllAsync(query, params)) as any[];
+    const rows = (await db.getAllAsync(query, params)) as any[];
 
-  return rows
-    .map(row => {
-      try {
-        return {
-          ...row,
-          equipment_detail: row.equipment_detail
-            ? JSON.parse(row.equipment_detail)
-            : null,
-          config: row.config === 1,
-        };
-      } catch (e) {
-        console.error('Error parsing equipment detail:', e);
-        return row;
-      }
-    })
-    .filter(equipment => {
-      // Filter by Config Status
-      if (filters?.config !== undefined && filters?.config !== null) {
-        if (equipment.config !== filters.config) return false;
-      }
+    return rows
+      .map(row => {
+        try {
+          return {
+            ...row,
+            equipment_detail: row.equipment_detail
+              ? JSON.parse(row.equipment_detail)
+              : null,
+            config: row.config === 1,
+          };
+        } catch (e) {
+          console.error('Error parsing equipment detail:', e);
+          return row;
+        }
+      })
+      .filter(equipment => {
+        if (filters?.config !== undefined && filters?.config !== null) {
+          if (equipment.config !== filters.config) return false;
+        }
 
-      // Filter by Locations
-      if (filters?.locations && filters.locations.length > 0) {
-        if (!filters.locations.includes(equipment.ubicacion)) return false;
-      }
+        if (filters?.locations && filters.locations.length > 0) {
+          if (!filters.locations.includes(equipment.ubicacion)) return false;
+        }
 
-      // Filter by Search (Code)
-      if (filters?.search) {
-        const searchLower = filters.search.toLowerCase();
-        const matchesCode = equipment.codigo
-          ?.toLowerCase()
-          .includes(searchLower);
-        if (!matchesCode) return false;
-      }
+        if (filters?.search) {
+          const searchLower = filters.search.toLowerCase();
+          const matchesCode = equipment.codigo
+            ?.toLowerCase()
+            .includes(searchLower);
+          if (!matchesCode) return false;
+        }
 
-      return true;
-    });
+        return true;
+      });
+  });
 }
 
 /**
@@ -298,7 +298,43 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
       SELECT 
         m.*,
         e.id as e_id, e.codigo as e_codigo, e.ubicacion as e_ubicacion, e.id_property as e_id_property, e.equipment_detail as e_detail,
-        eq.nombre as eq_nombre
+        eq.nombre as eq_nombre,
+        CASE
+          WHEN EXISTS (
+            SELECT 1
+            FROM offline_maintenance_response om_err
+            WHERE om_err.id_mantenimiento = m.id
+              AND om_err.status = 'error'
+          ) OR EXISTS (
+            SELECT 1
+            FROM offline_grounding_well_checklist og_err
+            WHERE og_err.maintenance_id = m.id
+              AND og_err.status = 'error'
+          ) THEN 'error'
+          WHEN EXISTS (
+            SELECT 1
+            FROM offline_maintenance_response om_sync
+            WHERE om_sync.id_mantenimiento = m.id
+              AND om_sync.status = 'syncing'
+          ) OR EXISTS (
+            SELECT 1
+            FROM offline_grounding_well_checklist og_sync
+            WHERE og_sync.maintenance_id = m.id
+              AND og_sync.status = 'syncing'
+          ) THEN 'syncing'
+          WHEN EXISTS (
+            SELECT 1
+            FROM offline_maintenance_response om_pending
+            WHERE om_pending.id_mantenimiento = m.id
+              AND om_pending.status = 'pending'
+          ) OR EXISTS (
+            SELECT 1
+            FROM offline_grounding_well_checklist og_pending
+            WHERE og_pending.maintenance_id = m.id
+              AND og_pending.status = 'pending'
+          ) THEN 'pending'
+          ELSE 'synced'
+        END as sync_status
       FROM local_scheduled_maintenances m
       JOIN local_equipos e ON m.id_equipo = e.id
       LEFT JOIN local_equipamentos eq ON e.id_equipamento = eq.id
@@ -315,6 +351,7 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
       tipo_mantenimiento: row.tipo_mantenimiento,
       codigo: row.codigo,
       id_sesion: row.id_sesion || null,
+      sync_status: row.sync_status || 'synced',
       equipos: {
         id: row.e_id,
         codigo: row.e_codigo,
@@ -338,14 +375,33 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
 
 export async function getLocalScheduledMaintenanceById(maintenanceId: string) {
   await ensureInitialized();
-  const db = await dbPromise;
+  return withLock(async () => {
+    const db = await dbPromise;
 
-  const row = await db.getFirstAsync(
-    'SELECT id, id_equipo, id_sesion FROM local_scheduled_maintenances WHERE id = ? LIMIT 1',
-    [maintenanceId],
-  );
+    const row = await db.getFirstAsync(
+      'SELECT id, id_equipo, id_sesion FROM local_scheduled_maintenances WHERE id = ? LIMIT 1',
+      [maintenanceId],
+    );
 
-  return row;
+    return row;
+  });
+}
+
+export async function updateLocalScheduledMaintenanceStatus(
+  maintenanceId: string,
+  status: string,
+) {
+  await ensureInitialized();
+
+  return withLock(async () => {
+    const db = await dbPromise;
+    await db.runAsync(
+      `UPDATE local_scheduled_maintenances
+       SET estatus = ?, last_synced_at = ?
+       WHERE id = ?`,
+      [status, new Date().toISOString(), maintenanceId],
+    );
+  });
 }
 
 /**

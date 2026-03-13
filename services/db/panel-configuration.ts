@@ -37,10 +37,12 @@ export async function saveOfflinePanelConfiguration(
 
 export async function getPendingPanelConfigurations() {
   await ensureInitialized();
-  const db = await dbPromise;
-  return await db.getAllAsync(`
-    SELECT * FROM offline_panel_configurations WHERE status = 'pending' OR status = 'error'
-  `);
+  return withLock(async () => {
+    const db = await dbPromise;
+    return await db.getAllAsync(`
+      SELECT * FROM offline_panel_configurations WHERE status = 'pending' OR status = 'error'
+    `);
+  });
 }
 
 export async function updatePanelConfigurationStatus(
@@ -49,10 +51,12 @@ export async function updatePanelConfigurationStatus(
   errorMessage: string | null = null,
 ) {
   await ensureInitialized();
-  const db = await dbPromise;
-  const now = status === 'synced' ? new Date().toISOString() : null;
-  await db.runAsync(
-    `UPDATE offline_panel_configurations SET status = ?, error_message = ?, synced_at = ? WHERE id = ?`,
-    [status, errorMessage, now, id],
-  );
+  return withLock(async () => {
+    const db = await dbPromise;
+    const now = status === 'synced' ? new Date().toISOString() : null;
+    await db.runAsync(
+      `UPDATE offline_panel_configurations SET status = ?, error_message = ?, synced_at = ? WHERE id = ?`,
+      [status, errorMessage, now, id],
+    );
+  });
 }

@@ -15,7 +15,7 @@ import {
   type ListRenderItem,
 } from 'react-native';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaintenanceHeader from '@/components/maintenance-header';
@@ -42,6 +42,7 @@ interface MaintenanceByPropertyItem {
   id: string;
   dia_programado: string;
   estatus: string | null;
+  sync_status?: 'synced' | 'pending' | 'syncing' | 'error' | string;
   tipo_mantenimiento: string;
   id_sesion?: string | null;
   equipos: EquipmentInfo;
@@ -95,6 +96,32 @@ export default function EquipmentMaintenanceListScreen() {
     refetch,
     isRefetching,
   } = useMaintenanceByProperty(propertyId);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let active = true;
+
+      const refreshOnFocus = async () => {
+        try {
+          void syncService.pushData().catch(error => {
+            console.error('Focus push failed in equipment list:', error);
+          });
+        } catch (error) {
+          console.error('Focus sync failed in equipment list:', error);
+        } finally {
+          if (active) {
+            await refetch();
+          }
+        }
+      };
+
+      void refreshOnFocus();
+
+      return () => {
+        active = false;
+      };
+    }, [refetch]),
+  );
 
   // Derived Filters Options
   const { locations } = useMemo(() => {
@@ -168,6 +195,35 @@ export default function EquipmentMaintenanceListScreen() {
         return '#EF4444';
       default:
         return '#6B7280';
+    }
+  };
+
+  const getSyncBadgeConfig = (syncStatus?: string) => {
+    switch (syncStatus) {
+      case 'pending':
+        return {
+          label: 'PENDIENTE SYNC',
+          color: '#B45309',
+          bgColor: '#FEF3C7',
+        };
+      case 'syncing':
+        return {
+          label: 'SINCRONIZANDO',
+          color: '#0369A1',
+          bgColor: '#E0F2FE',
+        };
+      case 'error':
+        return {
+          label: 'ERROR SYNC',
+          color: '#B91C1C',
+          bgColor: '#FEE2E2',
+        };
+      default:
+        return {
+          label: 'SINCRONIZADO',
+          color: '#047857',
+          bgColor: '#D1FAE5',
+        };
     }
   };
 
@@ -340,6 +396,24 @@ export default function EquipmentMaintenanceListScreen() {
             {item.estatus || 'SIN ESTADO'}
           </Text>
         </View>
+
+        {item.estatus === MaintenanceStatusEnum.FINALIZADO && (
+          <View
+            style={[
+              styles.syncBadge,
+              {
+                backgroundColor: getSyncBadgeConfig(item.sync_status).bgColor,
+              },
+            ]}>
+            <Text
+              style={[
+                styles.syncBadgeText,
+                { color: getSyncBadgeConfig(item.sync_status).color },
+              ]}>
+              {getSyncBadgeConfig(item.sync_status).label}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.infoRow}>
           <Ionicons name="location-outline" size={18} color="#4B5563" />
@@ -738,6 +812,17 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  syncBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  syncBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   infoRow: {
     flexDirection: 'row',

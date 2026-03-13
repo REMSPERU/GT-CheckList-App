@@ -10,6 +10,7 @@ import {
   saveOfflineMaintenance,
   getPendingMaintenances,
   updateMaintenanceStatus,
+  getLatestOfflineMaintenanceByMaintenanceId,
 } from './maintenance';
 import {
   saveOfflinePanelConfiguration,
@@ -23,6 +24,9 @@ import {
   getPendingGroundingWellChecklistPhotos,
   updateGroundingWellChecklistPhotoStatus,
   getGroundingWellChecklistByLocalId,
+  getLatestOfflineGroundingWellChecklistByMaintenanceId,
+  getGroundingWellChecklistPhotosByLocalId,
+  getLatestOfflineGroundingWellChecklistByPanelId,
 } from './grounding-well';
 import { getPendingPhotos, updatePhotoStatus } from './photos';
 import {
@@ -48,6 +52,7 @@ import {
   getLocalScheduledMaintenances,
   getLocalMaintenancesByProperty,
   getLocalScheduledMaintenanceById,
+  updateLocalScheduledMaintenanceStatus,
   getLocalSessionsByProperty,
   getInstrumentsByEquipmentType,
 } from './queries';
@@ -87,6 +92,7 @@ export const DatabaseService = {
   saveOfflineMaintenance,
   getPendingMaintenances,
   updateMaintenanceStatus,
+  getLatestOfflineMaintenanceByMaintenanceId,
 
   // Panel Configuration
   saveOfflinePanelConfiguration,
@@ -100,6 +106,9 @@ export const DatabaseService = {
   getPendingGroundingWellChecklistPhotos,
   updateGroundingWellChecklistPhotoStatus,
   getGroundingWellChecklistByLocalId,
+  getLatestOfflineGroundingWellChecklistByMaintenanceId,
+  getGroundingWellChecklistPhotosByLocalId,
+  getLatestOfflineGroundingWellChecklistByPanelId,
 
   // Photos
   getPendingPhotos,
@@ -125,6 +134,7 @@ export const DatabaseService = {
   getLocalScheduledMaintenances,
   getLocalMaintenancesByProperty,
   getLocalScheduledMaintenanceById,
+  updateLocalScheduledMaintenanceStatus,
   getLocalSessionsByProperty,
   getInstrumentsByEquipmentType,
 

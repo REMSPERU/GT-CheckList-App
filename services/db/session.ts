@@ -35,24 +35,26 @@ export async function saveSession(session: LocalSession): Promise<void> {
 
 export async function getSession(): Promise<LocalSession | null> {
   const db = await dbPromise;
-  // Get the most recent session or the only one (assuming single user per device for now)
-  const result = await db.getAllAsync<any>(
-    'SELECT * FROM app_session ORDER BY last_active DESC LIMIT 1',
-  );
+  return withLock(async () => {
+    // Get the most recent session or the only one (assuming single user per device for now)
+    const result = await db.getAllAsync<any>(
+      'SELECT * FROM app_session ORDER BY last_active DESC LIMIT 1',
+    );
 
-  if (result && result.length > 0) {
-    const row = result[0];
-    try {
-      return {
-        ...row,
-        user_metadata: JSON.parse(row.user_metadata),
-      };
-    } catch (e) {
-      console.error('Error parsing user_metadata', e);
-      return row;
+    if (result && result.length > 0) {
+      const row = result[0];
+      try {
+        return {
+          ...row,
+          user_metadata: JSON.parse(row.user_metadata),
+        };
+      } catch (e) {
+        console.error('Error parsing user_metadata', e);
+        return row;
+      }
     }
-  }
-  return null;
+    return null;
+  });
 }
 
 export async function clearSession(): Promise<void> {
