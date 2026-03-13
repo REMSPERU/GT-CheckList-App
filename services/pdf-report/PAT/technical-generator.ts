@@ -559,25 +559,42 @@ function generatePreMeasurementPages(
 }
 
 function generateTreatmentPages(data: MaintenanceSessionReport): string {
-  const thorGelPhotos: string[] = [];
-  const greasePhotos: string[] = [];
+  const thorGelPhotos: Array<{ url: string; wellLabel: string }> = [];
+  const greasePhotos: Array<{ url: string; wellLabel: string }> = [];
+  const seenThor = new Set<string>();
+  const seenGrease = new Set<string>();
 
-  data.equipments.forEach(eq => {
+  data.equipments.forEach((eq, index) => {
     const pat = getPatData(eq as any);
+    const wellLabel = eq.label || `Pozo ${index + 1}`;
 
     const explicitThor = pat.thorGelPhoto;
     const explicitGrease = pat.greaseApplicationPhoto;
 
-    if (explicitThor) thorGelPhotos.push(explicitThor);
-    if (explicitGrease) greasePhotos.push(explicitGrease);
+    if (explicitThor && !seenThor.has(explicitThor)) {
+      thorGelPhotos.push({ url: explicitThor, wellLabel });
+      seenThor.add(explicitThor);
+    }
+    if (explicitGrease && !seenGrease.has(explicitGrease)) {
+      greasePhotos.push({ url: explicitGrease, wellLabel });
+      seenGrease.add(explicitGrease);
+    }
 
     if (!explicitThor || !explicitGrease) {
       eq.postPhotos.forEach(p => {
         const caption = (p.caption || '').toLowerCase();
-        if (!explicitThor && caption.includes('thor'))
-          thorGelPhotos.push(p.url);
-        if (!explicitGrease && caption.includes('grease'))
-          greasePhotos.push(p.url);
+        if (!explicitThor && caption.includes('thor') && !seenThor.has(p.url)) {
+          thorGelPhotos.push({ url: p.url, wellLabel });
+          seenThor.add(p.url);
+        }
+        if (
+          !explicitGrease &&
+          caption.includes('grease') &&
+          !seenGrease.has(p.url)
+        ) {
+          greasePhotos.push({ url: p.url, wellLabel });
+          seenGrease.add(p.url);
+        }
       });
     }
   });
@@ -603,7 +620,10 @@ function generateTreatmentPages(data: MaintenanceSessionReport): string {
             ? `
           <p class="section-subtitle">Aplicación dosis química thorgel</p>
           ${renderPhotoGrid(
-            thorBatch.map(url => ({ url, caption: 'APLICACIÓN THORGEL' })),
+            thorBatch.map(photo => ({
+              url: photo.url,
+              caption: `Aplicación Thorgel - ${photo.wellLabel}`,
+            })),
             true,
           )}
         `
@@ -614,7 +634,10 @@ function generateTreatmentPages(data: MaintenanceSessionReport): string {
             ? `
           <p class="section-subtitle">Aplicación de grasa conductiva al conductor y varilla</p>
           ${renderPhotoGrid(
-            greaseBatch.map(url => ({ url, caption: 'GRASA CONDUCTIVA' })),
+            greaseBatch.map(photo => ({
+              url: photo.url,
+              caption: `Grasa conductiva - ${photo.wellLabel}`,
+            })),
             true,
           )}
         `
@@ -630,7 +653,10 @@ function generateTreatmentPages(data: MaintenanceSessionReport): string {
           <h2>6.- REGISTRO FOTOGRÁFICO DE APLICACIÓN DE THORGEL Y GRASA CONDUCTIVA</h2>
           <p class="section-subtitle">Aplicación dosis química thorgel</p>
           ${renderPhotoGrid(
-            thorBatch.map(url => ({ url, caption: 'APLICACIÓN THORGEL' })),
+            thorBatch.map(photo => ({
+              url: photo.url,
+              caption: `Aplicación Thorgel - ${photo.wellLabel}`,
+            })),
             true,
           )}
         </div>
@@ -643,7 +669,10 @@ function generateTreatmentPages(data: MaintenanceSessionReport): string {
           ${generateCompanyHeader()}
           <p class="section-subtitle">Aplicación de grasa conductiva al conductor y varilla</p>
           ${renderPhotoGrid(
-            greaseBatch.map(url => ({ url, caption: 'GRASA CONDUCTIVA' })),
+            greaseBatch.map(photo => ({
+              url: photo.url,
+              caption: `Grasa conductiva - ${photo.wellLabel}`,
+            })),
             true,
           )}
         </div>
