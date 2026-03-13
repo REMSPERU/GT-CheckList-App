@@ -1,5 +1,27 @@
 import { dbPromise, withLock, ensureInitialized } from './connection';
 
+interface LocalSessionUpsertInput {
+  id: string;
+  nombre: string;
+  descripcion?: string | null;
+  fecha_programada?: string | null;
+  estatus?: string | null;
+  id_property?: string | null;
+  created_by?: string | null;
+  created_at?: string | null;
+}
+
+interface LocalScheduledMaintenanceUpsertInput {
+  id: string;
+  dia_programado: string;
+  tipo_mantenimiento: string;
+  observations?: string | null;
+  id_equipo: string;
+  estatus: string;
+  codigo?: string | null;
+  id_sesion?: string | null;
+}
+
 /**
  * @deprecated Use smartSync instead. This clears all data causing UI flicker.
  */
@@ -293,6 +315,69 @@ export async function bulkInsertMirrorData(
     });
 
     console.log('[SmartSync] Mirror data sync completed');
+  });
+}
+
+/**
+ * Upsert a newly created maintenance session + maintenances in local mirror tables.
+ * This allows immediate UI visibility without waiting for periodic pull sync.
+ */
+export async function upsertCreatedMaintenanceLocally(
+  session: LocalSessionUpsertInput,
+  maintenances: LocalScheduledMaintenanceUpsertInput[],
+  assignedTechnicians: string[] = [],
+) {
+  await ensureInitialized();
+
+  return withLock(async () => {
+    const db = await dbPromise;
+
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        'INSERT OR REPLACE INTO local_sesion_mantenimiento (id, nombre, descripcion, fecha_programada, estatus, id_property, created_by, created_at, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          session.id,
+          session.nombre,
+          session.descripcion || null,
+          session.fecha_programada || null,
+          session.estatus || 'NO_INICIADO',
+          session.id_property || null,
+          session.created_by || null,
+          session.created_at || null,
+          new Date().toISOString(),
+        ],
+      );
+
+      for (const item of maintenances) {
+        await db.runAsync(
+          'INSERT OR REPLACE INTO local_scheduled_maintenances (id, dia_programado, tipo_mantenimiento, observations, id_equipo, estatus, codigo, id_sesion, assigned_technicians, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            item.id,
+            item.dia_programado,
+            item.tipo_mantenimiento,
+            item.observations || null,
+            item.id_equipo,
+            item.estatus,
+            item.codigo || null,
+            item.id_sesion || null,
+            JSON.stringify(assignedTechnicians),
+            new Date().toISOString(),
+          ],
+        );
+      }
+
+      await db.runAsync(
+        'DELETE FROM local_user_sesion_mantenimiento WHERE id_sesion = ?',
+        [session.id],
+      );
+
+      for (const userId of assignedTechnicians) {
+        await db.runAsync(
+          'INSERT OR REPLACE INTO local_user_sesion_mantenimiento (id_user, id_sesion) VALUES (?, ?)',
+          [userId, session.id],
+        );
+      }
+    });
   });
 }
 

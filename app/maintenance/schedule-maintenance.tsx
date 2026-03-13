@@ -7,6 +7,8 @@ import {
   TextInput,
   Modal,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {
   SafeAreaView,
@@ -49,6 +51,7 @@ export default function ScheduleMaintenanceScreen() {
 
   // Prevent double submission
   const isSubmitting = useRef(false);
+  const formScrollRef = useRef<ScrollView>(null);
 
   // Role check
   const { canScheduleMaintenance, isLoaded: roleLoaded } = useUserRole();
@@ -161,221 +164,243 @@ export default function ScheduleMaintenanceScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#0891B2" />
-        </TouchableOpacity>
-        <Ionicons
-          name="construct-outline"
-          size={24}
-          color="#0891B2"
-          style={styles.headerIcon}
-        />
-        <Text style={styles.headerTitle}>Programar Mantenimiento</Text>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: 24 + Math.max(insets.bottom, 12) },
-        ]}>
-        {/* Banner with Building Image */}
-        <View style={styles.bannerContainer}>
-          {buildingImageUrl ? (
-            <Image
-              source={{ uri: buildingImageUrl }}
-              style={styles.bannerImage}
-              contentFit="cover"
-              cachePolicy="disk"
-              placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
-              transition={300}
-            />
-          ) : (
-            <View style={styles.bannerPlaceholder}>
-              <Ionicons
-                name="business"
-                size={32}
-                color="rgba(255,255,255,0.5)"
-              />
-            </View>
-          )}
-          <View style={styles.bannerOverlay} />
-          <View style={styles.bannerContent}>
-            <Text style={styles.bannerText}>{buildingName}</Text>
-          </View>
-        </View>
-
-        {/* Selected Panels */}
-        <Text style={styles.sectionTitle}>Paneles Seleccionados</Text>
-        <View style={styles.card}>
-          <Text style={styles.selectedCountText}>
-            {selectedCount} paneles seleccionados
-          </Text>
-          <TouchableOpacity onPress={() => console.log('Ver lista')}>
-            <Text style={styles.linkText}>Ver lista completa / Editar</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Maintenance Details */}
-        <Text style={styles.sectionTitle}>Detalles del Mantenimiento</Text>
-        <View style={styles.row}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 12 : 0}>
+        {/* Header */}
+        <View style={styles.header}>
           <TouchableOpacity
-            style={styles.inputCard}
-            onPress={() => setShowDatePicker(true)}>
-            <View style={styles.inputLabelRow}>
-              <Ionicons name="calendar-outline" size={20} color="#374151" />
-              <View style={styles.dateTextContainer}>
-                <Text style={styles.inputLabel}>Fecha Tentativa</Text>
-                <Text style={styles.inputValue}>
-                  {date.toLocaleDateString()}
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            onPress={() => router.back()}
+            style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color="#0891B2" />
           </TouchableOpacity>
-
-          <View style={{ width: 12 }} />
-
-          <TouchableOpacity
-            style={styles.inputCard}
-            onPress={() => setShowTimePicker(true)}>
-            <View style={styles.inputLabelRow}>
-              <Ionicons name="time-outline" size={20} color="#374151" />
-              <View style={styles.dateTextContainer}>
-                <Text style={styles.inputLabel}>Hora Tentativa</Text>
-                <Text style={styles.inputValue}>{time}</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Type of Maintenance */}
-        <Text style={styles.sectionTitle}>Tipo de Mantenimiento</Text>
-        <View style={styles.typeSelectorContainer}>
-          <TouchableOpacity
-            style={[
-              styles.typeButton,
-              maintenanceType === MaintenanceTypeEnum.PREVENTIVO &&
-                styles.typeButtonActive,
-            ]}
-            onPress={() => setMaintenanceType(MaintenanceTypeEnum.PREVENTIVO)}>
-            <Text
-              style={[
-                styles.typeButtonText,
-                maintenanceType === MaintenanceTypeEnum.PREVENTIVO &&
-                  styles.typeButtonTextActive,
-              ]}>
-              Preventivo
-            </Text>
-          </TouchableOpacity>
-          <View style={{ width: 12 }} />
-          <TouchableOpacity
-            style={[
-              styles.typeButton,
-              maintenanceType === MaintenanceTypeEnum.CORRECTIVO &&
-                styles.typeButtonActive,
-            ]}
-            onPress={() => setMaintenanceType(MaintenanceTypeEnum.CORRECTIVO)}>
-            <Text
-              style={[
-                styles.typeButtonText,
-                maintenanceType === MaintenanceTypeEnum.CORRECTIVO &&
-                  styles.typeButtonTextActive,
-              ]}>
-              Correctivo
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Assigned Technicians */}
-        <TouchableOpacity
-          style={styles.accordionHeader}
-          onPress={() => setIsTechniciansExpanded(!isTechniciansExpanded)}>
-          <Text style={styles.accordionTitle}>Técnicos Asignados</Text>
           <Ionicons
-            name={isTechniciansExpanded ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color="#6B7280"
+            name="construct-outline"
+            size={24}
+            color="#0891B2"
+            style={styles.headerIcon}
           />
-        </TouchableOpacity>
+          <Text style={styles.headerTitle}>Programar Mantenimiento</Text>
+        </View>
 
-        {isTechniciansExpanded && (
-          <View style={styles.techniciansContainer}>
+        <ScrollView
+          ref={formScrollRef}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: 24 + Math.max(insets.bottom, 12) },
+          ]}>
+          {/* Banner with Building Image */}
+          <View style={styles.bannerContainer}>
+            {buildingImageUrl ? (
+              <Image
+                source={{ uri: buildingImageUrl }}
+                style={styles.bannerImage}
+                contentFit="cover"
+                cachePolicy="disk"
+                placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+                transition={300}
+              />
+            ) : (
+              <View style={styles.bannerPlaceholder}>
+                <Ionicons
+                  name="business"
+                  size={32}
+                  color="rgba(255,255,255,0.5)"
+                />
+              </View>
+            )}
+            <View style={styles.bannerOverlay} />
+            <View style={styles.bannerContent}>
+              <Text style={styles.bannerText}>{buildingName}</Text>
+            </View>
+          </View>
+
+          {/* Selected Panels */}
+          <Text style={styles.sectionTitle}>Paneles Seleccionados</Text>
+          <View style={styles.card}>
+            <Text style={styles.selectedCountText}>
+              {selectedCount} paneles seleccionados
+            </Text>
+            <TouchableOpacity onPress={() => console.log('Ver lista')}>
+              <Text style={styles.linkText}>Ver lista completa / Editar</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Maintenance Details */}
+          <Text style={styles.sectionTitle}>Detalles del Mantenimiento</Text>
+          <View style={styles.row}>
             <TouchableOpacity
-              style={styles.addTechnicianButton}
-              onPress={() => setShowTechModal(true)}>
-              <Ionicons name="add" size={16} color="#374151" />
-              <Text style={styles.addTechnicianText}>Asignar técnicos</Text>
-              <View style={{ flex: 1 }} />
-              <Ionicons name="chevron-forward" size={20} color="#374151" />
+              style={styles.inputCard}
+              onPress={() => setShowDatePicker(true)}>
+              <View style={styles.inputLabelRow}>
+                <Ionicons name="calendar-outline" size={20} color="#374151" />
+                <View style={styles.dateTextContainer}>
+                  <Text style={styles.inputLabel}>Fecha Tentativa</Text>
+                  <Text style={styles.inputValue}>
+                    {date.toLocaleDateString()}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
 
-            {technicians
-              .filter(t => selectedTechnicians.includes(t.id))
-              .map(tech => (
-                <View key={tech.id} style={styles.technicianRow}>
-                  <View style={styles.techIconContainer}>
-                    <Ionicons name="person-outline" size={20} color="#374151" />
-                  </View>
-                  <Text style={styles.techName}>{tech.email}</Text>
-                  {/* Assuming 'company' or similar field exists or we simulate it */}
-                  <Text style={styles.techCompany}>Rems</Text>
-                  <TouchableOpacity onPress={() => toggleTechnician(tech.id)}>
-                    <Ionicons name="close-circle" size={20} color="#EF4444" />
-                  </TouchableOpacity>
+            <View style={{ width: 12 }} />
+
+            <TouchableOpacity
+              style={styles.inputCard}
+              onPress={() => setShowTimePicker(true)}>
+              <View style={styles.inputLabelRow}>
+                <Ionicons name="time-outline" size={20} color="#374151" />
+                <View style={styles.dateTextContainer}>
+                  <Text style={styles.inputLabel}>Hora Tentativa</Text>
+                  <Text style={styles.inputValue}>{time}</Text>
                 </View>
-              ))}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
           </View>
-        )}
 
-        {/* Observations */}
-        <Text style={styles.sectionTitle}>Observacion</Text>
-        <TextInput
-          style={styles.textArea}
-          placeholder="Observaciones/Notas"
-          placeholderTextColor="#9CA3AF"
-          multiline
-          numberOfLines={3}
-          value={observations}
-          onChangeText={setObservations}
-          textAlignVertical="top"
-        />
+          {/* Type of Maintenance */}
+          <Text style={styles.sectionTitle}>Tipo de Mantenimiento</Text>
+          <View style={styles.typeSelectorContainer}>
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                maintenanceType === MaintenanceTypeEnum.PREVENTIVO &&
+                  styles.typeButtonActive,
+              ]}
+              onPress={() =>
+                setMaintenanceType(MaintenanceTypeEnum.PREVENTIVO)
+              }>
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  maintenanceType === MaintenanceTypeEnum.PREVENTIVO &&
+                    styles.typeButtonTextActive,
+                ]}>
+                Preventivo
+              </Text>
+            </TouchableOpacity>
+            <View style={{ width: 12 }} />
+            <TouchableOpacity
+              style={[
+                styles.typeButton,
+                maintenanceType === MaintenanceTypeEnum.CORRECTIVO &&
+                  styles.typeButtonActive,
+              ]}
+              onPress={() =>
+                setMaintenanceType(MaintenanceTypeEnum.CORRECTIVO)
+              }>
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  maintenanceType === MaintenanceTypeEnum.CORRECTIVO &&
+                    styles.typeButtonTextActive,
+                ]}>
+                Correctivo
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-        {/* Permission Warning */}
-        {!canScheduleMaintenance && (
-          <View style={styles.permissionWarning}>
-            <Ionicons name="warning-outline" size={20} color="#D97706" />
-            <Text style={styles.permissionWarningText}>
-              Solo usuarios con rol SUPERVISOR o SUPERADMIN pueden programar
-              mantenimientos.
+          {/* Assigned Technicians */}
+          <TouchableOpacity
+            style={styles.accordionHeader}
+            onPress={() => setIsTechniciansExpanded(!isTechniciansExpanded)}>
+            <Text style={styles.accordionTitle}>Técnicos Asignados</Text>
+            <Ionicons
+              name={isTechniciansExpanded ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color="#6B7280"
+            />
+          </TouchableOpacity>
+
+          {isTechniciansExpanded && (
+            <View style={styles.techniciansContainer}>
+              <TouchableOpacity
+                style={styles.addTechnicianButton}
+                onPress={() => setShowTechModal(true)}>
+                <Ionicons name="add" size={16} color="#374151" />
+                <Text style={styles.addTechnicianText}>Asignar técnicos</Text>
+                <View style={{ flex: 1 }} />
+                <Ionicons name="chevron-forward" size={20} color="#374151" />
+              </TouchableOpacity>
+
+              {technicians
+                .filter(t => selectedTechnicians.includes(t.id))
+                .map(tech => (
+                  <View key={tech.id} style={styles.technicianRow}>
+                    <View style={styles.techIconContainer}>
+                      <Ionicons
+                        name="person-outline"
+                        size={20}
+                        color="#374151"
+                      />
+                    </View>
+                    <Text style={styles.techName}>{tech.email}</Text>
+                    {/* Assuming 'company' or similar field exists or we simulate it */}
+                    <Text style={styles.techCompany}>Rems</Text>
+                    <TouchableOpacity onPress={() => toggleTechnician(tech.id)}>
+                      <Ionicons name="close-circle" size={20} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+            </View>
+          )}
+
+          {/* Observations */}
+          <Text style={styles.sectionTitle}>Observación</Text>
+          <TextInput
+            style={styles.textArea}
+            placeholder="Observaciones/Notas"
+            placeholderTextColor="#9CA3AF"
+            multiline
+            numberOfLines={4}
+            value={observations}
+            onChangeText={setObservations}
+            onFocus={() => {
+              requestAnimationFrame(() => {
+                formScrollRef.current?.scrollToEnd({ animated: true });
+              });
+            }}
+            textAlignVertical="top"
+          />
+
+          {/* Permission Warning */}
+          {!canScheduleMaintenance && (
+            <View style={styles.permissionWarning}>
+              <Ionicons name="warning-outline" size={20} color="#D97706" />
+              <Text style={styles.permissionWarningText}>
+                Solo usuarios con rol SUPERVISOR o SUPERADMIN pueden programar
+                mantenimientos.
+              </Text>
+            </View>
+          )}
+
+          {/* Confirm Button */}
+          <TouchableOpacity
+            style={[
+              styles.confirmButton,
+              (createMaintenanceMutation.isPending ||
+                !canScheduleMaintenance) &&
+                styles.disabledButton,
+            ]}
+            onPress={handleCreate}
+            disabled={
+              createMaintenanceMutation.isPending || !canScheduleMaintenance
+            }>
+            <Text style={styles.confirmButtonText}>
+              {createMaintenanceMutation.isPending
+                ? 'Programando...'
+                : !canScheduleMaintenance
+                  ? 'Sin permisos para programar'
+                  : 'Confirmar Programación'}
             </Text>
-          </View>
-        )}
-
-        {/* Confirm Button */}
-        <TouchableOpacity
-          style={[
-            styles.confirmButton,
-            (createMaintenanceMutation.isPending || !canScheduleMaintenance) &&
-              styles.disabledButton,
-          ]}
-          onPress={handleCreate}
-          disabled={
-            createMaintenanceMutation.isPending || !canScheduleMaintenance
-          }>
-          <Text style={styles.confirmButtonText}>
-            {createMaintenanceMutation.isPending
-              ? 'Programando...'
-              : !canScheduleMaintenance
-                ? 'Sin permisos para programar'
-                : 'Confirmar Programación'}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Date Picker Modal (Simplified Custom) */}
       <Modal

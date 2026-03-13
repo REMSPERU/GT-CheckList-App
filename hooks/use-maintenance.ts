@@ -1,11 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '../services/db';
+import { syncService } from '@/services/sync';
 import {
   MaintenanceCreateRequest,
   MaintenanceStatusEnum,
   User,
 } from '@/types/api';
+
+interface CreateMaintenanceResult {
+  maintenanceData: any[];
+  sessionData: any;
+  propertyId: string | null;
+  assignedTechnicians: string[];
+}
 
 const log = (...args: unknown[]) => {
   if (__DEV__) {
@@ -30,7 +38,9 @@ export const useCreateMaintenance = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (vars: MaintenanceCreateRequest) => {
+    mutationFn: async (
+      vars: MaintenanceCreateRequest,
+    ): Promise<CreateMaintenanceResult> => {
       const { panel_ids, assigned_technicians, ...commonData } = vars;
 
       if (!panel_ids || panel_ids.length === 0) {
@@ -166,11 +176,58 @@ export const useCreateMaintenance = () => {
         if (assignError) throw assignError;
       }
 
-      return maintenanceData;
+      return {
+        maintenanceData,
+        sessionData,
+        propertyId,
+        assignedTechnicians: assigned_technicians || [],
+      };
     },
-    onSuccess: () => {
+    onSuccess: async result => {
+      try {
+        await DatabaseService.upsertCreatedMaintenanceLocally(
+          {
+            id: result.sessionData.id,
+            nombre: result.sessionData.nombre,
+            descripcion: result.sessionData.descripcion,
+            fecha_programada: result.sessionData.fecha_programada,
+            estatus: result.sessionData.estatus,
+            id_property: result.sessionData.id_property,
+            created_by: result.sessionData.created_by,
+            created_at: result.sessionData.created_at,
+          },
+          result.maintenanceData.map(item => ({
+            id: item.id,
+            dia_programado: item.dia_programado,
+            tipo_mantenimiento: item.tipo_mantenimiento,
+            observations: item.observations,
+            id_equipo: item.id_equipo,
+            estatus: item.estatus || MaintenanceStatusEnum.NO_INICIADO,
+            codigo: item.codigo,
+            id_sesion: item.id_sesion,
+          })),
+          result.assignedTechnicians,
+        );
+      } catch (error) {
+        console.error(
+          'Error updating local maintenance mirror after create:',
+          error,
+        );
+      }
+
       queryClient.invalidateQueries({ queryKey: ['maintenances'] });
       queryClient.invalidateQueries({ queryKey: ['scheduled-maintenances'] });
+
+      if (result.propertyId) {
+        queryClient.invalidateQueries({
+          queryKey: ['maintenance-sessions', result.propertyId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ['maintenance-by-property', result.propertyId],
+        });
+      }
+
+      void syncService.pullData();
     },
     retry: 0,
   });

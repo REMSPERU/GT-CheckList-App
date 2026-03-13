@@ -3,6 +3,7 @@ import { initDatabase, ensureInitialized, withLock } from './connection';
 import {
   clearMirrorTables,
   bulkInsertMirrorData,
+  upsertCreatedMaintenanceLocally,
   cleanupOfflineQueue,
 } from './sync';
 import {
@@ -79,6 +80,7 @@ export const DatabaseService = {
   // Sync
   clearMirrorTables,
   bulkInsertMirrorData,
+  upsertCreatedMaintenanceLocally,
   cleanupOfflineQueue,
 
   // Maintenance
