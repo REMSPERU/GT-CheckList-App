@@ -1,6 +1,9 @@
-name: Manual Production AAB (EAS Local)
+name: Production AAB (EAS Local)
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       branch:
@@ -9,16 +12,16 @@ on:
         default: 'main'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-android-aab:
-    name: Manual Android AAB (Production)
+    name: Android AAB (Production, Local)
     runs-on: ubuntu-latest
     timeout-minutes: 75
 
     concurrency:
-      group: manual-prod-aab-${{ github.event.inputs.branch }}
+      group: prod-aab-local-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}
       cancel-in-progress: true
 
     env:
@@ -32,7 +35,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.branch }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}
           fetch-depth: 0
 
       - name: Setup Node
@@ -40,12 +43,6 @@ jobs:
         with:
           node-version: 20
           cache: npm
-
-      - name: Get current version
-        id: current_version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -62,6 +59,23 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
+      - name: Bump version (patch)
+        id: bump_version
+        run: |
+          TARGET_BRANCH="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}"
+          npm version patch --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+
+          VERSION="$VERSION" node -e "const fs=require('fs');const p='app.config.js';const v=process.env.VERSION;const c=fs.readFileSync(p,'utf8');const n=c.replace(/version:\s*'[^']*'/,\`version: '\${v}'\`);if(c===n){throw new Error('No se pudo actualizar version en app.config.js');}fs.writeFileSync(p,n);"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json app.config.js
+          git commit -m "chore: bump version to $VERSION [skip ci]"
+          git push origin "HEAD:$TARGET_BRANCH"
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Expo Prebuild (clean)
         run: |
           echo "Building profile: production"
@@ -74,7 +88,7 @@ jobs:
       - name: Rename AAB
         id: aab
         run: |
-          VERSION="${{ steps.current_version.outputs.version }}"
+          VERSION="${{ steps.bump_version.outputs.version }}"
           DATE=$(date +%Y%m%d-%H%M)
           FILENAME="GT-CheckList-production-${VERSION}-${DATE}.aab"
           mv build-output.aab "$FILENAME"
