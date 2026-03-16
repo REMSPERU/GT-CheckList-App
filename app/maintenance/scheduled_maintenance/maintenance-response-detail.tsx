@@ -37,8 +37,8 @@ export default function MaintenanceResponseDetailScreen() {
           id_mantenimiento,
           user_created,
           detail_maintenance,
-          created,
-          users:user_created (
+          date_created,
+          user:user_created (
             first_name,
             last_name,
             email
@@ -46,11 +46,17 @@ export default function MaintenanceResponseDetailScreen() {
         `,
         )
         .eq('id_mantenimiento', maintenanceId)
-        .order('created', { ascending: false })
+        .order('date_created', { ascending: false })
         .limit(1);
 
       if (!error && data && data.length > 0) {
-        return data[0];
+        const row = data[0] as any;
+
+        return {
+          ...row,
+          created: row.date_created,
+          users: row.user ?? null,
+        };
       }
 
       const localMaintenance =
@@ -206,6 +212,7 @@ export default function MaintenanceResponseDetailScreen() {
 
   const detail = responseData.detail_maintenance || {};
   const userData = (responseData as any).users;
+  const createdAt = (responseData as any).created;
   const isGroundingWellChecklist =
     detail?.type === 'grounding_well_checklist' ||
     ('preMeasurement' in detail && 'postMeasurement' in detail);
@@ -378,7 +385,9 @@ export default function MaintenanceResponseDetailScreen() {
             <Text style={styles.metaValue}>
               {detail.completedAt
                 ? new Date(detail.completedAt).toLocaleString()
-                : new Date(responseData.created).toLocaleString()}
+                : createdAt
+                  ? new Date(createdAt).toLocaleString()
+                  : 'Sin fecha'}
             </Text>
           </View>
         </View>
