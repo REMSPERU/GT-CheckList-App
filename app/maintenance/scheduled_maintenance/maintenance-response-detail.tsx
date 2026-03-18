@@ -216,6 +216,8 @@ export default function MaintenanceResponseDetailScreen() {
   const isGroundingWellChecklist =
     detail?.type === 'grounding_well_checklist' ||
     ('preMeasurement' in detail && 'postMeasurement' in detail);
+  const isReprogrammedGroundingWell =
+    detail?.executionStatus === 'reprogrammed';
 
   const renderPhotoGrid = (photos: any[], title: string) => {
     if (!photos || photos.length === 0) {
@@ -394,86 +396,103 @@ export default function MaintenanceResponseDetailScreen() {
 
         {isGroundingWellChecklist ? (
           <>
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Mediciones</Text>
-              <View style={styles.groundingFieldRow}>
-                <Text style={styles.groundingFieldLabel}>Antes:</Text>
-                <Text style={styles.groundingFieldValue}>
-                  {detail.preMeasurement || '-'} Ω
+            {isReprogrammedGroundingWell ? (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Estado de Ejecución</Text>
+                <View style={styles.reprogramRow}>
+                  <Text style={styles.reprogramLabel}>Resultado:</Text>
+                  <Text style={styles.reprogramBadge}>REPROGRAMADO</Text>
+                </View>
+                <Text style={styles.reprogramLabel}>Comentario:</Text>
+                <Text style={styles.generalObservation}>
+                  {detail.reprogramComment ||
+                    'Sin comentario registrado por el técnico.'}
                 </Text>
               </View>
-              <View style={styles.groundingFieldRow}>
-                <Text style={styles.groundingFieldLabel}>Después:</Text>
-                <Text style={styles.groundingFieldValue}>
-                  {detail.postMeasurement || '-'} Ω
-                </Text>
-              </View>
-              <View style={styles.groundingFieldRow}>
-                <Text style={styles.groundingFieldLabel}>Tipo:</Text>
-                <Text style={styles.groundingFieldValue}>
-                  {detail.maintenanceType === 'conductive-cement'
-                    ? 'Cemento Conductivo'
-                    : detail.maintenanceType === 'conventional'
-                      ? 'Convencional'
-                      : '-'}
-                </Text>
-              </View>
-            </View>
+            ) : (
+              <>
+                <View style={styles.card}>
+                  <Text style={styles.cardTitle}>Mediciones</Text>
+                  <View style={styles.groundingFieldRow}>
+                    <Text style={styles.groundingFieldLabel}>Antes:</Text>
+                    <Text style={styles.groundingFieldValue}>
+                      {detail.preMeasurement || '-'} Ω
+                    </Text>
+                  </View>
+                  <View style={styles.groundingFieldRow}>
+                    <Text style={styles.groundingFieldLabel}>Después:</Text>
+                    <Text style={styles.groundingFieldValue}>
+                      {detail.postMeasurement || '-'} Ω
+                    </Text>
+                  </View>
+                  <View style={styles.groundingFieldRow}>
+                    <Text style={styles.groundingFieldLabel}>Tipo:</Text>
+                    <Text style={styles.groundingFieldValue}>
+                      {detail.maintenanceType === 'conductive-cement'
+                        ? 'Cemento Conductivo'
+                        : detail.maintenanceType === 'conventional'
+                          ? 'Convencional'
+                          : '-'}
+                    </Text>
+                  </View>
+                </View>
 
-            {renderSinglePhoto(
-              'Foto Medición Pre-Mantenimiento',
-              detail.preMeasurementPhoto,
-            )}
-            {renderSinglePhoto(
-              'Foto Aplicación de Grasa',
-              detail.greaseApplicationPhoto,
-            )}
-            {detail.maintenanceType === 'conventional' &&
-              renderSinglePhoto(
-                'Foto Aplicación Thor Gel',
-                detail.thorGelPhoto,
-              )}
-            {renderSinglePhoto(
-              'Foto Medición Post-Mantenimiento',
-              detail.postMeasurementPhoto,
-            )}
+                {renderSinglePhoto(
+                  'Foto Medición Pre-Mantenimiento',
+                  detail.preMeasurementPhoto,
+                )}
+                {renderSinglePhoto(
+                  'Foto Aplicación de Grasa',
+                  detail.greaseApplicationPhoto,
+                )}
+                {detail.maintenanceType === 'conventional' &&
+                  renderSinglePhoto(
+                    'Foto Aplicación Thor Gel',
+                    detail.thorGelPhoto,
+                  )}
+                {renderSinglePhoto(
+                  'Foto Medición Post-Mantenimiento',
+                  detail.postMeasurementPhoto,
+                )}
 
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Estado de Tapa</Text>
-              <View style={styles.groundingFieldRow}>
-                <Text style={styles.groundingFieldLabel}>Estado:</Text>
-                <Text style={styles.groundingFieldValue}>
-                  {detail.lidStatus === 'bad' ? 'Malo' : 'Bueno'}
-                </Text>
-              </View>
-              {!!detail.lidStatusObservation && (
-                <Text style={styles.groundingFieldValue}>
-                  {detail.lidStatusObservation}
-                </Text>
-              )}
-              {!!detail.lidStatusPhoto && (
-                <Image
-                  source={{ uri: detail.lidStatusPhoto }}
-                  style={styles.observationPhoto}
-                />
-              )}
-            </View>
+                <View style={styles.card}>
+                  <Text style={styles.cardTitle}>Estado de Tapa</Text>
+                  <View style={styles.groundingFieldRow}>
+                    <Text style={styles.groundingFieldLabel}>Estado:</Text>
+                    <Text style={styles.groundingFieldValue}>
+                      {detail.lidStatus === 'bad' ? 'Malo' : 'Bueno'}
+                    </Text>
+                  </View>
+                  {!!detail.lidStatusObservation && (
+                    <Text style={styles.groundingFieldValue}>
+                      {detail.lidStatusObservation}
+                    </Text>
+                  )}
+                  {!!detail.lidStatusPhoto && (
+                    <Image
+                      source={{ uri: detail.lidStatusPhoto }}
+                      style={styles.observationPhoto}
+                    />
+                  )}
+                </View>
 
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Inspección del Pozo</Text>
-              {renderGroundingBooleanItem(
-                'Señalética Numérica',
-                detail.hasSignage || {},
-              )}
-              {renderGroundingBooleanItem(
-                'Conectores en Buen Estado',
-                detail.connectorsOk || {},
-              )}
-              {renderGroundingBooleanItem(
-                'Acceso Disponible',
-                detail.hasAccess || {},
-              )}
-            </View>
+                <View style={styles.card}>
+                  <Text style={styles.cardTitle}>Inspección del Pozo</Text>
+                  {renderGroundingBooleanItem(
+                    'Señalética Numérica',
+                    detail.hasSignage || {},
+                  )}
+                  {renderGroundingBooleanItem(
+                    'Conectores en Buen Estado',
+                    detail.connectorsOk || {},
+                  )}
+                  {renderGroundingBooleanItem(
+                    'Acceso Disponible',
+                    detail.hasAccess || {},
+                  )}
+                </View>
+              </>
+            )}
 
             {!!detail.generalObservation && (
               <View style={styles.card}>
@@ -702,5 +721,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#11181C',
     lineHeight: 20,
+  },
+  reprogramRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  reprogramLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  reprogramBadge: {
+    fontSize: 11,
+    color: '#B45309',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    fontWeight: '700',
   },
 });

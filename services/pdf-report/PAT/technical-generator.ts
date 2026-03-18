@@ -247,6 +247,8 @@ interface PATChecklistItem {
 }
 
 interface PATEquipmentData {
+  executionStatus?: 'completed' | 'reprogrammed' | null;
+  reprogramComment?: string;
   maintenanceType?: 'conventional' | 'conductive-cement' | null;
   preMeasurement?: string;
   preMeasurementPhoto?: string | null;
@@ -273,6 +275,9 @@ function getPatData(eq: any): PATEquipmentData {
   const pat = (eq?.patData || {}) as PATEquipmentData;
 
   return {
+    executionStatus:
+      pat.executionStatus === 'reprogrammed' ? 'reprogrammed' : 'completed',
+    reprogramComment: pat.reprogramComment || '',
     maintenanceType: pat.maintenanceType || null,
     preMeasurement: pat.preMeasurement || eq.voltage || '',
     preMeasurementPhoto: pat.preMeasurementPhoto || null,
@@ -797,6 +802,30 @@ function generateInspectionChecklistPages(
           .map((eq, index) => {
             const absoluteIndex = absoluteIndexOffset + index;
             const pat = getPatData(eq as any);
+            const isReprogrammed = pat.executionStatus === 'reprogrammed';
+
+            if (isReprogrammed) {
+              return `
+                <div class="inspection-block">
+                  <h2 style="margin-top: ${index === 0 ? '4px' : '10px'};">POZO ${absoluteIndex + 1}: ${eq.label || 'SIN DENOMINACIÓN'}</h2>
+                  <table class="data-table">
+                    <tr>
+                      <th>ÍTEM</th>
+                      <th>ESTADO / DETALLE</th>
+                    </tr>
+                    <tr>
+                      <td>ESTADO DE EJECUCIÓN</td>
+                      <td>REPROGRAMADO</td>
+                    </tr>
+                    <tr>
+                      <td>COMENTARIO</td>
+                      <td>${pat.reprogramComment?.trim() || 'Sin comentario registrado por el técnico.'}</td>
+                    </tr>
+                  </table>
+                </div>
+              `;
+            }
+
             const lidStatusLabel = formatPatState(pat.lidStatus);
 
             const checklistRows = [
