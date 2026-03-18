@@ -37,6 +37,7 @@ export interface PanelDetailProps {
       tipo_cable?: string;
       itms: {
         id: string;
+        nombre?: string;
         tipo?: 'ITM' | 'ID';
         fases: string;
         amperaje: number | string;
@@ -188,158 +189,167 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = memo(
 
             {/* ITMs List */}
             <View style={styles.circuitsContainer}>
-              {itg.itms.map((itm, cIdx) => (
-                <View key={cIdx} style={styles.circuitItem}>
-                  {/* Circuit Row - Compact Layout */}
-                  <View style={styles.circuitRow}>
-                    <View
-                      style={[
-                        styles.circuitIdBox,
-                        itm.tipo === 'ID' && styles.circuitIdBoxID,
-                      ]}>
-                      <Text
+              {itg.itms.map((itm, cIdx) => {
+                const circuitDisplayName =
+                  itm.nombre && itm.nombre.trim() !== '' ? itm.nombre : itm.id;
+
+                return (
+                  <View key={cIdx} style={styles.circuitItem}>
+                    {/* Circuit Row - Compact Layout */}
+                    <View style={styles.circuitRow}>
+                      <View
                         style={[
-                          styles.circuitIdText,
-                          itm.tipo === 'ID' && { color: '#0891B2' },
+                          styles.circuitIdBox,
+                          itm.tipo === 'ID' && styles.circuitIdBoxID,
                         ]}>
-                        {itm.id}
-                      </Text>
-                    </View>
-                    <View style={styles.circuitContent}>
-                      <View style={styles.circuitTopRow}>
-                        {/* Badge de tipo */}
-                        <View
+                        <Text
                           style={[
-                            styles.typeBadge,
-                            itm.tipo === 'ID' && styles.typeBadgeID,
+                            styles.circuitIdText,
+                            itm.tipo === 'ID' && { color: '#0891B2' },
                           ]}>
-                          <Text
+                          {circuitDisplayName}
+                        </Text>
+                      </View>
+                      <View style={styles.circuitContent}>
+                        <View style={styles.circuitTopRow}>
+                          {/* Badge de tipo */}
+                          <View
                             style={[
-                              styles.typeText,
-                              itm.tipo === 'ID' && styles.typeTextID,
+                              styles.typeBadge,
+                              itm.tipo === 'ID' && styles.typeBadgeID,
                             ]}>
-                            {itm.tipo || 'ITM'}
-                          </Text>
-                        </View>
-                        <Text style={styles.circuitAmps}>{itm.amperaje}A</Text>
-                        <View style={styles.phaseBadge}>
-                          <Text style={styles.phaseText}>{itm.fases}</Text>
-                        </View>
-                      </View>
-                      {itm.tipo !== 'ID' &&
-                      hasRenderableValue(itm.suministra) ? (
-                        <Text style={styles.circuitSupplyText}>
-                          {itm.suministra}
-                        </Text>
-                      ) : null}
-                      <Text style={styles.cableInfoText}>
-                        {itm.tipo_cable} • {itm.diametro_cable} mm²
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Differential Subsection (solo para ITM) */}
-                  {itm.diferencial?.existe && (
-                    <View style={styles.differentialBoxActive}>
-                      <View style={styles.diffHeader}>
-                        <MaterialCommunityIcons
-                          name="current-ac"
-                          size={14}
-                          color={Colors.light.tint}
-                        />
-                        <Text style={styles.diffTitleActive}>Diferencial</Text>
-                      </View>
-                      <Text style={styles.diffValueActive}>
-                        {itm.diferencial.amperaje}A - {itm.diferencial.fases}
-                      </Text>
-                      {hasRenderableValue(itm.diferencial.tipo_cable) ? (
-                        <Text style={styles.diffCableActive}>
-                          {itm.diferencial.tipo_cable} |{' '}
-                          {itm.diferencial.diametro_cable} mm²
-                        </Text>
-                      ) : null}
-                    </View>
-                  )}
-
-                  {/* Sub-ITMs Section (para tipo ID e ITM con sub-ITMs) */}
-                  {(itm.tipo === 'ID' || itm.tipo === 'ITM') &&
-                    itm.sub_itms &&
-                    itm.sub_itms.length > 0 && (
-                      <View style={styles.subItmsContainer}>
-                        <View style={styles.subItmsHeader}>
-                          <Ionicons
-                            name="git-branch-outline"
-                            size={14}
-                            color="#0891B2"
-                          />
-                          <Text style={styles.subItmsTitle}>
-                            ITMs Asociados ({itm.sub_itms.length})
-                          </Text>
-                        </View>
-                        {itm.sub_itms.map((subItm, sIdx) => (
-                          <View key={sIdx} style={styles.subItmCard}>
-                            <View style={styles.subItmRow}>
-                              <View style={styles.subItmIdBox}>
-                                <Text style={styles.subItmIdText}>
-                                  {subItm.nombre || subItm.id}
-                                </Text>
-                              </View>
-                              <View style={styles.subItmContent}>
-                                <View style={styles.subItmTopRow}>
-                                  <Text style={styles.subItmAmps}>
-                                    {subItm.amperaje}A
-                                  </Text>
-                                  <View style={styles.subItmPhaseBadge}>
-                                    <Text style={styles.subItmPhaseText}>
-                                      {subItm.fases}
-                                    </Text>
-                                  </View>
-                                </View>
-                                {hasRenderableValue(subItm.suministra) ? (
-                                  <Text style={styles.subItmSupply}>
-                                    {subItm.suministra}
-                                  </Text>
-                                ) : null}
-                                <Text style={styles.subItmCable}>
-                                  {subItm.tipo_cable} • {subItm.diametro_cable}{' '}
-                                  mm²
-                                </Text>
-                              </View>
-                            </View>
-
-                            {/* Diferencial del sub-ITM */}
-                            {subItm.diferencial?.existe && (
-                              <View style={styles.subItmDifferentialBox}>
-                                <View style={styles.diffHeader}>
-                                  <MaterialCommunityIcons
-                                    name="current-ac"
-                                    size={12}
-                                    color={Colors.light.tint}
-                                  />
-                                  <Text style={styles.subItmDiffTitle}>
-                                    Diferencial
-                                  </Text>
-                                </View>
-                                <Text style={styles.subItmDiffValue}>
-                                  {subItm.diferencial.amperaje}A -{' '}
-                                  {subItm.diferencial.fases}
-                                </Text>
-                                {hasRenderableValue(
-                                  subItm.diferencial.tipo_cable,
-                                ) ? (
-                                  <Text style={styles.subItmDiffCable}>
-                                    {subItm.diferencial.tipo_cable} |{' '}
-                                    {subItm.diferencial.diametro_cable} mm²
-                                  </Text>
-                                ) : null}
-                              </View>
-                            )}
+                            <Text
+                              style={[
+                                styles.typeText,
+                                itm.tipo === 'ID' && styles.typeTextID,
+                              ]}>
+                              {itm.tipo || 'ITM'}
+                            </Text>
                           </View>
-                        ))}
+                          <Text style={styles.circuitAmps}>
+                            {itm.amperaje}A
+                          </Text>
+                          <View style={styles.phaseBadge}>
+                            <Text style={styles.phaseText}>{itm.fases}</Text>
+                          </View>
+                        </View>
+                        {itm.tipo !== 'ID' &&
+                        hasRenderableValue(itm.suministra) ? (
+                          <Text style={styles.circuitSupplyText}>
+                            {itm.suministra}
+                          </Text>
+                        ) : null}
+                        <Text style={styles.cableInfoText}>
+                          {itm.tipo_cable} • {itm.diametro_cable} mm²
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Differential Subsection (solo para ITM) */}
+                    {itm.diferencial?.existe && (
+                      <View style={styles.differentialBoxActive}>
+                        <View style={styles.diffHeader}>
+                          <MaterialCommunityIcons
+                            name="current-ac"
+                            size={14}
+                            color={Colors.light.tint}
+                          />
+                          <Text style={styles.diffTitleActive}>
+                            Diferencial
+                          </Text>
+                        </View>
+                        <Text style={styles.diffValueActive}>
+                          {itm.diferencial.amperaje}A - {itm.diferencial.fases}
+                        </Text>
+                        {hasRenderableValue(itm.diferencial.tipo_cable) ? (
+                          <Text style={styles.diffCableActive}>
+                            {itm.diferencial.tipo_cable} |{' '}
+                            {itm.diferencial.diametro_cable} mm²
+                          </Text>
+                        ) : null}
                       </View>
                     )}
-                </View>
-              ))}
+
+                    {/* Sub-ITMs Section (para tipo ID e ITM con sub-ITMs) */}
+                    {(itm.tipo === 'ID' || itm.tipo === 'ITM') &&
+                      itm.sub_itms &&
+                      itm.sub_itms.length > 0 && (
+                        <View style={styles.subItmsContainer}>
+                          <View style={styles.subItmsHeader}>
+                            <Ionicons
+                              name="git-branch-outline"
+                              size={14}
+                              color="#0891B2"
+                            />
+                            <Text style={styles.subItmsTitle}>
+                              ITMs Asociados ({itm.sub_itms.length})
+                            </Text>
+                          </View>
+                          {itm.sub_itms.map((subItm, sIdx) => (
+                            <View key={sIdx} style={styles.subItmCard}>
+                              <View style={styles.subItmRow}>
+                                <View style={styles.subItmIdBox}>
+                                  <Text style={styles.subItmIdText}>
+                                    {subItm.nombre || subItm.id}
+                                  </Text>
+                                </View>
+                                <View style={styles.subItmContent}>
+                                  <View style={styles.subItmTopRow}>
+                                    <Text style={styles.subItmAmps}>
+                                      {subItm.amperaje}A
+                                    </Text>
+                                    <View style={styles.subItmPhaseBadge}>
+                                      <Text style={styles.subItmPhaseText}>
+                                        {subItm.fases}
+                                      </Text>
+                                    </View>
+                                  </View>
+                                  {hasRenderableValue(subItm.suministra) ? (
+                                    <Text style={styles.subItmSupply}>
+                                      {subItm.suministra}
+                                    </Text>
+                                  ) : null}
+                                  <Text style={styles.subItmCable}>
+                                    {subItm.tipo_cable} •{' '}
+                                    {subItm.diametro_cable} mm²
+                                  </Text>
+                                </View>
+                              </View>
+
+                              {/* Diferencial del sub-ITM */}
+                              {subItm.diferencial?.existe && (
+                                <View style={styles.subItmDifferentialBox}>
+                                  <View style={styles.diffHeader}>
+                                    <MaterialCommunityIcons
+                                      name="current-ac"
+                                      size={12}
+                                      color={Colors.light.tint}
+                                    />
+                                    <Text style={styles.subItmDiffTitle}>
+                                      Diferencial
+                                    </Text>
+                                  </View>
+                                  <Text style={styles.subItmDiffValue}>
+                                    {subItm.diferencial.amperaje}A -{' '}
+                                    {subItm.diferencial.fases}
+                                  </Text>
+                                  {hasRenderableValue(
+                                    subItm.diferencial.tipo_cable,
+                                  ) ? (
+                                    <Text style={styles.subItmDiffCable}>
+                                      {subItm.diferencial.tipo_cable} |{' '}
+                                      {subItm.diferencial.diametro_cable} mm²
+                                    </Text>
+                                  ) : null}
+                                </View>
+                              )}
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                  </View>
+                );
+              })}
             </View>
           </View>
         ))}

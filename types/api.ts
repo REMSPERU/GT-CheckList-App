@@ -155,6 +155,7 @@ export interface Differential {
 
 export interface ITM {
   id: string;
+  nombre?: string;
   fases: string;
   amperaje: number;
   suministra: string;

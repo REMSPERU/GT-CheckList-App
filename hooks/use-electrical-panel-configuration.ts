@@ -317,12 +317,14 @@ export function usePanelConfiguration(
           const detail = initialPanel.equipment_detail;
 
           // Helper to reverse map labels to keys
-          const reversePhaseMapping: Record<string, string> = Object.fromEntries(
-            Object.entries(PHASE_LABELS).map(([k, v]) => [v, k]),
-          );
-          const reverseCableMapping: Record<string, string> = Object.fromEntries(
-            Object.entries(CABLE_TYPE_LABELS).map(([k, v]) => [v, k]),
-          );
+          const reversePhaseMapping: Record<string, string> =
+            Object.fromEntries(
+              Object.entries(PHASE_LABELS).map(([k, v]) => [v, k]),
+            );
+          const reverseCableMapping: Record<string, string> =
+            Object.fromEntries(
+              Object.entries(CABLE_TYPE_LABELS).map(([k, v]) => [v, k]),
+            );
 
           const getPhaseKey = (label?: string) =>
             label ? reversePhaseMapping[label] || label : 'mono_2w';
@@ -349,6 +351,10 @@ export function usePanelConfiguration(
                 cableTypeITG: getCableKey(itg.tipo_cable),
                 circuits:
                   itg.itms?.map((itm: any) => ({
+                    name:
+                      itm.nombre && itm.nombre.trim() !== ''
+                        ? itm.nombre
+                        : undefined,
                     interruptorType:
                       itm.tipo === 'ID'
                         ? 'id'
@@ -367,8 +373,10 @@ export function usePanelConfiguration(
                     cableTypeID: getCableKey(itm.diferencial?.tipo_cable),
                     hasSubITMs: !!(itm.sub_itms && itm.sub_itms.length > 0),
                     subITMsPrefix:
-                      itm.sub_itms?.[0]?.id?.split('-')?.slice(0, -1)?.join('-') ||
-                      'ITM',
+                      itm.sub_itms?.[0]?.id
+                        ?.split('-')
+                        ?.slice(0, -1)
+                        ?.join('-') || 'ITM',
                     subITMsCount: (itm.sub_itms?.length || 0).toString(),
                     subITMs: itm.sub_itms?.map((sub: any) => ({
                       name: sub.nombre || '',
@@ -385,11 +393,12 @@ export function usePanelConfiguration(
                     })),
                   })) || [],
               })) || [],
-            enabledComponents: detail.componentes?.map((c: any) =>
-              c.tipo.toLowerCase().endsWith('s')
-                ? c.tipo.toLowerCase()
-                : `${c.tipo.toLowerCase()}s`,
-            ) || [],
+            enabledComponents:
+              detail.componentes?.map((c: any) =>
+                c.tipo.toLowerCase().endsWith('s')
+                  ? c.tipo.toLowerCase()
+                  : `${c.tipo.toLowerCase()}s`,
+              ) || [],
             extraComponents: {
               contactores:
                 detail.componentes
@@ -609,6 +618,10 @@ export function usePanelConfiguration(
               : undefined,
             itms: itg.circuits.map((circuit, cIdx) => ({
               id: `${itg.cnPrefix}-${cIdx + 1}`,
+              ...(circuit.name &&
+                circuit.name.trim() !== '' && {
+                  nombre: circuit.name.trim(),
+                }),
               tipo:
                 circuit.interruptorType === 'id'
                   ? 'ID'

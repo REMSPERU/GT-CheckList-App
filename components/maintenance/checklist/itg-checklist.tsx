@@ -82,6 +82,7 @@ export const ITGChecklist = React.memo(function ITGChecklist({
       <View style={styles.content}>
         {currentItg.itms.map((itm: any, idx: number) => {
           const itemId = `itg_${currentItg.id}_${itm.id}`;
+          const itmLabel = itm.nombre || itm.id;
           const status = checklist[itemId];
           const obs = itemObservations[itemId];
           const measure = measurements[itemId] || {};
@@ -151,7 +152,7 @@ export const ITGChecklist = React.memo(function ITGChecklist({
           return (
             <View key={itemId} style={styles.card}>
               <Text style={styles.cardHeader}>
-                Interruptor termomagnético (ITM) : {itm.id}
+                Interruptor termomagnético (ITM) : {itmLabel}
               </Text>
 
               <View style={styles.detailsContainer}>
@@ -252,7 +253,7 @@ export const ITGChecklist = React.memo(function ITGChecklist({
               {itm.diferencial && itm.diferencial.existe && (
                 <View style={styles.subSection}>
                   <Text style={styles.subHeader}>
-                    Interruptor diferencial ID : ID-{itm.id}
+                    Interruptor diferencial ID : ID-{itmLabel}
                   </Text>
 
                   <View style={styles.subSectionContent}>
