@@ -250,18 +250,30 @@ export default function SessionHistoryScreen() {
             detail.preMeasurement !== undefined ||
             detail.postMeasurement !== undefined)
         ) {
+          const executionStatus =
+            detail.executionStatus === 'reprogrammed'
+              ? 'reprogrammed'
+              : 'completed';
+          const reprogramComment =
+            typeof detail.reprogramComment === 'string'
+              ? detail.reprogramComment
+              : '';
+          const isReprogrammed = executionStatus === 'reprogrammed';
+
           const checklistKeys = ['hasSignage', 'connectorsOk', 'hasAccess'];
           const checklistItems = checklistKeys.map(key => ({
             key,
             item: detail[key] || { value: true, observation: '', photo: null },
           }));
 
-          totalOkItems += checklistItems.filter(
-            entry => entry.item.value,
-          ).length;
-          totalIssueItems += checklistItems.filter(
-            entry => !entry.item.value,
-          ).length;
+          if (!isReprogrammed) {
+            totalOkItems += checklistItems.filter(
+              entry => entry.item.value,
+            ).length;
+            totalIssueItems += checklistItems.filter(
+              entry => !entry.item.value,
+            ).length;
+          }
 
           const prePhotos: { url: string; caption?: string }[] = [];
           const thermoPhotos: { url: string; caption?: string }[] = [];
@@ -359,6 +371,8 @@ export default function SessionHistoryScreen() {
               hasAccess: detail.hasAccess?.value ?? true,
             },
             patData: {
+              executionStatus,
+              reprogramComment,
               maintenanceType: detail.maintenanceType || null,
               preMeasurement: detail.preMeasurement || '',
               preMeasurementPhoto,

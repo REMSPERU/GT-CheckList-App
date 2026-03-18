@@ -39,8 +39,11 @@ interface ChecklistItem {
 }
 
 type MaintenanceType = 'conventional' | 'conductive-cement' | null;
+type ExecutionStatus = 'completed' | 'reprogrammed';
 
 interface GroundingWellSession {
+  executionStatus: ExecutionStatus;
+  reprogramComment: string;
   preMeasurement: string;
   preMeasurementPhoto: string | null;
   greaseApplicationPhoto: string | null;
@@ -97,6 +100,8 @@ const defaultItem: ChecklistItem = {
 };
 
 const defaultSession: GroundingWellSession = {
+  executionStatus: 'completed',
+  reprogramComment: '',
   preMeasurement: '',
   preMeasurementPhoto: null,
   greaseApplicationPhoto: null,
@@ -556,64 +561,75 @@ export default function GroundingWellChecklistScreen() {
       return;
     }
 
-    // Validaciones nuevos campos
-    const requiredChecks: [boolean, string][] = [
-      [
-        !data.preMeasurement.trim(),
-        'Ingrese la medición pre-mantenimiento (ohmios).',
-      ],
-      [
-        !data.preMeasurementPhoto,
-        'Tome una foto de la medición pre-mantenimiento.',
-      ],
-      [
-        !data.greaseApplicationPhoto,
-        'Tome una foto de la aplicación de grasa.',
-      ],
-      [!data.maintenanceType, 'Seleccione el tipo de mantenimiento.'],
-      [
-        data.maintenanceType === 'conventional' && !data.thorGelPhoto,
-        'Tome una foto de la aplicación de Thor Gel.',
-      ],
-      [
-        !data.postMeasurement.trim(),
-        'Ingrese la medición post-mantenimiento (ohmios).',
-      ],
-      [
-        !data.postMeasurementPhoto,
-        'Tome una foto de la medición post-mantenimiento.',
-      ],
-      [data.lidStatus === null, 'Seleccione el estado de la tapa.'],
-      [
-        data.lidStatus === 'bad' && !data.lidStatusObservation,
-        'Ingrese una observación para el estado de la tapa.',
-      ],
-      [
-        data.lidStatus === 'bad' && !data.lidStatusPhoto,
-        'Tome una foto para el estado de la tapa.',
-      ],
-    ];
+    const isReprogrammed = data.executionStatus === 'reprogrammed';
 
-    for (const [condition, message] of requiredChecks) {
-      if (condition) {
-        Alert.alert('Campo requerido', message);
-        return;
-      }
+    if (isReprogrammed && !data.reprogramComment.trim()) {
+      Alert.alert(
+        'Campo requerido',
+        'Ingrese un comentario para registrar la reprogramación.',
+      );
+      return;
     }
 
-    for (const key of checklistKeys) {
-      const item = data[key] as ChecklistItem;
-      if (!item.value) {
-        if (!item.observation) {
-          Alert.alert(
-            'Campo requerido',
-            `Ingrese una observación para "${key}".`,
-          );
+    if (!isReprogrammed) {
+      const requiredChecks: [boolean, string][] = [
+        [
+          !data.preMeasurement.trim(),
+          'Ingrese la medición pre-mantenimiento (ohmios).',
+        ],
+        [
+          !data.preMeasurementPhoto,
+          'Tome una foto de la medición pre-mantenimiento.',
+        ],
+        [
+          !data.greaseApplicationPhoto,
+          'Tome una foto de la aplicación de grasa.',
+        ],
+        [!data.maintenanceType, 'Seleccione el tipo de mantenimiento.'],
+        [
+          data.maintenanceType === 'conventional' && !data.thorGelPhoto,
+          'Tome una foto de la aplicación de Thor Gel.',
+        ],
+        [
+          !data.postMeasurement.trim(),
+          'Ingrese la medición post-mantenimiento (ohmios).',
+        ],
+        [
+          !data.postMeasurementPhoto,
+          'Tome una foto de la medición post-mantenimiento.',
+        ],
+        [data.lidStatus === null, 'Seleccione el estado de la tapa.'],
+        [
+          data.lidStatus === 'bad' && !data.lidStatusObservation,
+          'Ingrese una observación para el estado de la tapa.',
+        ],
+        [
+          data.lidStatus === 'bad' && !data.lidStatusPhoto,
+          'Tome una foto para el estado de la tapa.',
+        ],
+      ];
+
+      for (const [condition, message] of requiredChecks) {
+        if (condition) {
+          Alert.alert('Campo requerido', message);
           return;
         }
-        if (!item.photo) {
-          Alert.alert('Campo requerido', `Tome una foto para "${key}".`);
-          return;
+      }
+
+      for (const key of checklistKeys) {
+        const item = data[key] as ChecklistItem;
+        if (!item.value) {
+          if (!item.observation) {
+            Alert.alert(
+              'Campo requerido',
+              `Ingrese una observación para "${key}".`,
+            );
+            return;
+          }
+          if (!item.photo) {
+            Alert.alert('Campo requerido', `Tome una foto para "${key}".`);
+            return;
+          }
         }
       }
     }
@@ -661,7 +677,11 @@ export default function GroundingWellChecklistScreen() {
 
       await AsyncStorage.removeItem(sessionKey);
       setSaveStatus('guardado-local');
-      setStatusMessage('Guardado local. Pendiente de sincronizar');
+      setStatusMessage(
+        data.executionStatus === 'reprogrammed'
+          ? 'Pozo reprogramado. Pendiente de sincronizar'
+          : 'Guardado local. Pendiente de sincronizar',
+      );
 
       if (maintenanceId) {
         await DatabaseService.updateLocalScheduledMaintenanceStatus(
@@ -806,6 +826,61 @@ export default function GroundingWellChecklistScreen() {
         keyboardShouldPersistTaps="handled">
         {/* ═══ SECCIÓN: Mediciones y Mantenimiento ═══ */}
         <Text style={styles.sectionTitle}>Mediciones y Mantenimiento</Text>
+
+        <View style={styles.card}>
+          <View style={styles.labelRow}>
+            <View style={styles.iconContainer}>
+              <MaterialCommunityIcons
+                name="calendar-refresh-outline"
+                size={16}
+                color={COLORS.primary}
+              />
+            </View>
+            <Text style={styles.labelSmall}>Resultado de la Ejecución</Text>
+          </View>
+          <View style={styles.typeContainer}>
+            <TypeOption
+              label="Completado"
+              selected={data.executionStatus === 'completed'}
+              onPress={() =>
+                updateData(
+                  { executionStatus: 'completed', reprogramComment: '' },
+                  { persistDraft: true },
+                )
+              }
+            />
+            <TypeOption
+              label="Reprogramado"
+              selected={data.executionStatus === 'reprogrammed'}
+              onPress={() =>
+                updateData(
+                  { executionStatus: 'reprogrammed' },
+                  { persistDraft: true },
+                )
+              }
+            />
+          </View>
+
+          {data.executionStatus === 'reprogrammed' && (
+            <>
+              <TextInput
+                style={styles.obsInput}
+                placeholder="Indique por qué no se pudo concretar..."
+                placeholderTextColor={COLORS.textMuted}
+                value={data.reprogramComment}
+                onChangeText={text => updateData({ reprogramComment: text })}
+                onBlur={persistCurrentDraft}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+              <Text style={styles.reprogramHint}>
+                Se registrará como reprogramado en el informe y quedará
+                finalizado para continuar con el cierre de la sesión.
+              </Text>
+            </>
+          )}
+        </View>
 
         {/* 1. Medición Pre */}
         <View style={styles.card}>
@@ -1092,7 +1167,11 @@ export default function GroundingWellChecklistScreen() {
           style={styles.continueBtn}
           onPress={handleContinue}
           activeOpacity={0.8}>
-          <Text style={styles.continueBtnText}>Guardar y Continuar</Text>
+          <Text style={styles.continueBtnText}>
+            {data.executionStatus === 'reprogrammed'
+              ? 'Reprogramar y Finalizar'
+              : 'Guardar y Continuar'}
+          </Text>
           <Ionicons
             name="arrow-forward"
             size={18}
@@ -1342,6 +1421,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.text,
     backgroundColor: COLORS.borderLight,
+  },
+  reprogramHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
   },
 
   // Thumbnail

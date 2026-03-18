@@ -247,6 +247,8 @@ interface PATChecklistItem {
 }
 
 interface PATEquipmentData {
+  executionStatus?: 'completed' | 'reprogrammed' | null;
+  reprogramComment?: string;
   maintenanceType?: 'conventional' | 'conductive-cement' | null;
   preMeasurement?: string;
   preMeasurementPhoto?: string | null;
@@ -273,6 +275,9 @@ function getPatData(eq: any): PATEquipmentData {
   const pat = (eq?.patData || {}) as PATEquipmentData;
 
   return {
+    executionStatus:
+      pat.executionStatus === 'reprogrammed' ? 'reprogrammed' : 'completed',
+    reprogramComment: pat.reprogramComment || '',
     maintenanceType: pat.maintenanceType || null,
     preMeasurement: pat.preMeasurement || eq.voltage || '',
     preMeasurementPhoto: pat.preMeasurementPhoto || null,
@@ -288,6 +293,15 @@ function getPatData(eq: any): PATEquipmentData {
     connectorsOk: pat.connectorsOk,
     hasAccess: pat.hasAccess,
   };
+}
+
+function isReprogrammedPAT(eq: any): boolean {
+  const pat = getPatData(eq);
+  return pat.executionStatus === 'reprogrammed';
+}
+
+function getCompletedPATEquipments(data: MaintenanceSessionReport): any[] {
+  return data.equipments.filter(eq => !isReprogrammedPAT(eq));
 }
 
 function renderPhoto(
@@ -452,9 +466,15 @@ function generateWellListingAndPreMeasurementPages(
   data: MaintenanceSessionReport,
 ): string {
   const equipments = data.equipments;
+  const measurableEquipments = getCompletedPATEquipments(data);
   const totalWells = equipments.length;
+  const totalMeasurableWells = measurableEquipments.length;
   const inlineMeasurementCount =
-    totalWells <= 4 ? totalWells : totalWells <= 6 ? 3 : 0;
+    totalMeasurableWells <= 4
+      ? totalMeasurableWells
+      : totalMeasurableWells <= 6
+        ? 3
+        : 0;
 
   let pages = `
     <div class="page">
@@ -505,7 +525,7 @@ function generateWellListingAndPreMeasurementPages(
           ? `
       <h2>5.- MEDICIONES DE LA RESISTENCIA DE LOS POZOS A TIERRA ANTES DEL MANTENIMIENTO</h2>
       <div class="measurement-grid">
-        ${equipments
+        ${measurableEquipments
           .slice(0, inlineMeasurementCount)
           .map((eq, i) => renderPreMeasurementBlock(eq, i + 1))
           .join('')}
@@ -516,22 +536,25 @@ function generateWellListingAndPreMeasurementPages(
     </div>
   `;
 
-  pages += generatePreMeasurementPages(data, inlineMeasurementCount);
+  pages += generatePreMeasurementPages(
+    measurableEquipments,
+    inlineMeasurementCount,
+  );
   return pages;
 }
 
 function generatePreMeasurementPages(
-  data: MaintenanceSessionReport,
+  equipments: any[],
   startIndex = 0,
 ): string {
-  const equipments = data.equipments.slice(startIndex);
-  if (equipments.length === 0) return '';
+  const measurableEquipments = equipments.slice(startIndex);
+  if (measurableEquipments.length === 0) return '';
   const globalStart = startIndex;
   let pages = '';
   const perPage = 6;
 
-  for (let i = 0; i < equipments.length; i += perPage) {
-    const batch = equipments.slice(i, i + perPage);
+  for (let i = 0; i < measurableEquipments.length; i += perPage) {
+    const batch = measurableEquipments.slice(i, i + perPage);
     const isFirst = i === 0;
 
     pages += `
@@ -564,7 +587,7 @@ function generateTreatmentPages(data: MaintenanceSessionReport): string {
   const seenThor = new Set<string>();
   const seenGrease = new Set<string>();
 
-  data.equipments.forEach((eq, index) => {
+  getCompletedPATEquipments(data).forEach((eq, index) => {
     const pat = getPatData(eq as any);
     const wellLabel = eq.label || `Pozo ${index + 1}`;
 
@@ -581,7 +604,7 @@ function generateTreatmentPages(data: MaintenanceSessionReport): string {
     }
 
     if (!explicitThor || !explicitGrease) {
-      eq.postPhotos.forEach(p => {
+      eq.postPhotos.forEach((p: { url: string; caption?: string }) => {
         const caption = (p.caption || '').toLowerCase();
         if (!explicitThor && caption.includes('thor') && !seenThor.has(p.url)) {
           thorGelPhotos.push({ url: p.url, wellLabel });
@@ -684,7 +707,8 @@ function generateTreatmentPages(data: MaintenanceSessionReport): string {
 }
 
 function generatePostMeasurementPages(data: MaintenanceSessionReport): string {
-  const equipments = data.equipments;
+  const equipments = getCompletedPATEquipments(data);
+  if (equipments.length === 0) return '';
   let pages = '';
   const perPage = 6;
 
@@ -708,8 +732,10 @@ function generatePostMeasurementPages(data: MaintenanceSessionReport): string {
             const pat = getPatData(eq as any);
             const measurePhoto =
               pat.postMeasurementPhoto ||
-              eq.thermoPhotos.find(photo => photo.caption === 'postMeasurement')
-                ?.url ||
+              eq.thermoPhotos.find(
+                (photo: { url: string; caption?: string }) =>
+                  photo.caption === 'postMeasurement',
+              )?.url ||
               (eq.thermoPhotos.length > 1
                 ? eq.thermoPhotos[eq.thermoPhotos.length - 1].url
                 : null);
@@ -797,6 +823,30 @@ function generateInspectionChecklistPages(
           .map((eq, index) => {
             const absoluteIndex = absoluteIndexOffset + index;
             const pat = getPatData(eq as any);
+            const isReprogrammed = pat.executionStatus === 'reprogrammed';
+
+            if (isReprogrammed) {
+              return `
+                <div class="inspection-block">
+                  <h2 style="margin-top: ${index === 0 ? '4px' : '10px'};">POZO ${absoluteIndex + 1}: ${eq.label || 'SIN DENOMINACIÓN'}</h2>
+                  <table class="data-table">
+                    <tr>
+                      <th>ÍTEM</th>
+                      <th>ESTADO / DETALLE</th>
+                    </tr>
+                    <tr>
+                      <td>ESTADO DE EJECUCIÓN</td>
+                      <td>REPROGRAMADO</td>
+                    </tr>
+                    <tr>
+                      <td>COMENTARIO</td>
+                      <td>${pat.reprogramComment?.trim() || 'Sin comentario registrado por el técnico.'}</td>
+                    </tr>
+                  </table>
+                </div>
+              `;
+            }
+
             const lidStatusLabel = formatPatState(pat.lidStatus);
 
             const checklistRows = [
