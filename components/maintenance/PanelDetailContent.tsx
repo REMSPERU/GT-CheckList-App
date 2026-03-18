@@ -11,6 +11,12 @@ const formatConditionKey = (key: string) => {
     .replace(/_/g, ' ');
 };
 
+const hasRenderableValue = (value: unknown) => {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  return true;
+};
+
 export interface PanelDetailProps {
   data: {
     rotulo: string;
@@ -152,30 +158,32 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = memo(
               </View>
 
               {/* IT-G Technical Details */}
-              {(itg.amperaje || itg.diametro_cable || itg.tipo_cable) && (
+              {hasRenderableValue(itg.amperaje) ||
+              hasRenderableValue(itg.diametro_cable) ||
+              hasRenderableValue(itg.tipo_cable) ? (
                 <View style={styles.itgTechDetails}>
-                  {itg.amperaje && (
+                  {hasRenderableValue(itg.amperaje) ? (
                     <View style={styles.itgTechItem}>
                       <Text style={styles.itgTechLabel}>Amperaje</Text>
                       <Text style={styles.itgTechValue}>{itg.amperaje}A</Text>
                     </View>
-                  )}
-                  {itg.diametro_cable && (
+                  ) : null}
+                  {hasRenderableValue(itg.diametro_cable) ? (
                     <View style={styles.itgTechItem}>
                       <Text style={styles.itgTechLabel}>Diámetro</Text>
                       <Text style={styles.itgTechValue}>
                         {itg.diametro_cable} mm²
                       </Text>
                     </View>
-                  )}
-                  {itg.tipo_cable && (
+                  ) : null}
+                  {hasRenderableValue(itg.tipo_cable) ? (
                     <View style={styles.itgTechItem}>
                       <Text style={styles.itgTechLabel}>Cable</Text>
                       <Text style={styles.itgTechValue}>{itg.tipo_cable}</Text>
                     </View>
-                  )}
+                  ) : null}
                 </View>
-              )}
+              ) : null}
             </View>
 
             {/* ITMs List */}
@@ -218,11 +226,12 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = memo(
                           <Text style={styles.phaseText}>{itm.fases}</Text>
                         </View>
                       </View>
-                      {itm.tipo !== 'ID' && itm.suministra && (
+                      {itm.tipo !== 'ID' &&
+                      hasRenderableValue(itm.suministra) ? (
                         <Text style={styles.circuitSupplyText}>
                           {itm.suministra}
                         </Text>
-                      )}
+                      ) : null}
                       <Text style={styles.cableInfoText}>
                         {itm.tipo_cable} • {itm.diametro_cable} mm²
                       </Text>
@@ -243,12 +252,12 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = memo(
                       <Text style={styles.diffValueActive}>
                         {itm.diferencial.amperaje}A - {itm.diferencial.fases}
                       </Text>
-                      {itm.diferencial.tipo_cable && (
+                      {hasRenderableValue(itm.diferencial.tipo_cable) ? (
                         <Text style={styles.diffCableActive}>
                           {itm.diferencial.tipo_cable} |{' '}
                           {itm.diferencial.diametro_cable} mm²
                         </Text>
-                      )}
+                      ) : null}
                     </View>
                   )}
 
@@ -286,11 +295,11 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = memo(
                                     </Text>
                                   </View>
                                 </View>
-                                {subItm.suministra && (
+                                {hasRenderableValue(subItm.suministra) ? (
                                   <Text style={styles.subItmSupply}>
                                     {subItm.suministra}
                                   </Text>
-                                )}
+                                ) : null}
                                 <Text style={styles.subItmCable}>
                                   {subItm.tipo_cable} • {subItm.diametro_cable}{' '}
                                   mm²
@@ -315,12 +324,14 @@ export const PanelDetailContent: React.FC<PanelDetailProps> = memo(
                                   {subItm.diferencial.amperaje}A -{' '}
                                   {subItm.diferencial.fases}
                                 </Text>
-                                {subItm.diferencial.tipo_cable && (
+                                {hasRenderableValue(
+                                  subItm.diferencial.tipo_cable,
+                                ) ? (
                                   <Text style={styles.subItmDiffCable}>
                                     {subItm.diferencial.tipo_cable} |{' '}
                                     {subItm.diferencial.diametro_cable} mm²
                                   </Text>
-                                )}
+                                ) : null}
                               </View>
                             )}
                           </View>
