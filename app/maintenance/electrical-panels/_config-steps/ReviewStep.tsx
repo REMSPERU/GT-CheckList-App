@@ -34,7 +34,8 @@ function ReviewStep({ panel }: ReviewStepProps) {
       prefijo: itg.cnPrefix,
       fases: itg.phaseITG || '',
       itms: itg.circuits.map((itm, cIdx) => ({
-        id: `${itg.cnPrefix}${cIdx + 1}`,
+        id: `${itg.cnPrefix}-${cIdx + 1}`,
+        ...(itm.name && itm.name.trim() !== '' && { nombre: itm.name.trim() }),
         tipo: (itm.interruptorType === 'id'
           ? 'ID'
           : itm.interruptorType === 'reserva'
@@ -61,7 +62,7 @@ function ReviewStep({ panel }: ReviewStepProps) {
             itm.subITMs &&
             itm.subITMs.length > 0)
             ? itm.subITMs?.map((sub, sIdx) => ({
-                id: `${itg.cnPrefix}${cIdx + 1}-${sIdx + 1}`,
+                id: `${itg.cnPrefix}-${cIdx + 1}-${sIdx + 1}`,
                 nombre:
                   sub.name && sub.name.trim() !== ''
                     ? sub.name

@@ -38,7 +38,7 @@ export default function MaintenanceResponseDetailScreen() {
           user_created,
           detail_maintenance,
           date_created,
-          user:user_created (
+          users:user_created (
             first_name,
             last_name,
             email
