@@ -238,6 +238,14 @@ const SubITMFormItem = memo(function SubITMFormItem({
               value={value || ''}
               onChangeText={onChange}
               onBlur={onBlur}
+              autoCorrect={false}
+              spellCheck={false}
+              autoCapitalize="none"
+              autoComplete="off"
+              textContentType="none"
+              importantForAutofill="no"
+              smartInsertDelete={false}
+              underlineColorAndroid="transparent"
               placeholder={`${subITMsPrefix || 'ITM'} ${subIdx + 1}`}
               placeholderTextColor="#9CA3AF"
             />
@@ -543,13 +551,23 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
     return actualArray?.length || 0;
   });
 
-  const customName = useWatch({
-    control,
-    name: `${prefix}.name`,
+  const [localCircuitName, setLocalCircuitName] = useState(() => {
+    const currentName = getValues(`${prefix}.name` as any);
+    return typeof currentName === 'string' ? currentName : '';
   });
+
+  const commitCircuitName = useCallback(() => {
+    const trimmed = localCircuitName.trim();
+    setValue(`${prefix}.name` as any, trimmed === '' ? undefined : trimmed, {
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+    setLocalCircuitName(trimmed);
+  }, [localCircuitName, prefix, setValue]);
+
   const displayName =
-    customName && customName.trim() !== ''
-      ? customName
+    localCircuitName && localCircuitName.trim() !== ''
+      ? localCircuitName
       : `${cnPrefix || 'CN'}-${index + 1}`;
 
   // Syncs subITMs array length with the desired count, preserving existing data.
@@ -729,27 +747,25 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
     <View style={[styles.cnCard, hasErrors && errorBorderStyle]}>
       {/* Header con TextInput y toggle */}
       <View style={styles.cnCardHeader}>
-        <Controller
-          control={control}
-          name={`${prefix}.name`}
-          render={({ field: { onChange, onBlur, value } }) => (
-            <View style={localStyles.editableNameContainer}>
-              <TextInput
-                style={[styles.cnTitle, localStyles.editableTextInput]}
-                value={
-                  value !== undefined
-                    ? value
-                    : `${cnPrefix || 'CN'}-${index + 1}`
-                }
-                onChangeText={onChange}
-                onBlur={onBlur}
-                placeholder={`${cnPrefix || 'CN'}-${index + 1}`}
-                placeholderTextColor="#9CA3AF"
-              />
-              <Ionicons name="pencil" size={12} color="#6B7280" />
-            </View>
-          )}
-        />
+        <View style={localStyles.editableNameContainer}>
+          <TextInput
+            style={[styles.cnTitle, localStyles.editableTextInput]}
+            value={localCircuitName}
+            onChangeText={setLocalCircuitName}
+            onBlur={commitCircuitName}
+            autoCorrect={false}
+            spellCheck={false}
+            autoCapitalize="none"
+            autoComplete="off"
+            textContentType="none"
+            importantForAutofill="no"
+            smartInsertDelete={false}
+            underlineColorAndroid="transparent"
+            placeholder={`${cnPrefix || 'CN'}-${index + 1}`}
+            placeholderTextColor="#9CA3AF"
+          />
+          <Ionicons name="pencil" size={12} color="#6B7280" />
+        </View>
         <TouchableOpacity
           style={localStyles.toggleArea}
           onPress={() => onToggleExpand(index)}
@@ -1274,6 +1290,8 @@ const localStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flex: 1,
+    minWidth: 0,
     backgroundColor: '#F3F4F6',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -1283,6 +1301,7 @@ const localStyles = StyleSheet.create({
   editableTextInput: {
     padding: 0,
     margin: 0,
+    flex: 1,
     minWidth: 40,
     fontSize: 14,
   },
