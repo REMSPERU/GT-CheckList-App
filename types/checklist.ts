@@ -18,7 +18,6 @@ export interface ChecklistQuestionAnswer {
 export interface ChecklistResponsePayload {
   equipamentoId: string;
   equipoId: string;
-  mantenimientoId?: string | null;
   respuestas: ChecklistQuestionAnswer[];
   observacionGeneral?: string;
   createdAt: string;
