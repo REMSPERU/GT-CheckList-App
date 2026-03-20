@@ -36,7 +36,8 @@ export class SupabaseEquipamentoService {
         equipamentos (
           id,
           nombre,
-          abreviatura
+          abreviatura,
+          frecuencia
         )
       `,
         { count: 'exact' },
@@ -56,6 +57,7 @@ export class SupabaseEquipamentoService {
             id: equipamento.id,
             nombre: equipamento.nombre,
             abreviatura: equipamento.abreviatura,
+            frecuencia: equipamento.frecuencia,
           } as EquipamentoResponse;
         })
         .filter((item): item is EquipamentoResponse => item !== null) || [];

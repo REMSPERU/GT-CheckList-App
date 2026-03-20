@@ -67,6 +67,7 @@ export async function getEquipamentosByProperty(propertyId: string) {
     const rows = await db.getAllAsync(
       `
         SELECT e.id, e.nombre, e.abreviatura
+             , e.frecuencia
         FROM local_equipamentos e
         JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
         WHERE ep.id_property = ?
@@ -460,4 +461,28 @@ export async function getInstrumentsByEquipmentType(equipmentTypeId: string) {
     'SELECT * FROM local_instrumentos WHERE equipamento = ?',
     [equipmentTypeId],
   );
+}
+
+export async function getChecklistQuestionsByEquipamento(
+  equipamentoId: string,
+) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+    const rows = (await db.getAllAsync(
+      `
+        SELECT id, equipamento_id, pregunta, orden, activa, created_at, updated_at
+        FROM local_preguntas_equipamento
+        WHERE equipamento_id = ?
+          AND activa = 1
+        ORDER BY orden ASC
+      `,
+      [equipamentoId],
+    )) as any[];
+
+    return rows.map(row => ({
+      ...row,
+      activa: row.activa === 1,
+    }));
+  });
 }
