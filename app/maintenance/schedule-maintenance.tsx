@@ -37,6 +37,11 @@ export default function ScheduleMaintenanceScreen() {
   // State
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const initialMonth = new Date();
+    initialMonth.setDate(1);
+    return initialMonth;
+  });
   const [time, setTime] = useState('12:00 PM'); // String for simplicity in custom picker
   const [showTimePicker, setShowTimePicker] = useState(false);
 
@@ -97,6 +102,63 @@ export default function ScheduleMaintenanceScreen() {
   }
 
   // Date Logic
+  const normalizeDate = (value: Date) => {
+    const normalized = new Date(value);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  };
+
+  const minSelectableDate = normalizeDate(new Date());
+  const maxSelectableDate = (() => {
+    const maxDate = normalizeDate(new Date());
+    maxDate.setMonth(maxDate.getMonth() + 3);
+    return maxDate;
+  })();
+
+  const minMonth = new Date(minSelectableDate);
+  minMonth.setDate(1);
+
+  const maxMonth = new Date(maxSelectableDate);
+  maxMonth.setDate(1);
+
+  const currentMonth = calendarMonth.getMonth();
+  const currentYear = calendarMonth.getFullYear();
+
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const firstWeekDay =
+    (new Date(currentYear, currentMonth, 1).getDay() + 6) % 7;
+
+  const monthLabel = calendarMonth.toLocaleDateString('es-PE', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const weekDays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+  const canGoPrevMonth =
+    currentYear > minMonth.getFullYear() ||
+    (currentYear === minMonth.getFullYear() &&
+      currentMonth > minMonth.getMonth());
+
+  const canGoNextMonth =
+    currentYear < maxMonth.getFullYear() ||
+    (currentYear === maxMonth.getFullYear() &&
+      currentMonth < maxMonth.getMonth());
+
+  const changeCalendarMonth = (direction: 'prev' | 'next') => {
+    const nextMonth = new Date(calendarMonth);
+    nextMonth.setDate(1);
+    nextMonth.setMonth(nextMonth.getMonth() + (direction === 'prev' ? -1 : 1));
+    setCalendarMonth(nextMonth);
+  };
+
+  const openDatePicker = () => {
+    const selectedMonth = new Date(date);
+    selectedMonth.setDate(1);
+    setCalendarMonth(selectedMonth);
+    setShowDatePicker(true);
+  };
+
   const handleDateConfirm = (selectedDate: Date) => {
     setDate(selectedDate);
     setShowDatePicker(false);
@@ -232,9 +294,7 @@ export default function ScheduleMaintenanceScreen() {
           {/* Maintenance Details */}
           <Text style={styles.sectionTitle}>Detalles del Mantenimiento</Text>
           <View style={styles.row}>
-            <TouchableOpacity
-              style={styles.inputCard}
-              onPress={() => setShowDatePicker(true)}>
+            <TouchableOpacity style={styles.inputCard} onPress={openDatePicker}>
               <View style={styles.inputLabelRow}>
                 <Ionicons name="calendar-outline" size={20} color="#374151" />
                 <View style={styles.dateTextContainer}>
@@ -417,39 +477,76 @@ export default function ScheduleMaintenanceScreen() {
               { paddingBottom: 20 + Math.max(insets.bottom, 12) },
             ]}>
             <Text style={styles.modalTitle}>Seleccionar Fecha</Text>
-            {/* Simple list of next 30 days for demo "good UI" without native dep complexity */}
-            <ScrollView style={{ maxHeight: 300 }}>
-              {Array.from({ length: 30 }).map((_, i) => {
-                const d = new Date();
-                d.setDate(d.getDate() + i);
-                const isSelected = d.toDateString() === date.toDateString();
+            <View style={styles.calendarHeader}>
+              <TouchableOpacity
+                style={[
+                  styles.calendarNavButton,
+                  !canGoPrevMonth && styles.calendarNavButtonDisabled,
+                ]}
+                disabled={!canGoPrevMonth}
+                onPress={() => changeCalendarMonth('prev')}>
+                <Ionicons name="chevron-back" size={18} color="#374151" />
+              </TouchableOpacity>
+
+              <Text style={styles.calendarMonthLabel}>{monthLabel}</Text>
+
+              <TouchableOpacity
+                style={[
+                  styles.calendarNavButton,
+                  !canGoNextMonth && styles.calendarNavButtonDisabled,
+                ]}
+                disabled={!canGoNextMonth}
+                onPress={() => changeCalendarMonth('next')}>
+                <Ionicons name="chevron-forward" size={18} color="#374151" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.weekDaysRow}>
+              {weekDays.map((day, index) => (
+                <Text key={`weekday-${index}`} style={styles.weekDayText}>
+                  {day}
+                </Text>
+              ))}
+            </View>
+
+            <View style={styles.calendarGrid}>
+              {Array.from({ length: firstWeekDay }).map((_, index) => (
+                <View key={`empty-${index}`} style={styles.calendarCell} />
+              ))}
+
+              {Array.from({ length: daysInMonth }).map((_, index) => {
+                const dayNumber = index + 1;
+                const dayDate = new Date(currentYear, currentMonth, dayNumber);
+                const normalizedDay = normalizeDate(dayDate);
+                const isDisabled =
+                  normalizedDay < minSelectableDate ||
+                  normalizedDay > maxSelectableDate;
+                const isSelected =
+                  normalizedDay.getTime() === normalizeDate(date).getTime();
+
                 return (
-                  <TouchableOpacity
-                    key={i}
-                    style={[
-                      styles.modalOption,
-                      isSelected && styles.modalOptionSelected,
-                    ]}
-                    onPress={() => handleDateConfirm(d)}>
-                    <Text
+                  <View key={`day-${dayNumber}`} style={styles.calendarCell}>
+                    <TouchableOpacity
                       style={[
-                        styles.modalOptionText,
-                        isSelected && styles.modalOptionTextSelected,
-                      ]}>
-                      {d.toLocaleDateString(undefined, {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
-                    </Text>
-                    {isSelected && (
-                      <Ionicons name="checkmark" size={20} color="#0891B2" />
-                    )}
-                  </TouchableOpacity>
+                        styles.calendarDayButton,
+                        isSelected && styles.calendarDayButtonSelected,
+                        isDisabled && styles.calendarDayButtonDisabled,
+                      ]}
+                      disabled={isDisabled}
+                      onPress={() => handleDateConfirm(dayDate)}>
+                      <Text
+                        style={[
+                          styles.calendarDayText,
+                          isSelected && styles.calendarDayTextSelected,
+                          isDisabled && styles.calendarDayTextDisabled,
+                        ]}>
+                        {dayNumber}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 );
               })}
-            </ScrollView>
+            </View>
             <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowDatePicker(false)}>
@@ -894,5 +991,81 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 16,
     fontWeight: '500',
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  calendarNavButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarNavButtonDisabled: {
+    opacity: 0.4,
+  },
+  calendarMonthLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    textTransform: 'capitalize',
+  },
+  weekDaysRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  weekDayText: {
+    width: '14.2857%',
+    textAlign: 'center',
+    color: '#6B7280',
+    fontSize: 12,
+    fontWeight: '600',
+    paddingVertical: 8,
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  calendarCell: {
+    width: '14.2857%',
+    paddingVertical: 3,
+    alignItems: 'center',
+  },
+  calendarDayButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarDayButtonSelected: {
+    backgroundColor: '#0891B2',
+  },
+  calendarDayButtonDisabled: {
+    opacity: 0.35,
+  },
+  calendarDayText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  calendarDayTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  calendarDayTextDisabled: {
+    color: '#9CA3AF',
+  },
+  calendarRangeHint: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 10,
   },
 });
