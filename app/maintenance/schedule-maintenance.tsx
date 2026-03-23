@@ -9,6 +9,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import {
   SafeAreaView,
@@ -21,6 +23,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useTechnicians, useCreateMaintenance } from '@/hooks/use-maintenance';
 import { useUserRole } from '@/hooks/use-user-role';
 import { MaintenanceTypeEnum } from '@/types/api';
+
+const TIME_WHEEL_ITEM_HEIGHT = 44;
+const TIME_WHEEL_SIDE_SPACER = TIME_WHEEL_ITEM_HEIGHT;
 
 export default function ScheduleMaintenanceScreen() {
   const router = useRouter();
@@ -42,7 +47,7 @@ export default function ScheduleMaintenanceScreen() {
     initialMonth.setDate(1);
     return initialMonth;
   });
-  const [time, setTime] = useState('12:00 PM'); // String for simplicity in custom picker
+  const [time, setTime] = useState('12:00 PM');
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   const [maintenanceType, setMaintenanceType] = useState<MaintenanceTypeEnum>(
@@ -57,6 +62,9 @@ export default function ScheduleMaintenanceScreen() {
   // Prevent double submission
   const isSubmitting = useRef(false);
   const formScrollRef = useRef<ScrollView>(null);
+  const hourScrollRef = useRef<ScrollView>(null);
+  const minuteScrollRef = useRef<ScrollView>(null);
+  const periodScrollRef = useRef<ScrollView>(null);
 
   // Role check
   const { canScheduleMaintenance, isLoaded: roleLoaded } = useUserRole();
@@ -165,19 +173,121 @@ export default function ScheduleMaintenanceScreen() {
   };
 
   // Time Logic
-  const times = Array.from({ length: 24 * 2 }).map((_, i) => {
-    const totalMinutes = i * 30;
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    const period = h < 12 ? 'AM' : 'PM';
-    const displayH = h % 12 || 12;
-    const displayM = m === 0 ? '00' : m;
-    return `${displayH}:${displayM} ${period}`;
-  });
+  const formatTwoDigits = (value: number) => String(value).padStart(2, '0');
+
+  const parseTime = (value: string) => {
+    const [rawClock = '', rawPeriod = 'PM'] = value.trim().split(' ');
+    const [rawHour, rawMinute] = rawClock.split(':').map(Number);
+    const hour = Number.isFinite(rawHour) ? rawHour : 12;
+    const minute = Number.isFinite(rawMinute) ? rawMinute : 0;
+    const period: 'AM' | 'PM' = rawPeriod === 'AM' ? 'AM' : 'PM';
+
+    return {
+      hour: Math.min(Math.max(hour, 1), 12),
+      minute: Math.min(Math.max(minute, 0), 59),
+      period,
+    };
+  };
+
+  const formatTimeLabel = (value: string) => value;
+
+  const hours = Array.from({ length: 12 }, (_, i) => i + 1);
+  const minuteSteps = Array.from({ length: 12 }, (_, i) => i * 5);
+  const periods: ('AM' | 'PM')[] = ['AM', 'PM'];
+
+  const {
+    hour: selectedHour,
+    minute: selectedMinute,
+    period: selectedPeriod,
+  } = parseTime(time);
+
+  const getNearestMinuteStepIndex = (minute: number) => {
+    const nearestMinute = Math.round(minute / 5) * 5;
+    const clampedMinute = Math.min(Math.max(nearestMinute, 0), 55);
+    return minuteSteps.indexOf(clampedMinute);
+  };
+
+  const selectedMinuteStep =
+    minuteSteps[getNearestMinuteStepIndex(selectedMinute)];
+
+  const buildTimeValue = (hour: number, minute: number, period: 'AM' | 'PM') =>
+    `${formatTwoDigits(hour)}:${formatTwoDigits(minute)} ${period}`;
+
+  const getWheelIndex = (offset: number, maxIndex: number) => {
+    const roundedIndex = Math.round(offset / TIME_WHEEL_ITEM_HEIGHT);
+    return Math.min(Math.max(roundedIndex, 0), maxIndex);
+  };
+
+  const openTimePicker = () => {
+    setShowTimePicker(true);
+
+    requestAnimationFrame(() => {
+      const currentTime = parseTime(time);
+
+      hourScrollRef.current?.scrollTo({
+        y: (currentTime.hour - 1) * TIME_WHEEL_ITEM_HEIGHT,
+        animated: false,
+      });
+      minuteScrollRef.current?.scrollTo({
+        y:
+          getNearestMinuteStepIndex(currentTime.minute) *
+          TIME_WHEEL_ITEM_HEIGHT,
+        animated: false,
+      });
+      periodScrollRef.current?.scrollTo({
+        y: (currentTime.period === 'AM' ? 0 : 1) * TIME_WHEEL_ITEM_HEIGHT,
+        animated: false,
+      });
+    });
+  };
+
+  const handleHourScrollEnd = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    const hourIndex = getWheelIndex(event.nativeEvent.contentOffset.y, 11);
+    const hourValue = hours[hourIndex];
+
+    setTime(prev => {
+      const { minute, period } = parseTime(prev);
+      return buildTimeValue(hourValue, minute, period);
+    });
+  };
+
+  const handleMinuteScrollEnd = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    const minuteIndex = getWheelIndex(event.nativeEvent.contentOffset.y, 11);
+    const minuteValue = minuteSteps[minuteIndex];
+
+    setTime(prev => {
+      const { hour, period } = parseTime(prev);
+      return buildTimeValue(hour, minuteValue, period);
+    });
+  };
+
+  const handlePeriodScrollEnd = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    const periodIndex = getWheelIndex(event.nativeEvent.contentOffset.y, 1);
+    const periodValue = periods[periodIndex];
+
+    setTime(prev => {
+      const { hour, minute } = parseTime(prev);
+      return buildTimeValue(hour, minute, periodValue);
+    });
+  };
 
   const handleCreate = async () => {
     if (createMaintenanceMutation.isPending || isSubmitting.current) {
       console.log('🚫 Intento de doble envío bloqueado');
+      return;
+    }
+
+    if (selectedTechnicians.length === 0) {
+      Alert.alert(
+        'Técnicos requeridos',
+        'Debes asignar al menos un técnico para programar el mantenimiento.',
+      );
       return;
     }
 
@@ -309,14 +419,12 @@ export default function ScheduleMaintenanceScreen() {
 
             <View style={{ width: 12 }} />
 
-            <TouchableOpacity
-              style={styles.inputCard}
-              onPress={() => setShowTimePicker(true)}>
+            <TouchableOpacity style={styles.inputCard} onPress={openTimePicker}>
               <View style={styles.inputLabelRow}>
                 <Ionicons name="time-outline" size={20} color="#374151" />
                 <View style={styles.dateTextContainer}>
                   <Text style={styles.inputLabel}>Hora Tentativa</Text>
-                  <Text style={styles.inputValue}>{time}</Text>
+                  <Text style={styles.inputValue}>{formatTimeLabel(time)}</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -446,19 +554,24 @@ export default function ScheduleMaintenanceScreen() {
             style={[
               styles.confirmButton,
               (createMaintenanceMutation.isPending ||
+                selectedTechnicians.length === 0 ||
                 !canScheduleMaintenance) &&
                 styles.disabledButton,
             ]}
             onPress={handleCreate}
             disabled={
-              createMaintenanceMutation.isPending || !canScheduleMaintenance
+              createMaintenanceMutation.isPending ||
+              selectedTechnicians.length === 0 ||
+              !canScheduleMaintenance
             }>
             <Text style={styles.confirmButtonText}>
               {createMaintenanceMutation.isPending
                 ? 'Programando...'
-                : !canScheduleMaintenance
-                  ? 'Sin permisos para programar'
-                  : 'Confirmar Programación'}
+                : selectedTechnicians.length === 0
+                  ? 'Asigna al menos un técnico'
+                  : !canScheduleMaintenance
+                    ? 'Sin permisos para programar'
+                    : 'Confirmar Programación'}
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -569,35 +682,122 @@ export default function ScheduleMaintenanceScreen() {
               { paddingBottom: 20 + Math.max(insets.bottom, 12) },
             ]}>
             <Text style={styles.modalTitle}>Seleccionar Hora</Text>
-            <ScrollView style={{ maxHeight: 300 }}>
-              {times.map(t => (
-                <TouchableOpacity
-                  key={t}
-                  style={[
-                    styles.modalOption,
-                    time === t && styles.modalOptionSelected,
-                  ]}
-                  onPress={() => {
-                    setTime(t);
-                    setShowTimePicker(false);
-                  }}>
-                  <Text
-                    style={[
-                      styles.modalOptionText,
-                      time === t && styles.modalOptionTextSelected,
-                    ]}>
-                    {t}
-                  </Text>
-                  {time === t && (
-                    <Ionicons name="checkmark" size={20} color="#0891B2" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <Text style={styles.timeHintText}>
+              Desliza para ajustar hora, minutos y AM/PM
+            </Text>
+            <View style={styles.timeWheelsRow}>
+              <View style={styles.timeWheelColumn}>
+                <Text style={styles.timeWheelLabel}>Hora</Text>
+                <View style={styles.timeWheelWrapper}>
+                  <ScrollView
+                    ref={hourScrollRef}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.timeWheelContent}
+                    snapToInterval={TIME_WHEEL_ITEM_HEIGHT}
+                    snapToAlignment="start"
+                    decelerationRate={Platform.OS === 'ios' ? 'normal' : 0.985}
+                    scrollEventThrottle={16}
+                    onMomentumScrollEnd={handleHourScrollEnd}>
+                    <View style={styles.timeWheelSpacer} />
+                    {hours.map(hour => (
+                      <View key={`hour-${hour}`} style={styles.timeWheelItem}>
+                        <Text
+                          style={[
+                            styles.timeWheelItemText,
+                            selectedHour === hour &&
+                              styles.timeWheelItemTextActive,
+                          ]}>
+                          {formatTwoDigits(hour)}
+                        </Text>
+                      </View>
+                    ))}
+                    <View style={styles.timeWheelSpacer} />
+                  </ScrollView>
+                  <View
+                    pointerEvents="none"
+                    style={styles.timeWheelCenterLine}
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.timeWheelSeparator}>:</Text>
+
+              <View style={styles.timeWheelColumn}>
+                <Text style={styles.timeWheelLabel}>Minuto</Text>
+                <View style={styles.timeWheelWrapper}>
+                  <ScrollView
+                    ref={minuteScrollRef}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.timeWheelContent}
+                    snapToInterval={TIME_WHEEL_ITEM_HEIGHT}
+                    snapToAlignment="start"
+                    decelerationRate={Platform.OS === 'ios' ? 'normal' : 0.985}
+                    scrollEventThrottle={16}
+                    onMomentumScrollEnd={handleMinuteScrollEnd}>
+                    <View style={styles.timeWheelSpacer} />
+                    {minuteSteps.map(minute => (
+                      <View
+                        key={`minute-${minute}`}
+                        style={styles.timeWheelItem}>
+                        <Text
+                          style={[
+                            styles.timeWheelItemText,
+                            selectedMinuteStep === minute &&
+                              styles.timeWheelItemTextActive,
+                          ]}>
+                          {formatTwoDigits(minute)}
+                        </Text>
+                      </View>
+                    ))}
+                    <View style={styles.timeWheelSpacer} />
+                  </ScrollView>
+                  <View
+                    pointerEvents="none"
+                    style={styles.timeWheelCenterLine}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.timePeriodColumn}>
+                <Text style={styles.timeWheelLabel}>AM/PM</Text>
+                <View style={styles.timeWheelWrapper}>
+                  <ScrollView
+                    ref={periodScrollRef}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.timeWheelContent}
+                    snapToInterval={TIME_WHEEL_ITEM_HEIGHT}
+                    snapToAlignment="start"
+                    decelerationRate={Platform.OS === 'ios' ? 'normal' : 0.985}
+                    scrollEventThrottle={16}
+                    onMomentumScrollEnd={handlePeriodScrollEnd}>
+                    <View style={styles.timeWheelSpacer} />
+                    {periods.map(period => (
+                      <View key={period} style={styles.timeWheelItem}>
+                        <Text
+                          style={[
+                            styles.timeWheelItemText,
+                            selectedPeriod === period &&
+                              styles.timeWheelItemTextActive,
+                          ]}>
+                          {period}
+                        </Text>
+                      </View>
+                    ))}
+                    <View style={styles.timeWheelSpacer} />
+                  </ScrollView>
+                  <View
+                    pointerEvents="none"
+                    style={styles.timeWheelCenterLine}
+                  />
+                </View>
+              </View>
+            </View>
+
+            <Text style={styles.timeSelectedText}>{formatTimeLabel(time)}</Text>
             <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowTimePicker(false)}>
-              <Text style={styles.modalCloseText}>Cancelar</Text>
+              <Text style={styles.modalCloseText}>Listo</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1066,6 +1266,80 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     color: '#6B7280',
+    marginTop: 10,
+  },
+  timeHintText: {
+    textAlign: 'center',
+    color: '#6B7280',
+    fontSize: 12,
+    marginBottom: 12,
+  },
+  timeWheelsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  timeWheelColumn: {
+    width: 94,
+  },
+  timePeriodColumn: {
+    width: 90,
+    marginLeft: 8,
+  },
+  timeWheelLabel: {
+    textAlign: 'center',
+    fontSize: 13,
+    color: '#4B5563',
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  timeWheelWrapper: {
+    height: TIME_WHEEL_ITEM_HEIGHT * 3,
+    position: 'relative',
+  },
+  timeWheelContent: {
+    paddingVertical: 0,
+  },
+  timeWheelSpacer: {
+    height: TIME_WHEEL_SIDE_SPACER,
+  },
+  timeWheelItem: {
+    height: TIME_WHEEL_ITEM_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timeWheelItemText: {
+    fontSize: 20,
+    color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  timeWheelItemTextActive: {
+    color: '#111827',
+    fontWeight: '700',
+  },
+  timeWheelCenterLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: TIME_WHEEL_SIDE_SPACER,
+    height: TIME_WHEEL_ITEM_HEIGHT,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  timeWheelSeparator: {
+    fontSize: 28,
+    color: '#1F2937',
+    fontWeight: '700',
+    marginHorizontal: 6,
+    marginTop: 18,
+  },
+  timeSelectedText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#1F2937',
+    fontWeight: '600',
     marginTop: 10,
   },
 });
