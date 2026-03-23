@@ -288,9 +288,11 @@ export default function ScheduleMaintenanceScreen() {
             <TouchableOpacity
               style={[
                 styles.typeButton,
+                styles.typeButtonDisabled,
                 maintenanceType === MaintenanceTypeEnum.CORRECTIVO &&
                   styles.typeButtonActive,
               ]}
+              disabled
               onPress={() =>
                 setMaintenanceType(MaintenanceTypeEnum.CORRECTIVO)
               }>
@@ -734,6 +736,9 @@ const styles = StyleSheet.create({
   typeButtonTextActive: {
     color: '#0891B2',
     fontWeight: '600',
+  },
+  typeButtonDisabled: {
+    opacity: 0.5,
   },
   accordionHeader: {
     flexDirection: 'row',
