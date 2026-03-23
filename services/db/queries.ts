@@ -67,6 +67,7 @@ export async function getEquipamentosByProperty(propertyId: string) {
     const rows = await db.getAllAsync(
       `
         SELECT e.id, e.nombre, e.abreviatura
+             , e.frecuencia
         FROM local_equipamentos e
         JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
         WHERE ep.id_property = ?
@@ -297,7 +298,7 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
       `
       SELECT 
         m.*,
-        e.id as e_id, e.codigo as e_codigo, e.ubicacion as e_ubicacion, e.id_property as e_id_property, e.equipment_detail as e_detail,
+        e.id as e_id, e.codigo as e_codigo, e.ubicacion as e_ubicacion, e.detalle_ubicacion as e_detalle_ubicacion, e.id_property as e_id_property, e.equipment_detail as e_detail,
         eq.nombre as eq_nombre,
         CASE
           WHEN EXISTS (
@@ -356,6 +357,7 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
         id: row.e_id,
         codigo: row.e_codigo,
         ubicacion: row.e_ubicacion,
+        detalle_ubicacion: row.e_detalle_ubicacion,
         id_property: row.e_id_property,
         equipment_detail: (() => {
           try {
@@ -460,4 +462,28 @@ export async function getInstrumentsByEquipmentType(equipmentTypeId: string) {
     'SELECT * FROM local_instrumentos WHERE equipamento = ?',
     [equipmentTypeId],
   );
+}
+
+export async function getChecklistQuestionsByEquipamento(
+  equipamentoId: string,
+) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+    const rows = (await db.getAllAsync(
+      `
+        SELECT id, equipamento_id, pregunta, orden, activa, created_at, updated_at
+        FROM local_preguntas_equipamento
+        WHERE equipamento_id = ?
+          AND activa = 1
+        ORDER BY orden ASC
+      `,
+      [equipamentoId],
+    )) as any[];
+
+    return rows.map(row => ({
+      ...row,
+      activa: row.activa === 1,
+    }));
+  });
 }

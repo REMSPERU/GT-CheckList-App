@@ -33,6 +33,7 @@ export async function clearMirrorTables() {
     DELETE FROM local_properties;
     DELETE FROM local_users;
     DELETE FROM local_equipamentos;
+    DELETE FROM local_preguntas_equipamento;
     DELETE FROM local_equipamentos_property;
     DELETE FROM offline_panel_configurations;
   `);
@@ -112,6 +113,7 @@ export async function bulkInsertMirrorData(
   users: any[] | null,
   instrumentos: any[] | null = [],
   equipamentos: any[] | null = [],
+  perguntasEquipamento: any[] | null = [],
   equipamentosProperty: any[] | null = [],
   scheduledMaintenances: any[] | null = [],
   sessions: any[] | null = [],
@@ -209,8 +211,28 @@ export async function bulkInsertMirrorData(
           'local_equipamentos',
           equipamentos,
           'id',
-          'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura) VALUES (?, ?, ?)',
-          item => [item.id, item.nombre, item.abreviatura],
+          'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura, frecuencia) VALUES (?, ?, ?, ?)',
+          item => [item.id, item.nombre, item.abreviatura, item.frecuencia],
+        );
+      }
+
+      // --- Smart Sync for Preguntas Equipamento ---
+      if (perguntasEquipamento !== null) {
+        await smartSyncTable(
+          db,
+          'local_preguntas_equipamento',
+          perguntasEquipamento,
+          'id',
+          'INSERT OR REPLACE INTO local_preguntas_equipamento (id, equipamento_id, pregunta, orden, activa, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          item => [
+            item.id,
+            item.equipamento_id,
+            item.pregunta,
+            item.orden,
+            item.activa ? 1 : 0,
+            item.created_at,
+            item.updated_at,
+          ],
         );
       }
 

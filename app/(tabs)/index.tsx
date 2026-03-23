@@ -51,7 +51,9 @@ function HomeScreen() {
       </View>
 
       <View style={styles.optionsWrapper}>
-        <View style={styles.optionCardContainer}>
+        <TouchableOpacity
+          style={styles.optionCardContainer}
+          onPress={() => router.push('/maintenance?type=checklist')}>
           <Octicons
             name="checklist"
             size={32}
@@ -73,7 +75,7 @@ function HomeScreen() {
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
-        </View>
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.optionCardContainer}
           onPress={() => router.push('/maintenance')}>

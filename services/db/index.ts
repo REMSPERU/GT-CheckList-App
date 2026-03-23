@@ -55,6 +55,7 @@ import {
   updateLocalScheduledMaintenanceStatus,
   getLocalSessionsByProperty,
   getInstrumentsByEquipmentType,
+  getChecklistQuestionsByEquipamento,
 } from './queries';
 import {
   createEquipment,
@@ -137,6 +138,7 @@ export const DatabaseService = {
   updateLocalScheduledMaintenanceStatus,
   getLocalSessionsByProperty,
   getInstrumentsByEquipmentType,
+  getChecklistQuestionsByEquipamento,
 
   // Equipment CRUD
   createEquipment,

@@ -45,6 +45,7 @@ const log = (...args: unknown[]) => {
 export default function SelectDeviceScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const flowType = params.type as string | undefined;
   const [building, setBuilding] = useState<BuildingParam | null>(null);
 
   useEffect(() => {
@@ -100,6 +101,17 @@ export default function SelectDeviceScreen() {
   const handleEquipamentoPress = (equipamento: EquipamentoResponse) => {
     log('Selected equipamento:', equipamento);
     log('Building:', building);
+
+    if (flowType === 'checklist') {
+      router.push({
+        pathname: '/maintenance/checklist',
+        params: {
+          building: JSON.stringify(building),
+          equipamento: JSON.stringify(equipamento),
+        },
+      });
+      return;
+    }
 
     // Route based on equipment abbreviation from DB
     switch (equipamento.abreviatura) {

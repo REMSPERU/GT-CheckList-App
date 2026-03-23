@@ -14,7 +14,7 @@ import {
   Alert,
   type ListRenderItem,
 } from 'react-native';
-import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,6 +30,7 @@ interface EquipmentInfo {
   id: string;
   codigo: string;
   ubicacion: string;
+  detalle_ubicacion?: string | null;
   equipment_detail?: {
     rotulo?: string;
   } | null;
@@ -421,21 +422,13 @@ export default function EquipmentMaintenanceListScreen() {
           <Text style={styles.infoValue}>{equipment.ubicacion || 'N/A'}</Text>
         </View>
 
-        <View style={styles.infoRow}>
-          <MaterialIcons name="devices" size={18} color="#4B5563" />
-          <Text style={styles.infoLabel}>Tipo:</Text>
-          <Text style={styles.infoValue}>
-            {equipment.equipamentos?.nombre || 'N/A'}
-          </Text>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Ionicons name="calendar-outline" size={18} color="#4B5563" />
-          <Text style={styles.infoLabel}>Fecha:</Text>
-          <Text style={styles.infoValue}>
-            {new Date(item.dia_programado).toLocaleDateString()}
-          </Text>
-        </View>
+        {equipment.detalle_ubicacion ? (
+          <View style={styles.infoRow}>
+            <Ionicons name="navigate-outline" size={18} color="#4B5563" />
+            <Text style={styles.infoLabel}>Detalle:</Text>
+            <Text style={styles.infoValue}>{equipment.detalle_ubicacion}</Text>
+          </View>
+        ) : null}
       </TouchableOpacity>
     );
   };

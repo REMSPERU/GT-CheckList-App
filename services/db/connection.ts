@@ -75,7 +75,18 @@ export async function initDatabase() {
         CREATE TABLE IF NOT EXISTS local_equipamentos (
           id TEXT PRIMARY KEY,
           nombre TEXT,
-          abreviatura TEXT
+          abreviatura TEXT,
+          frecuencia TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS local_preguntas_equipamento (
+          id TEXT PRIMARY KEY,
+          equipamento_id TEXT,
+          pregunta TEXT,
+          orden INTEGER,
+          activa INTEGER,
+          created_at TEXT,
+          updated_at TEXT
         );
 
         CREATE TABLE IF NOT EXISTS local_instrumentos (
@@ -227,6 +238,8 @@ export async function initDatabase() {
 
         CREATE INDEX IF NOT EXISTS idx_local_instrumentos_equipamento ON local_instrumentos(equipamento);
         CREATE INDEX IF NOT EXISTS idx_local_equipamentos_property_property ON local_equipamentos_property(id_property);
+        CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_equipamento ON local_preguntas_equipamento(equipamento_id);
+        CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_activa ON local_preguntas_equipamento(activa);
 
         CREATE INDEX IF NOT EXISTS idx_offline_maint_status ON offline_maintenance_response(status);
         CREATE INDEX IF NOT EXISTS idx_offline_maint_created ON offline_maintenance_response(created_at);
@@ -286,6 +299,33 @@ export async function initDatabase() {
       );
     } catch {
       // Column already exists (new installs or already-migrated DBs)
+    }
+
+    // Migration v1.5: Add frecuencia column to local_equipamentos
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_equipamentos ADD COLUMN frecuencia TEXT;`,
+      );
+      console.log('Migration: Added frecuencia column to local_equipamentos');
+    } catch {
+      // Column already exists
+    }
+
+    // Migration v1.6: Ensure local_preguntas_equipamento exists for checklist
+    try {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS local_preguntas_equipamento (
+          id TEXT PRIMARY KEY,
+          equipamento_id TEXT,
+          pregunta TEXT,
+          orden INTEGER,
+          activa INTEGER,
+          created_at TEXT,
+          updated_at TEXT
+        );
+      `);
+    } catch {
+      // Table already exists
     }
 
     console.log('Database initialized');

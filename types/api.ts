@@ -137,6 +137,7 @@ export interface EquipamentoResponse {
   id: string;
   nombre: string;
   abreviatura: string;
+  frecuencia?: string | null;
 }
 
 export interface EquipamentoListResponse {
