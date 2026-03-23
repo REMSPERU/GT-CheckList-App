@@ -298,7 +298,7 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
       `
       SELECT 
         m.*,
-        e.id as e_id, e.codigo as e_codigo, e.ubicacion as e_ubicacion, e.id_property as e_id_property, e.equipment_detail as e_detail,
+        e.id as e_id, e.codigo as e_codigo, e.ubicacion as e_ubicacion, e.detalle_ubicacion as e_detalle_ubicacion, e.id_property as e_id_property, e.equipment_detail as e_detail,
         eq.nombre as eq_nombre,
         CASE
           WHEN EXISTS (
@@ -357,6 +357,7 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
         id: row.e_id,
         codigo: row.e_codigo,
         ubicacion: row.e_ubicacion,
+        detalle_ubicacion: row.e_detalle_ubicacion,
         id_property: row.e_id_property,
         equipment_detail: (() => {
           try {
