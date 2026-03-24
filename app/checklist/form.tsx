@@ -1,26 +1,83 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 
+import { AppAlertModal } from '@/components/app-alert-modal';
+import { CameraSourceSheet } from '@/components/maintenance/camera-source-sheet';
 import { QuestionChecklistItem } from '@/components/maintenance/checklist/question-checklist-item';
 import type {
   ChecklistQuestionAnswer,
   PreguntaEquipamento,
 } from '@/types/checklist';
 import { supabase } from '@/lib/supabase';
+import {
+  checklistStorageService,
+  type StoredPhotoRef,
+} from '@/services/checklist-storage.service';
 import { DatabaseService } from '@/services/database';
 
 type AnswerErrors = Record<string, { observation?: string; photos?: string }>;
+
+interface ChecklistAnswerJsonItem {
+  pregunta_id: string;
+  pregunta: string;
+  orden: number;
+  status_ok: boolean;
+  observacion: string | null;
+  fotos: StoredPhotoRef[];
+}
+
+interface ChecklistAnswersJson {
+  version: 1;
+  respuestas: ChecklistAnswerJsonItem[];
+  resumen: {
+    total_preguntas: number;
+    total_ok: number;
+    total_observadas: number;
+    total_fotos: number;
+  };
+}
+
+interface ChecklistResponseInsert {
+  user_created: string;
+  equipamento_id: string;
+  equipamento_nombre: string;
+  equipo_id: string;
+  equipo_codigo: string;
+  equipo_ubicacion: string;
+  building_name: string;
+  frequency: string;
+  period_start: string;
+  period_end: string;
+  respuestas_json: ChecklistAnswersJson;
+  evidencia_general_fotos: StoredPhotoRef[];
+  total_questions: number;
+  total_ok: number;
+  total_observed: number;
+  total_photos: number;
+  form_started_at: string;
+  first_interaction_at: string | null;
+  submitted_at: string;
+  duration_seconds: number;
+  interaction_count: number;
+}
 
 function getPeriodFromFrequency(frequencyRaw: string) {
   const frequency = frequencyRaw.toUpperCase();
@@ -50,6 +107,44 @@ function getPeriodFromFrequency(frequencyRaw: string) {
   return { periodStart, periodEnd };
 }
 
+function buildChecklistAnswersJson(
+  questions: PreguntaEquipamento[],
+  answers: Record<string, ChecklistQuestionAnswer>,
+  uploadedQuestionPhotos: Record<string, StoredPhotoRef[]>,
+): ChecklistAnswersJson {
+  const questionMap = new Map(questions.map(item => [item.id, item]));
+
+  const respuestas = Object.values(answers).map(answer => ({
+    pregunta_id: answer.preguntaId,
+    pregunta: questionMap.get(answer.preguntaId)?.pregunta || '',
+    orden: questionMap.get(answer.preguntaId)?.orden || 0,
+    status_ok: answer.status === true,
+    observacion: answer.status === false ? answer.observacion.trim() : null,
+    fotos:
+      answer.status === false
+        ? (uploadedQuestionPhotos[answer.preguntaId] ?? [])
+        : [],
+  }));
+
+  const totalObservadas = respuestas.filter(item => !item.status_ok).length;
+  const totalOk = respuestas.length - totalObservadas;
+  const totalFotos = respuestas.reduce(
+    (acc, item) => acc + item.fotos.length,
+    0,
+  );
+
+  return {
+    version: 1,
+    respuestas,
+    resumen: {
+      total_preguntas: respuestas.length,
+      total_ok: totalOk,
+      total_observadas: totalObservadas,
+      total_fotos: totalFotos,
+    },
+  };
+}
+
 export default function ChecklistFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -67,14 +162,48 @@ export default function ChecklistFormScreen() {
     Record<string, ChecklistQuestionAnswer>
   >({});
   const [errors, setErrors] = useState<AnswerErrors>({});
+  const [generalPhotoUris, setGeneralPhotoUris] = useState<string[]>([]);
+  const [generalPhotoError, setGeneralPhotoError] = useState('');
+  const [alertState, setAlertState] = useState({
+    visible: false,
+    title: '',
+    message: '',
+  });
+  const [isCameraSheetVisible, setIsCameraSheetVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const startedAtMsRef = useRef<number>(Date.now());
+  const firstInteractionAtMsRef = useRef<number | null>(null);
+  const interactionCountRef = useRef<number>(0);
+  const onPhotoSelectedRef = useRef<((uri: string) => void) | null>(null);
+  const alertActionRef = useRef<(() => void) | null>(null);
 
   const frecuencia = (params.frecuencia || 'MENSUAL').toUpperCase();
   const { periodStart, periodEnd } = useMemo(
     () => getPeriodFromFrequency(frecuencia),
     [frecuencia],
   );
+
+  const showAppAlert = useCallback(
+    (title: string, message: string, onClose?: () => void) => {
+      alertActionRef.current = onClose || null;
+      setAlertState({
+        visible: true,
+        title,
+        message,
+      });
+    },
+    [],
+  );
+
+  const closeAppAlert = useCallback(() => {
+    setAlertState(prev => ({ ...prev, visible: false }));
+    const action = alertActionRef.current;
+    alertActionRef.current = null;
+    if (action) {
+      action();
+    }
+  }, []);
 
   useEffect(() => {
     const loadQuestions = async () => {
@@ -120,7 +249,7 @@ export default function ChecklistFormScreen() {
         setAnswers(nextAnswers);
       } catch (error) {
         console.error('Error loading checklist questions:', error);
-        Alert.alert(
+        showAppAlert(
           'Error',
           'No se pudieron cargar las preguntas del checklist.',
         );
@@ -130,7 +259,7 @@ export default function ChecklistFormScreen() {
     };
 
     loadQuestions();
-  }, [params.equipamentoId]);
+  }, [params.equipamentoId, showAppAlert]);
 
   const updateAnswer = useCallback(
     (
@@ -145,85 +274,140 @@ export default function ChecklistFormScreen() {
     [],
   );
 
+  const registerInteraction = useCallback(() => {
+    interactionCountRef.current += 1;
+    if (firstInteractionAtMsRef.current === null) {
+      firstInteractionAtMsRef.current = Date.now();
+    }
+  }, []);
+
+  const openCameraSheet = useCallback(
+    (onUriSelected: (uri: string) => void) => {
+      onPhotoSelectedRef.current = onUriSelected;
+      setIsCameraSheetVisible(true);
+    },
+    [],
+  );
+
+  const handleTakePhoto = useCallback(async () => {
+    setIsCameraSheetVisible(false);
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 0.5,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      onPhotoSelectedRef.current?.(result.assets[0].uri);
+    }
+
+    onPhotoSelectedRef.current = null;
+  }, []);
+
+  const handleCloseCameraSheet = useCallback(() => {
+    setIsCameraSheetVisible(false);
+    onPhotoSelectedRef.current = null;
+  }, []);
+
   const handleStatusChange = useCallback(
     (questionId: string, status: boolean) => {
+      registerInteraction();
       updateAnswer(questionId, prev => ({
         ...prev,
         status,
       }));
       setErrors(prev => ({ ...prev, [questionId]: {} }));
     },
-    [updateAnswer],
+    [registerInteraction, updateAnswer],
   );
 
   const handleObservationChange = useCallback(
     (questionId: string, text: string) => {
+      registerInteraction();
       updateAnswer(questionId, prev => ({ ...prev, observacion: text }));
     },
-    [updateAnswer],
+    [registerInteraction, updateAnswer],
   );
 
-  const launchCameraOrGallery = useCallback(
+  const handleAddQuestionPhoto = useCallback(
     (questionId: string) => {
-      const pickFromCamera = async () => {
-        const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ['images'],
-          allowsEditing: false,
-          quality: 0.5,
-        });
-
-        if (!result.canceled && result.assets.length > 0) {
-          const uri = result.assets[0].uri;
-          updateAnswer(questionId, prev => ({
-            ...prev,
-            photoUris: [...prev.photoUris, uri],
-          }));
-        }
-      };
-
-      const pickFromGallery = async () => {
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
-          allowsEditing: false,
-          quality: 0.5,
-        });
-
-        if (!result.canceled && result.assets.length > 0) {
-          const uri = result.assets[0].uri;
-          updateAnswer(questionId, prev => ({
-            ...prev,
-            photoUris: [...prev.photoUris, uri],
-          }));
-        }
-      };
-
-      Alert.alert('Agregar foto', 'Seleccione origen de la foto', [
-        {
-          text: 'Camara',
-          onPress: () => {
-            void pickFromCamera();
-          },
-        },
-        {
-          text: 'Galeria',
-          onPress: () => {
-            void pickFromGallery();
-          },
-        },
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
+      openCameraSheet(uri => {
+        registerInteraction();
+        updateAnswer(questionId, prev => ({
+          ...prev,
+          photoUris: [...prev.photoUris, uri],
+        }));
+      });
     },
-    [updateAnswer],
+    [openCameraSheet, registerInteraction, updateAnswer],
   );
 
   const handleRemovePhoto = useCallback(
     (questionId: string, index: number) => {
+      registerInteraction();
       updateAnswer(questionId, prev => ({
         ...prev,
         photoUris: prev.photoUris.filter((_, i) => i !== index),
       }));
     },
-    [updateAnswer],
+    [registerInteraction, updateAnswer],
+  );
+
+  const handleAddGeneralPhoto = useCallback(() => {
+    openCameraSheet(uri => {
+      registerInteraction();
+      setGeneralPhotoUris(prev => [...prev, uri]);
+      setGeneralPhotoError('');
+    });
+  }, [openCameraSheet, registerInteraction]);
+
+  const handleRemoveGeneralPhoto = useCallback(
+    (index: number) => {
+      registerInteraction();
+      setGeneralPhotoUris(prev => prev.filter((_, i) => i !== index));
+    },
+    [registerInteraction],
+  );
+
+  const uploadChecklistPhotos = useCallback(
+    async (userId: string) => {
+      const uploadedGeneralPhotos = await Promise.all(
+        generalPhotoUris.map(uri =>
+          checklistStorageService.uploadPhoto({
+            uri,
+            userId,
+            equipoId: params.equipoId,
+            kind: 'general',
+          }),
+        ),
+      );
+
+      const uploadedQuestionPhotos: Record<string, StoredPhotoRef[]> = {};
+
+      for (const answer of Object.values(answers)) {
+        if (answer.status !== false || answer.photoUris.length === 0) {
+          continue;
+        }
+
+        const photos = await Promise.all(
+          answer.photoUris.map(uri =>
+            checklistStorageService.uploadPhoto({
+              uri,
+              userId,
+              equipoId: params.equipoId,
+              questionId: answer.preguntaId,
+              kind: 'question',
+            }),
+          ),
+        );
+
+        uploadedQuestionPhotos[answer.preguntaId] = photos;
+      }
+
+      return { uploadedGeneralPhotos, uploadedQuestionPhotos };
+    },
+    [answers, generalPhotoUris, params.equipoId],
   );
 
   const validate = useCallback(() => {
@@ -252,17 +436,24 @@ export default function ChecklistFormScreen() {
       }
     });
 
+    if (generalPhotoUris.length === 0) {
+      hasErrors = true;
+      setGeneralPhotoError('Agregue una foto general del checklist.');
+    } else {
+      setGeneralPhotoError('');
+    }
+
     setErrors(nextErrors);
     return !hasErrors;
-  }, [answers, questions]);
+  }, [answers, generalPhotoUris.length, questions]);
 
   const checkAlreadySubmitted = useCallback(async () => {
     const { data, error } = await supabase
-      .from('maintenance_response')
+      .from('checklist_response')
       .select('id')
-      .eq('detail_maintenance->>type', 'equipment_checklist')
-      .eq('detail_maintenance->>equipo_id', params.equipoId)
-      .eq('detail_maintenance->>period_start', periodStart)
+      .eq('equipo_id', params.equipoId)
+      .eq('frequency', frecuencia)
+      .eq('period_start', periodStart)
       .limit(1);
 
     if (error) {
@@ -270,48 +461,64 @@ export default function ChecklistFormScreen() {
     }
 
     return (data || []).length > 0;
-  }, [params.equipoId, periodStart]);
+  }, [frecuencia, params.equipoId, periodStart]);
 
   const handleSave = useCallback(async () => {
     if (!validate()) {
-      Alert.alert('Faltan datos', 'Complete observacion y foto donde aplique.');
+      showAppAlert(
+        'Faltan datos',
+        'Complete observacion y foto donde aplique.',
+      );
       return;
     }
 
     setIsSaving(true);
+    let uploadedPhotosForRollback: StoredPhotoRef[] = [];
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user?.id) {
-        Alert.alert('Error', 'No se pudo obtener el usuario actual.');
+        showAppAlert('Error', 'No se pudo obtener el usuario actual.');
         return;
       }
 
       const alreadyExists = await checkAlreadySubmitted();
       if (alreadyExists) {
-        Alert.alert(
+        showAppAlert(
           'Checklist ya registrado',
           `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStart} a ${periodEnd}.`,
         );
         return;
       }
 
-      const questionMap = new Map(questions.map(item => [item.id, item]));
-      const respuestas = Object.values(answers).map(answer => ({
-        pregunta_id: answer.preguntaId,
-        pregunta: questionMap.get(answer.preguntaId)?.pregunta || '',
-        orden: questionMap.get(answer.preguntaId)?.orden || 0,
-        status_ok: answer.status === true,
-        observacion: answer.status === false ? answer.observacion.trim() : null,
-        fotos: answer.status === false ? answer.photoUris : [],
-      }));
+      const { uploadedGeneralPhotos, uploadedQuestionPhotos } =
+        await uploadChecklistPhotos(user.id);
+      uploadedPhotosForRollback = [
+        ...uploadedGeneralPhotos,
+        ...Object.values(uploadedQuestionPhotos).flat(),
+      ];
 
-      const hasObservation = respuestas.some(item => item.status_ok === false);
+      const respuestasJson = buildChecklistAnswersJson(
+        questions,
+        answers,
+        uploadedQuestionPhotos,
+      );
+      const hasObservation = respuestasJson.resumen.total_observadas > 0;
+      const submittedAtMs = Date.now();
+      const formStartedAt = new Date(startedAtMsRef.current).toISOString();
+      const firstInteractionAt = firstInteractionAtMsRef.current
+        ? new Date(firstInteractionAtMsRef.current).toISOString()
+        : null;
+      const submittedAt = new Date(submittedAtMs).toISOString();
+      const durationSeconds = Math.max(
+        1,
+        Math.round((submittedAtMs - startedAtMsRef.current) / 1000),
+      );
 
-      const detailMaintenance = {
-        type: 'equipment_checklist',
+      const payload: ChecklistResponseInsert = {
+        user_created: user.id,
         equipamento_id: params.equipamentoId,
         equipamento_nombre: params.equipamentoNombre,
         equipo_id: params.equipoId,
@@ -321,35 +528,47 @@ export default function ChecklistFormScreen() {
         frequency: frecuencia,
         period_start: periodStart,
         period_end: periodEnd,
-        respuestas,
-        created_at: new Date().toISOString(),
+        respuestas_json: respuestasJson,
+        evidencia_general_fotos: uploadedGeneralPhotos,
+        total_questions: respuestasJson.resumen.total_preguntas,
+        total_ok: respuestasJson.resumen.total_ok,
+        total_observed: respuestasJson.resumen.total_observadas,
+        total_photos:
+          respuestasJson.resumen.total_fotos + uploadedGeneralPhotos.length,
+        form_started_at: formStartedAt,
+        first_interaction_at: firstInteractionAt,
+        submitted_at: submittedAt,
+        duration_seconds: durationSeconds,
+        interaction_count: interactionCountRef.current,
       };
 
-      const { error } = await supabase.from('maintenance_response').insert({
-        id_mantenimiento: null,
-        user_created: user.id,
-        detail_maintenance: detailMaintenance,
-      });
+      const { error } = await supabase
+        .from('checklist_response')
+        .insert(payload);
 
       if (error) {
         throw error;
       }
 
-      Alert.alert(
+      showAppAlert(
         'Checklist guardado',
         hasObservation
           ? 'Se guardo con observaciones registradas.'
           : 'Se guardo correctamente.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ],
+        () => router.back(),
       );
     } catch (error) {
       console.error('Error saving checklist response:', error);
-      Alert.alert('Error', 'No se pudo guardar el checklist.');
+
+      if (uploadedPhotosForRollback.length > 0) {
+        try {
+          await checklistStorageService.removePhotos(uploadedPhotosForRollback);
+        } catch (rollbackError) {
+          console.error('Error rollback checklist photos:', rollbackError);
+        }
+      }
+
+      showAppAlert('Error', 'No se pudo guardar el checklist.');
     } finally {
       setIsSaving(false);
     }
@@ -367,6 +586,8 @@ export default function ChecklistFormScreen() {
     periodStart,
     questions,
     router,
+    showAppAlert,
+    uploadChecklistPhotos,
     validate,
   ]);
 
@@ -391,6 +612,44 @@ export default function ChecklistFormScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.generalPhotoCard}>
+          <Text style={styles.generalPhotoTitle}>
+            Foto general (obligatoria)
+          </Text>
+          <Text style={styles.generalPhotoSubtitle}>
+            Sirve como evidencia global del estado del equipo.
+          </Text>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.photosRow}>
+            {generalPhotoUris.map((uri, index) => (
+              <View key={`${uri}_${index}`} style={styles.photoWrap}>
+                <Image source={{ uri }} style={styles.photo} />
+                <TouchableOpacity
+                  onPress={() => handleRemoveGeneralPhoto(index)}
+                  style={styles.removePhotoBtn}
+                  disabled={isSaving}>
+                  <Ionicons name="close-circle" size={20} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            <TouchableOpacity
+              onPress={handleAddGeneralPhoto}
+              style={styles.addPhotoBtn}
+              disabled={isSaving}>
+              <Ionicons name="camera-outline" size={22} color="#475569" />
+              <Text style={styles.addPhotoText}>Agregar foto</Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          {generalPhotoError ? (
+            <Text style={styles.errorText}>{generalPhotoError}</Text>
+          ) : null}
+        </View>
+
         {questions.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>
@@ -417,7 +676,7 @@ export default function ChecklistFormScreen() {
               onChangeObservation={text =>
                 handleObservationChange(question.id, text)
               }
-              onAddPhoto={() => launchCameraOrGallery(question.id)}
+              onAddPhoto={() => handleAddQuestionPhoto(question.id)}
               onRemovePhoto={indexToRemove =>
                 handleRemovePhoto(question.id, indexToRemove)
               }
@@ -438,6 +697,21 @@ export default function ChecklistFormScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      <CameraSourceSheet
+        visible={isCameraSheetVisible}
+        onTakePhoto={() => {
+          void handleTakePhoto();
+        }}
+        onClose={handleCloseCameraSheet}
+      />
+
+      <AppAlertModal
+        visible={alertState.visible}
+        title={alertState.title}
+        message={alertState.message}
+        onClose={closeAppAlert}
+      />
     </SafeAreaView>
   );
 }
@@ -495,6 +769,67 @@ const styles = StyleSheet.create({
   emptyStateText: {
     color: '#64748B',
     fontSize: 14,
+  },
+  generalPhotoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 14,
+    marginBottom: 12,
+  },
+  generalPhotoTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  generalPhotoSubtitle: {
+    marginTop: 2,
+    marginBottom: 10,
+    fontSize: 12,
+    color: '#64748B',
+  },
+  photosRow: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  photoWrap: {
+    position: 'relative',
+  },
+  photo: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    backgroundColor: '#E5E7EB',
+  },
+  removePhotoBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  addPhotoBtn: {
+    width: 92,
+    height: 72,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  addPhotoText: {
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 8,
   },
   footer: {
     padding: 16,
