@@ -304,6 +304,10 @@ function getCompletedPATEquipments(data: MaintenanceSessionReport): any[] {
   return data.equipments.filter(eq => !isReprogrammedPAT(eq));
 }
 
+function getPATLocationDetail(eq: any): string {
+  return eq?.detalle_ubicacion || eq?.locationDetail || '';
+}
+
 function renderPhoto(
   url: string | undefined | null,
   caption: string,
@@ -506,7 +510,7 @@ function generateWellListingAndPreMeasurementPages(
             <td>${eq.label || ''}</td>
             <td>${i + 1}</td>
             <td>${eq.location || ''}</td>
-            <td>${eq.observations || ''}</td>
+            <td>${getPATLocationDetail(eq)}</td>
             <td>1</td>
           </tr>
         `,

@@ -62,6 +62,8 @@ export interface EquipmentMaintenanceData {
   type: string;
   /** Location (e.g., PISO 1) */
   location: string;
+  /** Detailed location within level/area (e.g., pasadizo, cuarto de bombas) */
+  detalle_ubicacion?: string;
   /** Equipment model */
   model?: string;
   /** Voltage (e.g., 220) */

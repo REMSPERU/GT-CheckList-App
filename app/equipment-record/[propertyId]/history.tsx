@@ -336,6 +336,7 @@ export default function SessionHistoryScreen() {
             type: 'POZO A TIERRA',
             model: 'N/A',
             location: maint.equipos?.ubicacion || 'N/A',
+            detalle_ubicacion: maint.equipos?.detalle_ubicacion || '',
             voltage: detail.preMeasurement || undefined,
             amperage: detail.postMeasurement || undefined,
             cableSize: undefined,
@@ -442,6 +443,7 @@ export default function SessionHistoryScreen() {
             maint.equipos?.equipment_detail?.detalle_tecnico?.modelo ||
             'ADOSADO',
           location: maint.equipos?.ubicacion || 'N/A',
+          detalle_ubicacion: maint.equipos?.detalle_ubicacion || '',
           voltage: firstMeasurement?.voltage,
           amperage: firstMeasurement?.amperage,
           cableSize: firstMeasurement?.cableDiameter,
