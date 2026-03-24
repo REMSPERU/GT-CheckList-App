@@ -104,7 +104,7 @@ export default function SelectDeviceScreen() {
 
     if (flowType === 'checklist') {
       router.push({
-        pathname: '/maintenance/checklist',
+        pathname: '/checklist/index',
         params: {
           building: JSON.stringify(building),
           equipamento: JSON.stringify(equipamento),

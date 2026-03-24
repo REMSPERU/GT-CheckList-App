@@ -106,7 +106,7 @@ export default function EquipmentChecklistListScreen() {
       if (!equipamento) return;
 
       router.push({
-        pathname: '/maintenance/checklist/form',
+        pathname: '/checklist/form',
         params: {
           buildingName: building?.name || '',
           equipamentoId: equipamento.id,
