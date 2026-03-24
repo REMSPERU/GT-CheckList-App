@@ -25,10 +25,11 @@ interface BuildingParam {
 }
 
 function parseJsonParam<T>(value: string | string[] | undefined): T | null {
-  if (typeof value !== 'string') return null;
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  if (typeof rawValue !== 'string') return null;
 
   try {
-    return JSON.parse(value) as T;
+    return JSON.parse(rawValue) as T;
   } catch {
     return null;
   }
@@ -58,6 +59,10 @@ export default function EquipmentChecklistListScreen() {
 
     if (parsedEquipamento) {
       setEquipamento(parsedEquipamento);
+    }
+
+    if (!parsedBuilding || !parsedEquipamento) {
+      setIsLoading(false);
     }
   }, [buildingParam, equipamentoParam]);
 
