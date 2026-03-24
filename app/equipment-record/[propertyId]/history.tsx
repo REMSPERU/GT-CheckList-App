@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -60,6 +60,7 @@ export default function SessionHistoryScreen() {
   const [reportTypeModalVisible, setReportTypeModalVisible] = useState(false);
   const [selectedSession, setSelectedSession] =
     useState<SessionHistoryItem | null>(null);
+  const activeGenerationIdRef = useRef(0);
 
   // Fetch Data (reusing maintenance hook)
   const {
@@ -154,6 +155,11 @@ export default function SessionHistoryScreen() {
   const handleReportTypeSelect = async (type: ReportType) => {
     if (!selectedSession) return;
 
+    const generationId = activeGenerationIdRef.current + 1;
+    activeGenerationIdRef.current = generationId;
+    const isActiveGeneration = () =>
+      activeGenerationIdRef.current === generationId;
+
     setReportTypeModalVisible(false);
     setPdfModalVisible(true);
     setIsGeneratingPdf(true);
@@ -204,8 +210,10 @@ export default function SessionHistoryScreen() {
           'Sin datos',
           'No hay mantenimientos finalizados para generar el informe.',
         );
-        setPdfModalVisible(false);
-        setIsGeneratingPdf(false);
+        if (isActiveGeneration()) {
+          setPdfModalVisible(false);
+          setIsGeneratingPdf(false);
+        }
         return;
       }
 
@@ -229,6 +237,10 @@ export default function SessionHistoryScreen() {
         .in('id_mantenimiento', maintenanceIds);
 
       if (error) throw error;
+
+      if (!isActiveGeneration()) {
+        return;
+      }
 
       setGenerationProgress('Procesando datos del informe...');
 
@@ -449,6 +461,10 @@ export default function SessionHistoryScreen() {
         });
       }
 
+      if (!isActiveGeneration()) {
+        return;
+      }
+
       // Build report data
       const reportData: MaintenanceSessionReport = {
         clientName: 'CORPORACION MG SAC',
@@ -478,6 +494,11 @@ export default function SessionHistoryScreen() {
 
       setGenerationProgress('Generando archivo PDF...');
       const uri = await newPdfReportService.generateReport(type, reportData);
+
+      if (!isActiveGeneration()) {
+        return;
+      }
+
       setPdfUri(uri);
 
       setReportSummary({
@@ -488,6 +509,10 @@ export default function SessionHistoryScreen() {
         totalIssues: totalIssueItems,
       });
     } catch (error) {
+      if (!isActiveGeneration()) {
+        return;
+      }
+
       console.error('Error generating report:', error);
       Alert.alert(
         'Error',
@@ -495,11 +520,16 @@ export default function SessionHistoryScreen() {
       );
       setPdfModalVisible(false);
     } finally {
-      setIsGeneratingPdf(false);
+      if (isActiveGeneration()) {
+        setIsGeneratingPdf(false);
+      }
     }
   };
 
   const handleClosePdfModal = () => {
+    activeGenerationIdRef.current += 1;
+    setIsGeneratingPdf(false);
+    setGenerationProgress('');
     setPdfModalVisible(false);
     setPdfUri(null);
     setReportSummary(null);
