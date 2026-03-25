@@ -62,7 +62,7 @@ export const ChecklistItem = React.memo(function ChecklistItem({
 
         <View style={styles.statusContainer}>
           <Text style={[styles.statusText, status && styles.statusOk]}>
-            {status ? 'Ok' : status === false ? 'Obs' : ''}
+            {status ? 'OK' : status === false ? 'Observado' : ''}
           </Text>
           <Switch
             value={status === true}

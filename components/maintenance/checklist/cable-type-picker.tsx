@@ -26,6 +26,26 @@ export const CableTypePicker = React.memo(function CableTypePicker({
   errorMessage,
   placeholder,
 }: CableTypePickerProps) {
+  const normalizedValue = React.useMemo(() => {
+    if (!value) return value;
+
+    const normalized = value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '_');
+
+    if (normalized.includes('no_libre') && normalized.includes('halogeno')) {
+      return 'no_libre_halogeno';
+    }
+    if (normalized.includes('libre') && normalized.includes('halogeno')) {
+      return 'libre_halogeno';
+    }
+
+    return value;
+  }, [value]);
+
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
@@ -37,7 +57,7 @@ export const CableTypePicker = React.memo(function CableTypePicker({
           value: null,
           color: '#9CA3AF',
         }}
-        value={value}
+        value={normalizedValue}
         style={{
           inputIOS: [
             pickerStyles.inputIOS,

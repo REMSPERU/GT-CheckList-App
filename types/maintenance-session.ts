@@ -18,6 +18,7 @@ export interface ItemMeasurement {
   amperage?: string;
   isVoltageInRange?: boolean;
   isAmperageInRange?: boolean;
+  isCableDiameterInRange?: boolean;
   cableDiameter?: string;
   cableType?: string;
   originalCableDiameter?: string;
@@ -43,6 +44,7 @@ export interface MaintenanceSession {
       amperage?: string;
       isVoltageInRange?: boolean;
       isAmperageInRange?: boolean;
+      isCableDiameterInRange?: boolean;
       cableDiameter?: string;
       cableType?: string;
       originalCableDiameter?: string;

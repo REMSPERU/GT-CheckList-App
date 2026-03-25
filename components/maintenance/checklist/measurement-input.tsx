@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface MeasurementInputProps {
@@ -13,6 +13,8 @@ interface MeasurementInputProps {
   errorMessage?: string; // Inline error message to display
   showIncomplete?: boolean; // Show as incomplete field (orange highlight)
   editable?: boolean;
+  statusValue?: boolean;
+  onStatusChange?: (value: boolean) => void;
 }
 
 export const MeasurementInput = React.memo(function MeasurementInput({
@@ -26,10 +28,28 @@ export const MeasurementInput = React.memo(function MeasurementInput({
   errorMessage,
   showIncomplete,
   editable = true,
+  statusValue,
+  onStatusChange,
 }: MeasurementInputProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>{label}</Text>
+        {onStatusChange && (
+          <View style={styles.statusContainer}>
+            <Text
+              style={[styles.statusText, statusValue && styles.statusOkText]}>
+              {statusValue ? 'OK' : 'Observado'}
+            </Text>
+            <Switch
+              value={statusValue === true}
+              onValueChange={onStatusChange}
+              trackColor={{ false: '#E5E7EB', true: '#A5F3FC' }}
+              thumbColor={statusValue ? '#06B6D4' : '#fff'}
+            />
+          </View>
+        )}
+      </View>
       <View
         style={[
           styles.inputWrapper,
@@ -70,7 +90,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
     fontWeight: '500',
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 4,
+    gap: 8,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  statusOkText: {
+    color: '#0891B2',
   },
   inputWrapper: {
     flexDirection: 'row',

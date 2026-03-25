@@ -15,6 +15,8 @@ import * as ImagePicker from 'expo-image-picker';
 import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
 import { useElectricalPanelDetail } from '@/hooks/use-electrical-panel-detail';
+import type { ItemMeasurement } from '@/types/maintenance-session';
+import type { Componente, ITG, ITM } from '@/types/api';
 
 import { ITGChecklist } from '@/components/maintenance/checklist/itg-checklist';
 import { AuxiliaryChecklist } from '@/components/maintenance/checklist/auxiliary-checklist';
@@ -39,9 +41,9 @@ export default function MaintenanceChecklistScreen() {
     panelId || '',
   );
   const detail = panel?.equipment_detail;
-  const itgs = useMemo(() => detail?.itgs || [], [detail?.itgs]);
+  const itgs = useMemo<ITG[]>(() => detail?.itgs || [], [detail?.itgs]);
   const components = useMemo(
-    () => detail?.componentes || [],
+    (): Componente[] => detail?.componentes || [],
     [detail?.componentes],
   );
   const conditions = useMemo<Record<string, boolean>>(
@@ -50,14 +52,195 @@ export default function MaintenanceChecklistScreen() {
       {},
     [detail?.condiciones_especiales],
   );
+  const configuredVoltage = detail?.detalle_tecnico?.voltaje;
+  const normalizeCableType = useCallback(
+    (value: unknown): string | undefined => {
+      if (typeof value !== 'string') return undefined;
+
+      const normalized = value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '_');
+
+      if (normalized.includes('no_libre') && normalized.includes('halogeno')) {
+        return 'no_libre_halogeno';
+      }
+      if (normalized.includes('libre') && normalized.includes('halogeno')) {
+        return 'libre_halogeno';
+      }
+      if (
+        normalized === 'libre_halogeno' ||
+        normalized === 'no_libre_halogeno'
+      ) {
+        return normalized;
+      }
+
+      return undefined;
+    },
+    [],
+  );
+
+  const hasCableTypeMismatch = useCallback(
+    (measurement?: ItemMeasurement) => {
+      if (!measurement) return false;
+
+      const currentCableType =
+        normalizeCableType(measurement.cableType) ||
+        measurement.cableType ||
+        '';
+      const originalCableType =
+        normalizeCableType(measurement.originalCableType) ||
+        measurement.originalCableType ||
+        '';
+
+      return (
+        currentCableType.length > 0 &&
+        originalCableType.length > 0 &&
+        currentCableType !== originalCableType
+      );
+    },
+    [normalizeCableType],
+  );
+
+  const hasMeasurementIssue = useCallback(
+    (measurement?: ItemMeasurement) => {
+      if (!measurement) return false;
+
+      return (
+        measurement.isVoltageInRange === false ||
+        measurement.isAmperageInRange === false ||
+        measurement.isCableDiameterInRange === false ||
+        hasCableTypeMismatch(measurement)
+      );
+    },
+    [hasCableTypeMismatch],
+  );
+
+  const buildDefaultMeasurement = useCallback(
+    (
+      amperage: unknown,
+      cableDiameter: unknown,
+      cableType: unknown,
+    ): ItemMeasurement => {
+      const parsedAmperage =
+        typeof amperage === 'number' || typeof amperage === 'string'
+          ? String(amperage)
+          : undefined;
+      const parsedCableDiameter =
+        typeof cableDiameter === 'string' && cableDiameter.trim().length > 0
+          ? cableDiameter
+          : undefined;
+      const parsedCableType =
+        normalizeCableType(cableType) ||
+        (typeof cableType === 'string' && cableType.trim().length > 0
+          ? cableType
+          : undefined);
+      const parsedVoltage =
+        typeof configuredVoltage === 'number'
+          ? String(configuredVoltage)
+          : undefined;
+
+      return {
+        ...(parsedVoltage
+          ? { voltage: parsedVoltage, isVoltageInRange: true }
+          : {}),
+        ...(parsedAmperage
+          ? { amperage: parsedAmperage, isAmperageInRange: true }
+          : {}),
+        ...(parsedCableDiameter
+          ? {
+              cableDiameter: parsedCableDiameter,
+              originalCableDiameter: parsedCableDiameter,
+              isCableDiameterInRange: true,
+            }
+          : {}),
+        ...(parsedCableType
+          ? { cableType: parsedCableType, originalCableType: parsedCableType }
+          : {}),
+      };
+    },
+    [configuredVoltage, normalizeCableType],
+  );
 
   useEffect(() => {
     if (!session) return;
 
     const defaultChecklistValues: Record<string, boolean> = {};
+    const defaultMeasurementValues: Record<string, ItemMeasurement> = {};
 
-    components.forEach((comp: any) => {
-      comp.items.forEach((item: any) => {
+    const mergeMissingMeasurementFields = (
+      itemId: string,
+      fallbackMeasurement: ItemMeasurement,
+    ) => {
+      const currentMeasurement = session.measurements?.[itemId];
+
+      if (currentMeasurement === undefined) {
+        defaultMeasurementValues[itemId] = fallbackMeasurement;
+        return;
+      }
+
+      let hasChanges = false;
+      const mergedMeasurement: ItemMeasurement = { ...currentMeasurement };
+
+      (Object.keys(fallbackMeasurement) as (keyof ItemMeasurement)[]).forEach(
+        key => {
+          if (mergedMeasurement[key] === undefined) {
+            (mergedMeasurement as Record<string, unknown>)[key] =
+              fallbackMeasurement[key];
+            hasChanges = true;
+          }
+        },
+      );
+
+      if (hasChanges) {
+        defaultMeasurementValues[itemId] = mergedMeasurement;
+      }
+    };
+
+    itgs.forEach(itg => {
+      itg.itms.forEach((itm: ITM) => {
+        const itemId = `itg_${itg.id}_${itm.id}`;
+
+        if (session.checklist[itemId] === undefined) {
+          defaultChecklistValues[itemId] = true;
+        }
+
+        mergeMissingMeasurementFields(
+          itemId,
+          buildDefaultMeasurement(
+            itm.amperaje,
+            itm.diametro_cable,
+            itm.tipo_cable,
+          ),
+        );
+
+        if (itm.diferencial?.existe) {
+          const diffId = `diff_itg_${itg.id}_${itm.id}`;
+          if (session.checklist[diffId] === undefined) {
+            defaultChecklistValues[diffId] = true;
+          }
+
+          mergeMissingMeasurementFields(
+            diffId,
+            buildDefaultMeasurement(
+              itm.diferencial.amperaje,
+              itm.diferencial.diametro_cable,
+              itm.diferencial.tipo_cable,
+            ),
+          );
+        }
+
+        const testId = `test_itg_${itg.id}_${itm.id}`;
+        if (session.checklist[testId] === undefined) {
+          defaultChecklistValues[testId] = true;
+        }
+      });
+    });
+
+    components.forEach(comp => {
+      comp.items.forEach(item => {
         const itemId = `comp_${comp.tipo}_${item.codigo}`;
         if (session.checklist[itemId] === undefined) {
           defaultChecklistValues[itemId] = true;
@@ -73,8 +256,10 @@ export default function MaintenanceChecklistScreen() {
       }
     });
 
-    const hasDefaults = Object.keys(defaultChecklistValues).length > 0;
-    if (!hasDefaults) return;
+    const hasChecklistDefaults = Object.keys(defaultChecklistValues).length > 0;
+    const hasMeasurementDefaults =
+      Object.keys(defaultMeasurementValues).length > 0;
+    if (!hasChecklistDefaults && !hasMeasurementDefaults) return;
 
     void updateSession(prevSession => ({
       ...prevSession,
@@ -82,9 +267,20 @@ export default function MaintenanceChecklistScreen() {
         ...prevSession.checklist,
         ...defaultChecklistValues,
       },
+      measurements: {
+        ...(prevSession.measurements || {}),
+        ...defaultMeasurementValues,
+      },
       lastUpdated: new Date().toISOString(),
     }));
-  }, [components, conditions, session, updateSession]);
+  }, [
+    buildDefaultMeasurement,
+    components,
+    conditions,
+    itgs,
+    session,
+    updateSession,
+  ]);
 
   // Validation errors state for inline validation
   const [validationErrors, setValidationErrors] = useState<
@@ -94,17 +290,16 @@ export default function MaintenanceChecklistScreen() {
   const handleStatusChange = useCallback(
     (itemId: string, status: boolean) => {
       const measurements = session?.measurements?.[itemId];
-      if (measurements && status === true) {
-        if (
-          measurements.isVoltageInRange === false ||
-          measurements.isAmperageInRange === false
-        ) {
-          Alert.alert(
-            'Medición Fuera de Rango',
-            'No se puede marcar como OK si las mediciones están fuera de rango. Debe registrar una observación y foto.',
-          );
-          return;
-        }
+      if (
+        measurements &&
+        status === true &&
+        hasMeasurementIssue(measurements)
+      ) {
+        Alert.alert(
+          'Observación Requerida',
+          'No se puede marcar como OK cuando hay una medición o dato de cable observado.',
+        );
+        return;
       }
 
       void updateSession(prevSession => ({
@@ -116,7 +311,7 @@ export default function MaintenanceChecklistScreen() {
         lastUpdated: new Date().toISOString(),
       }));
     },
-    [session?.measurements, updateSession],
+    [hasMeasurementIssue, session?.measurements, updateSession],
   );
 
   const handleMeasurementChange = useCallback(
@@ -146,23 +341,59 @@ export default function MaintenanceChecklistScreen() {
             : { isAmperageInRange: isValid }),
         };
 
+        const hasIssue = hasMeasurementIssue(nextMeasurement);
+
         return {
           ...prevSession,
           measurements: {
             ...(prevSession.measurements || {}),
             [itemId]: nextMeasurement,
           },
-          checklist: !isValid
-            ? {
-                ...prevSession.checklist,
-                [itemId]: false,
-              }
-            : prevSession.checklist,
+          checklist: {
+            ...prevSession.checklist,
+            [itemId]: !hasIssue,
+          },
           lastUpdated: new Date().toISOString(),
         };
       });
     },
-    [updateSession],
+    [hasMeasurementIssue, updateSession],
+  );
+
+  const handleMeasurementStatusChange = useCallback(
+    (
+      itemId: string,
+      field: 'voltage' | 'amperage' | 'cableDiameter',
+      status: boolean,
+    ) => {
+      void updateSession(prevSession => {
+        const currentMeasurement = prevSession.measurements?.[itemId] || {};
+        const nextMeasurement = {
+          ...currentMeasurement,
+          ...(field === 'voltage'
+            ? { isVoltageInRange: status }
+            : field === 'amperage'
+              ? { isAmperageInRange: status }
+              : { isCableDiameterInRange: status }),
+        };
+
+        const hasIssue = hasMeasurementIssue(nextMeasurement);
+
+        return {
+          ...prevSession,
+          measurements: {
+            ...(prevSession.measurements || {}),
+            [itemId]: nextMeasurement,
+          },
+          checklist: {
+            ...prevSession.checklist,
+            [itemId]: !hasIssue,
+          },
+          lastUpdated: new Date().toISOString(),
+        };
+      });
+    },
+    [hasMeasurementIssue, updateSession],
   );
 
   const handleCableChange = useCallback(
@@ -184,23 +415,27 @@ export default function MaintenanceChecklistScreen() {
 
       void updateSession(prevSession => {
         const currentMeasurement = prevSession.measurements?.[itemId] || {};
+        const normalizedValue =
+          field === 'cableType' ? normalizeCableType(value) || value : value;
+        const normalizedOriginalValue =
+          field === 'cableType'
+            ? normalizeCableType(originalValue) || originalValue
+            : originalValue;
+
         const originalFieldKey =
           field === 'cableDiameter'
             ? 'originalCableDiameter'
             : 'originalCableType';
         const originalStored =
-          currentMeasurement[originalFieldKey] || originalValue || '';
+          currentMeasurement[originalFieldKey] || normalizedOriginalValue || '';
 
         const nextMeasurement = {
           ...currentMeasurement,
-          [field]: value,
+          [field]: normalizedValue,
           [originalFieldKey]: originalStored,
         };
 
-        const forceObservation =
-          value.length > 0 &&
-          originalStored.length > 0 &&
-          value !== originalStored;
+        const hasIssue = hasMeasurementIssue(nextMeasurement);
 
         return {
           ...prevSession,
@@ -208,17 +443,15 @@ export default function MaintenanceChecklistScreen() {
             ...(prevSession.measurements || {}),
             [itemId]: nextMeasurement,
           },
-          checklist: forceObservation
-            ? {
-                ...prevSession.checklist,
-                [itemId]: false,
-              }
-            : prevSession.checklist,
+          checklist: {
+            ...prevSession.checklist,
+            [itemId]: !hasIssue,
+          },
           lastUpdated: new Date().toISOString(),
         };
       });
     },
-    [updateSession],
+    [hasMeasurementIssue, normalizeCableType, updateSession],
   );
 
   const handleObservationChange = useCallback(
@@ -273,12 +506,6 @@ export default function MaintenanceChecklistScreen() {
 
   const handlePhotoPress = useCallback(
     async (itemId: string) => {
-      // If photo exists, ask to remove? Or just overwrite.
-      // ChecklistItem UI shows a remove button if photo exists, which calls this with same ID?
-      // My ChecklistItem has `onPhotoPress`. If photoUri exists it shows X button which calls onPhotoPress.
-      // If photoUri is null, it shows Camera button which calls onPhotoPress.
-      // So I need to check if photo exists to decide whether to delete or add.
-
       const currentPhoto = session?.itemObservations[itemId]?.photoUri;
 
       if (currentPhoto) {
@@ -316,8 +543,8 @@ export default function MaintenanceChecklistScreen() {
     // Validate all items and collect errors for inline display
     const newErrors: Record<string, string[]> = {};
     // Check ITGs
-    itgs.forEach((itg: any) => {
-      itg.itms.forEach((itm: any) => {
+    itgs.forEach(itg => {
+      itg.itms.forEach((itm: ITM) => {
         const id = `itg_${itg.id}_${itm.id}`;
         const errors: string[] = [];
 
@@ -334,17 +561,11 @@ export default function MaintenanceChecklistScreen() {
 
         // If measurements invalid, check if Photo + Observation exists
         if (m) {
-          const invalid =
-            m.isVoltageInRange === false || m.isAmperageInRange === false;
+          const invalid = hasMeasurementIssue(m);
           if (invalid) {
             const obs = session?.itemObservations[id];
-            if (!obs?.photoUri) errors.push('photo');
             if (!obs?.note) errors.push('observation');
           }
-        }
-
-        if (errors.length > 0) {
-          newErrors[id] = errors;
         }
 
         // Check Differential Switch if exists
@@ -364,19 +585,22 @@ export default function MaintenanceChecklistScreen() {
           if (!diffCableType) diffErrors.push('cableType');
 
           if (diffM) {
-            const invalid =
-              diffM.isVoltageInRange === false ||
-              diffM.isAmperageInRange === false;
+            const invalid = hasMeasurementIssue(diffM);
             if (invalid) {
-              const obs = session?.itemObservations[diffId];
-              if (!obs?.photoUri) diffErrors.push('photo');
-              if (!obs?.note) diffErrors.push('observation');
+              const obs = session?.itemObservations[id];
+              if (!obs?.note && !errors.includes('observation')) {
+                errors.push('observation');
+              }
             }
           }
 
           if (diffErrors.length > 0) {
             newErrors[diffId] = diffErrors;
           }
+        }
+
+        if (errors.length > 0) {
+          newErrors[id] = errors;
         }
       });
     });
@@ -397,7 +621,7 @@ export default function MaintenanceChecklistScreen() {
       pathname: '/maintenance/execution/electrical-panel/post-photos' as any,
       params: { panelId, maintenanceId },
     });
-  }, [itgs, maintenanceId, panelId, router, session]);
+  }, [hasMeasurementIssue, itgs, maintenanceId, panelId, router, session]);
 
   if (isPanelLoading || !session) {
     return (
@@ -422,6 +646,7 @@ export default function MaintenanceChecklistScreen() {
           itemObservations={session.itemObservations}
           onStatusChange={handleStatusChange}
           onMeasurementChange={handleMeasurementChange}
+          onMeasurementStatusChange={handleMeasurementStatusChange}
           onCableChange={handleCableChange}
           onObservationChange={handleObservationChange}
           onPhotoPress={handlePhotoPress}
