@@ -111,7 +111,10 @@ export default function MaintenanceScreen() {
         pathname: '/maintenance/select-device',
         params: {
           type: maintenanceType,
-          building: JSON.stringify(building),
+          buildingId: String(building.id),
+          buildingName: building.name,
+          buildingAddress: building.address ?? '',
+          buildingImageUrl: '',
         },
       });
     },

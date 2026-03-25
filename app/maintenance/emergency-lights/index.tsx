@@ -35,13 +35,18 @@ interface BuildingParam {
 }
 
 function parseJsonParam<T>(value: string | string[] | undefined): T | null {
-  if (typeof value !== 'string') return null;
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  if (typeof rawValue !== 'string') return null;
 
   try {
-    return JSON.parse(value) as T;
+    return JSON.parse(rawValue) as T;
   } catch {
     return null;
   }
+}
+
+function getSingleParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 const log = (...args: unknown[]) => {
@@ -53,8 +58,7 @@ const log = (...args: unknown[]) => {
 export default function EmergencyLightsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { building: buildingParam, equipamento: equipamentoParam } =
-    useLocalSearchParams();
+  const params = useLocalSearchParams();
   const [building, setBuilding] = useState<BuildingParam | null>(null);
   const [equipamento, setEquipamento] = useState<EquipamentoResponse | null>(
     null,
@@ -77,18 +81,59 @@ export default function EmergencyLightsScreen() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    const parsedBuilding = parseJsonParam<BuildingParam>(buildingParam);
-    const parsedEquipamento =
-      parseJsonParam<EquipamentoResponse>(equipamentoParam);
+    const buildingId = getSingleParam(params.buildingId);
+    const buildingName = getSingleParam(params.buildingName);
+    const buildingAddress = getSingleParam(params.buildingAddress);
+    const buildingImageUrl = getSingleParam(params.buildingImageUrl);
 
-    if (parsedBuilding) {
-      setBuilding(parsedBuilding);
+    const equipamentoId = getSingleParam(params.equipamentoId);
+    const equipamentoNombre = getSingleParam(params.equipamentoNombre);
+    const equipamentoFrecuencia = getSingleParam(params.equipamentoFrecuencia);
+    const equipamentoAbreviatura = getSingleParam(
+      params.equipamentoAbreviatura,
+    );
+
+    if (buildingId && buildingName) {
+      setBuilding({
+        id: buildingId,
+        name: buildingName,
+        address: buildingAddress,
+        image_url: buildingImageUrl,
+      });
+    } else {
+      const parsedBuilding = parseJsonParam<BuildingParam>(params.building);
+      if (parsedBuilding) {
+        setBuilding(parsedBuilding);
+      }
     }
 
-    if (parsedEquipamento) {
-      setEquipamento(parsedEquipamento);
+    if (equipamentoId && equipamentoNombre) {
+      setEquipamento({
+        id: equipamentoId,
+        nombre: equipamentoNombre,
+        frecuencia: equipamentoFrecuencia ?? 'MENSUAL',
+        abreviatura: equipamentoAbreviatura ?? '',
+      } as EquipamentoResponse);
+    } else {
+      const parsedEquipamento = parseJsonParam<EquipamentoResponse>(
+        params.equipamento,
+      );
+      if (parsedEquipamento) {
+        setEquipamento(parsedEquipamento);
+      }
     }
-  }, [buildingParam, equipamentoParam]);
+  }, [
+    params.building,
+    params.buildingAddress,
+    params.buildingId,
+    params.buildingImageUrl,
+    params.buildingName,
+    params.equipamento,
+    params.equipamentoAbreviatura,
+    params.equipamentoFrecuencia,
+    params.equipamentoId,
+    params.equipamentoNombre,
+  ]);
 
   const loadData = useCallback(async () => {
     if (!building?.id) return;

@@ -35,36 +35,73 @@ function parseJsonParam<T>(value: string | string[] | undefined): T | null {
   }
 }
 
+function getSingleParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 export default function EquipmentChecklistListScreen() {
   const router = useRouter();
-  const { building: buildingParam, equipamento: equipamentoParam } =
-    useLocalSearchParams();
+  const params = useLocalSearchParams();
 
-  const [building, setBuilding] = useState<BuildingParam | null>(null);
-  const [equipamento, setEquipamento] = useState<EquipamentoResponse | null>(
-    null,
-  );
+  const building = useMemo<BuildingParam | null>(() => {
+    const buildingId = getSingleParam(params.buildingId);
+    const buildingName = getSingleParam(params.buildingName);
+    const buildingAddress = getSingleParam(params.buildingAddress);
+    const buildingImageUrl = getSingleParam(params.buildingImageUrl);
+
+    if (buildingId && buildingName) {
+      return {
+        id: buildingId,
+        name: buildingName,
+        address: buildingAddress,
+        image_url: buildingImageUrl,
+      };
+    }
+
+    return parseJsonParam<BuildingParam>(params.building);
+  }, [
+    params.building,
+    params.buildingAddress,
+    params.buildingId,
+    params.buildingImageUrl,
+    params.buildingName,
+  ]);
+
+  const equipamento = useMemo<EquipamentoResponse | null>(() => {
+    const equipamentoId = getSingleParam(params.equipamentoId);
+    const equipamentoNombre = getSingleParam(params.equipamentoNombre);
+    const equipamentoFrecuencia = getSingleParam(params.equipamentoFrecuencia);
+    const equipamentoAbreviatura = getSingleParam(
+      params.equipamentoAbreviatura,
+    );
+
+    if (equipamentoId && equipamentoNombre) {
+      return {
+        id: equipamentoId,
+        nombre: equipamentoNombre,
+        frecuencia: equipamentoFrecuencia ?? 'MENSUAL',
+        abreviatura: equipamentoAbreviatura ?? '',
+      } as EquipamentoResponse;
+    }
+
+    return parseJsonParam<EquipamentoResponse>(params.equipamento);
+  }, [
+    params.equipamento,
+    params.equipamentoAbreviatura,
+    params.equipamentoFrecuencia,
+    params.equipamentoId,
+    params.equipamentoNombre,
+  ]);
+
   const [equipos, setEquipos] = useState<BaseEquipment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    const parsedBuilding = parseJsonParam<BuildingParam>(buildingParam);
-    const parsedEquipamento =
-      parseJsonParam<EquipamentoResponse>(equipamentoParam);
-
-    if (parsedBuilding) {
-      setBuilding(parsedBuilding);
-    }
-
-    if (parsedEquipamento) {
-      setEquipamento(parsedEquipamento);
-    }
-
-    if (!parsedBuilding || !parsedEquipamento) {
+    if (!building?.id || !equipamento?.id) {
       setIsLoading(false);
     }
-  }, [buildingParam, equipamentoParam]);
+  }, [building?.id, equipamento?.id]);
 
   const loadData = useCallback(async () => {
     if (!building?.id || !equipamento?.id) return;

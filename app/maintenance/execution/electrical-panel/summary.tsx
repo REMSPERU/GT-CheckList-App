@@ -389,9 +389,24 @@ export default function SummaryScreen() {
         }
       } else if (nextRouteParams.building) {
         // Mantenimiento Correctivo / Ad-hoc
+        const building = nextRouteParams.building as
+          | {
+              id?: string;
+              name?: string;
+              address?: string;
+              image_url?: string;
+            }
+          | undefined;
+
         router.navigate({
           pathname: '/maintenance/select-device',
-          params: { building: JSON.stringify(nextRouteParams.building) },
+          params: {
+            type: nextRouteParams.maintenanceType || 'preventivo',
+            buildingId: building?.id || '',
+            buildingName: building?.name || '',
+            buildingAddress: building?.address || '',
+            buildingImageUrl: building?.image_url || '',
+          },
         });
       } else {
         // Fallback

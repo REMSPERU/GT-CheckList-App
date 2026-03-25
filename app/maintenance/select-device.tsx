@@ -26,11 +26,16 @@ interface BuildingParam {
   image_url?: string;
 }
 
+function getSingleParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 function parseJsonParam<T>(value: string | string[] | undefined): T | null {
-  if (typeof value !== 'string') return null;
+  const rawValue = getSingleParam(value);
+  if (typeof rawValue !== 'string') return null;
 
   try {
-    return JSON.parse(value) as T;
+    return JSON.parse(rawValue) as T;
   } catch {
     return null;
   }
@@ -49,13 +54,35 @@ export default function SelectDeviceScreen() {
   const [building, setBuilding] = useState<BuildingParam | null>(null);
 
   useEffect(() => {
-    const parsedBuilding = parseJsonParam<BuildingParam>(params.building);
+    const buildingId = getSingleParam(params.buildingId);
+    const buildingName = getSingleParam(params.buildingName);
+    const buildingAddress = getSingleParam(params.buildingAddress);
+    const buildingImageUrl = getSingleParam(params.buildingImageUrl);
 
-    if (parsedBuilding) {
+    if (buildingId && buildingName) {
+      const parsedBuilding: BuildingParam = {
+        id: buildingId,
+        name: buildingName,
+        address: buildingAddress,
+        image_url: buildingImageUrl,
+      };
       setBuilding(parsedBuilding);
-      log('SelectDevice: Parsed building ID:', parsedBuilding.id);
+      log('SelectDevice: Building ID:', parsedBuilding.id);
+      return;
     }
-  }, [params.building]);
+
+    const legacyBuilding = parseJsonParam<BuildingParam>(params.building);
+    if (legacyBuilding) {
+      setBuilding(legacyBuilding);
+      log('SelectDevice: Parsed legacy building ID:', legacyBuilding.id);
+    }
+  }, [
+    params.building,
+    params.buildingAddress,
+    params.buildingId,
+    params.buildingImageUrl,
+    params.buildingName,
+  ]);
 
   const [equipamentos, setEquipamentos] = useState<EquipamentoResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,8 +134,14 @@ export default function SelectDeviceScreen() {
       router.push({
         pathname: '/checklist',
         params: {
-          building: JSON.stringify(building),
-          equipamento: JSON.stringify(equipamento),
+          buildingId: building?.id ?? '',
+          buildingName: building?.name ?? '',
+          buildingAddress: building?.address ?? '',
+          buildingImageUrl: building?.image_url ?? '',
+          equipamentoId: equipamento.id,
+          equipamentoNombre: equipamento.nombre,
+          equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
+          equipamentoAbreviatura: equipamento.abreviatura,
         },
       });
       return;
@@ -121,8 +154,14 @@ export default function SelectDeviceScreen() {
         router.push({
           pathname: '/maintenance/electrical-panels',
           params: {
-            building: JSON.stringify(building),
-            equipamento: JSON.stringify(equipamento),
+            buildingId: building?.id ?? '',
+            buildingName: building?.name ?? '',
+            buildingAddress: building?.address ?? '',
+            buildingImageUrl: building?.image_url ?? '',
+            equipamentoId: equipamento.id,
+            equipamentoNombre: equipamento.nombre,
+            equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
+            equipamentoAbreviatura: equipamento.abreviatura,
           },
         });
         break;
@@ -131,8 +170,14 @@ export default function SelectDeviceScreen() {
         router.push({
           pathname: '/maintenance/emergency-lights',
           params: {
-            building: JSON.stringify(building),
-            equipamento: JSON.stringify(equipamento),
+            buildingId: building?.id ?? '',
+            buildingName: building?.name ?? '',
+            buildingAddress: building?.address ?? '',
+            buildingImageUrl: building?.image_url ?? '',
+            equipamentoId: equipamento.id,
+            equipamentoNombre: equipamento.nombre,
+            equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
+            equipamentoAbreviatura: equipamento.abreviatura,
           },
         });
         break;
@@ -141,8 +186,14 @@ export default function SelectDeviceScreen() {
         router.push({
           pathname: '/maintenance/grounding-wells',
           params: {
-            building: JSON.stringify(building),
-            equipamento: JSON.stringify(equipamento),
+            buildingId: building?.id ?? '',
+            buildingName: building?.name ?? '',
+            buildingAddress: building?.address ?? '',
+            buildingImageUrl: building?.image_url ?? '',
+            equipamentoId: equipamento.id,
+            equipamentoNombre: equipamento.nombre,
+            equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
+            equipamentoAbreviatura: equipamento.abreviatura,
           },
         });
         break;
