@@ -1,13 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  ScrollView,
+  FlatList,
   View,
   StyleSheet,
   ActivityIndicator,
   Text,
-  RefreshControl,
   Alert,
   TouchableOpacity,
+  type ListRenderItem,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
@@ -64,17 +64,18 @@ export default function SelectDeviceScreen() {
 
   const loadData = useCallback(async () => {
     if (!building?.id) return;
+    setIsLoading(true);
+    setError(null);
+
     try {
-      setIsLoading(true);
-      setError(null);
       const data = await DatabaseService.getEquipamentosByProperty(building.id);
       setEquipamentos(data as EquipamentoResponse[]);
     } catch (err) {
       console.error('Error loading equipments:', err);
       setError('Error al cargar equipamientos locales');
-    } finally {
-      setIsLoading(false);
     }
+
+    setIsLoading(false);
   }, [building?.id]);
 
   useEffect(() => {
@@ -93,9 +94,9 @@ export default function SelectDeviceScreen() {
     } catch (e) {
       Alert.alert('Error', 'No se pudo sincronizar con el servidor.');
       console.error(e);
-    } finally {
-      setIsRefreshing(false);
     }
+
+    setIsRefreshing(false);
   }, [loadData]);
 
   const handleEquipamentoPress = (equipamento: EquipamentoResponse) => {
@@ -164,6 +165,18 @@ export default function SelectDeviceScreen() {
     return iconMap[abreviatura] || 'cube-outline';
   };
 
+  const renderEquipamentoItem: ListRenderItem<EquipamentoResponse> = ({
+    item,
+  }) => (
+    <MaintenanceCard
+      icon={getIconForEquipamento(item.abreviatura)}
+      title={item.nombre}
+      onPress={() => handleEquipamentoPress(item)}
+      accessibilityLabel={`Abrir mantenimiento de ${item.nombre}`}
+      accessibilityHint="Navega al flujo de mantenimiento del equipo"
+    />
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       {/* Header with Building Image */}
@@ -186,7 +199,10 @@ export default function SelectDeviceScreen() {
         <SafeAreaView edges={['top']} style={styles.headerContent}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}>
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Regresar"
+            accessibilityHint="Vuelve a la pantalla anterior">
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
@@ -200,39 +216,36 @@ export default function SelectDeviceScreen() {
         </SafeAreaView>
       </View>
 
-      <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-        }>
-        {/* Content */}
-        <View style={styles.listWrapper}>
-          {isLoading && !isRefreshing ? (
-            <View style={styles.centerContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={styles.loadingText}>Cargando localmente...</Text>
-            </View>
-          ) : error ? (
-            <View style={styles.centerContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : equipamentos.length === 0 ? (
+      {isLoading && !isRefreshing ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Cargando localmente...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={equipamentos}
+          keyExtractor={item => String(item.id)}
+          renderItem={renderEquipamentoItem}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.listWrapper,
+            equipamentos.length === 0 && styles.listWrapperEmpty,
+          ]}
+          refreshing={isRefreshing}
+          onRefresh={onRefresh}
+          ListEmptyComponent={
             <View style={styles.centerContainer}>
               <Text style={styles.emptyText}>
                 No hay equipamientos disponibles para este inmueble
               </Text>
             </View>
-          ) : (
-            equipamentos.map(equipamento => (
-              <MaintenanceCard
-                key={equipamento.id}
-                icon={getIconForEquipamento(equipamento.abreviatura)}
-                title={equipamento.nombre}
-                onPress={() => handleEquipamentoPress(equipamento)}
-              />
-            ))
-          )}
-        </View>
-      </ScrollView>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -305,6 +318,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 24,
+  },
+  listWrapperEmpty: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   centerContainer: {
     alignItems: 'center',

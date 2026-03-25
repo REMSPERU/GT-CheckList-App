@@ -63,7 +63,12 @@ export default function MaintenanceHeader({
 
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+      <TouchableOpacity
+        onPress={handleBack}
+        style={styles.backButton}
+        accessibilityRole="button"
+        accessibilityLabel="Regresar"
+        accessibilityHint="Vuelve a la pantalla anterior">
         <Ionicons name="chevron-back" size={24} color={Colors.light.text} />
       </TouchableOpacity>
       <View style={[styles.headerIconContainer, { backgroundColor }]}>

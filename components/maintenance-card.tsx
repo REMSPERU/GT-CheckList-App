@@ -5,18 +5,25 @@ interface MaintenanceCardProps {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   onPress?: () => void;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 export default function MaintenanceCard({
   icon,
   title,
   onPress,
+  accessibilityLabel,
+  accessibilityHint,
 }: MaintenanceCardProps) {
   return (
     <TouchableOpacity
       style={styles.container}
       onPress={onPress}
-      activeOpacity={0.7}>
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityHint={accessibilityHint}>
       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
         <View style={styles.iconWrapper}>
           <Ionicons name={icon} size={24} color="#06B6D4" />
