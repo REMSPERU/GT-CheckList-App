@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, Switch } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 interface MeasurementInputProps {
   label: string;
@@ -22,7 +21,6 @@ export const MeasurementInput = React.memo(function MeasurementInput({
   value,
   onChange,
   unit,
-  isValid,
   placeholder,
   keyboardType = 'decimal-pad',
   errorMessage,
@@ -37,8 +35,7 @@ export const MeasurementInput = React.memo(function MeasurementInput({
         <Text style={styles.label}>{label}</Text>
         {onStatusChange && (
           <View style={styles.statusContainer}>
-            <Text
-              style={[styles.statusText, statusValue && styles.statusOkText]}>
+            <Text style={styles.statusText}>
               {statusValue ? 'OK' : 'Observado'}
             </Text>
             <Switch
@@ -51,12 +48,7 @@ export const MeasurementInput = React.memo(function MeasurementInput({
         )}
       </View>
       <View
-        style={[
-          styles.inputWrapper,
-          isValid === false && styles.inputError,
-          isValid === true && styles.inputSuccess,
-          showIncomplete && styles.inputIncomplete,
-        ]}>
+        style={[styles.inputWrapper, showIncomplete && styles.inputIncomplete]}>
         <TextInput
           style={[styles.input, !editable && styles.inputDisabled]}
           value={value}
@@ -67,15 +59,6 @@ export const MeasurementInput = React.memo(function MeasurementInput({
           editable={editable}
         />
         {unit && <Text style={styles.unit}>{unit}</Text>}
-        {isValid === true && (
-          <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-        )}
-        {isValid === false && (
-          <Ionicons name="alert-circle" size={20} color="#EF4444" />
-        )}
-        {showIncomplete && isValid !== false && (
-          <Ionicons name="warning" size={20} color="#F59E0B" />
-        )}
       </View>
       {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
     </View>
@@ -108,9 +91,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontWeight: '600',
   },
-  statusOkText: {
-    color: '#0891B2',
-  },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -130,14 +110,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     marginRight: 8,
-  },
-  inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
-  },
-  inputSuccess: {
-    borderColor: '#10B981',
-    backgroundColor: '#ECFDF5',
   },
   inputIncomplete: {
     borderColor: '#F59E0B',

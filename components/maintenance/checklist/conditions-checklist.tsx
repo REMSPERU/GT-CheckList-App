@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 interface ConditionsChecklistProps {
   conditions: Record<string, boolean>;
-  checklist: Record<string, boolean | string>;
+  checklist: Record<string, boolean>;
   itemObservations: Record<string, ItemObservation>;
   onStatusChange: (itemId: string, status: boolean) => void;
   onObservationChange: (itemId: string, text: string) => void;
