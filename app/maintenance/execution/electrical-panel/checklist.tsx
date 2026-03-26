@@ -166,6 +166,7 @@ export default function MaintenanceChecklistScreen() {
     itgs.forEach(itg => {
       itg.itms.forEach((itm: ITM) => {
         const itemId = `itg_${itg.id}_${itm.id}`;
+        const circuitIndependentId = `circuit_independent_itg_${itg.id}_${itm.id}`;
 
         mergeMissingMeasurementFields(
           itemId,
@@ -178,6 +179,7 @@ export default function MaintenanceChecklistScreen() {
 
         if (itm.diferencial?.existe) {
           const diffId = `diff_itg_${itg.id}_${itm.id}`;
+          const testDiffId = `test_id_itg_${itg.id}_${itm.id}`;
           mergeMissingMeasurementFields(
             diffId,
             buildDefaultMeasurement(
@@ -186,6 +188,14 @@ export default function MaintenanceChecklistScreen() {
               itm.diferencial.tipo_cable,
             ),
           );
+
+          if (session.checklist[testDiffId] === undefined) {
+            defaultChecklistValues[testDiffId] = true;
+          }
+        }
+
+        if (session.checklist[circuitIndependentId] === undefined) {
+          defaultChecklistValues[circuitIndependentId] = true;
         }
 
         const testId = `test_itg_${itg.id}_${itm.id}`;
