@@ -100,6 +100,7 @@ export interface PropertyResponse {
   device_count?: number | null;
   active_device_count?: number | null;
   assigned_users_count?: number | null;
+  image_url?: string | null;
 }
 
 export interface PropertyCreateRequest {

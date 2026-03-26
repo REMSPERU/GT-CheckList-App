@@ -156,13 +156,14 @@ export async function bulkInsertMirrorData(
           'local_properties',
           properties,
           'id',
-          'INSERT OR REPLACE INTO local_properties (id, name, code, address, city) VALUES (?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO local_properties (id, name, code, address, city, image_url) VALUES (?, ?, ?, ?, ?, ?)',
           item => [
             item.id,
             item.name,
             item.code,
             item.address || '',
             item.city || '',
+            item.image_url || null,
           ],
         );
       }

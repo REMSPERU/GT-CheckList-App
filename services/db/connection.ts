@@ -50,7 +50,8 @@ export async function initDatabase() {
           name TEXT,
           code TEXT,
           address TEXT,
-          city TEXT
+          city TEXT,
+          image_url TEXT
         );
         
         CREATE TABLE IF NOT EXISTS local_users (
@@ -326,6 +327,16 @@ export async function initDatabase() {
       `);
     } catch {
       // Table already exists
+    }
+
+    // Migration v1.7: Add image_url column to local_properties
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_properties ADD COLUMN image_url TEXT;`,
+      );
+      console.log('Migration: Added image_url column to local_properties');
+    } catch {
+      // Column already exists
     }
 
     console.log('Database initialized');

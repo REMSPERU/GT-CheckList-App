@@ -115,7 +115,7 @@ export default function MaintenanceScreen() {
           buildingId: String(building.id),
           buildingName: building.name,
           buildingAddress: building.address ?? '',
-          buildingImageUrl: '',
+          buildingImageUrl: building.image_url ?? '',
         },
       });
     },
