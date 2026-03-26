@@ -94,9 +94,12 @@ export const ITGChecklist = React.memo(function ITGChecklist({
       <View style={styles.content}>
         {currentItg.itms.map((itm: ITM) => {
           const itemId = `itg_${currentItg.id}_${itm.id}`;
+          const circuitIndependentId = `circuit_independent_itg_${currentItg.id}_${itm.id}`;
           const itmLabel = itm.nombre || itm.id;
           const measure = measurements[itemId] || {};
           const differential = itm.diferencial;
+          const isCircuitIndependentOk =
+            checklist[circuitIndependentId] !== false;
 
           const voltageStatus = measure.isVoltageInRange ?? true;
           const amperageStatus = measure.isAmperageInRange ?? true;
@@ -104,6 +107,7 @@ export const ITGChecklist = React.memo(function ITGChecklist({
 
           // Differential validation
           const diffId = `diff_itg_${currentItg.id}_${itm.id}`;
+          const testDiffId = `test_id_itg_${currentItg.id}_${itm.id}`;
           const diffMeasure = measurements[diffId] || {};
           const testId = `test_itg_${currentItg.id}_${itm.id}`;
           const testApplyId = `${testId}_applies`;
@@ -123,6 +127,8 @@ export const ITGChecklist = React.memo(function ITGChecklist({
           const diffVoltageObsId = `${diffId}_voltage`;
           const diffAmperageObsId = `${diffId}_amperage`;
           const diffCableObsId = `${diffId}_cableDiameter`;
+          const circuitIndependentObsId = `${circuitIndependentId}_obs`;
+          const testDiffObsId = `${testDiffId}_obs`;
 
           const renderObservationCard = (obsId: string, title: string) => {
             const obs = itemObservations[obsId];
@@ -173,6 +179,54 @@ export const ITGChecklist = React.memo(function ITGChecklist({
               </Text>
 
               <View style={styles.detailsContainer}>
+                <View style={styles.testBody}>
+                  <Text style={styles.testTitle}>Circuito independiente</Text>
+                  <View style={styles.resultToggleRow}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.resultButton,
+                        isCircuitIndependentOk && styles.resultButtonOkActive,
+                        pressed && styles.pressed,
+                      ]}
+                      onPress={() =>
+                        onStatusChange(circuitIndependentId, true)
+                      }>
+                      <Text
+                        style={[
+                          styles.resultButtonText,
+                          isCircuitIndependentOk &&
+                            styles.resultButtonTextActive,
+                        ]}>
+                        OK
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.resultButton,
+                        !isCircuitIndependentOk && styles.resultButtonObsActive,
+                        pressed && styles.pressed,
+                      ]}
+                      onPress={() =>
+                        onStatusChange(circuitIndependentId, false)
+                      }>
+                      <Text
+                        style={[
+                          styles.resultButtonText,
+                          !isCircuitIndependentOk &&
+                            styles.resultButtonTextActive,
+                        ]}>
+                        OBSERVADO
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  {!isCircuitIndependentOk &&
+                    renderObservationCard(
+                      circuitIndependentObsId,
+                      'Observación circuito independiente',
+                    )}
+                </View>
+
                 {/* Inputs for Voltage and Amperage */}
                 <MeasurementInput
                   label="Voltaje (V)"
@@ -396,6 +450,52 @@ export const ITGChecklist = React.memo(function ITGChecklist({
                           : undefined
                       }
                     />
+
+                    <View style={styles.testBody}>
+                      <Text style={styles.testTitle}>Test - ID</Text>
+                      <View style={styles.resultToggleRow}>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.resultButton,
+                            checklist[testDiffId] !== false &&
+                              styles.resultButtonOkActive,
+                            pressed && styles.pressed,
+                          ]}
+                          onPress={() => onStatusChange(testDiffId, true)}>
+                          <Text
+                            style={[
+                              styles.resultButtonText,
+                              checklist[testDiffId] !== false &&
+                                styles.resultButtonTextActive,
+                            ]}>
+                            OK
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.resultButton,
+                            checklist[testDiffId] === false &&
+                              styles.resultButtonObsActive,
+                            pressed && styles.pressed,
+                          ]}
+                          onPress={() => onStatusChange(testDiffId, false)}>
+                          <Text
+                            style={[
+                              styles.resultButtonText,
+                              checklist[testDiffId] === false &&
+                                styles.resultButtonTextActive,
+                            ]}>
+                            OBSERVADO
+                          </Text>
+                        </Pressable>
+                      </View>
+
+                      {checklist[testDiffId] === false &&
+                        renderObservationCard(
+                          testDiffObsId,
+                          'Observación Test - ID',
+                        )}
+                    </View>
                   </View>
                 </View>
               )}
