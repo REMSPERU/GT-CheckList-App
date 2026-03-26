@@ -1,19 +1,21 @@
 import React, {
   useCallback,
   useEffect,
+  memo,
   useMemo,
   useRef,
   useState,
 } from 'react';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
+  FlatList,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -144,6 +146,73 @@ function buildChecklistAnswersJson(
     },
   };
 }
+
+interface ChecklistQuestionRowProps {
+  question: PreguntaEquipamento;
+  index: number;
+  answer: ChecklistQuestionAnswer;
+  error?: { observation?: string; photos?: string };
+  disabled: boolean;
+  onStatusChange: (questionId: string, status: boolean) => void;
+  onObservationChange: (questionId: string, text: string) => void;
+  onAddPhoto: (questionId: string) => void;
+  onRemovePhoto: (questionId: string, index: number) => void;
+}
+
+const ChecklistQuestionRow = memo(function ChecklistQuestionRow({
+  question,
+  index,
+  answer,
+  error,
+  disabled,
+  onStatusChange,
+  onObservationChange,
+  onAddPhoto,
+  onRemovePhoto,
+}: ChecklistQuestionRowProps) {
+  const handleStatus = useCallback(
+    (status: boolean) => {
+      onStatusChange(question.id, status);
+    },
+    [onStatusChange, question.id],
+  );
+
+  const handleObservation = useCallback(
+    (text: string) => {
+      onObservationChange(question.id, text);
+    },
+    [onObservationChange, question.id],
+  );
+
+  const handleAddPhoto = useCallback(() => {
+    onAddPhoto(question.id);
+  }, [onAddPhoto, question.id]);
+
+  const handleRemovePhoto = useCallback(
+    (indexToRemove: number) => {
+      onRemovePhoto(question.id, indexToRemove);
+    },
+    [onRemovePhoto, question.id],
+  );
+
+  return (
+    <QuestionChecklistItem
+      order={index + 1}
+      question={question.pregunta}
+      value={{
+        status: answer.status,
+        observation: answer.observacion,
+        photoUris: answer.photoUris,
+      }}
+      onChangeStatus={handleStatus}
+      onChangeObservation={handleObservation}
+      onAddPhoto={handleAddPhoto}
+      onRemovePhoto={handleRemovePhoto}
+      errors={error}
+      disabled={disabled}
+    />
+  );
+});
 
 export default function ChecklistFormScreen() {
   const router = useRouter();
@@ -591,6 +660,107 @@ export default function ChecklistFormScreen() {
     validate,
   ]);
 
+  const renderGeneralPhoto = useCallback(
+    ({ item, index }: { item: string; index: number }) => (
+      <View style={styles.photoWrap}>
+        <Image
+          source={{ uri: item }}
+          style={styles.photo}
+          contentFit="cover"
+          transition={100}
+        />
+        <Pressable
+          onPress={() => handleRemoveGeneralPhoto(index)}
+          style={({ pressed }) => [
+            styles.removePhotoBtn,
+            pressed && styles.pressed,
+          ]}
+          disabled={isSaving}
+          accessibilityRole="button">
+          <Ionicons name="close-circle" size={20} color="#EF4444" />
+        </Pressable>
+      </View>
+    ),
+    [handleRemoveGeneralPhoto, isSaving],
+  );
+
+  const renderQuestionItem = useCallback(
+    ({ item, index }: { item: PreguntaEquipamento; index: number }) => {
+      const answer = answers[item.id];
+      if (!answer) {
+        return null;
+      }
+
+      return (
+        <ChecklistQuestionRow
+          question={item}
+          index={index}
+          answer={answer}
+          error={errors[item.id]}
+          disabled={isSaving}
+          onStatusChange={handleStatusChange}
+          onObservationChange={handleObservationChange}
+          onAddPhoto={handleAddQuestionPhoto}
+          onRemovePhoto={handleRemovePhoto}
+        />
+      );
+    },
+    [
+      answers,
+      errors,
+      isSaving,
+      handleStatusChange,
+      handleObservationChange,
+      handleAddQuestionPhoto,
+      handleRemovePhoto,
+    ],
+  );
+
+  const listHeader = useMemo(
+    () => (
+      <View style={styles.generalPhotoCard}>
+        <Text style={styles.generalPhotoTitle}>Foto general (obligatoria)</Text>
+        <Text style={styles.generalPhotoSubtitle}>
+          Sirve como evidencia global del estado del equipo.
+        </Text>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.photosRow}>
+          {generalPhotoUris.map((uri, index) => (
+            <View key={`${uri}_${index}`}>
+              {renderGeneralPhoto({ item: uri, index })}
+            </View>
+          ))}
+
+          <Pressable
+            onPress={handleAddGeneralPhoto}
+            style={({ pressed }) => [
+              styles.addPhotoBtn,
+              pressed && styles.pressed,
+            ]}
+            disabled={isSaving}
+            accessibilityRole="button">
+            <Ionicons name="camera-outline" size={22} color="#475569" />
+            <Text style={styles.addPhotoText}>Agregar foto</Text>
+          </Pressable>
+        </ScrollView>
+
+        {generalPhotoError ? (
+          <Text style={styles.errorText}>{generalPhotoError}</Text>
+        ) : null}
+      </View>
+    ),
+    [
+      generalPhotoError,
+      generalPhotoUris,
+      handleAddGeneralPhoto,
+      isSaving,
+      renderGeneralPhoto,
+    ],
+  );
+
   if (isLoading) {
     return (
       <View style={styles.loaderWrap}>
@@ -602,100 +772,49 @@ export default function ChecklistFormScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+          accessibilityRole="button">
           <Text style={styles.backBtnText}>Volver</Text>
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.title}>{params.equipoCodigo || 'Checklist'}</Text>
         <Text style={styles.subtitle}>
           {params.equipamentoNombre || '-'} - {frecuencia} ({periodStart})
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.generalPhotoCard}>
-          <Text style={styles.generalPhotoTitle}>
-            Foto general (obligatoria)
-          </Text>
-          <Text style={styles.generalPhotoSubtitle}>
-            Sirve como evidencia global del estado del equipo.
-          </Text>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.photosRow}>
-            {generalPhotoUris.map((uri, index) => (
-              <View key={`${uri}_${index}`} style={styles.photoWrap}>
-                <Image source={{ uri }} style={styles.photo} />
-                <TouchableOpacity
-                  onPress={() => handleRemoveGeneralPhoto(index)}
-                  style={styles.removePhotoBtn}
-                  disabled={isSaving}>
-                  <Ionicons name="close-circle" size={20} color="#EF4444" />
-                </TouchableOpacity>
-              </View>
-            ))}
-
-            <TouchableOpacity
-              onPress={handleAddGeneralPhoto}
-              style={styles.addPhotoBtn}
-              disabled={isSaving}>
-              <Ionicons name="camera-outline" size={22} color="#475569" />
-              <Text style={styles.addPhotoText}>Agregar foto</Text>
-            </TouchableOpacity>
-          </ScrollView>
-
-          {generalPhotoError ? (
-            <Text style={styles.errorText}>{generalPhotoError}</Text>
-          ) : null}
-        </View>
-
-        {questions.length === 0 && (
+      <FlatList
+        data={questions}
+        keyExtractor={item => item.id}
+        renderItem={renderQuestionItem}
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>
               No hay preguntas activas para este tipo de equipo.
             </Text>
           </View>
-        )}
-
-        {questions.map((question, index) => {
-          const answer = answers[question.id];
-          if (!answer) return null;
-
-          return (
-            <QuestionChecklistItem
-              key={question.id}
-              order={index + 1}
-              question={question.pregunta}
-              value={{
-                status: answer.status,
-                observation: answer.observacion,
-                photoUris: answer.photoUris,
-              }}
-              onChangeStatus={status => handleStatusChange(question.id, status)}
-              onChangeObservation={text =>
-                handleObservationChange(question.id, text)
-              }
-              onAddPhoto={() => handleAddQuestionPhoto(question.id)}
-              onRemovePhoto={indexToRemove =>
-                handleRemovePhoto(question.id, indexToRemove)
-              }
-              errors={errors[question.id]}
-              disabled={isSaving}
-            />
-          );
-        })}
-      </ScrollView>
+        }
+        ListFooterComponent={<View style={styles.listFooterSpace} />}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews
+      />
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Pressable
           style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
           disabled={isSaving}
-          onPress={handleSave}>
+          onPress={handleSave}
+          accessibilityRole="button">
           <Text style={styles.saveBtnText}>
             {isSaving ? 'Guardando...' : 'Guardar checklist'}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <CameraSourceSheet
@@ -757,6 +876,9 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 24,
+  },
+  listFooterSpace: {
+    height: 8,
   },
   emptyState: {
     backgroundColor: '#fff',
@@ -851,5 +973,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.82,
   },
 });

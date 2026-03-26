@@ -1,10 +1,10 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  ScrollView,
+  Pressable,
+  FlatList,
   ActivityIndicator,
   RefreshControl,
   Alert,
@@ -147,10 +147,10 @@ export default function SessionHistoryScreen() {
     );
   }, [maintenanceData, equipmentType]);
 
-  const handleShowReportOptions = (session: SessionHistoryItem) => {
+  const handleShowReportOptions = useCallback((session: SessionHistoryItem) => {
     setSelectedSession(session);
     setReportTypeModalVisible(true);
-  };
+  }, []);
 
   const handleReportTypeSelect = async (type: ReportType) => {
     if (!selectedSession) return;
@@ -537,6 +537,62 @@ export default function SessionHistoryScreen() {
     setReportSummary(null);
   };
 
+  const renderSessionItem = useCallback(
+    ({ item: session }: { item: SessionHistoryItem }) => {
+      const isComplete =
+        session.completed === session.total && session.total > 0;
+
+      return (
+        <View style={styles.sessionCard}>
+          <View style={styles.cardHeader}>
+            <View style={styles.dateRow}>
+              <Ionicons name="calendar-outline" size={20} color="#06B6D4" />
+              <Text style={styles.dateText}>{session.displayDate}</Text>
+            </View>
+            {session.codigo && (
+              <Text style={styles.codigoMainText}>{session.codigo}</Text>
+            )}
+          </View>
+
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Equipos</Text>
+              <Text style={styles.statValue}>{session.total}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Completados</Text>
+              <Text
+                style={[
+                  styles.statValue,
+                  { color: isComplete ? '#10B981' : '#F59E0B' },
+                ]}>
+                {session.completed}
+              </Text>
+            </View>
+          </View>
+
+          {isComplete ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.reportButton,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => handleShowReportOptions(session)}
+              accessibilityRole="button">
+              <Ionicons name="document-text-outline" size={20} color="#fff" />
+              <Text style={styles.reportButtonText}>Generar Informe</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.pendingBadge}>
+              <Text style={styles.pendingText}>Mantenimiento en Progreso</Text>
+            </View>
+          )}
+        </View>
+      );
+    },
+    [handleShowReportOptions],
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -566,77 +622,21 @@ export default function SessionHistoryScreen() {
             <Text style={styles.emptyText}>No hay historial disponible</Text>
           </View>
         ) : (
-          <ScrollView
+          <FlatList
+            data={sessions}
+            keyExtractor={item => item.date}
+            renderItem={renderSessionItem}
             style={styles.listContainer}
+            contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-            }>
-            {sessions.map(session => {
-              const isComplete =
-                session.completed === session.total && session.total > 0;
-
-              return (
-                <View key={session.date} style={styles.sessionCard}>
-                  <View style={styles.cardHeader}>
-                    <View style={styles.dateRow}>
-                      <Ionicons
-                        name="calendar-outline"
-                        size={20}
-                        color="#06B6D4"
-                      />
-                      <Text style={styles.dateText}>{session.displayDate}</Text>
-                    </View>
-                    {session.codigo && (
-                      <Text style={styles.codigoMainText}>
-                        {session.codigo}
-                      </Text>
-                    )}
-                  </View>
-
-                  <View style={styles.statsRow}>
-                    <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Equipos</Text>
-                      <Text style={styles.statValue}>{session.total}</Text>
-                    </View>
-                    <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Completados</Text>
-                      <Text
-                        style={[
-                          styles.statValue,
-                          { color: isComplete ? '#10B981' : '#F59E0B' },
-                        ]}>
-                        {session.completed}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {isComplete ? (
-                    <TouchableOpacity
-                      style={styles.reportButton}
-                      onPress={() => handleShowReportOptions(session)}
-                      activeOpacity={0.8}>
-                      <Ionicons
-                        name="document-text-outline"
-                        size={20}
-                        color="#fff"
-                      />
-                      <Text style={styles.reportButtonText}>
-                        Generar Informe
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={styles.pendingBadge}>
-                      <Text style={styles.pendingText}>
-                        Mantenimiento en Progreso
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-            <View style={{ height: 40 }} />
-          </ScrollView>
+            }
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            removeClippedSubviews
+          />
         )}
       </View>
 
@@ -695,6 +695,9 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     marginTop: 12,
+  },
+  listContent: {
+    paddingBottom: 40,
   },
   emptyText: {
     fontSize: 16,
@@ -781,5 +784,8 @@ const styles = StyleSheet.create({
     color: '#D97706',
     fontWeight: '600',
     fontSize: 14,
+  },
+  pressed: {
+    opacity: 0.82,
   },
 });
