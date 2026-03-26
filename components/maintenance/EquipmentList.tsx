@@ -8,6 +8,7 @@ import {
   FlatList,
   RefreshControl,
   ListRenderItem,
+  Platform,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -353,7 +354,7 @@ export function EquipmentList<T extends BaseEquipment>({
       initialNumToRender={10}
       maxToRenderPerBatch={10}
       windowSize={5}
-      removeClippedSubviews={true}
+      removeClippedSubviews={Platform.OS === 'android'}
     />
   );
 }

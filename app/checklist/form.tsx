@@ -16,6 +16,7 @@ import {
   Pressable,
   View,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -802,7 +803,7 @@ export default function ChecklistFormScreen() {
         initialNumToRender={8}
         maxToRenderPerBatch={8}
         windowSize={7}
-        removeClippedSubviews
+        removeClippedSubviews={Platform.OS === 'android'}
       />
 
       <View style={styles.footer}>

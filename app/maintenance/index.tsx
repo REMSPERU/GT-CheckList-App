@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Text,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DefaultHeader from '@/components/default-header';
@@ -193,7 +194,7 @@ export default function MaintenanceScreen() {
         initialNumToRender={8}
         maxToRenderPerBatch={8}
         windowSize={7}
-        removeClippedSubviews={true}
+        removeClippedSubviews={Platform.OS === 'android'}
       />
     </SafeAreaView>
   );

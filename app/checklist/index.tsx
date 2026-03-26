@@ -8,6 +8,7 @@ import {
   Pressable,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import {
   SafeAreaView,
@@ -253,7 +254,7 @@ export default function EquipmentChecklistListScreen() {
           initialNumToRender={8}
           maxToRenderPerBatch={8}
           windowSize={7}
-          removeClippedSubviews
+          removeClippedSubviews={Platform.OS === 'android'}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }

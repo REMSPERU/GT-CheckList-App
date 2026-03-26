@@ -12,6 +12,7 @@ import {
   Modal,
   RefreshControl,
   Alert,
+  Platform,
   type ListRenderItem,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -61,6 +62,149 @@ interface ExecutionRouteParams {
   sessionCompleted: string;
   sessionId: string;
 }
+
+interface SyncBadgeConfig {
+  label: string;
+  color: string;
+  bgColor: string;
+}
+
+interface MaintenanceCardProps {
+  item: MaintenanceByPropertyItem;
+  statusColor: string;
+  syncBadge: SyncBadgeConfig;
+  onPressItem: (item: MaintenanceByPropertyItem) => void;
+}
+
+function getStatusColor(status: string) {
+  switch (status) {
+    case MaintenanceStatusEnum.NO_INICIADO:
+      return '#6B7280';
+    case MaintenanceStatusEnum.PENDIENTE:
+      return '#F59E0B';
+    case MaintenanceStatusEnum.EN_PROGRESO:
+      return '#3B82F6';
+    case MaintenanceStatusEnum.FINALIZADO:
+      return '#10B981';
+    case MaintenanceStatusEnum.CANCELADO:
+      return '#EF4444';
+    default:
+      return '#6B7280';
+  }
+}
+
+function getSyncBadgeConfig(syncStatus?: string): SyncBadgeConfig {
+  switch (syncStatus) {
+    case 'pending':
+      return {
+        label: 'PENDIENTE SYNC',
+        color: '#B45309',
+        bgColor: '#FEF3C7',
+      };
+    case 'syncing':
+      return {
+        label: 'SINCRONIZANDO',
+        color: '#0369A1',
+        bgColor: '#E0F2FE',
+      };
+    case 'error':
+      return {
+        label: 'ERROR SYNC',
+        color: '#B91C1C',
+        bgColor: '#FEE2E2',
+      };
+    default:
+      return {
+        label: 'SINCRONIZADO',
+        color: '#047857',
+        bgColor: '#D1FAE5',
+      };
+  }
+}
+
+const MaintenanceCard = React.memo(function MaintenanceCard({
+  item,
+  statusColor,
+  syncBadge,
+  onPressItem,
+}: MaintenanceCardProps) {
+  const equipment = item.equipos || ({} as EquipmentInfo);
+
+  const handlePress = useCallback(() => {
+    onPressItem(item);
+  }, [onPressItem, item]);
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      onPress={handlePress}
+      accessibilityRole="button">
+      <View style={styles.cardHeader}>
+        <View style={styles.cardHeaderInfo}>
+          {equipment.equipment_detail?.rotulo && (
+            <Text style={styles.cardRotulo}>
+              {equipment.equipment_detail.rotulo}
+            </Text>
+          )}
+          <Text style={styles.cardCode}>{equipment.codigo || 'S/N'}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+      </View>
+
+      <View
+        style={[
+          styles.statusBadge,
+          {
+            backgroundColor: statusColor + '20',
+          },
+        ]}>
+        <Text
+          style={[
+            styles.statusText,
+            {
+              color: statusColor,
+            },
+          ]}>
+          {item.estatus || 'SIN ESTADO'}
+        </Text>
+      </View>
+
+      {item.estatus === MaintenanceStatusEnum.FINALIZADO && (
+        <View
+          style={[
+            styles.syncBadge,
+            {
+              backgroundColor: syncBadge.bgColor,
+            },
+          ]}>
+          <Text
+            style={[
+              styles.syncBadgeText,
+              {
+                color: syncBadge.color,
+              },
+            ]}>
+            {syncBadge.label}
+          </Text>
+        </View>
+      )}
+
+      <View style={styles.infoRow}>
+        <Ionicons name="location-outline" size={18} color="#4B5563" />
+        <Text style={styles.infoLabel}>Ubicación:</Text>
+        <Text style={styles.infoValue}>{equipment.ubicacion || 'N/A'}</Text>
+      </View>
+
+      {equipment.detalle_ubicacion ? (
+        <View style={styles.infoRow}>
+          <Ionicons name="navigate-outline" size={18} color="#4B5563" />
+          <Text style={styles.infoLabel}>Detalle:</Text>
+          <Text style={styles.infoValue}>{equipment.detalle_ubicacion}</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+});
 
 export default function EquipmentMaintenanceListScreen() {
   const router = useRouter();
@@ -182,52 +326,6 @@ export default function EquipmentMaintenanceListScreen() {
     return { total: sessionItems.length, completed };
   }, [maintenanceData, sessionId]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case MaintenanceStatusEnum.NO_INICIADO:
-        return '#6B7280';
-      case MaintenanceStatusEnum.PENDIENTE:
-        return '#F59E0B';
-      case MaintenanceStatusEnum.EN_PROGRESO:
-        return '#3B82F6';
-      case MaintenanceStatusEnum.FINALIZADO:
-        return '#10B981';
-      case MaintenanceStatusEnum.CANCELADO:
-        return '#EF4444';
-      default:
-        return '#6B7280';
-    }
-  };
-
-  const getSyncBadgeConfig = (syncStatus?: string) => {
-    switch (syncStatus) {
-      case 'pending':
-        return {
-          label: 'PENDIENTE SYNC',
-          color: '#B45309',
-          bgColor: '#FEF3C7',
-        };
-      case 'syncing':
-        return {
-          label: 'SINCRONIZANDO',
-          color: '#0369A1',
-          bgColor: '#E0F2FE',
-        };
-      case 'error':
-        return {
-          label: 'ERROR SYNC',
-          color: '#B91C1C',
-          bgColor: '#FEE2E2',
-        };
-      default:
-        return {
-          label: 'SINCRONIZADO',
-          color: '#047857',
-          bgColor: '#D1FAE5',
-        };
-    }
-  };
-
   // --- Session Photo Logic for Luces de Emergencia ---
   const handleEmergencyLightNavigation = useCallback(
     async (navParams: ExecutionRouteParams) => {
@@ -260,6 +358,56 @@ export default function EquipmentMaintenanceListScreen() {
       }
     },
     [router, sessionId],
+  );
+
+  const handlePressMaintenance = useCallback(
+    (item: MaintenanceByPropertyItem) => {
+      const equipment = item.equipos || ({} as EquipmentInfo);
+
+      if (item.estatus === MaintenanceStatusEnum.FINALIZADO) {
+        router.push({
+          pathname:
+            '/maintenance/scheduled_maintenance/maintenance-response-detail',
+          params: {
+            maintenanceId: item.id,
+          },
+        });
+        return;
+      }
+
+      const navParams: ExecutionRouteParams = {
+        panelId: equipment.id,
+        maintenanceId: item.id,
+        equipmentType: equipment.equipamentos?.nombre,
+        propertyId: propertyId || '',
+        propertyName,
+        maintenanceType: item.tipo_mantenimiento,
+        sessionTotal: sessionTotals.total.toString(),
+        sessionCompleted: sessionTotals.completed.toString(),
+        sessionId: sessionId || '',
+      };
+
+      if (
+        equipment.equipamentos?.nombre === 'Luces de Emergencia' &&
+        sessionId
+      ) {
+        handleEmergencyLightNavigation(navParams);
+      } else {
+        router.push({
+          pathname: '/maintenance/execution',
+          params: navParams,
+        });
+      }
+    },
+    [
+      handleEmergencyLightNavigation,
+      propertyId,
+      propertyName,
+      router,
+      sessionId,
+      sessionTotals.completed,
+      sessionTotals.total,
+    ],
   );
 
   const handleTakeSessionPhoto = async () => {
@@ -333,122 +481,19 @@ export default function EquipmentMaintenanceListScreen() {
     ListRenderItem<MaintenanceByPropertyItem>
   >(
     ({ item }) => {
-      const equipment = item.equipos || ({} as EquipmentInfo);
+      const statusColor = getStatusColor(item.estatus || '');
+      const syncBadge = getSyncBadgeConfig(item.sync_status);
 
       return (
-        <Pressable
-          key={item.id}
-          style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-          onPress={() => {
-            if (item.estatus === MaintenanceStatusEnum.FINALIZADO) {
-              router.push({
-                pathname:
-                  '/maintenance/scheduled_maintenance/maintenance-response-detail',
-                params: {
-                  maintenanceId: item.id,
-                },
-              });
-              return;
-            }
-
-            const navParams: ExecutionRouteParams = {
-              panelId: equipment.id,
-              maintenanceId: item.id,
-              equipmentType: equipment.equipamentos?.nombre,
-              propertyId: propertyId || '',
-              propertyName,
-              maintenanceType: item.tipo_mantenimiento,
-              sessionTotal: sessionTotals.total.toString(),
-              sessionCompleted: sessionTotals.completed.toString(),
-              sessionId: sessionId || '',
-            };
-
-            if (
-              equipment.equipamentos?.nombre === 'Luces de Emergencia' &&
-              sessionId
-            ) {
-              handleEmergencyLightNavigation(navParams);
-            } else {
-              router.push({
-                pathname: '/maintenance/execution',
-                params: navParams,
-              });
-            }
-          }}
-          accessibilityRole="button">
-          <View style={styles.cardHeader}>
-            <View style={styles.cardHeaderInfo}>
-              {equipment.equipment_detail?.rotulo && (
-                <Text style={styles.cardRotulo}>
-                  {equipment.equipment_detail.rotulo}
-                </Text>
-              )}
-              <Text style={styles.cardCode}>{equipment.codigo || 'S/N'}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </View>
-
-          <View
-            style={[
-              styles.statusBadge,
-              {
-                backgroundColor: getStatusColor(item.estatus || '') + '20',
-              },
-            ]}>
-            <Text
-              style={[
-                styles.statusText,
-                { color: getStatusColor(item.estatus || '') },
-              ]}>
-              {item.estatus || 'SIN ESTADO'}
-            </Text>
-          </View>
-
-          {item.estatus === MaintenanceStatusEnum.FINALIZADO && (
-            <View
-              style={[
-                styles.syncBadge,
-                {
-                  backgroundColor: getSyncBadgeConfig(item.sync_status).bgColor,
-                },
-              ]}>
-              <Text
-                style={[
-                  styles.syncBadgeText,
-                  { color: getSyncBadgeConfig(item.sync_status).color },
-                ]}>
-                {getSyncBadgeConfig(item.sync_status).label}
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.infoRow}>
-            <Ionicons name="location-outline" size={18} color="#4B5563" />
-            <Text style={styles.infoLabel}>Ubicación:</Text>
-            <Text style={styles.infoValue}>{equipment.ubicacion || 'N/A'}</Text>
-          </View>
-
-          {equipment.detalle_ubicacion ? (
-            <View style={styles.infoRow}>
-              <Ionicons name="navigate-outline" size={18} color="#4B5563" />
-              <Text style={styles.infoLabel}>Detalle:</Text>
-              <Text style={styles.infoValue}>
-                {equipment.detalle_ubicacion}
-              </Text>
-            </View>
-          ) : null}
-        </Pressable>
+        <MaintenanceCard
+          item={item}
+          statusColor={statusColor}
+          syncBadge={syncBadge}
+          onPressItem={handlePressMaintenance}
+        />
       );
     },
-    [
-      handleEmergencyLightNavigation,
-      propertyId,
-      propertyName,
-      router,
-      sessionId,
-      sessionTotals.completed,
-      sessionTotals.total,
-    ],
+    [handlePressMaintenance],
   );
 
   return (
@@ -553,7 +598,7 @@ export default function EquipmentMaintenanceListScreen() {
             initialNumToRender={10}
             maxToRenderPerBatch={10}
             windowSize={7}
-            removeClippedSubviews
+            removeClippedSubviews={Platform.OS === 'android'}
           />
         )}
 
