@@ -54,7 +54,10 @@ function HomeScreen() {
 
       <View style={styles.optionsWrapper}>
         <Pressable
-          style={styles.optionCardContainer}
+          style={({ pressed }) => [
+            styles.optionCardContainer,
+            pressed && styles.pressed,
+          ]}
           onPress={() => router.push('/maintenance?type=checklist')}>
           <Octicons
             name="checklist"
@@ -79,7 +82,10 @@ function HomeScreen() {
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
         </Pressable>
         <Pressable
-          style={styles.optionCardContainer}
+          style={({ pressed }) => [
+            styles.optionCardContainer,
+            pressed && styles.pressed,
+          ]}
           onPress={() => router.push('/maintenance')}>
           <MaterialIcons
             name="home-repair-service"
@@ -104,7 +110,10 @@ function HomeScreen() {
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
         </Pressable>
         <Pressable
-          style={styles.optionCardContainer}
+          style={({ pressed }) => [
+            styles.optionCardContainer,
+            pressed && styles.pressed,
+          ]}
           onPress={() =>
             router.push(
               '/maintenance/scheduled_maintenance/scheduled-maintenance',
@@ -133,7 +142,10 @@ function HomeScreen() {
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
         </Pressable>
         <Pressable
-          style={styles.optionCardContainer}
+          style={({ pressed }) => [
+            styles.optionCardContainer,
+            pressed && styles.pressed,
+          ]}
           onPress={() => router.push('/equipment-record')}>
           <Feather
             name="file-text"
@@ -239,7 +251,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   pressed: {
-    opacity: 0.84,
+    opacity: 0.6,
   },
   footer: {
     alignItems: 'center',
