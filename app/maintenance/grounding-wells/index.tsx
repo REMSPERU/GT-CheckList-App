@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text, Pressable } from 'react-native';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -175,24 +175,27 @@ export default function GroundingWellsScreen() {
   // Role-based permissions
   const { canScheduleMaintenance } = useUserRole();
 
-  const toggleSelection = (id: string) => {
-    // Only allow selection if user can schedule maintenance
-    if (!canScheduleMaintenance) return;
+  const toggleSelection = useCallback(
+    (id: string) => {
+      // Only allow selection if user can schedule maintenance
+      if (!canScheduleMaintenance) return;
 
-    const newSelected = new Set(selectedIds);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-      if (newSelected.size === 0) {
-        setIsSelectionMode(false);
+      const newSelected = new Set(selectedIds);
+      if (newSelected.has(id)) {
+        newSelected.delete(id);
+        if (newSelected.size === 0) {
+          setIsSelectionMode(false);
+        }
+      } else {
+        newSelected.add(id);
+        setIsSelectionMode(true);
       }
-    } else {
-      newSelected.add(id);
-      setIsSelectionMode(true);
-    }
-    setSelectedIds(newSelected);
-  };
+      setSelectedIds(newSelected);
+    },
+    [canScheduleMaintenance, selectedIds],
+  );
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (selectedIds.size === wells.filter(l => l.config).length) {
       setSelectedIds(new Set());
       setIsSelectionMode(false);
@@ -201,18 +204,18 @@ export default function GroundingWellsScreen() {
       setSelectedIds(new Set(allConfiguredIds));
       setIsSelectionMode(true);
     }
-  };
+  }, [selectedIds.size, wells]);
 
-  const handleItemPress = (item: BaseEquipment) => {
+  const handleItemPress = useCallback((item: BaseEquipment) => {
     if (!item.config) {
       log('Navigate to configuration for:', item.id);
       return;
     }
     setSelectedItem(item);
     setShowModal(true);
-  };
+  }, []);
 
-  const handleScheduleMaintenance = () => {
+  const handleScheduleMaintenance = useCallback(() => {
     router.push({
       pathname: '/maintenance/schedule-maintenance',
       params: {
@@ -222,12 +225,12 @@ export default function GroundingWellsScreen() {
         buildingImageUrl: building?.image_url,
       },
     });
-  };
+  }, [building?.image_url, building?.name, router, selectedIds]);
 
-  const handleApplyFilter = (filters: FilterState) => {
+  const handleApplyFilter = useCallback((filters: FilterState) => {
     setFilterConfig(filters.config);
     setFilterLocations(filters.locations);
-  };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -263,31 +266,36 @@ export default function GroundingWellsScreen() {
               </View>
 
               {isSelectionMode && (
-                <TouchableOpacity
+                <Pressable
                   onPress={handleSelectAll}
-                  style={styles.selectAllButton}>
+                  style={({ pressed }) => [
+                    styles.selectAllButton,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button">
                   <Text style={styles.selectAllText}>
                     {selectedIds.size === wells.filter(l => l.config).length
                       ? 'Deseleccionar todos'
                       : 'Seleccionar todos'}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
           </>
         }
-        contentContainerStyle={{
-          paddingTop: 0,
-          paddingBottom: 116 + insets.bottom,
-        }}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: 116 + insets.bottom },
+        ]}
       />
 
       {/* Floating Action Bar for Scheduling - only for SUPERVISOR/SUPERADMIN */}
       {canScheduleMaintenance && isSelectionMode && selectedIds.size > 0 && (
         <View style={[styles.fabContainer, { bottom: 16 + insets.bottom }]}>
-          <TouchableOpacity
+          <Pressable
             style={styles.fabButton}
-            onPress={handleScheduleMaintenance}>
+            onPress={handleScheduleMaintenance}
+            accessibilityRole="button">
             <Text style={styles.fabText}>
               Programar Mantenimiento ({selectedIds.size})
             </Text>
@@ -295,9 +303,9 @@ export default function GroundingWellsScreen() {
               name="calendar"
               size={20}
               color="white"
-              style={{ marginLeft: 8 }}
+              style={styles.fabIcon}
             />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       )}
 
@@ -350,6 +358,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
+  listContent: {
+    paddingTop: 0,
+  },
   fabContainer: {
     position: 'absolute',
     bottom: 24,
@@ -374,5 +385,11 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  fabIcon: {
+    marginLeft: 8,
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

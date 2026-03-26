@@ -1,11 +1,5 @@
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import {
-  View,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  TextInput,
-} from 'react-native';
+import { View, StyleSheet, Text, Pressable, TextInput } from 'react-native';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -377,11 +371,12 @@ export default function ElectricalPanelsScreen() {
           const isActive = tempFilterType === typeValue;
 
           return (
-            <TouchableOpacity
+            <Pressable
               key={label}
-              style={[
+              style={({ pressed }) => [
                 styles.filterOptionChip,
                 isActive && styles.activeFilterOptionChip,
+                pressed && styles.pressed,
               ]}
               onPress={() => setTempFilterType(typeValue)}>
               <Text
@@ -391,7 +386,7 @@ export default function ElectricalPanelsScreen() {
                 ]}>
                 {label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>
@@ -417,15 +412,19 @@ export default function ElectricalPanelsScreen() {
         <View style={styles.headerOverlay} />
         <SafeAreaView edges={['top']} style={styles.headerContent}>
           <View style={styles.headerTopRow}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => router.back()}
+              accessibilityRole="button">
               <Ionicons name="chevron-back" size={24} color="#fff" />
-            </TouchableOpacity>
+            </Pressable>
             <Text style={styles.headerTitle}>
               {building?.name || 'Tableros Eléctricos'}
             </Text>
-            <View style={{ width: 40 }} />
+            <View style={styles.headerSpacer} />
           </View>
         </SafeAreaView>
       </View>
@@ -442,15 +441,17 @@ export default function ElectricalPanelsScreen() {
             onChangeText={setSearchTerm}
           />
         </View>
-        <TouchableOpacity
-          style={[
+        <Pressable
+          style={({ pressed }) => [
             styles.filterButton,
             (filterConfig !== null ||
               filterLocations.length > 0 ||
               filterType) &&
               styles.filterButtonActive,
+            pressed && styles.pressed,
           ]}
-          onPress={handleOpenFilter}>
+          onPress={handleOpenFilter}
+          accessibilityRole="button">
           <Feather
             name="filter"
             size={18}
@@ -460,7 +461,7 @@ export default function ElectricalPanelsScreen() {
                 : '#4B5563'
             }
           />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <EquipmentList<TableroElectricoResponse>
@@ -489,24 +490,28 @@ export default function ElectricalPanelsScreen() {
             {/* Select All Row */}
             {isSelectionMode && (
               <View style={styles.selectAllRow}>
-                <TouchableOpacity
+                <Pressable
                   onPress={handleSelectAll}
-                  style={styles.selectAllButton}>
+                  style={({ pressed }) => [
+                    styles.selectAllButton,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button">
                   <Text style={styles.selectAllText}>
                     {selectedPanelIds.size ===
                     panels.filter(p => p.config).length
                       ? 'Deseleccionar todos'
                       : 'Seleccionar todos'}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             )}
           </>
         }
-        contentContainerStyle={{
-          paddingTop: 0,
-          paddingBottom: 112 + insets.bottom,
-        }}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: 112 + insets.bottom },
+        ]}
       />
 
       {/* Floating Action Bar for Scheduling - only for SUPERVISOR/SUPERADMIN */}
@@ -514,9 +519,10 @@ export default function ElectricalPanelsScreen() {
         isSelectionMode &&
         selectedPanelIds.size > 0 && (
           <View style={[styles.fabContainer, { bottom: 16 + insets.bottom }]}>
-            <TouchableOpacity
+            <Pressable
               style={styles.fabButton}
-              onPress={handleScheduleMaintenance}>
+              onPress={handleScheduleMaintenance}
+              accessibilityRole="button">
               <Text style={styles.fabText}>
                 Programar Mantenimiento ({selectedPanelIds.size})
               </Text>
@@ -524,9 +530,9 @@ export default function ElectricalPanelsScreen() {
                 name="calendar"
                 size={20}
                 color="white"
-                style={{ marginLeft: 8 }}
+                style={styles.fabIcon}
               />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
 
@@ -578,6 +584,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
+  },
+  headerSpacer: {
+    width: 40,
   },
   backButton: {
     width: 40,
@@ -664,6 +673,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   // Panels list
+  listContent: {
+    paddingTop: 0,
+  },
   panelsContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -693,6 +705,9 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  fabIcon: {
+    marginLeft: 8,
   },
   // Filter chip styles for panel type (additional filters slot)
   filterLabel: {
@@ -726,5 +741,8 @@ const styles = StyleSheet.create({
   },
   activeFilterOptionText: {
     color: 'white',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

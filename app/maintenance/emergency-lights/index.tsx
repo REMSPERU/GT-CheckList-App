@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, Text, Pressable, Alert } from 'react-native';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -200,24 +200,27 @@ export default function EmergencyLightsScreen() {
   // Role-based permissions
   const { canScheduleMaintenance } = useUserRole();
 
-  const toggleSelection = (id: string) => {
-    // Only allow selection if user can schedule maintenance
-    if (!canScheduleMaintenance) return;
+  const toggleSelection = useCallback(
+    (id: string) => {
+      // Only allow selection if user can schedule maintenance
+      if (!canScheduleMaintenance) return;
 
-    const newSelected = new Set(selectedIds);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-      if (newSelected.size === 0) {
-        setIsSelectionMode(false);
+      const newSelected = new Set(selectedIds);
+      if (newSelected.has(id)) {
+        newSelected.delete(id);
+        if (newSelected.size === 0) {
+          setIsSelectionMode(false);
+        }
+      } else {
+        newSelected.add(id);
+        setIsSelectionMode(true);
       }
-    } else {
-      newSelected.add(id);
-      setIsSelectionMode(true);
-    }
-    setSelectedIds(newSelected);
-  };
+      setSelectedIds(newSelected);
+    },
+    [canScheduleMaintenance, selectedIds],
+  );
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (selectedIds.size === lights.filter(l => l.config).length) {
       setSelectedIds(new Set());
       setIsSelectionMode(false);
@@ -226,7 +229,7 @@ export default function EmergencyLightsScreen() {
       setSelectedIds(new Set(allConfiguredIds));
       setIsSelectionMode(true);
     }
-  };
+  }, [lights, selectedIds.size]);
 
   const handleItemPress = (item: BaseEquipment) => {
     if (!item.config) {
@@ -239,7 +242,7 @@ export default function EmergencyLightsScreen() {
     handleOpenEditModal(item);
   };
 
-  const handleScheduleMaintenance = () => {
+  const handleScheduleMaintenance = useCallback(() => {
     router.push({
       pathname: '/maintenance/schedule-maintenance',
       params: {
@@ -249,7 +252,7 @@ export default function EmergencyLightsScreen() {
         buildingImageUrl: building?.image_url,
       },
     });
-  };
+  }, [building?.image_url, building?.name, router, selectedIds]);
 
   const handleOpenCreateModal = async () => {
     if (!building?.id || !equipamento?.id) return;
@@ -264,10 +267,10 @@ export default function EmergencyLightsScreen() {
     }
   };
 
-  const handleOpenEditModal = (item: BaseEquipment) => {
+  const handleOpenEditModal = useCallback((item: BaseEquipment) => {
     setEditingLight(item);
     setShowLightModal(true);
-  };
+  }, []);
 
   const handleSaveLight = async (data: EmergencyLightFormData) => {
     if (!building?.id || !equipamento?.id) return;
@@ -322,35 +325,38 @@ export default function EmergencyLightsScreen() {
     }
   };
 
-  const handleDeleteLight = (item: BaseEquipment) => {
-    Alert.alert(
-      'Desactivar Luz',
-      `¿Está seguro de desactivar "${item.codigo}"? Esta acción no se puede deshacer.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Desactivar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await softDeleteEquipment(item.id);
-              await syncService.pullData();
-              await loadData();
-              Alert.alert('Éxito', 'Luz desactivada correctamente');
-            } catch (err) {
-              console.error('Error deactivating light:', err);
-              Alert.alert('Error', 'No se pudo desactivar la luz');
-            }
+  const handleDeleteLight = useCallback(
+    (item: BaseEquipment) => {
+      Alert.alert(
+        'Desactivar Luz',
+        `¿Está seguro de desactivar "${item.codigo}"? Esta acción no se puede deshacer.`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Desactivar',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await softDeleteEquipment(item.id);
+                await syncService.pullData();
+                await loadData();
+                Alert.alert('Éxito', 'Luz desactivada correctamente');
+              } catch (err) {
+                console.error('Error deactivating light:', err);
+                Alert.alert('Error', 'No se pudo desactivar la luz');
+              }
+            },
           },
-        },
-      ],
-    );
-  };
+        ],
+      );
+    },
+    [loadData],
+  );
 
-  const handleApplyFilter = (filters: FilterState) => {
+  const handleApplyFilter = useCallback((filters: FilterState) => {
     setFilterConfig(filters.config);
     setFilterLocations(filters.locations);
-  };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -388,31 +394,36 @@ export default function EmergencyLightsScreen() {
               </View>
 
               {isSelectionMode && (
-                <TouchableOpacity
+                <Pressable
                   onPress={handleSelectAll}
-                  style={styles.selectAllButton}>
+                  style={({ pressed }) => [
+                    styles.selectAllButton,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button">
                   <Text style={styles.selectAllText}>
                     {selectedIds.size === lights.filter(l => l.config).length
                       ? 'Deseleccionar todos'
                       : 'Seleccionar todos'}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               )}
             </View>
           </>
         }
-        contentContainerStyle={{
-          paddingTop: 0,
-          paddingBottom: 116 + insets.bottom,
-        }}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: 116 + insets.bottom },
+        ]}
       />
 
       {/* Floating Action Bar for Scheduling - only for SUPERVISOR/SUPERADMIN */}
       {canScheduleMaintenance && isSelectionMode && selectedIds.size > 0 && (
         <View style={[styles.fabContainer, { bottom: 16 + insets.bottom }]}>
-          <TouchableOpacity
+          <Pressable
             style={styles.fabButton}
-            onPress={handleScheduleMaintenance}>
+            onPress={handleScheduleMaintenance}
+            accessibilityRole="button">
             <Text style={styles.fabText}>
               Programar Mantenimiento ({selectedIds.size})
             </Text>
@@ -420,9 +431,9 @@ export default function EmergencyLightsScreen() {
               name="calendar"
               size={20}
               color="white"
-              style={{ marginLeft: 8 }}
+              style={styles.fabIcon}
             />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       )}
 
@@ -447,11 +458,12 @@ export default function EmergencyLightsScreen() {
 
       {/* Floating Add Button */}
       {!isSelectionMode && (
-        <TouchableOpacity
+        <Pressable
           style={[styles.addButton, { bottom: 96 + insets.bottom }]}
-          onPress={handleOpenCreateModal}>
+          onPress={handleOpenCreateModal}
+          accessibilityRole="button">
           <Ionicons name="add" size={28} color="white" />
-        </TouchableOpacity>
+        </Pressable>
       )}
     </SafeAreaView>
   );
@@ -485,6 +497,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
+  listContent: {
+    paddingTop: 0,
+  },
   listContainer: {
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -515,6 +530,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  fabIcon: {
+    marginLeft: 8,
+  },
   addButton: {
     position: 'absolute',
     bottom: 100,
@@ -530,5 +548,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });
