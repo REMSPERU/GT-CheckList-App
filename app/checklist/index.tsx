@@ -56,6 +56,10 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
     onPress(item);
   }, [item, onPress]);
 
+  const locationText = [item.ubicacion, item.detalle_ubicacion]
+    .filter(Boolean)
+    .join(' - ');
+
   return (
     <Pressable
       style={({ pressed }) => [
@@ -71,7 +75,7 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
       <View style={styles.itemBody}>
         <Text style={styles.itemTitle}>{item.codigo || 'Sin codigo'}</Text>
         <Text style={styles.itemSubtitle}>
-          {item.ubicacion || 'Sin ubicacion'}
+          {locationText || 'Sin ubicacion'}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
