@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Modal, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ReportType,
@@ -53,18 +53,28 @@ export function ReportTypeModal({
         <View style={styles.container}>
           <View style={styles.header}>
             <Text style={styles.title}>Seleccionar Tipo de Informe</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <Pressable
+              onPress={onClose}
+              style={({ pressed }) => [
+                styles.closeBtn,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button">
               <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <View style={styles.options}>
             {filteredOptions.map(option => (
-              <TouchableOpacity
+              <Pressable
                 key={option.type}
-                style={styles.optionCard}
+                style={({ pressed }) => [
+                  styles.optionCard,
+                  pressed && styles.pressed,
+                ]}
                 onPress={() => onSelectType(option.type)}
-                disabled={isGenerating}>
+                disabled={isGenerating}
+                accessibilityRole="button">
                 <View style={styles.iconContainer}>
                   <Ionicons
                     name={option.icon as any}
@@ -79,7 +89,7 @@ export function ReportTypeModal({
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#ccc" />
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
 
@@ -174,5 +184,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#ff6600',
     fontWeight: '500',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

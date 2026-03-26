@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   ActivityIndicator,
   Alert,
@@ -145,9 +145,14 @@ export default function SelectInstrumentScreen() {
       const isSelected = selectedSet.has(item.id);
 
       return (
-        <TouchableOpacity
-          style={[styles.card, isSelected && styles.cardSelected]}
-          onPress={() => handleSelect(item)}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.card,
+            isSelected && styles.cardSelected,
+            pressed && styles.pressed,
+          ]}
+          onPress={() => handleSelect(item)}
+          accessibilityRole="button">
           <View style={styles.cardHeader}>
             <Text
               style={[
@@ -185,7 +190,7 @@ export default function SelectInstrumentScreen() {
             ]}>
             Serie: {item.serie}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       );
     },
     [handleSelect, selectedSet],
@@ -234,15 +239,16 @@ export default function SelectInstrumentScreen() {
       </View>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.continueBtn,
             selectedIds.length === 0 && styles.continueBtnDisabled,
           ]}
           onPress={handleContinue}
-          disabled={selectedIds.length === 0}>
+          disabled={selectedIds.length === 0}
+          accessibilityRole="button">
           <Text style={styles.continueBtnText}>Continuar</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -339,5 +345,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

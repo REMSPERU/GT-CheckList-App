@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { memo } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
 import { BasicInfoStepProps } from '@/types/panel-configuration';
@@ -23,7 +23,7 @@ export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
         name="panelType"
         render={({ field: { onChange, value } }) => (
           <View style={styles.listButtons}>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.listButton,
                 value === 'adosado' && styles.listButtonActive,
@@ -36,8 +36,8 @@ export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
                 ]}>
                 Adosado
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.listButton,
                 value === 'empotrado' && styles.listButtonActive,
@@ -50,8 +50,8 @@ export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
                 ]}>
                 Empotrado
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.listButton,
                 value === 'autosoportado' && styles.listButtonActive,
@@ -64,7 +64,7 @@ export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
                 ]}>
                 Autosoportado
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
       />
@@ -76,7 +76,7 @@ export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
         name="voltage"
         render={({ field: { onChange, value } }) => (
           <View style={styles.voltageButtons}>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.voltageButton,
                 value === '220' && styles.voltageButtonActive,
@@ -89,8 +89,8 @@ export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
                 ]}>
                 220V
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.voltageButton,
                 value === '380' && styles.voltageButtonActive,
@@ -103,8 +103,8 @@ export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
                 ]}>
                 380V
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.voltageButton,
                 value === '440' && styles.voltageButtonActive,
@@ -117,7 +117,7 @@ export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
                 ]}>
                 440V
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
       />
@@ -129,7 +129,7 @@ export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
         name="phase"
         render={({ field: { onChange, value } }) => (
           <View style={styles.listButtons}>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.listButton,
                 value === 'unipolar' && styles.listButtonActive,
@@ -142,8 +142,8 @@ export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
                 ]}>
                 Unipolar
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.listButton,
                 value === 'mono_2w' && styles.listButtonActive,
@@ -156,8 +156,8 @@ export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
                 ]}>
                 Monofásico 2 hilos
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.listButton,
                 value === 'tri_3w' && styles.listButtonActive,
@@ -170,8 +170,8 @@ export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
                 ]}>
                 Trifásico 3 hilos
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               style={[
                 styles.listButton,
                 value === 'tri_4w' && styles.listButtonActive,
@@ -184,7 +184,7 @@ export default memo(function BasicInfoStep({ panel }: BasicInfoStepProps) {
                 ]}>
                 Trifásico 4 hilos
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
       />

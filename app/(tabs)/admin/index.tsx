@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import React from 'react';
 import { Link, type LinkProps } from 'expo-router';
 import DefaultHeader from '@/components/default-header';
@@ -15,11 +15,12 @@ const AdminOption = ({
   icon: keyof typeof Feather.glyphMap;
 }) => (
   <Link href={href} asChild>
-    <TouchableOpacity style={styles.option}>
+    <Pressable
+      style={({ pressed }) => [styles.option, pressed && styles.pressed]}>
       <Feather name={icon} size={24} color="#0891B2" />
       <Text style={styles.optionText}>{title}</Text>
       <Feather name="chevron-right" size={24} color="#9CA3AF" />
-    </TouchableOpacity>
+    </Pressable>
   </Link>
 );
 
@@ -72,5 +73,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

@@ -6,13 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { Control, Controller, useFormContext, useWatch } from 'react-hook-form';
 import RNPickerSelect from 'react-native-picker-select';
 import { Ionicons } from '@expo/vector-icons';
@@ -347,7 +341,7 @@ const SubITMFormItem = memo(function SubITMFormItem({
       {/* Toggle ID (Interruptor Diferencial) — solo para sub-ITMs dentro de ITM */}
       {showIDToggle && (
         <View style={localStyles.marginTop12}>
-          <TouchableOpacity
+          <Pressable
             style={[styles.toggleRow, hasID && styles.toggleRowActive]}
             onPress={toggleID}>
             <View style={styles.toggleIconRow}>
@@ -367,7 +361,7 @@ const SubITMFormItem = memo(function SubITMFormItem({
                 style={[styles.toggleThumb, hasID && styles.toggleThumbActive]}
               />
             </View>
-          </TouchableOpacity>
+          </Pressable>
 
           {hasID && (
             <View style={localStyles.marginTop12}>
@@ -474,17 +468,16 @@ const CollapsedCircuitHeader = memo(function CollapsedCircuitHeader({
 
   return (
     <View style={styles.cnCard}>
-      <TouchableOpacity
+      <Pressable
         style={styles.cnCardHeader}
-        onPress={() => onToggleExpand(index)}
-        activeOpacity={0.7}>
+        onPress={() => onToggleExpand(index)}>
         <View style={localStyles.nameContainer}>
           <Text style={styles.cnTitle} numberOfLines={1}>
             {displayName}
           </Text>
         </View>
         <Ionicons name="chevron-down" size={20} color="#6B7280" />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 });
@@ -766,10 +759,9 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
           />
           <Ionicons name="pencil" size={12} color="#6B7280" />
         </View>
-        <TouchableOpacity
+        <Pressable
           style={localStyles.toggleArea}
-          onPress={() => onToggleExpand(index)}
-          activeOpacity={0.7}>
+          onPress={() => onToggleExpand(index)}>
           {hasErrors && (
             <View style={localStyles.errorBadge}>
               <Text style={localStyles.errorBadgeText}>Incompleto</Text>
@@ -780,7 +772,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
             size={20}
             color={hasErrors ? '#EF4444' : '#6B7280'}
           />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* -- Full content -- */}
@@ -789,7 +781,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
         <Text style={styles.cnLabel}>TIPO DE INTERRUPTOR:</Text>
         <View style={styles.segmentContainer}>
           {INTERRUPTOR_OPTIONS.map(option => (
-            <TouchableOpacity
+            <Pressable
               key={option.key}
               style={[
                 styles.segment,
@@ -805,7 +797,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                 ]}>
                 {option.shortLabel}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </View>
 
@@ -951,7 +943,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
             {interruptorType === 'itm' && (
               <View style={localStyles.marginTop12}>
                 {/* ID Toggle (Interruptor Diferencial opcional) */}
-                <TouchableOpacity
+                <Pressable
                   style={[styles.toggleRow, hasID && styles.toggleRowActive]}
                   onPress={toggleIDForITM}>
                   <View style={styles.toggleIconRow}>
@@ -980,7 +972,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                       ]}
                     />
                   </View>
-                </TouchableOpacity>
+                </Pressable>
 
                 {hasID && (
                   <View style={localStyles.marginTop12}>
@@ -1063,7 +1055,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
 
                 {/* Sub-ITMs Toggle for ITM type */}
                 <View style={localStyles.marginTop12}>
-                  <TouchableOpacity
+                  <Pressable
                     style={[
                       styles.toggleRow,
                       hasSubITMs && styles.toggleRowActive,
@@ -1095,7 +1087,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                         ]}
                       />
                     </View>
-                  </TouchableOpacity>
+                  </Pressable>
 
                   {hasSubITMs && (
                     <View style={localStyles.marginTop12}>
@@ -1146,10 +1138,9 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                         />
                       ))}
                       {hasMoreSubITMs && (
-                        <TouchableOpacity
+                        <Pressable
                           style={localStyles.showMoreBtn}
-                          onPress={showMoreSubITMs}
-                          activeOpacity={0.7}>
+                          onPress={showMoreSubITMs}>
                           <Ionicons
                             name="add-circle-outline"
                             size={18}
@@ -1158,7 +1149,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                           <Text style={localStyles.showMoreText}>
                             Mostrar más ({subITMVisibleCount}/{subITMsLength})
                           </Text>
-                        </TouchableOpacity>
+                        </Pressable>
                       )}
                     </View>
                   )}
@@ -1172,7 +1163,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                 <Text style={styles.cnLabel}>CANTIDAD DE ITMs:</Text>
                 <View style={styles.segmentContainer}>
                   {ID_SUB_ITM_COUNT_OPTIONS.map(num => (
-                    <TouchableOpacity
+                    <Pressable
                       key={num}
                       style={[
                         styles.segment,
@@ -1186,7 +1177,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
                         ]}>
                         {num}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </View>
 

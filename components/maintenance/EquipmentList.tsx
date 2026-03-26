@@ -2,12 +2,14 @@ import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   StyleSheet,
   FlatList,
   RefreshControl,
   ListRenderItem,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { BaseEquipment } from '@/types/api';
@@ -42,8 +44,10 @@ export interface EquipmentListProps<T extends BaseEquipment> {
   ListFooterComponent?: React.ComponentType<any> | React.ReactElement | null;
   refreshing?: boolean;
   onRefresh?: () => void;
-  contentContainerStyle?: any;
+  contentContainerStyle?: StyleProp<ViewStyle>;
 }
+
+const RETRY_HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 /**
  * Reusable equipment list component for rendering equipment cards.
@@ -91,18 +95,21 @@ export function EquipmentList<T extends BaseEquipment>({
       // Priority: manual retry needed > auto-retrying > pending/syncing
       if (itemNeedsManualRetry && onRetrySync) {
         return (
-          <TouchableOpacity
-            style={styles.syncBadgeError}
+          <Pressable
+            style={({ pressed }) => [
+              styles.syncBadgeError,
+              pressed && styles.pressed,
+            ]}
             onPress={() => onRetrySync(item.id)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            hitSlop={RETRY_HIT_SLOP}>
             <Ionicons
               name="alert-circle"
               size={14}
               color="#DC2626"
-              style={{ marginRight: 4 }}
+              style={styles.badgeIcon}
             />
             <Text style={styles.syncBadgeErrorText}>Reintentar</Text>
-          </TouchableOpacity>
+          </Pressable>
         );
       }
 
@@ -112,7 +119,7 @@ export function EquipmentList<T extends BaseEquipment>({
             <ActivityIndicator
               size={12}
               color="#D97706"
-              style={{ marginRight: 4 }}
+              style={styles.badgeIcon}
             />
             <Text style={styles.syncBadgePendingText}>Reintentando...</Text>
           </View>
@@ -125,7 +132,7 @@ export function EquipmentList<T extends BaseEquipment>({
             <ActivityIndicator
               size={12}
               color="#0891B2"
-              style={{ marginRight: 4 }}
+              style={styles.badgeIcon}
             />
             <Text style={styles.syncBadgeSyncingText}>Sincronizando...</Text>
           </View>
@@ -139,7 +146,7 @@ export function EquipmentList<T extends BaseEquipment>({
               name="cloud-upload-outline"
               size={14}
               color="#D97706"
-              style={{ marginRight: 4 }}
+              style={styles.badgeIcon}
             />
             <Text style={styles.syncBadgePendingText}>Pendiente</Text>
           </View>
@@ -149,18 +156,21 @@ export function EquipmentList<T extends BaseEquipment>({
       if (syncStatus === 'error' || syncStatus === 'fatal_error') {
         if (onRetrySync) {
           return (
-            <TouchableOpacity
-              style={styles.syncBadgeError}
+            <Pressable
+              style={({ pressed }) => [
+                styles.syncBadgeError,
+                pressed && styles.pressed,
+              ]}
               onPress={() => onRetrySync(item.id)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              hitSlop={RETRY_HIT_SLOP}>
               <Ionicons
                 name="refresh"
                 size={14}
                 color="#DC2626"
-                style={{ marginRight: 4 }}
+                style={styles.badgeIcon}
               />
               <Text style={styles.syncBadgeErrorText}>Reintentar</Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         }
         return (
@@ -169,7 +179,7 @@ export function EquipmentList<T extends BaseEquipment>({
               name="alert-circle"
               size={14}
               color="#DC2626"
-              style={{ marginRight: 4 }}
+              style={styles.badgeIcon}
             />
             <Text style={styles.syncBadgeErrorText}>Error</Text>
           </View>
@@ -198,7 +208,7 @@ export function EquipmentList<T extends BaseEquipment>({
                 name="location-outline"
                 size={14}
                 color="#6B7280"
-                style={{ marginRight: 4 }}
+                style={styles.badgeIcon}
               />
               <Text style={styles.itemLocation}>
                 {item.ubicacion}
@@ -213,7 +223,7 @@ export function EquipmentList<T extends BaseEquipment>({
                 name="alert-circle-outline"
                 size={16}
                 color="#D97706"
-                style={{ marginRight: 4 }}
+                style={styles.badgeIcon}
               />
               <Text style={styles.notConfiguredLabel}>Sin configurar</Text>
             </View>
@@ -230,23 +240,30 @@ export function EquipmentList<T extends BaseEquipment>({
 
       if (!isConfigured) {
         return (
-          <TouchableOpacity
-            style={styles.itemCard}
+          <Pressable
+            style={({ pressed }) => [
+              styles.itemCard,
+              pressed && styles.pressed,
+            ]}
             onPress={() => onItemPress(item)}
             onLongPress={() => onLongPress?.(item)}
-            activeOpacity={0.7}>
+            accessibilityRole="button">
             <View style={[styles.radioCircle, styles.radioCircleHidden]} />
             <ItemContent />
-          </TouchableOpacity>
+          </Pressable>
         );
       }
 
       return (
         <View style={[styles.itemCard, isSelected && styles.itemCardSelected]}>
           {canSelect ? (
-            <TouchableOpacity
-              style={styles.selectionArea}
-              onPress={() => onToggleSelection(item.id)}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.selectionArea,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => onToggleSelection(item.id)}
+              accessibilityRole="button">
               <View
                 style={[
                   styles.radioCircle,
@@ -254,18 +271,21 @@ export function EquipmentList<T extends BaseEquipment>({
                 ]}>
                 {isSelected && <View style={styles.radioInnerCircle} />}
               </View>
-            </TouchableOpacity>
+            </Pressable>
           ) : (
             <View style={[styles.radioCircle, styles.radioCircleHidden]} />
           )}
 
-          <TouchableOpacity
-            style={styles.itemContent}
+          <Pressable
+            style={({ pressed }) => [
+              styles.itemContent,
+              pressed && styles.pressed,
+            ]}
             onPress={() => onItemPress(item)}
             onLongPress={() => onLongPress?.(item)}
-            activeOpacity={0.7}>
+            accessibilityRole="button">
             <ItemContent />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       );
     },
@@ -489,5 +509,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#DC2626',
+  },
+  badgeIcon: {
+    marginRight: 4,
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

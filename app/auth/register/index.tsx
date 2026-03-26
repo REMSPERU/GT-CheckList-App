@@ -13,7 +13,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -255,16 +255,20 @@ export default function RegisterScreen() {
                   onChangeText={setPassword}
                   editable={!isLoading}
                 />
-                <TouchableOpacity
-                  style={styles.eyeIcon}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.eyeIcon,
+                    pressed && styles.pressed,
+                  ]}
                   onPress={() => setShowPassword(!showPassword)}
-                  disabled={isLoading}>
+                  disabled={isLoading}
+                  accessibilityRole="button">
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
                     color={Colors.light.icon}
                   />
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
               {/* Password validations */}
@@ -295,13 +299,15 @@ export default function RegisterScreen() {
                   </View>
                 )}
 
-              <TouchableOpacity
+              <Pressable
                 onPress={handleRegister}
                 disabled={isLoading || !isFormValid}
-                style={[
+                style={({ pressed }) => [
                   styles.button,
                   (isLoading || !isFormValid) && styles.buttonDisabled,
-                ]}>
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button">
                 {isLoading ? (
                   <View style={styles.buttonLoadingContainer}>
                     <ActivityIndicator color="#FFFFFF" size="small" />
@@ -312,14 +318,15 @@ export default function RegisterScreen() {
                 ) : (
                   <Text style={styles.buttonText}>Crear cuenta</Text>
                 )}
-              </TouchableOpacity>
+              </Pressable>
 
-              <TouchableOpacity
+              <Pressable
                 disabled={isLoading}
                 style={styles.secondaryButton}
-                onPress={() => router.push('/auth/login')}>
+                onPress={() => router.push('/auth/login')}
+                accessibilityRole="button">
                 <Text style={styles.secondaryButtonText}>Iniciar sesión</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </ScrollView>
@@ -450,5 +457,8 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: Colors.light.tint,
     fontWeight: '600',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

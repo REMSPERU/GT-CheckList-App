@@ -11,7 +11,7 @@ import {
   Linking,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 
@@ -82,11 +82,16 @@ export default function QRScannerScreen() {
         <Text style={[styles.permissionText, { color: textColor }]}>
           Se requiere permiso de cámara para escanear códigos QR
         </Text>
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: tintColor }]}
-          onPress={handleRequestPermission}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.button,
+            { backgroundColor: tintColor },
+            pressed && styles.pressed,
+          ]}
+          onPress={handleRequestPermission}
+          accessibilityRole="button">
           <Text style={styles.buttonText}>Otorgar Permiso</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     );
   }
@@ -156,15 +161,20 @@ export default function QRScannerScreen() {
 
       {/* Botón para reactivar el escáner */}
       {!isActive && (
-        <TouchableOpacity
-          style={[styles.scanButton, { backgroundColor: tintColor }]}
+        <Pressable
+          style={({ pressed }) => [
+            styles.scanButton,
+            { backgroundColor: tintColor },
+            pressed && styles.pressed,
+          ]}
           onPress={() => {
             setScannedData(null);
             setIsActive(true);
-          }}>
+          }}
+          accessibilityRole="button">
           <MaterialIcons name="qr-code-scanner" size={24} color="#fff" />
           <Text style={styles.scanButtonText}>Escanear Nuevo</Text>
-        </TouchableOpacity>
+        </Pressable>
       )}
     </View>
   );
@@ -301,5 +311,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

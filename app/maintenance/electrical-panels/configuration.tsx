@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ScrollView,
   View,
-  TouchableOpacity,
+  Pressable,
   Text,
   KeyboardAvoidingView,
   Platform,
@@ -46,16 +46,22 @@ const NavigationFooter = memo(function NavigationFooter({
 }: NavigationFooterProps) {
   return (
     <View style={styles.footer}>
-      <TouchableOpacity style={styles.primaryBtn} onPress={onNext}>
+      <Pressable
+        style={styles.primaryBtn}
+        onPress={onNext}
+        accessibilityRole="button">
         <Text style={styles.primaryBtnText}>
           {isLastStep(currentStepId) ? 'Guardar' : 'Siguiente'}
         </Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.secondaryBtn} onPress={onBack}>
+      </Pressable>
+      <Pressable
+        style={styles.secondaryBtn}
+        onPress={onBack}
+        accessibilityRole="button">
         <Text style={styles.secondaryBtnText}>
           {isFirstStep(currentStepId) ? 'Cancel' : 'Atras'}
         </Text>
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 });

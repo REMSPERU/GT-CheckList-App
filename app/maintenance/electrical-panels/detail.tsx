@@ -1,11 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TableroElectricoResponse } from '@/types/api';
@@ -53,15 +47,19 @@ export default function PanelDetailScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header – always visible */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <Pressable
           onPress={() => router.back()}
-          style={styles.backButton}>
+          style={({ pressed }) => [
+            styles.backButton,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button">
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
+        </Pressable>
         <Text style={styles.headerTitle}>Detalle del Tablero</Text>
         <View style={flexOneStyle} />
         {!isLoading && panel && (isAdmin || isSupervisor) && (
-          <TouchableOpacity
+          <Pressable
             onPress={() => {
               router.push({
                 pathname: '/maintenance/electrical-panels/configuration',
@@ -71,10 +69,14 @@ export default function PanelDetailScreen() {
                 },
               });
             }}
-            style={styles.editButton}>
+            style={({ pressed }) => [
+              styles.editButton,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button">
             <Ionicons name="pencil" size={20} color="#0891B2" />
             <Text style={styles.editButtonText}>Editar</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
 
@@ -143,6 +145,9 @@ const styles = StyleSheet.create({
     color: '#0891B2',
     fontWeight: '600',
     fontSize: 14,
+  },
+  pressed: {
+    opacity: 0.84,
   },
   centerContent: {
     flex: 1,

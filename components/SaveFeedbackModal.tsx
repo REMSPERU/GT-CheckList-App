@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
@@ -94,20 +94,27 @@ export function SaveFeedbackModal({
           {status !== 'loading' && (
             <View style={styles.buttonContainer}>
               {status === 'error' && onRetry && (
-                <TouchableOpacity
-                  style={[styles.button, styles.retryButton]}
-                  onPress={onRetry}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.button,
+                    styles.retryButton,
+                    pressed && styles.pressed,
+                  ]}
+                  onPress={onRetry}
+                  accessibilityRole="button">
                   <Ionicons name="refresh" size={18} color="#fff" />
                   <Text style={styles.retryButtonText}>Reintentar</Text>
-                </TouchableOpacity>
+                </Pressable>
               )}
-              <TouchableOpacity
-                style={[
+              <Pressable
+                style={({ pressed }) => [
                   styles.button,
                   styles.closeButton,
                   status === 'error' && onRetry && styles.secondaryButton,
+                  pressed && styles.pressed,
                 ]}
-                onPress={onClose}>
+                onPress={onClose}
+                accessibilityRole="button">
                 <Text
                   style={[
                     styles.closeButtonText,
@@ -119,7 +126,7 @@ export function SaveFeedbackModal({
                       ? 'Cerrar'
                       : 'Entendido'}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           )}
         </View>
@@ -206,5 +213,8 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: '#374151',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

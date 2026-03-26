@@ -4,7 +4,7 @@ import {
   StyleSheet,
   FlatList,
   ActivityIndicator,
-  TouchableOpacity,
+  Pressable,
   Modal,
   Alert,
 } from 'react-native';
@@ -27,7 +27,10 @@ const UserCard = ({
   user: UserProfile;
   onPress: () => void;
 }) => (
-  <TouchableOpacity style={styles.card} onPress={onPress}>
+  <Pressable
+    style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    onPress={onPress}
+    accessibilityRole="button">
     <View style={styles.cardAvatar}>
       <Feather name="user" size={24} color="#4B5563" />
     </View>
@@ -42,7 +45,7 @@ const UserCard = ({
     <View style={styles.cardRole}>
       <Text style={styles.roleText}>{user.role}</Text>
     </View>
-  </TouchableOpacity>
+  </Pressable>
 );
 
 export default function AssignRolesScreen() {
@@ -146,16 +149,26 @@ export default function AssignRolesScreen() {
               placeholder={{ label: 'Seleccionar un rol...', value: null }}
             />
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.button, styles.buttonCancel]}
-                onPress={() => setModalVisible(false)}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.button,
+                  styles.buttonCancel,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => setModalVisible(false)}
+                accessibilityRole="button">
                 <Text style={styles.buttonText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.buttonSave]}
-                onPress={handleUpdateRole}>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.button,
+                  styles.buttonSave,
+                  pressed && styles.pressed,
+                ]}
+                onPress={handleUpdateRole}
+                accessibilityRole="button">
                 <Text style={styles.buttonText}>Guardar</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </View>
@@ -254,6 +267,9 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });
 

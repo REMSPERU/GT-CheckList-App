@@ -12,7 +12,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -102,43 +102,59 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 editable={!isLoading}
               />
-              <TouchableOpacity
-                style={styles.eyeIcon}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.eyeIcon,
+                  pressed && styles.pressed,
+                ]}
                 onPress={() => setShowPassword(!showPassword)}
-                disabled={isLoading}>
+                disabled={isLoading}
+                accessibilityRole="button">
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
                   color={Colors.light.icon}
                 />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
-            <TouchableOpacity style={styles.forgotWrapper} disabled={isLoading}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.forgotWrapper,
+                pressed && styles.pressed,
+              ]}
+              disabled={isLoading}
+              accessibilityRole="button">
               <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
+            <Pressable
               onPress={handleLogin}
               disabled={isLoading}
-              style={[styles.button, isLoading && styles.buttonDisabled]}>
+              style={({ pressed }) => [
+                styles.button,
+                isLoading && styles.buttonDisabled,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button">
               {isLoading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={styles.buttonText}>Iniciar sesión</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
+            <Pressable
               disabled={isLoading}
               style={styles.secondaryButton}
-              onPress={() => router.push('/auth/register')}>
+              onPress={() => router.push('/auth/register')}
+              accessibilityRole="button">
               <Text style={styles.secondaryButtonText}>Crear cuenta</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
-        <View style={{ height: 16, alignItems: 'center' }}>
-          <Text style={{ color: Colors.light.text, fontSize: 12 }}>
+        <View style={styles.networkStatusContainer}>
+          <Text style={styles.networkStatusText}>
             {networkState.isConnected
               ? 'Conexión a internet'
               : 'Sin conexión a internet'}
@@ -247,5 +263,16 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: Colors.light.tint,
     fontWeight: '600',
+  },
+  networkStatusContainer: {
+    height: 16,
+    alignItems: 'center',
+  },
+  networkStatusText: {
+    color: Colors.light.text,
+    fontSize: 12,
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });
