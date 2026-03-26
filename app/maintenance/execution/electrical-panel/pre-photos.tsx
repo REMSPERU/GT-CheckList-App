@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
@@ -8,7 +9,6 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
-  Image,
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -343,7 +343,12 @@ export default function PreMaintenancePhotosScreen() {
             removeClippedSubviews={true}
             renderItem={({ item }) => (
               <View style={styles.photoThumbnail}>
-                <Image source={{ uri: item.uri }} style={styles.thumbImage} />
+                <Image
+                  source={{ uri: item.uri }}
+                  style={styles.thumbImage}
+                  contentFit="cover"
+                  transition={120}
+                />
 
                 {/* Status Overlay - simplified for local */}
                 <View style={styles.statusOverlay}>

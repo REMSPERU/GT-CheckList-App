@@ -5,11 +5,14 @@ import {
   StyleSheet,
   Text,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 
@@ -39,9 +42,46 @@ function getSingleParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+interface EquipmentListItemProps {
+  item: BaseEquipment;
+  onPress: (item: BaseEquipment) => void;
+}
+
+const EquipmentListItem = React.memo(function EquipmentListItem({
+  item,
+  onPress,
+}: EquipmentListItemProps) {
+  const handlePress = useCallback(() => {
+    onPress(item);
+  }, [item, onPress]);
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.itemCard,
+        pressed && styles.itemCardPressed,
+      ]}
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`Equipo ${item.codigo || 'sin codigo'}`}>
+      <View style={styles.itemIconWrap}>
+        <Ionicons name="checkmark-done" size={22} color="#0891B2" />
+      </View>
+      <View style={styles.itemBody}>
+        <Text style={styles.itemTitle}>{item.codigo || 'Sin codigo'}</Text>
+        <Text style={styles.itemSubtitle}>
+          {item.ubicacion || 'Sin ubicacion'}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+    </Pressable>
+  );
+});
+
 export default function EquipmentChecklistListScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
 
   const building = useMemo<BuildingParam | null>(() => {
     const buildingId = getSingleParam(params.buildingId);
@@ -163,6 +203,13 @@ export default function EquipmentChecklistListScreen() {
     [building?.name, equipamento, router],
   );
 
+  const renderEquipmentItem = useCallback(
+    ({ item }: { item: BaseEquipment }) => (
+      <EquipmentListItem item={item} onPress={handlePressEquipment} />
+    ),
+    [handlePressEquipment],
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -175,11 +222,15 @@ export default function EquipmentChecklistListScreen() {
           <View style={styles.headerPlaceholder} />
         )}
         <View style={styles.headerOverlay} />
-        <TouchableOpacity
-          style={styles.backButton}
+        <Pressable
+          style={({ pressed }) => [
+            styles.backButton,
+            { top: insets.top + 8 },
+            pressed && styles.backButtonPressed,
+          ]}
           onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={22} color="#fff" />
-        </TouchableOpacity>
+        </Pressable>
         <View style={styles.headerTextWrap}>
           <Text style={styles.headerTitle}>
             {equipamento?.nombre || 'Checklist'}
@@ -198,6 +249,11 @@ export default function EquipmentChecklistListScreen() {
         <FlatList
           data={equipos}
           keyExtractor={item => item.id}
+          renderItem={renderEquipmentItem}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -209,24 +265,6 @@ export default function EquipmentChecklistListScreen() {
               </Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.itemCard}
-              onPress={() => handlePressEquipment(item)}>
-              <View style={styles.itemIconWrap}>
-                <Ionicons name="checkmark-done" size={22} color="#0891B2" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.itemTitle}>
-                  {item.codigo || 'Sin codigo'}
-                </Text>
-                <Text style={styles.itemSubtitle}>
-                  {item.ubicacion || 'Sin ubicacion'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          )}
         />
       )}
     </SafeAreaView>
@@ -257,7 +295,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 52,
     left: 16,
     width: 36,
     height: 36,
@@ -265,6 +302,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backButtonPressed: {
+    opacity: 0.8,
   },
   headerTextWrap: {
     paddingHorizontal: 16,
@@ -302,6 +342,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  itemCardPressed: {
+    opacity: 0.8,
+  },
+  itemBody: {
+    flex: 1,
   },
   itemIconWrap: {
     width: 36,

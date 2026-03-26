@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
@@ -8,7 +9,6 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
-  Image,
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -119,7 +119,7 @@ export default function PostMaintenancePhotosScreen() {
 
   if (loading || !session) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#06B6D4" />
       </View>
     );
@@ -163,7 +163,12 @@ export default function PostMaintenancePhotosScreen() {
             removeClippedSubviews={true}
             renderItem={({ item }) => (
               <View style={styles.photoThumbnail}>
-                <Image source={{ uri: item.uri }} style={styles.thumbImage} />
+                <Image
+                  source={{ uri: item.uri }}
+                  style={styles.thumbImage}
+                  contentFit="cover"
+                  transition={120}
+                />
                 <TouchableOpacity
                   style={styles.removeBtn}
                   onPress={() => handleRemoveItem(item.id)}>
@@ -241,6 +246,11 @@ export default function PostMaintenancePhotosScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   content: { flex: 1, backgroundColor: '#F3F7FA', padding: 16 },
   sectionContainer: {
     backgroundColor: '#fff',

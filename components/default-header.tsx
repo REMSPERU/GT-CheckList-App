@@ -7,7 +7,7 @@ import {
   View,
   StyleSheet,
   useWindowDimensions,
-  TouchableOpacity,
+  Pressable,
 } from 'react-native';
 
 interface DefaultHeaderProps {
@@ -39,12 +39,15 @@ export default function DefaultHeader({
       <View style={[styles.inner, { maxWidth: contentMaxWidth }]}>
         <View style={[styles.headerRow, { paddingVertical: 10 }]}>
           {shouldShowBackButton && (
-            <TouchableOpacity
+            <Pressable
               onPress={() => router.back()}
-              style={styles.backButton}
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && styles.backButtonPressed,
+              ]}
               accessibilityRole="button">
               <Ionicons name="chevron-back" size={22} color="#1F2937" />
-            </TouchableOpacity>
+            </Pressable>
           )}
           <View style={styles.logoTitleWrapper}>
             <Image
@@ -79,11 +82,14 @@ export default function DefaultHeader({
               />
             </View>
             {onFilterPress && (
-              <TouchableOpacity
+              <Pressable
                 onPress={onFilterPress}
-                style={styles.filterButton}>
+                style={({ pressed }) => [
+                  styles.filterButton,
+                  pressed && styles.filterButtonPressed,
+                ]}>
                 <Ionicons name="filter" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
         )}
@@ -97,6 +103,7 @@ const styles = StyleSheet.create({
   inner: { width: '100%', alignSelf: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
   backButton: { marginRight: 8 },
+  backButtonPressed: { opacity: 0.7 },
   logoTitleWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -113,6 +120,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
+  },
+  filterButtonPressed: {
+    opacity: 0.85,
   },
   searchInner: { position: 'relative', flex: 1 },
   searchInput: {
