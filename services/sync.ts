@@ -6,6 +6,10 @@ import { supabaseGroundingWellService } from './supabase-grounding-well.service'
 import NetInfo from '@react-native-community/netinfo';
 import { syncQueue } from './sync-queue';
 
+interface NetworkState {
+  isConnected: boolean | null;
+}
+
 // --- Constants ---
 /** Maximum rows fetched per table to prevent OOM on mobile devices */
 const SYNC_ROW_LIMIT = 5000;
@@ -81,8 +85,7 @@ async function safeFetch<T = any>(
 // --- Class Definition ---
 class SyncService {
   private isConnected = false;
-  // Use 'any' to avoid NodeJS.Timer vs number conflicts in React Native
-  private pollIntervalId: any = null;
+  private pollIntervalId: ReturnType<typeof setInterval> | null = null;
   private isSyncing = false;
   private isPushing = false;
   private currentPushPromise: Promise<void> | null = null;
@@ -118,13 +121,15 @@ class SyncService {
     }, POLL_INTERVAL_MS);
 
     // Network event listener
-    this.netInfoUnsubscribe = NetInfo.addEventListener((state: any) => {
-      const wasConnected = this.isConnected;
-      this.isConnected = state.isConnected ?? false;
-      if (this.isConnected && !wasConnected) {
-        this.syncOnReconnect();
-      }
-    });
+    this.netInfoUnsubscribe = NetInfo.addEventListener(
+      (state: NetworkState) => {
+        const wasConnected = this.isConnected;
+        this.isConnected = state.isConnected ?? false;
+        if (this.isConnected && !wasConnected) {
+          this.syncOnReconnect();
+        }
+      },
+    );
   }
 
   cleanup() {
@@ -136,6 +141,9 @@ class SyncService {
       this.netInfoUnsubscribe();
       this.netInfoUnsubscribe = null;
     }
+
+    this.initialized = false;
+    this.isConnected = false;
   }
 
   private registerSyncHandlers() {

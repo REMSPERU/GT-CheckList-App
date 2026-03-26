@@ -70,18 +70,32 @@ export default Sentry.wrap(function RootLayout() {
 
   // Ordered initialization: DB first, then sync services
   useEffect(() => {
+    let isMounted = true;
+
     (async () => {
       try {
         await DatabaseService.initDatabase();
+        if (!isMounted) return;
+
         // Only start sync services after DB is ready
         await syncQueue.start();
+        if (!isMounted) return;
+
         await syncService.start();
-        console.log('[Init] Database and sync services initialized');
+        if (isMounted) {
+          console.log('[Init] Database and sync services initialized');
+        }
       } catch (err) {
         console.error('[Init] Initialization failed:', err);
         Sentry.captureException(err);
       }
     })();
+
+    return () => {
+      isMounted = false;
+      syncService.cleanup();
+      syncQueue.cleanup();
+    };
   }, []);
 
   return (
