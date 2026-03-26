@@ -1,5 +1,9 @@
 import NetInfo from '@react-native-community/netinfo';
 
+interface NetworkState {
+  isConnected: boolean | null;
+}
+
 export type SyncItemType = 'panel_config' | 'maintenance' | 'photo';
 export type SyncStatus =
   | 'pending'
@@ -45,12 +49,14 @@ class SyncQueueService {
 
   private initListeners() {
     // Listen for network changes to trigger sync on reconnect
-    this.netInfoUnsubscribe = NetInfo.addEventListener((state: any) => {
-      if (state.isConnected) {
-        console.log('[SYNC-QUEUE] Network connected, processing queue...');
-        this.processQueue();
-      }
-    });
+    this.netInfoUnsubscribe = NetInfo.addEventListener(
+      (state: NetworkState) => {
+        if (state.isConnected) {
+          console.log('[SYNC-QUEUE] Network connected, processing queue...');
+          this.processQueue();
+        }
+      },
+    );
   }
 
   /**
@@ -295,6 +301,8 @@ class SyncQueueService {
     this.retryTimeouts.forEach(timeout => clearTimeout(timeout));
     this.retryTimeouts.clear();
     this.listeners.clear();
+    this.initialized = false;
+    this.isProcessing = false;
   }
 }
 

@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
+  TextInput,
+  Switch,
 } from 'react-native';
-import { ChecklistItem } from './check-list-item';
 import { ItemObservation, ItemMeasurement } from '@/types/maintenance-session';
 import { MeasurementInput } from './measurement-input';
 import { CableTypePicker } from './cable-type-picker';
+import type { ITG, ITM } from '@/types/api';
 
 interface ITGChecklistProps {
-  itgs: any[];
-  checklist: Record<string, boolean | string>;
+  itgs: ITG[];
+  checklist: Record<string, boolean>;
   measurements?: Record<string, ItemMeasurement>;
   itemObservations: Record<string, ItemObservation>;
   onStatusChange: (itemId: string, status: boolean) => void;
@@ -21,7 +24,11 @@ interface ITGChecklistProps {
     itemId: string,
     field: 'voltage' | 'amperage',
     value: string,
-    isValid: boolean,
+  ) => void;
+  onMeasurementStatusChange: (
+    itemId: string,
+    field: 'voltage' | 'amperage' | 'cableDiameter',
+    status: boolean,
   ) => void;
   onCableChange: (
     itemId: string,
@@ -35,6 +42,420 @@ interface ITGChecklistProps {
   validationErrors?: Record<string, string[]>;
 }
 
+const ITMCard = React.memo(function ITMCard({
+  itm,
+  currentItgId,
+  checklist,
+  measurements = {},
+  itemObservations,
+  validationErrors = {},
+  configuredVoltage,
+  onStatusChange,
+  onMeasurementChange,
+  onMeasurementStatusChange,
+  onCableChange,
+  onObservationChange,
+  onPhotoPress,
+}: {
+  itm: ITM;
+  currentItgId: string;
+  checklist: Record<string, boolean>;
+  measurements?: Record<string, ItemMeasurement>;
+  itemObservations: Record<string, ItemObservation>;
+  validationErrors?: Record<string, string[]>;
+  configuredVoltage: number;
+  onStatusChange: (itemId: string, status: boolean) => void;
+  onMeasurementChange: (itemId: string, field: 'voltage' | 'amperage', value: string) => void;
+  onMeasurementStatusChange: (itemId: string, field: 'voltage' | 'amperage' | 'cableDiameter', status: boolean) => void;
+  onCableChange: (itemId: string, field: 'cableDiameter' | 'cableType', value: string, originalValue: string) => void;
+  onObservationChange: (itemId: string, text: string) => void;
+  onPhotoPress: (itemId: string) => void;
+}) {
+  const itemId = `itg_${currentItgId}_${itm.id}`;
+  const circuitIndependentId = `circuit_independent_itg_${currentItgId}_${itm.id}`;
+  const itmLabel = itm.nombre || itm.id;
+  const measure = measurements[itemId] || {};
+  const differential = itm.diferencial;
+  const isCircuitIndependentOk = checklist[circuitIndependentId] !== false;
+
+  const voltageStatus = measure.isVoltageInRange ?? true;
+  const amperageStatus = measure.isAmperageInRange ?? true;
+  const cableDiameterStatus = measure.isCableDiameterInRange ?? true;
+
+  const diffId = `diff_itg_${currentItgId}_${itm.id}`;
+  const testDiffId = `test_id_itg_${currentItgId}_${itm.id}`;
+  const diffMeasure = measurements[diffId] || {};
+  const testId = `test_itg_${currentItgId}_${itm.id}`;
+  const testApplyId = `${testId}_applies`;
+  const testResultId = `${testId}_result`;
+  const isTestApplicable = checklist[testApplyId] === true;
+  const isTestOk = checklist[testResultId] !== false;
+
+  const diffVoltageStatus = diffMeasure.isVoltageInRange ?? true;
+  const diffAmperageStatus = diffMeasure.isAmperageInRange ?? true;
+  const diffCableDiameterStatus = diffMeasure.isCableDiameterInRange ?? true;
+
+  const itmVoltageObsId = `${itemId}_voltage`;
+  const itmAmperageObsId = `${itemId}_amperage`;
+  const itmCableObsId = `${itemId}_cableDiameter`;
+  const diffVoltageObsId = `${diffId}_voltage`;
+  const diffAmperageObsId = `${diffId}_amperage`;
+  const diffCableObsId = `${diffId}_cableDiameter`;
+  const circuitIndependentObsId = `${circuitIndependentId}_obs`;
+  const testDiffObsId = `${testDiffId}_obs`;
+
+  const renderObservationCard = (obsId: string, title: string) => {
+    const obs = itemObservations[obsId];
+
+    return (
+      <View style={styles.observationCard}>
+        <Text style={styles.observationTitle}>{title}</Text>
+        <TextInput
+          style={styles.observationInput}
+          placeholder="Ingrese observación (opcional)"
+          value={obs?.note || ''}
+          onChangeText={text => onObservationChange(obsId, text)}
+          multiline
+          textAlignVertical="top"
+        />
+
+        <View style={styles.observationPhotoRow}>
+          {obs?.photoUri ? (
+            <Image
+              source={{ uri: obs.photoUri }}
+              style={styles.observationPhoto}
+              contentFit="cover"
+              transition={100}
+            />
+          ) : null}
+          <Pressable
+            style={({ pressed }) => [
+              styles.photoButton,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => onPhotoPress(obsId)}
+            accessibilityRole="button">
+            <Text style={styles.photoButtonText}>
+              {obs?.photoUri
+                ? 'Cambiar o eliminar foto'
+                : 'Agregar foto (opcional)'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardHeader}>
+        Interruptor termomagnético (ITM) : {itmLabel}
+      </Text>
+
+      <View style={styles.detailsContainer}>
+        <MeasurementInput
+          label="Voltaje (V)"
+          value={measure.voltage || ''}
+          onChange={val => onMeasurementChange(itemId, 'voltage', val)}
+          unit="V"
+          placeholder="220"
+          showIncomplete={validationErrors[itemId]?.includes('voltage')}
+          errorMessage={
+            validationErrors[itemId]?.includes('voltage') ? 'Requerido' : undefined
+          }
+          statusValue={voltageStatus}
+          onStatusChange={value =>
+            onMeasurementStatusChange(itemId, 'voltage', value)
+          }
+        />
+        {voltageStatus === false &&
+          renderObservationCard(itmVoltageObsId, 'Observación voltaje ITM')}
+
+        <MeasurementInput
+          label={`Amperaje (Max ${itm.amperaje || '-'} A)`}
+          value={measure.amperage || ''}
+          onChange={val => onMeasurementChange(itemId, 'amperage', val)}
+          unit="A"
+          placeholder="0.0"
+          showIncomplete={validationErrors[itemId]?.includes('amperage')}
+          errorMessage={
+            validationErrors[itemId]?.includes('amperage') ? 'Requerido' : undefined
+          }
+          statusValue={amperageStatus}
+          onStatusChange={value =>
+            onMeasurementStatusChange(itemId, 'amperage', value)
+          }
+        />
+        {amperageStatus === false &&
+          renderObservationCard(itmAmperageObsId, 'Observación amperaje ITM')}
+
+        <MeasurementInput
+          label={`Diámetro de cable (Ref: ${itm.diametro_cable || '-'})`}
+          value={measure.cableDiameter || ''}
+          onChange={val =>
+            onCableChange(
+              itemId,
+              'cableDiameter',
+              val,
+              itm.diametro_cable || '',
+            )
+          }
+          placeholder={itm.diametro_cable || 'Ej: 2.5mm'}
+          keyboardType="default"
+          showIncomplete={validationErrors[itemId]?.includes('cableDiameter')}
+          errorMessage={
+            validationErrors[itemId]?.includes('cableDiameter')
+              ? 'Requerido'
+              : undefined
+          }
+          statusValue={cableDiameterStatus}
+          onStatusChange={value =>
+            onMeasurementStatusChange(itemId, 'cableDiameter', value)
+          }
+        />
+        {cableDiameterStatus === false &&
+          renderObservationCard(itmCableObsId, 'Observación diámetro cable ITM')}
+
+        <CableTypePicker
+          label={`Tipo de cable (Ref: ${itm.tipo_cable})`}
+          value={measure.cableType || ''}
+          onChange={val =>
+            onCableChange(itemId, 'cableType', val, itm.tipo_cable || '')
+          }
+          showIncomplete={validationErrors[itemId]?.includes('cableType')}
+          errorMessage={
+            validationErrors[itemId]?.includes('cableType') ? 'Requerido' : undefined
+          }
+        />
+      </View>
+
+      {differential?.existe && (
+        <View style={styles.subSection}>
+          <Text style={styles.subHeader}>
+            Interruptor diferencial ID : ID-{itmLabel}
+          </Text>
+
+          <View style={styles.subSectionContent}>
+            <MeasurementInput
+              label="Voltaje Diferencial (V)"
+              value={diffMeasure.voltage || ''}
+              onChange={val => onMeasurementChange(diffId, 'voltage', val)}
+              unit="V"
+              placeholder={`${configuredVoltage}`}
+              showIncomplete={validationErrors[diffId]?.includes('voltage')}
+              errorMessage={
+                validationErrors[diffId]?.includes('voltage') ? 'Requerido' : undefined
+              }
+              statusValue={diffVoltageStatus}
+              onStatusChange={value =>
+                onMeasurementStatusChange(diffId, 'voltage', value)
+              }
+            />
+            {diffVoltageStatus === false &&
+              renderObservationCard(diffVoltageObsId, 'Observación voltaje diferencial')}
+
+            <MeasurementInput
+              label={`Amperaje Diferencial (Max ${differential.amperaje || '-'} A)`}
+              value={diffMeasure.amperage || ''}
+              onChange={val => onMeasurementChange(diffId, 'amperage', val)}
+              unit="A"
+              placeholder="0.0"
+              showIncomplete={validationErrors[diffId]?.includes('amperage')}
+              errorMessage={
+                validationErrors[diffId]?.includes('amperage') ? 'Requerido' : undefined
+              }
+              statusValue={diffAmperageStatus}
+              onStatusChange={value =>
+                onMeasurementStatusChange(diffId, 'amperage', value)
+              }
+            />
+            {diffAmperageStatus === false &&
+              renderObservationCard(diffAmperageObsId, 'Observación amperaje diferencial')}
+
+            <MeasurementInput
+              label={`Diámetro de cable (Ref: ${differential.diametro_cable || '-'})`}
+              value={diffMeasure.cableDiameter || ''}
+              onChange={val =>
+                onCableChange(diffId, 'cableDiameter', val, differential.diametro_cable || '')
+              }
+              placeholder={differential.diametro_cable || 'Ej: 2.5mm'}
+              keyboardType="default"
+              showIncomplete={validationErrors[diffId]?.includes('cableDiameter')}
+              errorMessage={
+                validationErrors[diffId]?.includes('cableDiameter') ? 'Requerido' : undefined
+              }
+              statusValue={diffCableDiameterStatus}
+              onStatusChange={value =>
+                onMeasurementStatusChange(diffId, 'cableDiameter', value)
+              }
+            />
+            {diffCableDiameterStatus === false &&
+              renderObservationCard(diffCableObsId, 'Observación diámetro cable diferencial')}
+
+            <CableTypePicker
+              label={`Tipo de cable (Ref: ${differential.tipo_cable === 'libre_halogeno' ? 'Libre Halógeno' : differential.tipo_cable === 'no_libre_halogeno' ? 'No Libre Halógeno' : '-'})`}
+              value={diffMeasure.cableType || ''}
+              onChange={val =>
+                onCableChange(diffId, 'cableType', val, differential.tipo_cable || '')
+              }
+              showIncomplete={validationErrors[diffId]?.includes('cableType')}
+              errorMessage={
+                validationErrors[diffId]?.includes('cableType') ? 'Requerido' : undefined
+              }
+            />
+
+            <View style={styles.testBody}>
+              <Text style={styles.testTitle}>Test - ID</Text>
+              <View style={styles.resultToggleRow}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.resultButton,
+                    checklist[testDiffId] !== false && styles.resultButtonOkActive,
+                    pressed && styles.pressed,
+                  ]}
+                  onPress={() => onStatusChange(testDiffId, true)}>
+                  <Text
+                    style={[
+                      styles.resultButtonText,
+                      checklist[testDiffId] !== false && styles.resultButtonTextActive,
+                    ]}>
+                    OK
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.resultButton,
+                    checklist[testDiffId] === false && styles.resultButtonObsActive,
+                    pressed && styles.pressed,
+                  ]}
+                  onPress={() => onStatusChange(testDiffId, false)}>
+                  <Text
+                    style={[
+                      styles.resultButtonText,
+                      checklist[testDiffId] === false && styles.resultButtonTextActive,
+                    ]}>
+                    OBSERVADO
+                  </Text>
+                </Pressable>
+              </View>
+
+              {checklist[testDiffId] === false &&
+                renderObservationCard(testDiffObsId, 'Observación Test - ID')}
+            </View>
+          </View>
+        </View>
+      )}
+
+      <View style={styles.testSection}>
+        <View style={styles.testHeaderRow}>
+          <Text style={styles.testTitle}>ITM - Test</Text>
+          <View style={styles.testSwitchWrap}>
+            <Text style={styles.testSwitchLabel}>
+              {isTestApplicable ? 'Aplica' : 'No aplica'}
+            </Text>
+            <Switch
+              value={isTestApplicable}
+              onValueChange={value => onStatusChange(testApplyId, value)}
+              trackColor={{ false: '#D1D5DB', true: '#A5F3FC' }}
+              thumbColor={isTestApplicable ? '#06B6D4' : '#9CA3AF'}
+            />
+          </View>
+        </View>
+
+        {isTestApplicable && (
+          <View style={styles.testBody}>
+            <View style={styles.resultToggleRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.resultButton,
+                  isTestOk && styles.resultButtonOkActive,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => onStatusChange(testResultId, true)}>
+                <Text
+                  style={[
+                    styles.resultButtonText,
+                    isTestOk && styles.resultButtonTextActive,
+                  ]}>
+                  OK
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.resultButton,
+                  !isTestOk && styles.resultButtonObsActive,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => onStatusChange(testResultId, false)}>
+                <Text
+                  style={[
+                    styles.resultButtonText,
+                    !isTestOk && styles.resultButtonTextActive,
+                  ]}>
+                  OBS
+                </Text>
+              </Pressable>
+            </View>
+
+            {!isTestOk &&
+              renderObservationCard(testId, 'Observación')}
+          </View>
+        )}
+      </View>
+
+      <View style={styles.testSection}>
+        <View style={styles.testHeaderRow}>
+          <Text style={styles.testTitle}>Circuito independiente</Text>
+          <View style={styles.testSwitchWrap}>
+            <Text style={styles.testSwitchLabel}>
+              {isCircuitIndependentOk ? 'OK' : 'Observado'}
+            </Text>
+            <Switch
+              value={isCircuitIndependentOk}
+              onValueChange={value => onStatusChange(circuitIndependentId, value)}
+              trackColor={{ false: '#D1D5DB', true: '#A5F3FC' }}
+              thumbColor={isCircuitIndependentOk ? '#06B6D4' : '#9CA3AF'}
+            />
+          </View>
+        </View>
+
+        {!isCircuitIndependentOk &&
+          renderObservationCard(circuitIndependentObsId, 'Observación circuito independiente')}
+      </View>
+
+      <View style={styles.divider} />
+    </View>
+  );
+}, (prevProps, nextProps) => {
+  const itemId = `itg_${nextProps.currentItgId}_${nextProps.itm.id}`;
+  const hasValidationChanged =
+    prevProps.validationErrors?.[itemId] !== nextProps.validationErrors?.[itemId];
+  const hasMeasureChanged = prevProps.measurements?.[itemId] !== nextProps.measurements?.[itemId];
+  
+  // Custom deep comparison for specific checklist IDs we care about to avoid full re-render
+  // Not strictly necessary since we can just check if checklist reference changed, but this is much faster
+  // However, simpler is checking if ANY relevant value changed.
+  // Given we update parent Session constantly, React.memo prevents re-render if props are identical.
+  // Actually, we must manually check the checklist fields we care about.
+  const checks = [
+    `circuit_independent_itg_${nextProps.currentItgId}_${nextProps.itm.id}`,
+    `test_id_itg_${nextProps.currentItgId}_${nextProps.itm.id}`,
+    `test_itg_${nextProps.currentItgId}_${nextProps.itm.id}_applies`,
+    `test_itg_${nextProps.currentItgId}_${nextProps.itm.id}_result`
+  ];
+  
+  const hasChecklistChanged = checks.some(
+    key => prevProps.checklist[key] !== nextProps.checklist[key]
+  );
+
+  return (
+    prevProps.itm.id === nextProps.itm.id &&
+    !hasValidationChanged &&
+    !hasMeasureChanged &&
+    !hasChecklistChanged
+  );
+});
+
 export const ITGChecklist = React.memo(function ITGChecklist({
   itgs,
   checklist,
@@ -42,6 +463,7 @@ export const ITGChecklist = React.memo(function ITGChecklist({
   itemObservations,
   onStatusChange,
   onMeasurementChange,
+  onMeasurementStatusChange,
   onCableChange,
   onObservationChange,
   onPhotoPress,
@@ -63,9 +485,13 @@ export const ITGChecklist = React.memo(function ITGChecklist({
         style={styles.tabsContainer}
         contentContainerStyle={styles.tabsContent}>
         {itgs.map((itg, index) => (
-          <TouchableOpacity
+          <Pressable
             key={`tab_${index}`}
-            style={[styles.tab, activeTab === index && styles.activeTab]}
+            style={({ pressed }) => [
+              styles.tab,
+              activeTab === index && styles.activeTab,
+              pressed && styles.pressed,
+            ]}
             onPress={() => setActiveTab(index)}>
             <Text
               style={[
@@ -74,338 +500,30 @@ export const ITGChecklist = React.memo(function ITGChecklist({
               ]}>
               {itg.id ? `ITG-${itg.id}` : `ITG-${index + 1}`}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </ScrollView>
 
       {/* Content */}
       <View style={styles.content}>
-        {currentItg.itms.map((itm: any, idx: number) => {
-          const itemId = `itg_${currentItg.id}_${itm.id}`;
-          const itmLabel = itm.nombre || itm.id;
-          const status = checklist[itemId];
-          const obs = itemObservations[itemId];
-          const measure = measurements[itemId] || {};
-
-          // Validation Logic
-          // Voltage: configuredVoltage +/- 10
-          // Amperage: <= itm.amperaje (Rated)
-          const ratedAmps = parseFloat(itm.amperaje) || 0;
-
-          const validateVoltage = (val: string) => {
-            if (!val) return undefined;
-            const v = parseFloat(val);
-            if (isNaN(v)) return false;
-            const min = configuredVoltage - 10;
-            const max = configuredVoltage + 10;
-            return v >= min && v <= max;
-          };
-
-          const validateAmperage = (val: string) => {
-            if (!val) return undefined;
-            const a = parseFloat(val);
-            if (isNaN(a)) return false;
-            return ratedAmps > 0 ? a <= ratedAmps : true;
-          };
-
-          const isVoltValid = measure.voltage
-            ? validateVoltage(measure.voltage)
-            : undefined;
-          const isAmpValid = measure.amperage
-            ? validateAmperage(measure.amperage)
-            : undefined;
-
-          // Differential validation (calculate outside IIFE so it can be used in hasMeasurementIssue)
-          const diffId = `diff_itg_${currentItg.id}_${itm.id}`;
-          const diffMeasure = measurements[diffId] || {};
-          const diffRatedAmps = parseFloat(itm.diferencial?.amperaje) || 0;
-          const testId = `test_itg_${currentItg.id}_${itm.id}`;
-          const testStatus = checklist[testId];
-          const testObs = itemObservations[testId];
-
-          const validateDiffAmperage = (val: string) => {
-            if (!val) return undefined;
-            const a = parseFloat(val);
-            if (isNaN(a)) return false;
-            return diffRatedAmps > 0 ? a <= diffRatedAmps : true;
-          };
-
-          const isDiffVoltValid = diffMeasure.voltage
-            ? validateVoltage(diffMeasure.voltage)
-            : undefined;
-          const isDiffAmpValid = diffMeasure.amperage
-            ? validateDiffAmperage(diffMeasure.amperage)
-            : undefined;
-
-          // Check if differential has measurement issues
-          const hasDiffMeasurementIssue =
-            itm.diferencial?.existe &&
-            (isDiffVoltValid === false || isDiffAmpValid === false);
-
-          // Determine if we need to force "Observation" state
-          // Now includes both ITM and Differential measurement issues
-          const hasMeasurementIssue =
-            isVoltValid === false ||
-            isAmpValid === false ||
-            hasDiffMeasurementIssue;
-
-          return (
-            <View key={itemId} style={styles.card}>
-              <Text style={styles.cardHeader}>
-                Interruptor termomagnético (ITM) : {itmLabel}
-              </Text>
-
-              <View style={styles.detailsContainer}>
-                {/* Inputs for Voltage and Amperage */}
-                <MeasurementInput
-                  label="Voltaje (V)"
-                  value={measure.voltage || ''}
-                  onChange={val =>
-                    onMeasurementChange(
-                      itemId,
-                      'voltage',
-                      val,
-                      validateVoltage(val) === true,
-                    )
-                  }
-                  unit="V"
-                  isValid={isVoltValid}
-                  placeholder="220"
-                  showIncomplete={validationErrors[itemId]?.includes('voltage')}
-                  errorMessage={
-                    validationErrors[itemId]?.includes('voltage')
-                      ? 'Requerido'
-                      : undefined
-                  }
-                />
-
-                <MeasurementInput
-                  label={`Amperaje (Max ${itm.amperaje || '-'} A)`}
-                  value={measure.amperage || ''}
-                  onChange={val =>
-                    onMeasurementChange(
-                      itemId,
-                      'amperage',
-                      val,
-                      validateAmperage(val) === true,
-                    )
-                  }
-                  unit="A"
-                  isValid={isAmpValid}
-                  placeholder="0.0"
-                  showIncomplete={validationErrors[itemId]?.includes(
-                    'amperage',
-                  )}
-                  errorMessage={
-                    validationErrors[itemId]?.includes('amperage')
-                      ? 'Requerido'
-                      : undefined
-                  }
-                />
-
-                {/* Editable Cable fields */}
-                <MeasurementInput
-                  label={`Diámetro de cable (Ref: ${itm.diametro_cable || '-'})`}
-                  value={measure.cableDiameter || ''}
-                  onChange={val =>
-                    onCableChange(
-                      itemId,
-                      'cableDiameter',
-                      val,
-                      itm.diametro_cable || '',
-                    )
-                  }
-                  placeholder={itm.diametro_cable || 'Ej: 2.5mm'}
-                  keyboardType="default"
-                  showIncomplete={validationErrors[itemId]?.includes(
-                    'cableDiameter',
-                  )}
-                  errorMessage={
-                    validationErrors[itemId]?.includes('cableDiameter')
-                      ? 'Requerido'
-                      : undefined
-                  }
-                />
-
-                <CableTypePicker
-                  label={`Tipo de cable (Ref: ${itm.tipo_cable})`}
-                  value={measure.cableType || ''}
-                  onChange={val =>
-                    onCableChange(
-                      itemId,
-                      'cableType',
-                      val,
-                      itm.tipo_cable || '',
-                    )
-                  }
-                  showIncomplete={validationErrors[itemId]?.includes(
-                    'cableType',
-                  )}
-                  errorMessage={
-                    validationErrors[itemId]?.includes('cableType')
-                      ? 'Requerido'
-                      : undefined
-                  }
-                />
-              </View>
-
-              {/* Differential Section if exists */}
-              {itm.diferencial && itm.diferencial.existe && (
-                <View style={styles.subSection}>
-                  <Text style={styles.subHeader}>
-                    Interruptor diferencial ID : ID-{itmLabel}
-                  </Text>
-
-                  <View style={styles.subSectionContent}>
-                    <MeasurementInput
-                      label="Voltaje Diferencial (V)"
-                      value={diffMeasure.voltage || ''}
-                      onChange={val =>
-                        onMeasurementChange(
-                          diffId,
-                          'voltage',
-                          val,
-                          validateVoltage(val) === true,
-                        )
-                      }
-                      unit="V"
-                      isValid={isDiffVoltValid}
-                      placeholder={`${configuredVoltage}`}
-                      showIncomplete={validationErrors[diffId]?.includes(
-                        'voltage',
-                      )}
-                      errorMessage={
-                        validationErrors[diffId]?.includes('voltage')
-                          ? 'Requerido'
-                          : undefined
-                      }
-                    />
-
-                    <MeasurementInput
-                      label={`Amperaje Diferencial (Max ${itm.diferencial.amperaje || '-'} A)`}
-                      value={diffMeasure.amperage || ''}
-                      onChange={val =>
-                        onMeasurementChange(
-                          diffId,
-                          'amperage',
-                          val,
-                          validateDiffAmperage(val) === true,
-                        )
-                      }
-                      unit="A"
-                      isValid={isDiffAmpValid}
-                      placeholder="0.0"
-                      showIncomplete={validationErrors[diffId]?.includes(
-                        'amperage',
-                      )}
-                      errorMessage={
-                        validationErrors[diffId]?.includes('amperage')
-                          ? 'Requerido'
-                          : undefined
-                      }
-                    />
-
-                    {/* Editable Differential Cable fields */}
-                    <MeasurementInput
-                      label={`Diámetro de cable (Ref: ${itm.diferencial.diametro_cable || '-'})`}
-                      value={diffMeasure.cableDiameter || ''}
-                      onChange={val =>
-                        onCableChange(
-                          diffId,
-                          'cableDiameter',
-                          val,
-                          itm.diferencial.diametro_cable || '',
-                        )
-                      }
-                      placeholder={
-                        itm.diferencial.diametro_cable || 'Ej: 2.5mm'
-                      }
-                      keyboardType="default"
-                      showIncomplete={validationErrors[diffId]?.includes(
-                        'cableDiameter',
-                      )}
-                      errorMessage={
-                        validationErrors[diffId]?.includes('cableDiameter')
-                          ? 'Requerido'
-                          : undefined
-                      }
-                    />
-
-                    <CableTypePicker
-                      label={`Tipo de cable (Ref: ${itm.diferencial.tipo_cable === 'libre_halogeno' ? 'Libre Halógeno' : itm.diferencial.tipo_cable === 'no_libre_halogeno' ? 'No Libre Halógeno' : '-'})`}
-                      value={diffMeasure.cableType || ''}
-                      onChange={val =>
-                        onCableChange(
-                          diffId,
-                          'cableType',
-                          val,
-                          itm.diferencial.tipo_cable || '',
-                        )
-                      }
-                      showIncomplete={validationErrors[diffId]?.includes(
-                        'cableType',
-                      )}
-                      errorMessage={
-                        validationErrors[diffId]?.includes('cableType')
-                          ? 'Requerido'
-                          : undefined
-                      }
-                    />
-
-                    <ChecklistItem
-                      label="Prueba Test"
-                      status={
-                        typeof testStatus === 'boolean' ? testStatus : true
-                      }
-                      onStatusChange={val => onStatusChange(testId, val)}
-                      observation={testObs?.note}
-                      onObservationChange={text =>
-                        onObservationChange(testId, text)
-                      }
-                      hasPhoto={true}
-                      photoUri={testObs?.photoUri}
-                      photoUris={testObs?.photoUris}
-                      onPhotoPress={() => onPhotoPress(testId)}
-                      style={styles.flatChecklistItem}
-                    />
-                  </View>
-                </View>
-              )}
-
-              <View style={styles.divider} />
-
-              <ChecklistItem
-                label={
-                  hasMeasurementIssue
-                    ? 'Observación Requerida'
-                    : 'Estatus del circuito'
-                }
-                status={
-                  // Force status to false when measurement issue exists
-                  hasMeasurementIssue
-                    ? false
-                    : typeof status === 'boolean'
-                      ? status
-                      : true
-                }
-                onStatusChange={val => {
-                  // Block setting to OK if measurement issue exists
-                  if (hasMeasurementIssue && val === true) {
-                    return; // Do nothing - can't set OK when out of range
-                  }
-                  onStatusChange(itemId, val);
-                }}
-                observation={obs?.note}
-                onObservationChange={text => onObservationChange(itemId, text)}
-                hasPhoto={true}
-                photoUri={obs?.photoUri}
-                photoUris={obs?.photoUris}
-                onPhotoPress={() => onPhotoPress(itemId)}
-                style={styles.flatChecklistItem}
-              />
-            </View>
-          );
-        })}
+        {currentItg.itms.map((itm: ITM) => (
+          <ITMCard
+            key={`itg_${currentItg.id}_${itm.id}`}
+            itm={itm}
+            currentItgId={currentItg.id}
+            checklist={checklist}
+            measurements={measurements}
+            itemObservations={itemObservations}
+            validationErrors={validationErrors}
+            configuredVoltage={configuredVoltage}
+            onStatusChange={onStatusChange}
+            onMeasurementChange={onMeasurementChange}
+            onMeasurementStatusChange={onMeasurementStatusChange}
+            onCableChange={onCableChange}
+            onObservationChange={onObservationChange}
+            onPhotoPress={onPhotoPress}
+          />
+        ))}
       </View>
     </View>
   );
@@ -481,6 +599,62 @@ const styles = StyleSheet.create({
     marginTop: 12,
     gap: 12,
   },
+  testSection: {
+    marginTop: 16,
+    gap: 12,
+  },
+  testHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  testTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#11181C',
+  },
+  testSwitchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  testSwitchLabel: {
+    fontSize: 12,
+    color: '#374151',
+    fontWeight: '600',
+  },
+  testBody: {
+    gap: 10,
+  },
+  resultToggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  resultButton: {
+    flex: 1,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#F9FAFB',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  resultButtonOkActive: {
+    backgroundColor: '#ECFEFF',
+    borderColor: '#06B6D4',
+  },
+  resultButtonObsActive: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#EF4444',
+  },
+  resultButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4B5563',
+  },
+  resultButtonTextActive: {
+    color: '#11181C',
+  },
   detailsContainer: {
     gap: 12,
   },
@@ -514,9 +688,52 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     marginVertical: 16,
   },
-  flatChecklistItem: {
-    borderWidth: 0,
-    shadowOpacity: 0,
-    elevation: 0,
+  observationCard: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    padding: 12,
+    gap: 10,
+  },
+  observationTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#11181C',
+  },
+  observationInput: {
+    minHeight: 76,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#11181C',
+  },
+  observationPhotoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  observationPhoto: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+  },
+  photoButton: {
+    backgroundColor: '#E0F2FE',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  photoButtonText: {
+    color: '#0369A1',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

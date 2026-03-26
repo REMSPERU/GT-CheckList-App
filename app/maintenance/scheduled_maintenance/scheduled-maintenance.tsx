@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
-  ScrollView,
+  Pressable,
+  FlatList,
   ActivityIndicator,
   RefreshControl,
+  type ListRenderItem,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
@@ -72,7 +73,7 @@ export default function ScheduledMaintenanceScreen() {
     void syncInBackground();
   }, [refetch]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setIsManualRefreshing(true);
     try {
       await syncService.pushData();
@@ -84,11 +85,9 @@ export default function ScheduledMaintenanceScreen() {
     } finally {
       setIsManualRefreshing(false);
     }
-  };
+  }, [refetch]);
 
-  const filterData = () => {
-    if (!maintenanceData) return [];
-
+  const filteredData = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -129,12 +128,9 @@ export default function ScheduledMaintenanceScreen() {
       // "Todos"
       return true;
     });
-  };
+  }, [activeTab, maintenanceData, searchQuery]);
 
-  // Group filtered data by Property Name (or ID)
-  const filteredData = filterData();
-
-  const groupedData = React.useMemo(() => {
+  const groupedData = useMemo(() => {
     const groups: { [key: string]: any } = {};
 
     filteredData.forEach((item: any) => {
@@ -164,16 +160,58 @@ export default function ScheduledMaintenanceScreen() {
     return Object.values(groups);
   }, [filteredData]);
 
+  const renderPropertyCard = useCallback<ListRenderItem<any>>(
+    ({ item: group }) => (
+      <Pressable
+        style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+        onPress={() => {
+          if (group.items.length > 0) {
+            router.push({
+              pathname:
+                '/maintenance/scheduled_maintenance/maintenance-session',
+              params: {
+                propertyId: group.propertyId,
+                propertyName: group.propertyName,
+              },
+            });
+          }
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={`Abrir sesiones de ${group.propertyName}`}
+        accessibilityHint="Navega a la lista de sesiones de mantenimiento">
+        <View style={styles.cardIconContainer}>
+          <MaterialIcons name="business" size={24} color="#06B6D4" />
+        </View>
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle}>{group.propertyName}</Text>
+          <Text style={styles.cardAddress} numberOfLines={2}>
+            {group.propertyAddress}
+          </Text>
+
+          <View style={styles.cardFooter} />
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+      </Pressable>
+    ),
+    [router],
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
+          <Pressable
             onPress={() => router.back()}
-            style={styles.backButton}>
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Regresar"
+            accessibilityHint="Vuelve a la pantalla anterior">
             <Ionicons name="chevron-back" size={24} color={Colors.light.text} />
-          </TouchableOpacity>
+          </Pressable>
           <View style={styles.headerIconContainer}>
             <MaterialIcons name="home-repair-service" size={20} color="white" />
           </View>
@@ -194,14 +232,22 @@ export default function ScheduledMaintenanceScreen() {
             placeholderTextColor="#BDC1CA"
             value={searchQuery}
             onChangeText={setSearchQuery}
+            accessibilityLabel="Buscar por propiedad"
           />
         </View>
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'Todos' && styles.activeTab]}
-            onPress={() => setActiveTab('Todos')}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.tab,
+              activeTab === 'Todos' && styles.activeTab,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => setActiveTab('Todos')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'Todos' }}
+            accessibilityLabel="Filtrar por todos">
             <Text
               style={[
                 styles.tabText,
@@ -209,10 +255,17 @@ export default function ScheduledMaintenanceScreen() {
               ]}>
               Todos
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'Hoy' && styles.activeTab]}
-            onPress={() => setActiveTab('Hoy')}>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.tab,
+              activeTab === 'Hoy' && styles.activeTab,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => setActiveTab('Hoy')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'Hoy' }}
+            accessibilityLabel="Filtrar por hoy">
             <Text
               style={[
                 styles.tabText,
@@ -220,13 +273,17 @@ export default function ScheduledMaintenanceScreen() {
               ]}>
               Hoy
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
               styles.tab,
               activeTab === 'Esta Semana' && styles.activeTabWhite,
+              pressed && styles.pressed,
             ]}
-            onPress={() => setActiveTab('Esta Semana')}>
+            onPress={() => setActiveTab('Esta Semana')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'Esta Semana' }}
+            accessibilityLabel="Filtrar por esta semana">
             <Text
               style={[
                 styles.tabText,
@@ -234,71 +291,40 @@ export default function ScheduledMaintenanceScreen() {
               ]}>
               Esta Semana
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {isLoading ? (
-          <View
-            style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color="#06B6D4" />
           </View>
         ) : (
-          <ScrollView
+          <FlatList
             style={styles.listContainer}
+            data={groupedData}
+            keyExtractor={item => String(item.propertyId)}
+            renderItem={renderPropertyCard}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
                 refreshing={isRefetching || isManualRefreshing}
                 onRefresh={handleRefresh}
               />
-            }>
-            {groupedData.length === 0 ? (
-              <View style={{ padding: 20, alignItems: 'center' }}>
-                <Text style={{ color: '#6B7280' }}>
+            }
+            contentContainerStyle={[
+              styles.listContent,
+              groupedData.length === 0 && styles.listContentEmpty,
+            ]}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyMessage}>
                   No hay mantenimientos programados para{' '}
                   {activeTab === 'Hoy' ? 'hoy' : 'esta semana'}.
                 </Text>
               </View>
-            ) : (
-              groupedData.map((group: any) => (
-                <TouchableOpacity
-                  key={group.propertyId}
-                  style={styles.card}
-                  onPress={() => {
-                    if (group.items.length > 0) {
-                      // Navigate to maintenance sessions for this property
-                      router.push({
-                        pathname:
-                          '/maintenance/scheduled_maintenance/maintenance-session',
-                        params: {
-                          propertyId: group.propertyId,
-                          propertyName: group.propertyName,
-                        },
-                      });
-                    }
-                  }}>
-                  <View style={styles.cardIconContainer}>
-                    <MaterialIcons name="business" size={24} color="#06B6D4" />
-                  </View>
-                  <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>{group.propertyName}</Text>
-                    <Text style={styles.cardAddress} numberOfLines={2}>
-                      {group.propertyAddress}
-                    </Text>
-
-                    {/* List of Equipments - HIDDEN as per request, only count shown above */}
-                    {/* <View style={{ marginTop: 8 }}>...</View> */}
-
-                    <View style={styles.cardFooter}>
-                      {/* Footer content if needed, currently empty/redundant if listing all items above */}
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                </TouchableOpacity>
-              ))
-            )}
-            <View style={{ height: 40 }} />
-          </ScrollView>
+            }
+            ListFooterComponent={<View style={styles.listFooterSpacing} />}
+          />
         )}
       </View>
     </SafeAreaView>
@@ -393,6 +419,27 @@ const styles = StyleSheet.create({
   listContainer: {
     marginTop: 20,
   },
+  listContent: {
+    paddingBottom: 40,
+  },
+  listContentEmpty: {
+    flexGrow: 1,
+  },
+  listFooterSpacing: {
+    height: 40,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyMessage: {
+    color: '#6B7280',
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -453,5 +500,8 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 11,
     color: '#6B7280',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

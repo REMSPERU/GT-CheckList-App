@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Alert,
   Dimensions,
@@ -54,9 +54,9 @@ export default function PDFReportModal({
       // Construct a descriptive filename
       const filename = reportSummary
         ? `Informe_${reportSummary.propertyName}_${reportSummary.sessionDate.replace(
-          /\s+/g,
-          '_',
-        )}`
+            /\s+/g,
+            '_',
+          )}`
         : 'Informe_Mantenimiento';
 
       // Use openPDF instead of sharePDF for a more direct experience
@@ -76,9 +76,9 @@ export default function PDFReportModal({
     try {
       const filename = reportSummary
         ? `Informe_${reportSummary.propertyName}_${reportSummary.sessionDate.replace(
-          /\s+/g,
-          '_',
-        )}`
+            /\s+/g,
+            '_',
+          )}`
         : 'Informe_Mantenimiento';
 
       await pdfReportService.sharePDF(pdfUri, filename, 'Compartir Informe');
@@ -109,11 +109,11 @@ export default function PDFReportModal({
 
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+            <Pressable onPress={handleClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color={ICON} />
-            </TouchableOpacity>
+            </Pressable>
             <Text style={styles.title}>{title}</Text>
-            <View style={{ width: 32 }} />
+            <View style={styles.headerSpacer} />
           </View>
 
           {/* Content */}
@@ -191,7 +191,7 @@ export default function PDFReportModal({
           {!isGenerating && pdfUri && (
             <View style={styles.footer}>
               <View style={styles.actionButtonsRow}>
-                <TouchableOpacity
+                <Pressable
                   style={[styles.actionButton, styles.secondaryButton]}
                   onPress={handleShare}
                   disabled={isSharing || isDownloading}>
@@ -207,9 +207,9 @@ export default function PDFReportModal({
                       <Text style={styles.actionButtonText}>Compartir</Text>
                     </>
                   )}
-                </TouchableOpacity>
+                </Pressable>
 
-                <TouchableOpacity
+                <Pressable
                   style={[styles.actionButton, styles.primaryButton]}
                   onPress={handleDownload}
                   disabled={isDownloading || isSharing}>
@@ -227,21 +227,21 @@ export default function PDFReportModal({
                       </Text>
                     </>
                   )}
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
-              <TouchableOpacity style={styles.closeBtn} onPress={handleClose}>
+              <Pressable style={styles.closeBtn} onPress={handleClose}>
                 <Text style={styles.closeBtnText}>Cerrar</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           )}
 
           {/* Footer for error/loading states */}
           {!isGenerating && !pdfUri && (
             <View style={styles.footer}>
-              <TouchableOpacity style={styles.closeBtn} onPress={handleClose}>
+              <Pressable style={styles.closeBtn} onPress={handleClose}>
                 <Text style={styles.closeBtnText}>Cerrar</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           )}
         </View>
@@ -290,6 +290,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: TEXT,
+  },
+  headerSpacer: {
+    width: 32,
   },
   content: {
     padding: 24,

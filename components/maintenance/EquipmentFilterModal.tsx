@@ -9,7 +9,7 @@ import React, {
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   Modal,
   StyleSheet,
   Dimensions,
@@ -211,11 +211,7 @@ export function EquipmentFilterModal({
       <View style={styles.container}>
         {/* Overlay */}
         <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            onPress={closeModal}
-            activeOpacity={1}
-          />
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeModal} />
         </Animated.View>
 
         {/* Modal */}
@@ -226,11 +222,11 @@ export function EquipmentFilterModal({
             <View style={styles.handle} />
             <View style={styles.header}>
               <Text style={styles.headerTitle}>Filtros</Text>
-              <TouchableOpacity onPress={closeModal} style={styles.closeBtn}>
+              <Pressable onPress={closeModal} style={styles.closeBtn}>
                 <View style={styles.closeBtnBg}>
                   <Ionicons name="close" size={16} color="#6B7280" />
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
 
@@ -251,11 +247,10 @@ export function EquipmentFilterModal({
               {configOptions.map(option => {
                 const isActive = tempConfig === option.value;
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={option.label}
                     style={[styles.chip, isActive && styles.chipActive]}
-                    onPress={() => setTempConfig(option.value)}
-                    activeOpacity={0.7}>
+                    onPress={() => setTempConfig(option.value)}>
                     <Text
                       style={[
                         styles.chipText,
@@ -263,20 +258,19 @@ export function EquipmentFilterModal({
                       ]}>
                       {option.label}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </View>
 
             <Text style={styles.sectionLabel}>Ubicación</Text>
             <View style={styles.chipRow}>
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.locChip,
                   tempLocations.length === 0 && styles.locChipActive,
                 ]}
-                onPress={() => setTempLocations([])}
-                activeOpacity={0.7}>
+                onPress={() => setTempLocations([])}>
                 <Ionicons
                   name={
                     tempLocations.length === 0
@@ -293,16 +287,15 @@ export function EquipmentFilterModal({
                   ]}>
                   Todas
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
 
               {sortedLocations.map(loc => {
                 const isSelected = tempLocations.includes(loc);
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={loc}
                     style={[styles.locChip, isSelected && styles.locChipActive]}
-                    onPress={() => toggleLocation(loc)}
-                    activeOpacity={0.7}>
+                    onPress={() => toggleLocation(loc)}>
                     <Ionicons
                       name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
                       size={16}
@@ -315,7 +308,7 @@ export function EquipmentFilterModal({
                       ]}>
                       {loc}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </View>
@@ -331,20 +324,14 @@ export function EquipmentFilterModal({
               styles.footer,
               { paddingBottom: 16 + Math.max(insets.bottom, 12) },
             ]}>
-            <TouchableOpacity
-              style={styles.resetBtn}
-              onPress={handleReset}
-              activeOpacity={0.7}>
+            <Pressable style={styles.resetBtn} onPress={handleReset}>
               <Ionicons name="refresh-outline" size={16} color="#6B7280" />
               <Text style={styles.resetBtnText}>Limpiar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.applyBtn}
-              onPress={handleApply}
-              activeOpacity={0.8}>
+            </Pressable>
+            <Pressable style={styles.applyBtn} onPress={handleApply}>
               <Text style={styles.applyBtnText}>Aplicar</Text>
               <Ionicons name="checkmark" size={16} color="#fff" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </Animated.View>
       </View>

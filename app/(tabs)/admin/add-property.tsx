@@ -3,11 +3,12 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Alert,
+  type TextInputProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
@@ -19,6 +20,16 @@ import { supabasePropertyService } from '@/services/supabase-property.service';
 import type { PropertyCreateRequest } from '@/types/api';
 import { useRouter } from 'expo-router';
 
+type AddPropertyFieldName = Exclude<keyof AddPropertyForm, 'is_active'>;
+
+interface FormInputProps extends TextInputProps {
+  name: AddPropertyFieldName;
+  control: any;
+  label: string;
+  placeholder?: string;
+  error?: { message?: string };
+}
+
 // A simple reusable input component for the form
 const FormInput = ({
   name,
@@ -27,7 +38,7 @@ const FormInput = ({
   placeholder,
   error,
   ...textInputProps
-}: any) => (
+}: FormInputProps) => (
   <View style={styles.inputContainer}>
     <Text style={styles.label}>{label}</Text>
     <Controller
@@ -164,14 +175,15 @@ export default function AddPropertyScreen() {
             multiline
           />
 
-          <TouchableOpacity
+          <Pressable
             style={[styles.button, isSubmitting && styles.buttonDisabled]}
             onPress={handleSubmit(onSubmit)}
-            disabled={isSubmitting}>
+            disabled={isSubmitting}
+            accessibilityRole="button">
             <Text style={styles.buttonText}>
               {isSubmitting ? 'Guardando...' : 'Guardar Inmueble'}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </ScrollView>
       </SafeAreaView>
     </KeyboardAvoidingView>
@@ -225,5 +237,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

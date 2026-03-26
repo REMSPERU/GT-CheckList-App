@@ -3,7 +3,7 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
 } from 'react-native';
@@ -117,9 +117,15 @@ export function GroundingWellModal({
           </ScrollView>
 
           <View style={styles.buttons}>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.closeButton,
+                pressed && styles.pressed,
+              ]}
+              onPress={onClose}
+              accessibilityRole="button">
               <Text style={styles.closeText}>Cerrar</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </View>
@@ -188,6 +194,9 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+  },
+  pressed: {
+    opacity: 0.84,
   },
   divider: {
     height: 1,

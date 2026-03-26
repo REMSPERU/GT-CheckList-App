@@ -4,7 +4,7 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
 } from 'react-native';
@@ -170,23 +170,38 @@ export function EmergencyLightModal({
           </ScrollView>
 
           <View style={styles.buttons}>
-            <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.cancelButton,
+                pressed && styles.pressed,
+              ]}
+              onPress={handleClose}
+              accessibilityRole="button">
               <Text style={styles.cancelText}>
                 {isViewMode ? 'Cerrar' : 'Cancelar'}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
 
             {isViewMode ? (
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={handleEnableEdit}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.editButton,
+                  pressed && styles.pressed,
+                ]}
+                onPress={handleEnableEdit}
+                accessibilityRole="button">
                 <Text style={styles.editText}>Editar</Text>
-              </TouchableOpacity>
+              </Pressable>
             ) : (
-              <TouchableOpacity
-                style={[styles.saveButton, isLoading && styles.disabledButton]}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.saveButton,
+                  isLoading && styles.disabledButton,
+                  pressed && styles.pressed,
+                ]}
                 onPress={handleSave}
-                disabled={isLoading}>
+                disabled={isLoading}
+                accessibilityRole="button">
                 <Text style={styles.saveText}>
                   {isLoading
                     ? 'Guardando...'
@@ -194,7 +209,7 @@ export function EmergencyLightModal({
                       ? 'Crear'
                       : 'Guardar'}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
         </View>
@@ -304,5 +319,8 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     backgroundColor: '#9CA3AF',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

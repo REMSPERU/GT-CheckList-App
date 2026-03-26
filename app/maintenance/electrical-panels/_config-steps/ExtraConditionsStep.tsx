@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { memo } from 'react';
 import { useFormContext, Controller } from 'react-hook-form';
 import { ExtraConditionsStepProps } from '@/types/panel-configuration';
@@ -52,7 +52,7 @@ export default memo(function ExtraConditionsStep({
       <Text style={styles.equipmentLabel}>
         Equipo {panel?.equipment_detail?.rotulo || panel?.codigo || ''}
       </Text>
-      <Text style={styles.stepTitleStrong}>Condiciones adicionales</Text>
+      <Text style={styles.stepTitleStrong}>Condiciones extras</Text>
 
       <View style={styles.componentContainer}>
         {CONDITIONS.map(item => (
@@ -61,7 +61,7 @@ export default memo(function ExtraConditionsStep({
             control={control}
             name={`extraConditions.${item.key}`}
             render={({ field: { onChange, value } }) => (
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.componentToggle,
                   value && styles.componentToggleActive,
@@ -93,7 +93,7 @@ export default memo(function ExtraConditionsStep({
                     ]}
                   />
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             )}
           />
         ))}

@@ -1,12 +1,12 @@
-import React, { memo } from 'react';
+import React, { memo, useCallback } from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   ScrollView,
-  Image,
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,6 +47,11 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
 }: QuestionChecklistItemProps) {
   const showObservationBlock = value.status === false;
   const statusLabel = value.status === false ? 'OBS' : 'OK';
+  const handleAddPhotoPress = useCallback(() => {
+    if (!disabled) {
+      onAddPhoto();
+    }
+  }, [disabled, onAddPhoto]);
 
   return (
     <View style={styles.card}>
@@ -95,23 +100,36 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
             contentContainerStyle={styles.photosRow}>
             {value.photoUris.map((uri, index) => (
               <View key={`${uri}_${index}`} style={styles.photoWrap}>
-                <Image source={{ uri }} style={styles.photo} />
-                <TouchableOpacity
+                <Image
+                  source={{ uri }}
+                  style={styles.photo}
+                  contentFit="cover"
+                  transition={100}
+                />
+                <Pressable
                   onPress={() => onRemovePhoto(index)}
-                  style={styles.removePhotoBtn}
-                  disabled={disabled}>
+                  style={({ pressed }) => [
+                    styles.removePhotoBtn,
+                    pressed && styles.pressed,
+                  ]}
+                  disabled={disabled}
+                  accessibilityRole="button">
                   <Ionicons name="close-circle" size={20} color="#EF4444" />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             ))}
 
-            <TouchableOpacity
-              onPress={onAddPhoto}
-              style={styles.addPhotoBtn}
-              disabled={disabled}>
+            <Pressable
+              onPress={handleAddPhotoPress}
+              style={({ pressed }) => [
+                styles.addPhotoBtn,
+                pressed && styles.pressed,
+              ]}
+              disabled={disabled}
+              accessibilityRole="button">
               <Ionicons name="camera-outline" size={22} color="#475569" />
               <Text style={styles.addPhotoText}>Agregar foto</Text>
-            </TouchableOpacity>
+            </Pressable>
           </ScrollView>
 
           {errors?.photos ? (
@@ -233,6 +251,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#475569',
     fontWeight: '600',
+  },
+  pressed: {
+    opacity: 0.8,
   },
 });
 

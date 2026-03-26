@@ -10,7 +10,6 @@ export interface PhotoItem {
 export interface ItemObservation {
   note: string;
   photoUri?: string;
-  photoUris?: string[];
 }
 
 export interface ItemMeasurement {
@@ -18,6 +17,7 @@ export interface ItemMeasurement {
   amperage?: string;
   isVoltageInRange?: boolean;
   isAmperageInRange?: boolean;
+  isCableDiameterInRange?: boolean;
   cableDiameter?: string;
   cableType?: string;
   originalCableDiameter?: string;
@@ -36,20 +36,8 @@ export interface MaintenanceSession {
   // Checklist
   checklist: Record<string, boolean>; // itemId -> status (true=OK, false=Obs)
   // Measurements & Observations
-  measurements?: Record<
-    string,
-    {
-      voltage?: string;
-      amperage?: string;
-      isVoltageInRange?: boolean;
-      isAmperageInRange?: boolean;
-      cableDiameter?: string;
-      cableType?: string;
-      originalCableDiameter?: string;
-      originalCableType?: string;
-    }
-  >;
-  itemObservations: Record<string, { note: string; photoUri?: string }>;
+  measurements?: Record<string, ItemMeasurement>;
+  itemObservations: Record<string, ItemObservation>;
   // General
   observations: string;
   recommendations: string;

@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 interface ProgressTabsProps {
   items: string[];
@@ -67,6 +67,14 @@ const TabItem = React.memo(
       [index, isFirst, totalItems],
     );
 
+    const pressableStyle = useCallback(
+      ({ pressed }: { pressed: boolean }) => [
+        ...containerStyle,
+        pressed && !disabled && styles.pressed,
+      ],
+      [containerStyle, disabled],
+    );
+
     const bodyStyle = useMemo(
       () => [
         styles.tabBody,
@@ -94,10 +102,9 @@ const TabItem = React.memo(
     );
 
     return (
-      <TouchableOpacity
-        style={containerStyle}
+      <Pressable
+        style={pressableStyle}
         onPress={disabled ? undefined : onPress}
-        activeOpacity={disabled ? 1 : 0.8}
         disabled={disabled}>
         <View style={bodyStyle}>
           <Text style={textPaddingStyle} numberOfLines={1}>
@@ -106,7 +113,7 @@ const TabItem = React.memo(
         </View>
 
         {!isLast && <View style={arrowStyle} />}
-      </TouchableOpacity>
+      </Pressable>
     );
   },
 );
@@ -201,5 +208,8 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     transform: [{ rotate: '45deg' }],
     zIndex: 10,
+  },
+  pressed: {
+    opacity: 0.9,
   },
 });

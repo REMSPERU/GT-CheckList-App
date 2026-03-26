@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   ActivityIndicator,
   FlatList,
   Alert,
-  Image,
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -119,7 +119,7 @@ export default function PostMaintenancePhotosScreen() {
 
   if (loading || !session) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#06B6D4" />
       </View>
     );
@@ -163,26 +163,39 @@ export default function PostMaintenancePhotosScreen() {
             removeClippedSubviews={true}
             renderItem={({ item }) => (
               <View style={styles.photoThumbnail}>
-                <Image source={{ uri: item.uri }} style={styles.thumbImage} />
-                <TouchableOpacity
-                  style={styles.removeBtn}
-                  onPress={() => handleRemoveItem(item.id)}>
+                <Image
+                  source={{ uri: item.uri }}
+                  style={styles.thumbImage}
+                  contentFit="cover"
+                  transition={120}
+                />
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.removeBtn,
+                    pressed && styles.pressed,
+                  ]}
+                  onPress={() => handleRemoveItem(item.id)}
+                  accessibilityRole="button">
                   <Ionicons name="close-circle" size={20} color="#EF4444" />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             )}
           />
         )}
 
         <View style={styles.adderContainer}>
-          <TouchableOpacity
-            style={styles.addBtnContainer}
-            onPress={() => setModalVisible(true)}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.addBtnContainer,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => setModalVisible(true)}
+            accessibilityRole="button">
             <View style={styles.addBtn}>
               <Ionicons name="camera-outline" size={20} color="white" />
               <Text style={styles.addBtnText}>Agregar Foto</Text>
             </View>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     );
@@ -198,12 +211,13 @@ export default function PostMaintenancePhotosScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Pressable
           style={[styles.continueBtn, !isFormValid && styles.disabledBtn]}
           onPress={handleContinue}
-          disabled={!isFormValid}>
+          disabled={!isFormValid}
+          accessibilityRole="button">
           <Text style={styles.continueBtnText}>Ver Resumen y Finalizar</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <Modal
@@ -211,29 +225,44 @@ export default function PostMaintenancePhotosScreen() {
         transparent={true}
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}>
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setModalVisible(false)}
+          />
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Seleccionar origen</Text>
-            <TouchableOpacity style={styles.modalOption} onPress={handleCamera}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.modalOption,
+                pressed && styles.pressed,
+              ]}
+              onPress={handleCamera}
+              accessibilityRole="button">
               <Ionicons name="camera" size={24} color="#06B6D4" />
               <Text style={styles.modalOptionText}>Tomar Foto</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.modalOption}
-              onPress={handleGallery}>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.modalOption,
+                pressed && styles.pressed,
+              ]}
+              onPress={handleGallery}
+              accessibilityRole="button">
               <Ionicons name="images" size={24} color="#06B6D4" />
               <Text style={styles.modalOptionText}>Elegir de Galería</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.modalCancelBtn}
-              onPress={() => setModalVisible(false)}>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.modalCancelBtn,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => setModalVisible(false)}
+              accessibilityRole="button">
               <Text style={styles.modalCancelText}>Cancelar</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -241,6 +270,11 @@ export default function PostMaintenancePhotosScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   content: { flex: 1, backgroundColor: '#F3F7FA', padding: 16 },
   sectionContainer: {
     backgroundColor: '#fff',
@@ -352,4 +386,7 @@ const styles = StyleSheet.create({
   modalOptionText: { fontSize: 16, fontWeight: '500', color: '#374151' },
   modalCancelBtn: { padding: 16, alignItems: 'center', marginTop: 8 },
   modalCancelText: { fontSize: 16, fontWeight: '600', color: '#EF4444' },
+  pressed: {
+    opacity: 0.84,
+  },
 });

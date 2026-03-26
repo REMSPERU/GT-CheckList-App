@@ -1,13 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  ScrollView,
+  Pressable,
+  FlatList,
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
@@ -29,11 +30,74 @@ interface SessionHistoryItem {
   displayDate: string;
   total: number;
   completed: number;
-  maintenances: any[];
   codigo?: string;
   type?: string;
   equipmentType?: string;
 }
+
+interface SessionCardProps {
+  session: SessionHistoryItem;
+  onShowReportOptions: (session: SessionHistoryItem) => void;
+}
+
+const SessionCard = React.memo(function SessionCard({
+  session,
+  onShowReportOptions,
+}: SessionCardProps) {
+  const isComplete = session.completed === session.total && session.total > 0;
+
+  const handleShowReport = useCallback(() => {
+    onShowReportOptions(session);
+  }, [onShowReportOptions, session]);
+
+  return (
+    <View style={styles.sessionCard}>
+      <View style={styles.cardHeader}>
+        <View style={styles.dateRow}>
+          <Ionicons name="calendar-outline" size={20} color="#06B6D4" />
+          <Text style={styles.dateText}>{session.displayDate}</Text>
+        </View>
+        {session.codigo && (
+          <Text style={styles.codigoMainText}>{session.codigo}</Text>
+        )}
+      </View>
+
+      <View style={styles.statsRow}>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>Equipos</Text>
+          <Text style={styles.statValue}>{session.total}</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>Completados</Text>
+          <Text
+            style={[
+              styles.statValue,
+              { color: isComplete ? '#10B981' : '#F59E0B' },
+            ]}>
+            {session.completed}
+          </Text>
+        </View>
+      </View>
+
+      {isComplete ? (
+        <Pressable
+          style={({ pressed }) => [
+            styles.reportButton,
+            pressed && styles.pressed,
+          ]}
+          onPress={handleShowReport}
+          accessibilityRole="button">
+          <Ionicons name="document-text-outline" size={20} color="#fff" />
+          <Text style={styles.reportButtonText}>Generar Informe</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.pendingBadge}>
+          <Text style={styles.pendingText}>Mantenimiento en Progreso</Text>
+        </View>
+      )}
+    </View>
+  );
+});
 
 export default function SessionHistoryScreen() {
   const { propertyId, propertyName, equipmentType } = useLocalSearchParams<{
@@ -60,6 +124,7 @@ export default function SessionHistoryScreen() {
   const [reportTypeModalVisible, setReportTypeModalVisible] = useState(false);
   const [selectedSession, setSelectedSession] =
     useState<SessionHistoryItem | null>(null);
+  const activeGenerationIdRef = useRef(0);
 
   // Fetch Data (reusing maintenance hook)
   const {
@@ -70,8 +135,9 @@ export default function SessionHistoryScreen() {
   } = useMaintenanceByProperty(propertyId);
 
   // Group maintenances by date - filtering ONLY COMPLETED sessions (or partially completed)
-  const sessions = useMemo(() => {
+  const { sessions, sessionMaintenancesByDate } = useMemo(() => {
     const grouped: Record<string, SessionHistoryItem> = {};
+    const maintenancesByDate: Record<string, any[]> = {};
 
     maintenanceData.forEach((item: any) => {
       // 1. Filter by Equipment Type if provided
@@ -120,15 +186,16 @@ export default function SessionHistoryScreen() {
           displayDate,
           total: 0,
           completed: 0,
-          maintenances: [],
           codigo: item.codigo,
           type: item.tipo_mantenimiento || 'Preventivo',
           equipmentType: itemEquipType || 'Desconocido',
         };
+
+        maintenancesByDate[dateKey] = [];
       }
 
       grouped[dateKey].total++;
-      grouped[dateKey].maintenances.push(item);
+      maintenancesByDate[dateKey].push(item);
 
       if (item.estatus === MaintenanceStatusEnum.FINALIZADO) {
         grouped[dateKey].completed++;
@@ -141,18 +208,26 @@ export default function SessionHistoryScreen() {
     // "para lo de informe deben estar todos completados" -> For report, ALL MUST BE COMPLETED.
     // So for the LIST, I'll show all, but disable report button if not complete.
 
-    return Object.values(grouped).sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(), // Descending order for history
-    );
+    return {
+      sessions: Object.values(grouped).sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      ),
+      sessionMaintenancesByDate: maintenancesByDate,
+    };
   }, [maintenanceData, equipmentType]);
 
-  const handleShowReportOptions = (session: SessionHistoryItem) => {
+  const handleShowReportOptions = useCallback((session: SessionHistoryItem) => {
     setSelectedSession(session);
     setReportTypeModalVisible(true);
-  };
+  }, []);
 
   const handleReportTypeSelect = async (type: ReportType) => {
     if (!selectedSession) return;
+
+    const generationId = activeGenerationIdRef.current + 1;
+    activeGenerationIdRef.current = generationId;
+    const isActiveGeneration = () =>
+      activeGenerationIdRef.current === generationId;
 
     setReportTypeModalVisible(false);
     setPdfModalVisible(true);
@@ -185,6 +260,10 @@ export default function SessionHistoryScreen() {
     setGenerationProgress(progress);
 
     try {
+      const selectedMaintenances = selectedSession
+        ? sessionMaintenancesByDate[selectedSession.date] || []
+        : [];
+
       const isPATReport = type === ReportType.PAT;
       const normalizePhotoUrl = (photo: any): string | undefined => {
         if (!photo) return undefined;
@@ -195,7 +274,7 @@ export default function SessionHistoryScreen() {
         return undefined;
       };
 
-      const maintenanceIds = selectedSession.maintenances
+      const maintenanceIds = selectedMaintenances
         .filter((m: any) => m.estatus === MaintenanceStatusEnum.FINALIZADO)
         .map((m: any) => m.id);
 
@@ -204,8 +283,10 @@ export default function SessionHistoryScreen() {
           'Sin datos',
           'No hay mantenimientos finalizados para generar el informe.',
         );
-        setPdfModalVisible(false);
-        setIsGeneratingPdf(false);
+        if (isActiveGeneration()) {
+          setPdfModalVisible(false);
+          setIsGeneratingPdf(false);
+        }
         return;
       }
 
@@ -230,13 +311,17 @@ export default function SessionHistoryScreen() {
 
       if (error) throw error;
 
+      if (!isActiveGeneration()) {
+        return;
+      }
+
       setGenerationProgress('Procesando datos del informe...');
 
       const equipments: any[] = [];
       let totalOkItems = 0;
       let totalIssueItems = 0;
 
-      for (const maint of selectedSession.maintenances.filter(
+      for (const maint of selectedMaintenances.filter(
         (m: any) => m.estatus === MaintenanceStatusEnum.FINALIZADO,
       )) {
         const response = responses?.find(
@@ -324,6 +409,7 @@ export default function SessionHistoryScreen() {
             type: 'POZO A TIERRA',
             model: 'N/A',
             location: maint.equipos?.ubicacion || 'N/A',
+            detalle_ubicacion: maint.equipos?.detalle_ubicacion || '',
             voltage: detail.preMeasurement || undefined,
             amperage: detail.postMeasurement || undefined,
             cableSize: undefined,
@@ -430,6 +516,7 @@ export default function SessionHistoryScreen() {
             maint.equipos?.equipment_detail?.detalle_tecnico?.modelo ||
             'ADOSADO',
           location: maint.equipos?.ubicacion || 'N/A',
+          detalle_ubicacion: maint.equipos?.detalle_ubicacion || '',
           voltage: firstMeasurement?.voltage,
           amperage: firstMeasurement?.amperage,
           cableSize: firstMeasurement?.cableDiameter,
@@ -447,6 +534,10 @@ export default function SessionHistoryScreen() {
           itemObservations: detail.itemObservations,
           protocol: response?.protocol || detail.protocol,
         });
+      }
+
+      if (!isActiveGeneration()) {
+        return;
       }
 
       // Build report data
@@ -478,6 +569,11 @@ export default function SessionHistoryScreen() {
 
       setGenerationProgress('Generando archivo PDF...');
       const uri = await newPdfReportService.generateReport(type, reportData);
+
+      if (!isActiveGeneration()) {
+        return;
+      }
+
       setPdfUri(uri);
 
       setReportSummary({
@@ -488,6 +584,10 @@ export default function SessionHistoryScreen() {
         totalIssues: totalIssueItems,
       });
     } catch (error) {
+      if (!isActiveGeneration()) {
+        return;
+      }
+
       console.error('Error generating report:', error);
       Alert.alert(
         'Error',
@@ -495,15 +595,30 @@ export default function SessionHistoryScreen() {
       );
       setPdfModalVisible(false);
     } finally {
-      setIsGeneratingPdf(false);
+      if (isActiveGeneration()) {
+        setIsGeneratingPdf(false);
+      }
     }
   };
 
   const handleClosePdfModal = () => {
+    activeGenerationIdRef.current += 1;
+    setIsGeneratingPdf(false);
+    setGenerationProgress('');
     setPdfModalVisible(false);
     setPdfUri(null);
     setReportSummary(null);
   };
+
+  const renderSessionItem = useCallback(
+    ({ item: session }: { item: SessionHistoryItem }) => (
+      <SessionCard
+        session={session}
+        onShowReportOptions={handleShowReportOptions}
+      />
+    ),
+    [handleShowReportOptions],
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -534,77 +649,21 @@ export default function SessionHistoryScreen() {
             <Text style={styles.emptyText}>No hay historial disponible</Text>
           </View>
         ) : (
-          <ScrollView
+          <FlatList
+            data={sessions}
+            keyExtractor={item => item.date}
+            renderItem={renderSessionItem}
             style={styles.listContainer}
+            contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
-            }>
-            {sessions.map(session => {
-              const isComplete =
-                session.completed === session.total && session.total > 0;
-
-              return (
-                <View key={session.date} style={styles.sessionCard}>
-                  <View style={styles.cardHeader}>
-                    <View style={styles.dateRow}>
-                      <Ionicons
-                        name="calendar-outline"
-                        size={20}
-                        color="#06B6D4"
-                      />
-                      <Text style={styles.dateText}>{session.displayDate}</Text>
-                    </View>
-                    {session.codigo && (
-                      <Text style={styles.codigoMainText}>
-                        {session.codigo}
-                      </Text>
-                    )}
-                  </View>
-
-                  <View style={styles.statsRow}>
-                    <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Equipos</Text>
-                      <Text style={styles.statValue}>{session.total}</Text>
-                    </View>
-                    <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Completados</Text>
-                      <Text
-                        style={[
-                          styles.statValue,
-                          { color: isComplete ? '#10B981' : '#F59E0B' },
-                        ]}>
-                        {session.completed}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {isComplete ? (
-                    <TouchableOpacity
-                      style={styles.reportButton}
-                      onPress={() => handleShowReportOptions(session)}
-                      activeOpacity={0.8}>
-                      <Ionicons
-                        name="document-text-outline"
-                        size={20}
-                        color="#fff"
-                      />
-                      <Text style={styles.reportButtonText}>
-                        Generar Informe
-                      </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={styles.pendingBadge}>
-                      <Text style={styles.pendingText}>
-                        Mantenimiento en Progreso
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-            <View style={{ height: 40 }} />
-          </ScrollView>
+            }
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            removeClippedSubviews={Platform.OS === 'android'}
+          />
         )}
       </View>
 
@@ -663,6 +722,9 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     marginTop: 12,
+  },
+  listContent: {
+    paddingBottom: 40,
   },
   emptyText: {
     fontSize: 16,
@@ -749,5 +811,8 @@ const styles = StyleSheet.create({
     color: '#D97706',
     fontWeight: '600',
     fontSize: 14,
+  },
+  pressed: {
+    opacity: 0.82,
   },
 });

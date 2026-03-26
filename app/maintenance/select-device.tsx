@@ -1,13 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  ScrollView,
+  FlatList,
   View,
   StyleSheet,
   ActivityIndicator,
   Text,
-  RefreshControl,
   Alert,
-  TouchableOpacity,
+  Pressable,
+  type ListRenderItem,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from 'react';
@@ -26,11 +26,16 @@ interface BuildingParam {
   image_url?: string;
 }
 
+function getSingleParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 function parseJsonParam<T>(value: string | string[] | undefined): T | null {
-  if (typeof value !== 'string') return null;
+  const rawValue = getSingleParam(value);
+  if (typeof rawValue !== 'string') return null;
 
   try {
-    return JSON.parse(value) as T;
+    return JSON.parse(rawValue) as T;
   } catch {
     return null;
   }
@@ -49,13 +54,35 @@ export default function SelectDeviceScreen() {
   const [building, setBuilding] = useState<BuildingParam | null>(null);
 
   useEffect(() => {
-    const parsedBuilding = parseJsonParam<BuildingParam>(params.building);
+    const buildingId = getSingleParam(params.buildingId);
+    const buildingName = getSingleParam(params.buildingName);
+    const buildingAddress = getSingleParam(params.buildingAddress);
+    const buildingImageUrl = getSingleParam(params.buildingImageUrl);
 
-    if (parsedBuilding) {
+    if (buildingId && buildingName) {
+      const parsedBuilding: BuildingParam = {
+        id: buildingId,
+        name: buildingName,
+        address: buildingAddress,
+        image_url: buildingImageUrl,
+      };
       setBuilding(parsedBuilding);
-      log('SelectDevice: Parsed building ID:', parsedBuilding.id);
+      log('SelectDevice: Building ID:', parsedBuilding.id);
+      return;
     }
-  }, [params.building]);
+
+    const legacyBuilding = parseJsonParam<BuildingParam>(params.building);
+    if (legacyBuilding) {
+      setBuilding(legacyBuilding);
+      log('SelectDevice: Parsed legacy building ID:', legacyBuilding.id);
+    }
+  }, [
+    params.building,
+    params.buildingAddress,
+    params.buildingId,
+    params.buildingImageUrl,
+    params.buildingName,
+  ]);
 
   const [equipamentos, setEquipamentos] = useState<EquipamentoResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,17 +91,18 @@ export default function SelectDeviceScreen() {
 
   const loadData = useCallback(async () => {
     if (!building?.id) return;
+    setIsLoading(true);
+    setError(null);
+
     try {
-      setIsLoading(true);
-      setError(null);
       const data = await DatabaseService.getEquipamentosByProperty(building.id);
       setEquipamentos(data as EquipamentoResponse[]);
     } catch (err) {
       console.error('Error loading equipments:', err);
       setError('Error al cargar equipamientos locales');
-    } finally {
-      setIsLoading(false);
     }
+
+    setIsLoading(false);
   }, [building?.id]);
 
   useEffect(() => {
@@ -93,66 +121,93 @@ export default function SelectDeviceScreen() {
     } catch (e) {
       Alert.alert('Error', 'No se pudo sincronizar con el servidor.');
       console.error(e);
-    } finally {
-      setIsRefreshing(false);
     }
+
+    setIsRefreshing(false);
   }, [loadData]);
 
-  const handleEquipamentoPress = (equipamento: EquipamentoResponse) => {
-    log('Selected equipamento:', equipamento);
-    log('Building:', building);
+  const handleEquipamentoPress = useCallback(
+    (equipamento: EquipamentoResponse) => {
+      log('Selected equipamento:', equipamento);
+      log('Building:', building);
 
-    if (flowType === 'checklist') {
-      router.push({
-        pathname: '/maintenance/checklist',
-        params: {
-          building: JSON.stringify(building),
-          equipamento: JSON.stringify(equipamento),
-        },
-      });
-      return;
-    }
-
-    // Route based on equipment abbreviation from DB
-    switch (equipamento.abreviatura) {
-      case 'TBELEC':
-        // Tablero electrico
+      if (flowType === 'checklist') {
         router.push({
-          pathname: '/maintenance/electrical-panels',
+          pathname: '/checklist',
           params: {
-            building: JSON.stringify(building),
-            equipamento: JSON.stringify(equipamento),
+            buildingId: building?.id ?? '',
+            buildingName: building?.name ?? '',
+            buildingAddress: building?.address ?? '',
+            buildingImageUrl: building?.image_url ?? '',
+            equipamentoId: equipamento.id,
+            equipamentoNombre: equipamento.nombre,
+            equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
+            equipamentoAbreviatura: equipamento.abreviatura,
           },
         });
-        break;
-      case 'LUZ':
-        // Luces de Emergencia
-        router.push({
-          pathname: '/maintenance/emergency-lights',
-          params: {
-            building: JSON.stringify(building),
-            equipamento: JSON.stringify(equipamento),
-          },
-        });
-        break;
-      case 'PAT':
-        // Pozo a Tierra
-        router.push({
-          pathname: '/maintenance/grounding-wells',
-          params: {
-            building: JSON.stringify(building),
-            equipamento: JSON.stringify(equipamento),
-          },
-        });
-        break;
-      default:
-        // Fallback for other equipment types
-        log('No route configured for:', equipamento.abreviatura);
-        break;
-    }
-  };
+        return;
+      }
 
-  const getIconForEquipamento = (abreviatura: string) => {
+      // Route based on equipment abbreviation from DB
+      switch (equipamento.abreviatura) {
+        case 'TBELEC':
+          // Tablero electrico
+          router.push({
+            pathname: '/maintenance/electrical-panels',
+            params: {
+              buildingId: building?.id ?? '',
+              buildingName: building?.name ?? '',
+              buildingAddress: building?.address ?? '',
+              buildingImageUrl: building?.image_url ?? '',
+              equipamentoId: equipamento.id,
+              equipamentoNombre: equipamento.nombre,
+              equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
+              equipamentoAbreviatura: equipamento.abreviatura,
+            },
+          });
+          break;
+        case 'LUZ':
+          // Luces de Emergencia
+          router.push({
+            pathname: '/maintenance/emergency-lights',
+            params: {
+              buildingId: building?.id ?? '',
+              buildingName: building?.name ?? '',
+              buildingAddress: building?.address ?? '',
+              buildingImageUrl: building?.image_url ?? '',
+              equipamentoId: equipamento.id,
+              equipamentoNombre: equipamento.nombre,
+              equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
+              equipamentoAbreviatura: equipamento.abreviatura,
+            },
+          });
+          break;
+        case 'PAT':
+          // Pozo a Tierra
+          router.push({
+            pathname: '/maintenance/grounding-wells',
+            params: {
+              buildingId: building?.id ?? '',
+              buildingName: building?.name ?? '',
+              buildingAddress: building?.address ?? '',
+              buildingImageUrl: building?.image_url ?? '',
+              equipamentoId: equipamento.id,
+              equipamentoNombre: equipamento.nombre,
+              equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
+              equipamentoAbreviatura: equipamento.abreviatura,
+            },
+          });
+          break;
+        default:
+          // Fallback for other equipment types
+          log('No route configured for:', equipamento.abreviatura);
+          break;
+      }
+    },
+    [building, flowType, router],
+  );
+
+  const getIconForEquipamento = useCallback((abreviatura: string) => {
     // Map equipment abbreviations to icons
     const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
       TBELEC: 'stats-chart-outline', // Tablero electrico
@@ -162,7 +217,22 @@ export default function SelectDeviceScreen() {
       ASC: 'arrow-up-outline',
     };
     return iconMap[abreviatura] || 'cube-outline';
-  };
+  }, []);
+
+  const renderEquipamentoItem = useCallback<
+    ListRenderItem<EquipamentoResponse>
+  >(
+    ({ item }) => (
+      <MaintenanceCard
+        icon={getIconForEquipamento(item.abreviatura)}
+        title={item.nombre}
+        onPress={() => handleEquipamentoPress(item)}
+        accessibilityLabel={`Abrir mantenimiento de ${item.nombre}`}
+        accessibilityHint="Navega al flujo de mantenimiento del equipo"
+      />
+    ),
+    [getIconForEquipamento, handleEquipamentoPress],
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -184,11 +254,17 @@ export default function SelectDeviceScreen() {
         )}
         <View style={styles.headerOverlay} />
         <SafeAreaView edges={['top']} style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Regresar"
+            accessibilityHint="Vuelve a la pantalla anterior">
             <Ionicons name="chevron-back" size={24} color="#fff" />
-          </TouchableOpacity>
+          </Pressable>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>
               {building?.name || 'Seleccionar Equipo'}
@@ -200,39 +276,36 @@ export default function SelectDeviceScreen() {
         </SafeAreaView>
       </View>
 
-      <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-        }>
-        {/* Content */}
-        <View style={styles.listWrapper}>
-          {isLoading && !isRefreshing ? (
-            <View style={styles.centerContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={styles.loadingText}>Cargando localmente...</Text>
-            </View>
-          ) : error ? (
-            <View style={styles.centerContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : equipamentos.length === 0 ? (
+      {isLoading && !isRefreshing ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Cargando localmente...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={equipamentos}
+          keyExtractor={item => String(item.id)}
+          renderItem={renderEquipamentoItem}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.listWrapper,
+            equipamentos.length === 0 && styles.listWrapperEmpty,
+          ]}
+          refreshing={isRefreshing}
+          onRefresh={onRefresh}
+          ListEmptyComponent={
             <View style={styles.centerContainer}>
               <Text style={styles.emptyText}>
                 No hay equipamientos disponibles para este inmueble
               </Text>
             </View>
-          ) : (
-            equipamentos.map(equipamento => (
-              <MaintenanceCard
-                key={equipamento.id}
-                icon={getIconForEquipamento(equipamento.abreviatura)}
-                title={equipamento.nombre}
-                onPress={() => handleEquipamentoPress(equipamento)}
-              />
-            ))
-          )}
-        </View>
-      </ScrollView>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -306,6 +379,10 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 24,
   },
+  listWrapperEmpty: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   centerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -325,5 +402,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   TextInput,
   Alert,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -244,7 +244,12 @@ export default function EmergencyLightsSummaryScreen() {
             <Text style={styles.obsLabel}>Observación:</Text>
             <Text style={styles.obsText}>{item.observation}</Text>
             {item.photoUri && (
-              <Image source={{ uri: item.photoUri }} style={styles.obsPhoto} />
+              <Image
+                source={{ uri: item.photoUri }}
+                style={styles.obsPhoto}
+                contentFit="cover"
+                transition={100}
+              />
             )}
           </View>
         )}
@@ -256,9 +261,12 @@ export default function EmergencyLightsSummaryScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+          accessibilityRole="button">
           <Ionicons name="chevron-back" size={24} color="#11181C" />
-        </TouchableOpacity>
+        </Pressable>
         <View style={styles.headerIconContainer}>
           <MaterialIcons name="summarize" size={20} color="white" />
         </View>
@@ -333,10 +341,11 @@ export default function EmergencyLightsSummaryScreen() {
 
       {/* Footer */}
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Pressable
           style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
           onPress={handleSubmit}
-          disabled={submitting}>
+          disabled={submitting}
+          accessibilityRole="button">
           {submitting ? (
             <View style={styles.submittingRow}>
               <ActivityIndicator color="#fff" />
@@ -345,7 +354,7 @@ export default function EmergencyLightsSummaryScreen() {
           ) : (
             <Text style={styles.submitBtnText}>Finalizar y Guardar</Text>
           )}
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -539,5 +548,8 @@ const styles = StyleSheet.create({
     gap: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

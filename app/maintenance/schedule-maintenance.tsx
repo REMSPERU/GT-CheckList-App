@@ -3,7 +3,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   TextInput,
   Modal,
   Alert,
@@ -89,11 +89,9 @@ export default function ScheduleMaintenanceScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={24} color="#0891B2" />
-          </TouchableOpacity>
+          </Pressable>
           <Text style={styles.headerTitle}>Verificando permisos...</Text>
         </View>
         <View
@@ -342,11 +340,9 @@ export default function ScheduleMaintenanceScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 12 : 0}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={24} color="#0891B2" />
-          </TouchableOpacity>
+          </Pressable>
           <Ionicons
             name="construct-outline"
             size={24}
@@ -396,15 +392,15 @@ export default function ScheduleMaintenanceScreen() {
             <Text style={styles.selectedCountText}>
               {selectedCount} paneles seleccionados
             </Text>
-            <TouchableOpacity onPress={() => console.log('Ver lista')}>
+            <Pressable onPress={() => console.log('Ver lista')}>
               <Text style={styles.linkText}>Ver lista completa / Editar</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Maintenance Details */}
           <Text style={styles.sectionTitle}>Detalles del Mantenimiento</Text>
           <View style={styles.row}>
-            <TouchableOpacity style={styles.inputCard} onPress={openDatePicker}>
+            <Pressable style={styles.inputCard} onPress={openDatePicker}>
               <View style={styles.inputLabelRow}>
                 <Ionicons name="calendar-outline" size={20} color="#374151" />
                 <View style={styles.dateTextContainer}>
@@ -415,11 +411,11 @@ export default function ScheduleMaintenanceScreen() {
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
+            </Pressable>
 
             <View style={{ width: 12 }} />
 
-            <TouchableOpacity style={styles.inputCard} onPress={openTimePicker}>
+            <Pressable style={styles.inputCard} onPress={openTimePicker}>
               <View style={styles.inputLabelRow}>
                 <Ionicons name="time-outline" size={20} color="#374151" />
                 <View style={styles.dateTextContainer}>
@@ -428,13 +424,13 @@ export default function ScheduleMaintenanceScreen() {
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Type of Maintenance */}
           <Text style={styles.sectionTitle}>Tipo de Mantenimiento</Text>
           <View style={styles.typeSelectorContainer}>
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.typeButton,
                 maintenanceType === MaintenanceTypeEnum.PREVENTIVO &&
@@ -451,9 +447,9 @@ export default function ScheduleMaintenanceScreen() {
                 ]}>
                 Preventivo
               </Text>
-            </TouchableOpacity>
+            </Pressable>
             <View style={{ width: 12 }} />
-            <TouchableOpacity
+            <Pressable
               style={[
                 styles.typeButton,
                 styles.typeButtonDisabled,
@@ -472,11 +468,11 @@ export default function ScheduleMaintenanceScreen() {
                 ]}>
                 Correctivo
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Assigned Technicians */}
-          <TouchableOpacity
+          <Pressable
             style={styles.accordionHeader}
             onPress={() => setIsTechniciansExpanded(!isTechniciansExpanded)}>
             <Text style={styles.accordionTitle}>Técnicos Asignados</Text>
@@ -485,18 +481,18 @@ export default function ScheduleMaintenanceScreen() {
               size={20}
               color="#6B7280"
             />
-          </TouchableOpacity>
+          </Pressable>
 
           {isTechniciansExpanded && (
             <View style={styles.techniciansContainer}>
-              <TouchableOpacity
+              <Pressable
                 style={styles.addTechnicianButton}
                 onPress={() => setShowTechModal(true)}>
                 <Ionicons name="add" size={16} color="#374151" />
                 <Text style={styles.addTechnicianText}>Asignar técnicos</Text>
                 <View style={{ flex: 1 }} />
                 <Ionicons name="chevron-forward" size={20} color="#374151" />
-              </TouchableOpacity>
+              </Pressable>
 
               {technicians
                 .filter(t => selectedTechnicians.includes(t.id))
@@ -512,9 +508,9 @@ export default function ScheduleMaintenanceScreen() {
                     <Text style={styles.techName}>{tech.email}</Text>
                     {/* Assuming 'company' or similar field exists or we simulate it */}
                     <Text style={styles.techCompany}>Rems</Text>
-                    <TouchableOpacity onPress={() => toggleTechnician(tech.id)}>
+                    <Pressable onPress={() => toggleTechnician(tech.id)}>
                       <Ionicons name="close-circle" size={20} color="#EF4444" />
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 ))}
             </View>
@@ -550,7 +546,7 @@ export default function ScheduleMaintenanceScreen() {
           )}
 
           {/* Confirm Button */}
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.confirmButton,
               (createMaintenanceMutation.isPending ||
@@ -573,7 +569,7 @@ export default function ScheduleMaintenanceScreen() {
                     ? 'Sin permisos para programar'
                     : 'Confirmar Programación'}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -591,7 +587,7 @@ export default function ScheduleMaintenanceScreen() {
             ]}>
             <Text style={styles.modalTitle}>Seleccionar Fecha</Text>
             <View style={styles.calendarHeader}>
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.calendarNavButton,
                   !canGoPrevMonth && styles.calendarNavButtonDisabled,
@@ -599,11 +595,11 @@ export default function ScheduleMaintenanceScreen() {
                 disabled={!canGoPrevMonth}
                 onPress={() => changeCalendarMonth('prev')}>
                 <Ionicons name="chevron-back" size={18} color="#374151" />
-              </TouchableOpacity>
+              </Pressable>
 
               <Text style={styles.calendarMonthLabel}>{monthLabel}</Text>
 
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.calendarNavButton,
                   !canGoNextMonth && styles.calendarNavButtonDisabled,
@@ -611,7 +607,7 @@ export default function ScheduleMaintenanceScreen() {
                 disabled={!canGoNextMonth}
                 onPress={() => changeCalendarMonth('next')}>
                 <Ionicons name="chevron-forward" size={18} color="#374151" />
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.weekDaysRow}>
@@ -639,7 +635,7 @@ export default function ScheduleMaintenanceScreen() {
 
                 return (
                   <View key={`day-${dayNumber}`} style={styles.calendarCell}>
-                    <TouchableOpacity
+                    <Pressable
                       style={[
                         styles.calendarDayButton,
                         isSelected && styles.calendarDayButtonSelected,
@@ -655,16 +651,16 @@ export default function ScheduleMaintenanceScreen() {
                         ]}>
                         {dayNumber}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 );
               })}
             </View>
-            <TouchableOpacity
+            <Pressable
               style={styles.modalCloseButton}
               onPress={() => setShowDatePicker(false)}>
               <Text style={styles.modalCloseText}>Cancelar</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -794,11 +790,11 @@ export default function ScheduleMaintenanceScreen() {
             </View>
 
             <Text style={styles.timeSelectedText}>{formatTimeLabel(time)}</Text>
-            <TouchableOpacity
+            <Pressable
               style={styles.modalCloseButton}
               onPress={() => setShowTimePicker(false)}>
               <Text style={styles.modalCloseText}>Listo</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -825,7 +821,7 @@ export default function ScheduleMaintenanceScreen() {
                 technicians.map(t => {
                   const isSelected = selectedTechnicians.includes(t.id);
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       key={t.id}
                       style={[
                         styles.modalOption,
@@ -866,16 +862,16 @@ export default function ScheduleMaintenanceScreen() {
                           color="#0891B2"
                         />
                       )}
-                    </TouchableOpacity>
+                    </Pressable>
                   );
                 })
               )}
             </ScrollView>
-            <TouchableOpacity
+            <Pressable
               style={styles.modalCloseButton}
               onPress={() => setShowTechModal(false)}>
               <Text style={styles.modalCloseText}>Listo</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </Modal>

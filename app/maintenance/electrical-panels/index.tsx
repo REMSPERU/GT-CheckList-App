@@ -1,11 +1,5 @@
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import {
-  View,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  TextInput,
-} from 'react-native';
+import { View, StyleSheet, Text, Pressable, TextInput } from 'react-native';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -34,17 +28,23 @@ const REFRESH_TIMEOUT_MS = 10000; // 10 seconds timeout for refresh
 interface BuildingParam {
   id: string;
   name: string;
+  address?: string;
   image_url?: string;
 }
 
 function parseJsonParam<T>(value: string | string[] | undefined): T | null {
-  if (typeof value !== 'string') return null;
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  if (typeof rawValue !== 'string') return null;
 
   try {
-    return JSON.parse(value) as T;
+    return JSON.parse(rawValue) as T;
   } catch {
     return null;
   }
+}
+
+function getSingleParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 const log = (...args: unknown[]) => {
@@ -56,8 +56,7 @@ const log = (...args: unknown[]) => {
 export default function ElectricalPanelsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { building: buildingParam, equipamento: equipamentoParam } =
-    useLocalSearchParams();
+  const params = useLocalSearchParams();
   const [building, setBuilding] = useState<BuildingParam | null>(null);
   const [equipamento, setEquipamento] = useState<EquipamentoResponse | null>(
     null,
@@ -89,18 +88,59 @@ export default function ElectricalPanelsScreen() {
   const navigationLockRef = useRef(false);
 
   useEffect(() => {
-    const parsedBuilding = parseJsonParam<BuildingParam>(buildingParam);
-    const parsedEquipamento =
-      parseJsonParam<EquipamentoResponse>(equipamentoParam);
+    const buildingId = getSingleParam(params.buildingId);
+    const buildingName = getSingleParam(params.buildingName);
+    const buildingAddress = getSingleParam(params.buildingAddress);
+    const buildingImageUrl = getSingleParam(params.buildingImageUrl);
 
-    if (parsedBuilding) {
-      setBuilding(parsedBuilding);
+    const equipamentoId = getSingleParam(params.equipamentoId);
+    const equipamentoNombre = getSingleParam(params.equipamentoNombre);
+    const equipamentoFrecuencia = getSingleParam(params.equipamentoFrecuencia);
+    const equipamentoAbreviatura = getSingleParam(
+      params.equipamentoAbreviatura,
+    );
+
+    if (buildingId && buildingName) {
+      setBuilding({
+        id: buildingId,
+        name: buildingName,
+        image_url: buildingImageUrl,
+        address: buildingAddress,
+      });
+    } else {
+      const parsedBuilding = parseJsonParam<BuildingParam>(params.building);
+      if (parsedBuilding) {
+        setBuilding(parsedBuilding);
+      }
     }
 
-    if (parsedEquipamento) {
-      setEquipamento(parsedEquipamento);
+    if (equipamentoId && equipamentoNombre) {
+      setEquipamento({
+        id: equipamentoId,
+        nombre: equipamentoNombre,
+        frecuencia: equipamentoFrecuencia ?? 'MENSUAL',
+        abreviatura: equipamentoAbreviatura ?? '',
+      } as EquipamentoResponse);
+    } else {
+      const parsedEquipamento = parseJsonParam<EquipamentoResponse>(
+        params.equipamento,
+      );
+      if (parsedEquipamento) {
+        setEquipamento(parsedEquipamento);
+      }
     }
-  }, [buildingParam, equipamentoParam]);
+  }, [
+    params.building,
+    params.buildingAddress,
+    params.buildingId,
+    params.buildingImageUrl,
+    params.buildingName,
+    params.equipamento,
+    params.equipamentoAbreviatura,
+    params.equipamentoFrecuencia,
+    params.equipamentoId,
+    params.equipamentoNombre,
+  ]);
 
   const loadData = useCallback(async () => {
     if (!building?.id) return;
@@ -254,7 +294,9 @@ export default function ElectricalPanelsScreen() {
             pathname: '/maintenance/electrical-panels/configuration',
             params: {
               panelId: panel.id,
-              building: building ? JSON.stringify(building) : '',
+              buildingId: building?.id ?? '',
+              buildingName: building?.name ?? '',
+              buildingImageUrl: building?.image_url ?? '',
             },
           });
           return;
@@ -329,11 +371,12 @@ export default function ElectricalPanelsScreen() {
           const isActive = tempFilterType === typeValue;
 
           return (
-            <TouchableOpacity
+            <Pressable
               key={label}
-              style={[
+              style={({ pressed }) => [
                 styles.filterOptionChip,
                 isActive && styles.activeFilterOptionChip,
+                pressed && styles.pressed,
               ]}
               onPress={() => setTempFilterType(typeValue)}>
               <Text
@@ -343,7 +386,7 @@ export default function ElectricalPanelsScreen() {
                 ]}>
                 {label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>
@@ -369,15 +412,19 @@ export default function ElectricalPanelsScreen() {
         <View style={styles.headerOverlay} />
         <SafeAreaView edges={['top']} style={styles.headerContent}>
           <View style={styles.headerTopRow}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => router.back()}
+              accessibilityRole="button">
               <Ionicons name="chevron-back" size={24} color="#fff" />
-            </TouchableOpacity>
+            </Pressable>
             <Text style={styles.headerTitle}>
               {building?.name || 'Tableros Eléctricos'}
             </Text>
-            <View style={{ width: 40 }} />
+            <View style={styles.headerSpacer} />
           </View>
         </SafeAreaView>
       </View>
@@ -394,15 +441,17 @@ export default function ElectricalPanelsScreen() {
             onChangeText={setSearchTerm}
           />
         </View>
-        <TouchableOpacity
-          style={[
+        <Pressable
+          style={({ pressed }) => [
             styles.filterButton,
             (filterConfig !== null ||
               filterLocations.length > 0 ||
               filterType) &&
               styles.filterButtonActive,
+            pressed && styles.pressed,
           ]}
-          onPress={handleOpenFilter}>
+          onPress={handleOpenFilter}
+          accessibilityRole="button">
           <Feather
             name="filter"
             size={18}
@@ -412,7 +461,7 @@ export default function ElectricalPanelsScreen() {
                 : '#4B5563'
             }
           />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <EquipmentList<TableroElectricoResponse>
@@ -441,24 +490,28 @@ export default function ElectricalPanelsScreen() {
             {/* Select All Row */}
             {isSelectionMode && (
               <View style={styles.selectAllRow}>
-                <TouchableOpacity
+                <Pressable
                   onPress={handleSelectAll}
-                  style={styles.selectAllButton}>
+                  style={({ pressed }) => [
+                    styles.selectAllButton,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button">
                   <Text style={styles.selectAllText}>
                     {selectedPanelIds.size ===
                     panels.filter(p => p.config).length
                       ? 'Deseleccionar todos'
                       : 'Seleccionar todos'}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             )}
           </>
         }
-        contentContainerStyle={{
-          paddingTop: 0,
-          paddingBottom: 112 + insets.bottom,
-        }}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: 112 + insets.bottom },
+        ]}
       />
 
       {/* Floating Action Bar for Scheduling - only for SUPERVISOR/SUPERADMIN */}
@@ -466,9 +519,10 @@ export default function ElectricalPanelsScreen() {
         isSelectionMode &&
         selectedPanelIds.size > 0 && (
           <View style={[styles.fabContainer, { bottom: 16 + insets.bottom }]}>
-            <TouchableOpacity
+            <Pressable
               style={styles.fabButton}
-              onPress={handleScheduleMaintenance}>
+              onPress={handleScheduleMaintenance}
+              accessibilityRole="button">
               <Text style={styles.fabText}>
                 Programar Mantenimiento ({selectedPanelIds.size})
               </Text>
@@ -476,9 +530,9 @@ export default function ElectricalPanelsScreen() {
                 name="calendar"
                 size={20}
                 color="white"
-                style={{ marginLeft: 8 }}
+                style={styles.fabIcon}
               />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
 
@@ -530,6 +584,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
+  },
+  headerSpacer: {
+    width: 40,
   },
   backButton: {
     width: 40,
@@ -616,6 +673,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   // Panels list
+  listContent: {
+    paddingTop: 0,
+  },
   panelsContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -645,6 +705,9 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  fabIcon: {
+    marginLeft: 8,
   },
   // Filter chip styles for panel type (additional filters slot)
   filterLabel: {
@@ -678,5 +741,8 @@ const styles = StyleSheet.create({
   },
   activeFilterOptionText: {
     color: 'white',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

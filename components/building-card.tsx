@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { Text, Pressable, View, StyleSheet } from 'react-native';
 
 interface BuildingCardProps {
   initial: string;
@@ -14,10 +14,13 @@ const BuildingCard = memo(function BuildingCard({
   onPress,
 }: BuildingCardProps) {
   return (
-    <TouchableOpacity
-      style={styles.container}
+    <Pressable
+      style={({ pressed }) => [
+        styles.container,
+        pressed && styles.containerPressed,
+      ]}
       onPress={onPress}
-      activeOpacity={0.7}>
+      accessibilityRole="button">
       <View style={styles.contentWrapper}>
         <View style={styles.avatar}>
           <Text style={styles.initialText}>{initial}</Text>
@@ -25,7 +28,7 @@ const BuildingCard = memo(function BuildingCard({
         <Text style={styles.nameText}>{name}</Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-    </TouchableOpacity>
+    </Pressable>
   );
 });
 
@@ -47,6 +50,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 2,
     elevation: 2,
+  },
+  containerPressed: {
+    opacity: 0.75,
   },
   contentWrapper: {
     flex: 1,

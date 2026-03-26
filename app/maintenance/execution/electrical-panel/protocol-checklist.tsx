@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Switch,
   ActivityIndicator,
 } from 'react-native';
@@ -188,14 +188,19 @@ export default function ProtocolChecklistScreen() {
           ))}
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={styles.footerSpacer} />
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.continueBtn, isSaving && styles.disabledBtn]}
+        <Pressable
+          style={({ pressed }) => [
+            styles.continueBtn,
+            isSaving && styles.disabledBtn,
+            pressed && styles.pressed,
+          ]}
           onPress={handleContinue}
-          disabled={isSaving}>
+          disabled={isSaving}
+          accessibilityRole="button">
           {isSaving ? (
             <ActivityIndicator color="white" />
           ) : (
@@ -204,7 +209,7 @@ export default function ProtocolChecklistScreen() {
               <Ionicons name="arrow-forward" size={20} color="white" />
             </>
           )}
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -287,5 +292,11 @@ const styles = StyleSheet.create({
   },
   disabledBtn: {
     backgroundColor: '#A5F3FC',
+  },
+  footerSpacer: {
+    height: 40,
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

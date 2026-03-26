@@ -5,7 +5,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  TouchableOpacity,
+  Pressable,
   Text,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +15,8 @@ import * as ImagePicker from 'expo-image-picker';
 import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
 import { useElectricalPanelDetail } from '@/hooks/use-electrical-panel-detail';
+import type { ItemMeasurement } from '@/types/maintenance-session';
+import type { Componente, ITG, ITM } from '@/types/api';
 
 import { ITGChecklist } from '@/components/maintenance/checklist/itg-checklist';
 import { AuxiliaryChecklist } from '@/components/maintenance/checklist/auxiliary-checklist';
@@ -39,9 +41,9 @@ export default function MaintenanceChecklistScreen() {
     panelId || '',
   );
   const detail = panel?.equipment_detail;
-  const itgs = useMemo(() => detail?.itgs || [], [detail?.itgs]);
+  const itgs = useMemo<ITG[]>(() => detail?.itgs || [], [detail?.itgs]);
   const components = useMemo(
-    () => detail?.componentes || [],
+    (): Componente[] => detail?.componentes || [],
     [detail?.componentes],
   );
   const conditions = useMemo<Record<string, boolean>>(
@@ -50,14 +52,168 @@ export default function MaintenanceChecklistScreen() {
       {},
     [detail?.condiciones_especiales],
   );
+  const configuredVoltage = detail?.detalle_tecnico?.voltaje;
+  const normalizeCableType = useCallback(
+    (value: unknown): string | undefined => {
+      if (typeof value !== 'string') return undefined;
+
+      const normalized = value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '_');
+
+      if (normalized.includes('no_libre') && normalized.includes('halogeno')) {
+        return 'no_libre_halogeno';
+      }
+      if (normalized.includes('libre') && normalized.includes('halogeno')) {
+        return 'libre_halogeno';
+      }
+      if (
+        normalized === 'libre_halogeno' ||
+        normalized === 'no_libre_halogeno'
+      ) {
+        return normalized;
+      }
+
+      return undefined;
+    },
+    [],
+  );
+
+  const buildDefaultMeasurement = useCallback(
+    (
+      amperage: unknown,
+      cableDiameter: unknown,
+      cableType: unknown,
+    ): ItemMeasurement => {
+      const parsedAmperage =
+        typeof amperage === 'number' || typeof amperage === 'string'
+          ? String(amperage)
+          : undefined;
+      const parsedCableDiameter =
+        typeof cableDiameter === 'string' && cableDiameter.trim().length > 0
+          ? cableDiameter
+          : undefined;
+      const parsedCableType =
+        normalizeCableType(cableType) ||
+        (typeof cableType === 'string' && cableType.trim().length > 0
+          ? cableType
+          : undefined);
+      const parsedVoltage =
+        typeof configuredVoltage === 'number'
+          ? String(configuredVoltage)
+          : undefined;
+
+      return {
+        ...(parsedVoltage
+          ? { voltage: parsedVoltage, isVoltageInRange: true }
+          : {}),
+        ...(parsedAmperage
+          ? { amperage: parsedAmperage, isAmperageInRange: true }
+          : {}),
+        ...(parsedCableDiameter
+          ? {
+              cableDiameter: parsedCableDiameter,
+              originalCableDiameter: parsedCableDiameter,
+              isCableDiameterInRange: true,
+            }
+          : {}),
+        ...(parsedCableType
+          ? { cableType: parsedCableType, originalCableType: parsedCableType }
+          : {}),
+      };
+    },
+    [configuredVoltage, normalizeCableType],
+  );
 
   useEffect(() => {
     if (!session) return;
 
     const defaultChecklistValues: Record<string, boolean> = {};
+    const defaultMeasurementValues: Record<string, ItemMeasurement> = {};
 
-    components.forEach((comp: any) => {
-      comp.items.forEach((item: any) => {
+    const mergeMissingMeasurementFields = (
+      itemId: string,
+      fallbackMeasurement: ItemMeasurement,
+    ) => {
+      const currentMeasurement = session.measurements?.[itemId];
+
+      if (currentMeasurement === undefined) {
+        defaultMeasurementValues[itemId] = fallbackMeasurement;
+        return;
+      }
+
+      let hasChanges = false;
+      const mergedMeasurement: ItemMeasurement = { ...currentMeasurement };
+
+      (Object.keys(fallbackMeasurement) as (keyof ItemMeasurement)[]).forEach(
+        key => {
+          if (mergedMeasurement[key] === undefined) {
+            (mergedMeasurement as Record<string, unknown>)[key] =
+              fallbackMeasurement[key];
+            hasChanges = true;
+          }
+        },
+      );
+
+      if (hasChanges) {
+        defaultMeasurementValues[itemId] = mergedMeasurement;
+      }
+    };
+
+    itgs.forEach(itg => {
+      itg.itms.forEach((itm: ITM) => {
+        const itemId = `itg_${itg.id}_${itm.id}`;
+        const circuitIndependentId = `circuit_independent_itg_${itg.id}_${itm.id}`;
+
+        mergeMissingMeasurementFields(
+          itemId,
+          buildDefaultMeasurement(
+            itm.amperaje,
+            itm.diametro_cable,
+            itm.tipo_cable,
+          ),
+        );
+
+        if (itm.diferencial?.existe) {
+          const diffId = `diff_itg_${itg.id}_${itm.id}`;
+          const testDiffId = `test_id_itg_${itg.id}_${itm.id}`;
+          mergeMissingMeasurementFields(
+            diffId,
+            buildDefaultMeasurement(
+              itm.diferencial.amperaje,
+              itm.diferencial.diametro_cable,
+              itm.diferencial.tipo_cable,
+            ),
+          );
+
+          if (session.checklist[testDiffId] === undefined) {
+            defaultChecklistValues[testDiffId] = true;
+          }
+        }
+
+        if (session.checklist[circuitIndependentId] === undefined) {
+          defaultChecklistValues[circuitIndependentId] = true;
+        }
+
+        const testId = `test_itg_${itg.id}_${itm.id}`;
+        const testApplyId = `${testId}_applies`;
+        const testResultId = `${testId}_result`;
+
+        if (session.checklist[testApplyId] === undefined) {
+          defaultChecklistValues[testApplyId] = false;
+        }
+
+        if (session.checklist[testResultId] === undefined) {
+          defaultChecklistValues[testResultId] = true;
+        }
+      });
+    });
+
+    components.forEach(comp => {
+      comp.items.forEach(item => {
         const itemId = `comp_${comp.tipo}_${item.codigo}`;
         if (session.checklist[itemId] === undefined) {
           defaultChecklistValues[itemId] = true;
@@ -73,8 +229,10 @@ export default function MaintenanceChecklistScreen() {
       }
     });
 
-    const hasDefaults = Object.keys(defaultChecklistValues).length > 0;
-    if (!hasDefaults) return;
+    const hasChecklistDefaults = Object.keys(defaultChecklistValues).length > 0;
+    const hasMeasurementDefaults =
+      Object.keys(defaultMeasurementValues).length > 0;
+    if (!hasChecklistDefaults && !hasMeasurementDefaults) return;
 
     void updateSession(prevSession => ({
       ...prevSession,
@@ -82,9 +240,20 @@ export default function MaintenanceChecklistScreen() {
         ...prevSession.checklist,
         ...defaultChecklistValues,
       },
+      measurements: {
+        ...(prevSession.measurements || {}),
+        ...defaultMeasurementValues,
+      },
       lastUpdated: new Date().toISOString(),
     }));
-  }, [components, conditions, session, updateSession]);
+  }, [
+    buildDefaultMeasurement,
+    components,
+    conditions,
+    itgs,
+    session,
+    updateSession,
+  ]);
 
   // Validation errors state for inline validation
   const [validationErrors, setValidationErrors] = useState<
@@ -93,20 +262,6 @@ export default function MaintenanceChecklistScreen() {
 
   const handleStatusChange = useCallback(
     (itemId: string, status: boolean) => {
-      const measurements = session?.measurements?.[itemId];
-      if (measurements && status === true) {
-        if (
-          measurements.isVoltageInRange === false ||
-          measurements.isAmperageInRange === false
-        ) {
-          Alert.alert(
-            'Medición Fuera de Rango',
-            'No se puede marcar como OK si las mediciones están fuera de rango. Debe registrar una observación y foto.',
-          );
-          return;
-        }
-      }
-
       void updateSession(prevSession => ({
         ...prevSession,
         checklist: {
@@ -116,16 +271,11 @@ export default function MaintenanceChecklistScreen() {
         lastUpdated: new Date().toISOString(),
       }));
     },
-    [session?.measurements, updateSession],
+    [updateSession],
   );
 
   const handleMeasurementChange = useCallback(
-    (
-      itemId: string,
-      field: 'voltage' | 'amperage',
-      value: string,
-      isValid: boolean,
-    ) => {
+    (itemId: string, field: 'voltage' | 'amperage', value: string) => {
       if (value) {
         setValidationErrors(prev => {
           const current = prev[itemId] || [];
@@ -141,9 +291,6 @@ export default function MaintenanceChecklistScreen() {
         const nextMeasurement = {
           ...currentMeasurement,
           [field]: value,
-          ...(field === 'voltage'
-            ? { isVoltageInRange: isValid }
-            : { isAmperageInRange: isValid }),
         };
 
         return {
@@ -152,12 +299,36 @@ export default function MaintenanceChecklistScreen() {
             ...(prevSession.measurements || {}),
             [itemId]: nextMeasurement,
           },
-          checklist: !isValid
-            ? {
-                ...prevSession.checklist,
-                [itemId]: false,
-              }
-            : prevSession.checklist,
+          lastUpdated: new Date().toISOString(),
+        };
+      });
+    },
+    [updateSession],
+  );
+
+  const handleMeasurementStatusChange = useCallback(
+    (
+      itemId: string,
+      field: 'voltage' | 'amperage' | 'cableDiameter',
+      status: boolean,
+    ) => {
+      void updateSession(prevSession => {
+        const currentMeasurement = prevSession.measurements?.[itemId] || {};
+        const nextMeasurement = {
+          ...currentMeasurement,
+          ...(field === 'voltage'
+            ? { isVoltageInRange: status }
+            : field === 'amperage'
+              ? { isAmperageInRange: status }
+              : { isCableDiameterInRange: status }),
+        };
+
+        return {
+          ...prevSession,
+          measurements: {
+            ...(prevSession.measurements || {}),
+            [itemId]: nextMeasurement,
+          },
           lastUpdated: new Date().toISOString(),
         };
       });
@@ -184,23 +355,25 @@ export default function MaintenanceChecklistScreen() {
 
       void updateSession(prevSession => {
         const currentMeasurement = prevSession.measurements?.[itemId] || {};
+        const normalizedValue =
+          field === 'cableType' ? normalizeCableType(value) || value : value;
+        const normalizedOriginalValue =
+          field === 'cableType'
+            ? normalizeCableType(originalValue) || originalValue
+            : originalValue;
+
         const originalFieldKey =
           field === 'cableDiameter'
             ? 'originalCableDiameter'
             : 'originalCableType';
         const originalStored =
-          currentMeasurement[originalFieldKey] || originalValue || '';
+          currentMeasurement[originalFieldKey] || normalizedOriginalValue || '';
 
         const nextMeasurement = {
           ...currentMeasurement,
-          [field]: value,
+          [field]: normalizedValue,
           [originalFieldKey]: originalStored,
         };
-
-        const forceObservation =
-          value.length > 0 &&
-          originalStored.length > 0 &&
-          value !== originalStored;
 
         return {
           ...prevSession,
@@ -208,17 +381,11 @@ export default function MaintenanceChecklistScreen() {
             ...(prevSession.measurements || {}),
             [itemId]: nextMeasurement,
           },
-          checklist: forceObservation
-            ? {
-                ...prevSession.checklist,
-                [itemId]: false,
-              }
-            : prevSession.checklist,
           lastUpdated: new Date().toISOString(),
         };
       });
     },
-    [updateSession],
+    [normalizeCableType, updateSession],
   );
 
   const handleObservationChange = useCallback(
@@ -273,12 +440,6 @@ export default function MaintenanceChecklistScreen() {
 
   const handlePhotoPress = useCallback(
     async (itemId: string) => {
-      // If photo exists, ask to remove? Or just overwrite.
-      // ChecklistItem UI shows a remove button if photo exists, which calls this with same ID?
-      // My ChecklistItem has `onPhotoPress`. If photoUri exists it shows X button which calls onPhotoPress.
-      // If photoUri is null, it shows Camera button which calls onPhotoPress.
-      // So I need to check if photo exists to decide whether to delete or add.
-
       const currentPhoto = session?.itemObservations[itemId]?.photoUri;
 
       if (currentPhoto) {
@@ -316,8 +477,8 @@ export default function MaintenanceChecklistScreen() {
     // Validate all items and collect errors for inline display
     const newErrors: Record<string, string[]> = {};
     // Check ITGs
-    itgs.forEach((itg: any) => {
-      itg.itms.forEach((itm: any) => {
+    itgs.forEach(itg => {
+      itg.itms.forEach((itm: ITM) => {
         const id = `itg_${itg.id}_${itm.id}`;
         const errors: string[] = [];
 
@@ -331,21 +492,6 @@ export default function MaintenanceChecklistScreen() {
         const cableType = m?.cableType ?? itm.tipo_cable;
         if (!cableDiameter) errors.push('cableDiameter');
         if (!cableType) errors.push('cableType');
-
-        // If measurements invalid, check if Photo + Observation exists
-        if (m) {
-          const invalid =
-            m.isVoltageInRange === false || m.isAmperageInRange === false;
-          if (invalid) {
-            const obs = session?.itemObservations[id];
-            if (!obs?.photoUri) errors.push('photo');
-            if (!obs?.note) errors.push('observation');
-          }
-        }
-
-        if (errors.length > 0) {
-          newErrors[id] = errors;
-        }
 
         // Check Differential Switch if exists
         if (itm.diferencial && itm.diferencial.existe) {
@@ -363,20 +509,13 @@ export default function MaintenanceChecklistScreen() {
           if (!diffCableDiameter) diffErrors.push('cableDiameter');
           if (!diffCableType) diffErrors.push('cableType');
 
-          if (diffM) {
-            const invalid =
-              diffM.isVoltageInRange === false ||
-              diffM.isAmperageInRange === false;
-            if (invalid) {
-              const obs = session?.itemObservations[diffId];
-              if (!obs?.photoUri) diffErrors.push('photo');
-              if (!obs?.note) diffErrors.push('observation');
-            }
-          }
-
           if (diffErrors.length > 0) {
             newErrors[diffId] = diffErrors;
           }
+        }
+
+        if (errors.length > 0) {
+          newErrors[id] = errors;
         }
       });
     });
@@ -422,6 +561,7 @@ export default function MaintenanceChecklistScreen() {
           itemObservations={session.itemObservations}
           onStatusChange={handleStatusChange}
           onMeasurementChange={handleMeasurementChange}
+          onMeasurementStatusChange={handleMeasurementStatusChange}
           onCableChange={handleCableChange}
           onObservationChange={handleObservationChange}
           onPhotoPress={handlePhotoPress}
@@ -451,9 +591,15 @@ export default function MaintenanceChecklistScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.continueBtn} onPress={handleContinue}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.continueBtn,
+            pressed && styles.pressed,
+          ]}
+          onPress={handleContinue}
+          accessibilityRole="button">
           <Text style={styles.continueBtnText}>Continuar</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -490,6 +636,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  pressed: {
+    opacity: 0.84,
   },
   footerSpacer: {
     height: 40,

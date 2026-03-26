@@ -34,6 +34,47 @@ import { generatePATReportHTML } from './PAT/technical-generator';
  * Corporate style with blue (#0056b3) and orange (#ff6600) color scheme
  */
 class PDFReportService {
+  private readonly PDF_GENERATION_TIMEOUT_MS = 60000;
+
+  private generationQueue: Promise<void> = Promise.resolve();
+
+  private async runInGenerationQueue<T>(task: () => Promise<T>): Promise<T> {
+    const runPromise = this.generationQueue.then(task);
+
+    this.generationQueue = runPromise.then(
+      () => undefined,
+      () => undefined,
+    );
+
+    return runPromise;
+  }
+
+  private async printToFileWithTimeout(html: string): Promise<string> {
+    return this.runInGenerationQueue(async () => {
+      let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+
+      try {
+        const printPromise = Print.printToFileAsync({ html, base64: false });
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutHandle = setTimeout(() => {
+            reject(
+              new Error(
+                'La generación de PDF excedió el tiempo de espera. Intente nuevamente.',
+              ),
+            );
+          }, this.PDF_GENERATION_TIMEOUT_MS);
+        });
+
+        const { uri } = await Promise.race([printPromise, timeoutPromise]);
+        return uri;
+      } finally {
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+        }
+      }
+    });
+  }
+
   /**
    * Generate full HTML for the maintenance session report (TECHNICAL REPORT)
    */
@@ -148,12 +189,7 @@ class PDFReportService {
         break;
     }
 
-    const { uri } = await Print.printToFileAsync({
-      html,
-      base64: false,
-    });
-
-    return uri;
+    return this.printToFileWithTimeout(html);
   }
 
   /**
@@ -161,8 +197,7 @@ class PDFReportService {
    */
   async generateSessionPDF(data: MaintenanceSessionReport): Promise<string> {
     const html = this.generateSessionReportHTML(data);
-    const { uri } = await Print.printToFileAsync({ html, base64: false });
-    return uri;
+    return this.printToFileWithTimeout(html);
   }
 
   /**
@@ -170,8 +205,7 @@ class PDFReportService {
    */
   async generateProtocolPDF(data: MaintenanceSessionReport): Promise<string> {
     const html = this.generateProtocolReportHTML(data);
-    const { uri } = await Print.printToFileAsync({ html, base64: false });
-    return uri;
+    return this.printToFileWithTimeout(html);
   }
 
   // ============= LEGACY METHODS FOR BACKWARD COMPATIBILITY =============
@@ -207,13 +241,7 @@ class PDFReportService {
    */
   async generatePDF(data: SessionReportData): Promise<string> {
     const html = this.generateReportHTML(data);
-
-    const { uri } = await Print.printToFileAsync({
-      html,
-      base64: false,
-    });
-
-    return uri;
+    return this.printToFileWithTimeout(html);
   }
 
   /**

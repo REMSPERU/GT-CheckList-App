@@ -1,4 +1,4 @@
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,10 +40,12 @@ function HomeScreen() {
               'Usuario'}
           </Text>
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <Pressable
+          style={({ pressed }) => [styles.logoutBtn, pressed && styles.pressed]}
+          onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={18} color="#0a7ea4" />
           <Text style={styles.logoutText}>Salir</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <View style={styles.sectionTitleWrapper}>
@@ -51,8 +53,11 @@ function HomeScreen() {
       </View>
 
       <View style={styles.optionsWrapper}>
-        <TouchableOpacity
-          style={styles.optionCardContainer}
+        <Pressable
+          style={({ pressed }) => [
+            styles.optionCardContainer,
+            pressed && styles.pressed,
+          ]}
           onPress={() => router.push('/maintenance?type=checklist')}>
           <Octicons
             name="checklist"
@@ -60,7 +65,7 @@ function HomeScreen() {
             color="#06B6D4"
             style={{ marginRight: 16 }}
           />
-          <View style={{ flex: 1 }}>
+          <View style={styles.flexOne}>
             <Text
               style={{
                 fontSize: 18,
@@ -75,9 +80,12 @@ function HomeScreen() {
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.optionCardContainer}
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            styles.optionCardContainer,
+            pressed && styles.pressed,
+          ]}
           onPress={() => router.push('/maintenance')}>
           <MaterialIcons
             name="home-repair-service"
@@ -85,7 +93,7 @@ function HomeScreen() {
             color="#06B6D4"
             style={{ marginRight: 16 }}
           />
-          <View style={{ flex: 1 }}>
+          <View style={styles.flexOne}>
             <Text
               style={{
                 fontSize: 18,
@@ -100,9 +108,12 @@ function HomeScreen() {
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.optionCardContainer}
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            styles.optionCardContainer,
+            pressed && styles.pressed,
+          ]}
           onPress={() =>
             router.push(
               '/maintenance/scheduled_maintenance/scheduled-maintenance',
@@ -114,7 +125,7 @@ function HomeScreen() {
             color="#06B6D4"
             style={{ marginRight: 16 }}
           />
-          <View style={{ flex: 1 }}>
+          <View style={styles.flexOne}>
             <Text
               style={{
                 fontSize: 18,
@@ -129,9 +140,12 @@ function HomeScreen() {
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.optionCardContainer}
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            styles.optionCardContainer,
+            pressed && styles.pressed,
+          ]}
           onPress={() => router.push('/equipment-record')}>
           <Feather
             name="file-text"
@@ -139,7 +153,7 @@ function HomeScreen() {
             color="#06B6D4"
             style={{ marginRight: 16 }}
           />
-          <View style={{ flex: 1 }}>
+          <View style={styles.flexOne}>
             <Text
               style={{
                 fontSize: 18,
@@ -154,7 +168,7 @@ function HomeScreen() {
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <View style={styles.footer}>
@@ -232,6 +246,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 16,
+  },
+  flexOne: {
+    flex: 1,
+  },
+  pressed: {
+    opacity: 0.6,
   },
   footer: {
     alignItems: 'center',

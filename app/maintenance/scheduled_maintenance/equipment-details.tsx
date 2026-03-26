@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
@@ -75,11 +75,15 @@ export default function EquipmentDetailsScreen() {
             borderBottomWidth: 1,
             borderBottomColor: '#E5E7EB',
           }}>
-          <TouchableOpacity
+          <Pressable
             onPress={() => router.back()}
-            style={{ marginRight: 10 }}>
+            style={({ pressed }) => [
+              { marginRight: 10 },
+              pressed && { opacity: 0.84 },
+            ]}
+            accessibilityRole="button">
             <Ionicons name="chevron-back" size={24} color={Colors.light.text} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
         <View
           style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -106,11 +110,15 @@ export default function EquipmentDetailsScreen() {
           borderBottomWidth: 1,
           borderBottomColor: '#E5E7EB',
         }}>
-        <TouchableOpacity
+        <Pressable
           onPress={() => router.back()}
-          style={{ marginRight: 10 }}>
+          style={({ pressed }) => [
+            { marginRight: 10 },
+            pressed && { opacity: 0.84 },
+          ]}
+          accessibilityRole="button">
           <Ionicons name="chevron-back" size={24} color={Colors.light.text} />
-        </TouchableOpacity>
+        </Pressable>
         <View
           style={{
             backgroundColor: '#06B6D4',
@@ -164,14 +172,19 @@ export default function EquipmentDetailsScreen() {
           borderTopColor: '#E5E7EB',
           backgroundColor: '#fff',
         }}>
-        <TouchableOpacity
-          style={[styles.primaryBtn, { backgroundColor: '#06B6D4' }]}
+        <Pressable
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            { backgroundColor: '#06B6D4' },
+            pressed && { opacity: 0.84 },
+          ]}
           onPress={handleStartMaintenance}
-          disabled={isMaintenanceLoading}>
+          disabled={isMaintenanceLoading}
+          accessibilityRole="button">
           <Text style={styles.primaryBtnText}>
             {isMaintenanceLoading ? 'Cargando...' : 'Iniciar mantenimiento'}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </SafeAreaView>
   );

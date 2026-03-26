@@ -1,10 +1,10 @@
 import React from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  Image,
+  Pressable,
   ImageSourcePropType,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
@@ -44,7 +44,7 @@ export default function MaintenanceHeader({
         <Image
           source={assetSource}
           style={styles.assetIcon}
-          resizeMode="contain"
+          contentFit="contain"
         />
       );
     }
@@ -63,9 +63,17 @@ export default function MaintenanceHeader({
 
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+      <Pressable
+        onPress={handleBack}
+        style={({ pressed }) => [
+          styles.backButton,
+          pressed && styles.backPressed,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel="Regresar"
+        accessibilityHint="Vuelve a la pantalla anterior">
         <Ionicons name="chevron-back" size={24} color={Colors.light.text} />
-      </TouchableOpacity>
+      </Pressable>
       <View style={[styles.headerIconContainer, { backgroundColor }]}>
         {renderIcon()}
       </View>
@@ -85,6 +93,9 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginRight: 10,
+  },
+  backPressed: {
+    opacity: 0.7,
   },
   headerIconContainer: {
     padding: 6,

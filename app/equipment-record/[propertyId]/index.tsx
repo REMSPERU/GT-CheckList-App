@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -80,13 +74,13 @@ export default function EquipmentSelectionScreen() {
 
         <ScrollView
           style={styles.listContainer}
-          contentContainerStyle={{ paddingBottom: 20 }}>
+          contentContainerStyle={styles.listContent}>
           {EQUIPMENT_OPTIONS.map(option => (
-            <TouchableOpacity
+            <Pressable
               key={option.type}
-              style={styles.card}
+              style={({ pressed }) => [styles.card, pressed && styles.pressed]}
               onPress={() => handleSelectType(option.type)}
-              activeOpacity={0.8}>
+              accessibilityRole="button">
               <View
                 style={[
                   styles.iconContainer,
@@ -99,7 +93,7 @@ export default function EquipmentSelectionScreen() {
                 <Text style={styles.cardDescription}>{option.description}</Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color="#D1D5DB" />
-            </TouchableOpacity>
+            </Pressable>
           ))}
         </ScrollView>
       </View>
@@ -143,6 +137,9 @@ const styles = StyleSheet.create({
   listContainer: {
     flex: 1,
   },
+  listContent: {
+    paddingBottom: 20,
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -179,5 +176,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     lineHeight: 20,
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

@@ -1,30 +1,39 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { Text, Pressable, View, StyleSheet } from 'react-native';
 
 interface MaintenanceCardProps {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   onPress?: () => void;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 export default function MaintenanceCard({
   icon,
   title,
   onPress,
+  accessibilityLabel,
+  accessibilityHint,
 }: MaintenanceCardProps) {
   return (
-    <TouchableOpacity
-      style={styles.container}
+    <Pressable
+      style={({ pressed }) => [
+        styles.container,
+        pressed && styles.containerPressed,
+      ]}
       onPress={onPress}
-      activeOpacity={0.7}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityHint={accessibilityHint}>
+      <View style={styles.contentRow}>
         <View style={styles.iconWrapper}>
           <Ionicons name={icon} size={24} color="#06B6D4" />
         </View>
         <Text style={styles.title}>{title}</Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -43,6 +52,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 2,
     elevation: 2,
+  },
+  containerPressed: {
+    opacity: 0.75,
+  },
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   iconWrapper: {
     width: 40,

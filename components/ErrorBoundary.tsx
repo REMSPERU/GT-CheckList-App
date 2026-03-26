@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 
 interface Props {
@@ -52,9 +52,12 @@ export class ErrorBoundary extends Component<Props, State> {
           {__DEV__ && this.state.error && (
             <Text style={styles.debugText}>{this.state.error.message}</Text>
           )}
-          <TouchableOpacity style={styles.button} onPress={this.handleReset}>
+          <Pressable
+            style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+            onPress={this.handleReset}
+            accessibilityRole="button">
             <Text style={styles.buttonText}>Reintentar</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       );
     }
@@ -99,5 +102,8 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

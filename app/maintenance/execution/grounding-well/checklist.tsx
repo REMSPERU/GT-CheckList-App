@@ -6,17 +6,17 @@ import React, {
   useRef,
   memo,
 } from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Switch,
   Alert,
   TextInput,
-  Image,
   AppState,
   type AppStateStatus,
 } from 'react-native';
@@ -135,10 +135,14 @@ const PhotoButton = memo(function PhotoButton({
   compact,
 }: PhotoButtonProps) {
   return (
-    <TouchableOpacity
-      style={[styles.photoButton, compact && styles.photoButtonCompact]}
+    <Pressable
+      style={({ pressed }) => [
+        styles.photoButton,
+        compact && styles.photoButtonCompact,
+        pressed && styles.pressed,
+      ]}
       onPress={onPress}
-      activeOpacity={0.7}>
+      accessibilityRole="button">
       <Ionicons
         name="camera-outline"
         size={compact ? 16 : 18}
@@ -151,7 +155,7 @@ const PhotoButton = memo(function PhotoButton({
         ]}>
         {hasPhoto ? 'Cambiar foto' : 'Tomar foto'}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 });
 
@@ -162,7 +166,14 @@ interface PhotoThumbnailProps {
 const PhotoThumbnail = memo(function PhotoThumbnail({
   uri,
 }: PhotoThumbnailProps) {
-  return <Image source={{ uri }} style={styles.thumbnail} />;
+  return (
+    <Image
+      source={{ uri }}
+      style={styles.thumbnail}
+      contentFit="cover"
+      transition={100}
+    />
+  );
 });
 
 interface TypeOptionProps {
@@ -177,10 +188,14 @@ const TypeOption = memo(function TypeOption({
   onPress,
 }: TypeOptionProps) {
   return (
-    <TouchableOpacity
-      style={[styles.typeButton, selected && styles.typeButtonSelected]}
+    <Pressable
+      style={({ pressed }) => [
+        styles.typeButton,
+        selected && styles.typeButtonSelected,
+        pressed && styles.pressed,
+      ]}
       onPress={onPress}
-      activeOpacity={0.7}>
+      accessibilityRole="button">
       <View style={[styles.radioOuter, selected && styles.radioOuterSelected]}>
         {selected && <View style={styles.radioInner} />}
       </View>
@@ -191,7 +206,7 @@ const TypeOption = memo(function TypeOption({
         ]}>
         {label}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 });
 
@@ -802,15 +817,15 @@ export default function GroundingWellChecklistScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <Pressable
           onPress={() => {
             void persistDraftSilently(dataRef.current);
             router.back();
           }}
-          style={styles.backBtn}
-          activeOpacity={0.6}>
+          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+          accessibilityRole="button">
           <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-        </TouchableOpacity>
+        </Pressable>
         <View>
           <Text style={styles.headerTitle}>Pozo a Tierra</Text>
           {!!wellTitle && (
@@ -1163,10 +1178,10 @@ export default function GroundingWellChecklistScreen() {
 
       {/* Footer */}
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Pressable
           style={styles.continueBtn}
           onPress={handleContinue}
-          activeOpacity={0.8}>
+          accessibilityRole="button">
           <Text style={styles.continueBtnText}>
             {data.executionStatus === 'reprogrammed'
               ? 'Reprogramar y Finalizar'
@@ -1176,9 +1191,9 @@ export default function GroundingWellChecklistScreen() {
             name="arrow-forward"
             size={18}
             color="#fff"
-            style={{ marginLeft: 6 }}
+            style={styles.continueIcon}
           />
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -1500,5 +1515,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: -0.2,
+  },
+  continueIcon: {
+    marginLeft: 6,
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });
