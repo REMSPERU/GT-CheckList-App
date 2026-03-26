@@ -736,6 +736,14 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
   const showMainSupply =
     interruptorType === 'itm' && !(hasSubITMs && subITMsLength > 0);
 
+  // Memoize the interruptor label lookup to avoid .find() on every render
+  const interruptorLabel = useMemo(
+    () =>
+      INTERRUPTOR_OPTIONS.find(o => o.key === interruptorType)?.label ||
+      'Interruptor Termomagnetico (ITM)',
+    [interruptorType],
+  );
+
   return (
     <View style={[styles.cnCard, hasErrors && errorBorderStyle]}>
       {/* Header con TextInput y toggle */}
@@ -803,8 +811,7 @@ const ExpandedCircuitContent = memo(function ExpandedCircuitContent({
 
         {/* Titulo segun el tipo seleccionado */}
         <Text style={styles.cnSectionTitle}>
-          {INTERRUPTOR_OPTIONS.find(o => o.key === interruptorType)?.label ||
-            'Interruptor Termomagnetico (ITM)'}
+          {interruptorLabel}
         </Text>
         {interruptorType !== 'reserva' && (
           <View>

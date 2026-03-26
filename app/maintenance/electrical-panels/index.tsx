@@ -24,6 +24,7 @@ import { useUserRole } from '@/hooks/use-user-role';
 
 // Constants
 const REFRESH_TIMEOUT_MS = 10000; // 10 seconds timeout for refresh
+const PANEL_TYPE_LABELS = ['Todos', 'Autosoportado', 'Distribucion'] as const;
 
 interface BuildingParam {
   id: string;
@@ -246,24 +247,27 @@ export default function ElectricalPanelsScreen() {
     new Set(),
   );
 
-  const toggleSelection = (panelId: string) => {
-    // Only allow selection if user can schedule maintenance
-    if (!canScheduleMaintenance) return;
+  const toggleSelection = useCallback(
+    (panelId: string) => {
+      // Only allow selection if user can schedule maintenance
+      if (!canScheduleMaintenance) return;
 
-    const newSelected = new Set(selectedPanelIds);
-    if (newSelected.has(panelId)) {
-      newSelected.delete(panelId);
-      if (newSelected.size === 0) {
-        setIsSelectionMode(false);
+      const newSelected = new Set(selectedPanelIds);
+      if (newSelected.has(panelId)) {
+        newSelected.delete(panelId);
+        if (newSelected.size === 0) {
+          setIsSelectionMode(false);
+        }
+      } else {
+        newSelected.add(panelId);
+        setIsSelectionMode(true);
       }
-    } else {
-      newSelected.add(panelId);
-      setIsSelectionMode(true);
-    }
-    setSelectedPanelIds(newSelected);
-  };
+      setSelectedPanelIds(newSelected);
+    },
+    [canScheduleMaintenance, selectedPanelIds],
+  );
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     if (selectedPanelIds.size === panels.filter(p => p.config).length) {
       setSelectedPanelIds(new Set());
       setIsSelectionMode(false);
@@ -272,7 +276,7 @@ export default function ElectricalPanelsScreen() {
       setSelectedPanelIds(new Set(allConfiguredIds));
       setIsSelectionMode(true);
     }
-  };
+  }, [selectedPanelIds.size, panels]);
 
   const handlePanelPress = (panel: TableroElectricoResponse) => {
     // Prevent double taps
@@ -312,7 +316,7 @@ export default function ElectricalPanelsScreen() {
     });
   };
 
-  const handleScheduleMaintenance = () => {
+  const handleScheduleMaintenance = useCallback(() => {
     router.push({
       pathname: '/maintenance/schedule-maintenance',
       params: {
@@ -322,18 +326,37 @@ export default function ElectricalPanelsScreen() {
         buildingImageUrl: building?.image_url,
       },
     });
-  };
+  }, [router, selectedPanelIds, building?.name, building?.image_url]);
 
-  const handleOpenFilter = () => {
+  const handleOpenFilter = useCallback(() => {
     setTempFilterType(filterType);
     setShowFilterModal(true);
-  };
+  }, [filterType]);
 
-  const handleApplyFilter = (filters: FilterState) => {
-    setFilterConfig(filters.config);
-    setFilterLocations(filters.locations);
-    setFilterType(tempFilterType);
-  };
+  const handleApplyFilter = useCallback(
+    (filters: FilterState) => {
+      setFilterConfig(filters.config);
+      setFilterLocations(filters.locations);
+      setFilterType(tempFilterType);
+    },
+    [tempFilterType],
+  );
+
+  const handleCloseFilter = useCallback(() => {
+    setShowFilterModal(false);
+  }, []);
+
+  /** Stable render helpers for EquipmentList */
+  const renderLabel = useCallback(
+    (panel: TableroElectricoResponse) =>
+      panel.equipment_detail?.rotulo || panel.codigo || 'N/A',
+    [],
+  );
+
+  const renderSubtitle = useCallback(
+    (panel: TableroElectricoResponse) => panel.codigo || null,
+    [],
+  );
 
   /**
    * Manual retry sync for a specific panel
@@ -361,36 +384,40 @@ export default function ElectricalPanelsScreen() {
     return syncQueue.needsManualRetry(panelId, 'panel_config');
   }, []);
 
-  // Panel type filter chips (electrical panels specific)
-  const PanelTypeFilter = (
-    <View>
-      <Text style={styles.filterLabel}>Tipo de Tablero</Text>
-      <View style={styles.filterOptions}>
-        {['Todos', 'Autosoportado', 'Distribucion'].map(label => {
-          const typeValue = label === 'Todos' ? undefined : label.toUpperCase();
-          const isActive = tempFilterType === typeValue;
+  // Panel type filter chips (electrical panels specific) — memoized to avoid
+  // re-creating JSX on every parent render.
+  const PanelTypeFilter = useMemo(
+    () => (
+      <View>
+        <Text style={styles.filterLabel}>Tipo de Tablero</Text>
+        <View style={styles.filterOptions}>
+          {PANEL_TYPE_LABELS.map(label => {
+            const typeValue =
+              label === 'Todos' ? undefined : label.toUpperCase();
+            const isActive = tempFilterType === typeValue;
 
-          return (
-            <Pressable
-              key={label}
-              style={({ pressed }) => [
-                styles.filterOptionChip,
-                isActive && styles.activeFilterOptionChip,
-                pressed && styles.pressed,
-              ]}
-              onPress={() => setTempFilterType(typeValue)}>
-              <Text
+            return (
+              <Pressable
+                key={label}
                 style={[
-                  styles.filterOptionText,
-                  isActive && styles.activeFilterOptionText,
-                ]}>
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
+                  styles.filterOptionChip,
+                  isActive && styles.activeFilterOptionChip,
+                ]}
+                onPress={() => setTempFilterType(typeValue)}>
+                <Text
+                  style={[
+                    styles.filterOptionText,
+                    isActive && styles.activeFilterOptionText,
+                  ]}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
-    </View>
+    ),
+    [tempFilterType],
   );
 
   return (
@@ -476,10 +503,8 @@ export default function ElectricalPanelsScreen() {
         selectedIds={selectedPanelIds}
         onToggleSelection={canScheduleMaintenance ? toggleSelection : undefined}
         onItemPress={handlePanelPress}
-        renderLabel={panel =>
-          panel.equipment_detail?.rotulo || panel.codigo || 'N/A'
-        }
-        renderSubtitle={panel => panel.codigo || null}
+        renderLabel={renderLabel}
+        renderSubtitle={renderSubtitle}
         onRetrySync={handleRetrySync}
         isAutoRetrying={isAutoRetrying}
         needsManualRetry={needsManualRetry}
@@ -539,7 +564,7 @@ export default function ElectricalPanelsScreen() {
       {/* Filter Modal */}
       <EquipmentFilterModal
         visible={showFilterModal}
-        onClose={() => setShowFilterModal(false)}
+        onClose={handleCloseFilter}
         onApply={handleApplyFilter}
         initialFilters={{ config: filterConfig, locations: filterLocations }}
         title="Filtrar Tableros"
