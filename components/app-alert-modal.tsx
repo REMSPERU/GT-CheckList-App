@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, Text, Pressable, View } from 'react-native';
 
 interface AppAlertModalProps {
   visible: boolean;
@@ -27,9 +27,12 @@ export function AppAlertModal({
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
 
-          <TouchableOpacity style={styles.button} onPress={onClose}>
+          <Pressable
+            style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+            onPress={onClose}
+            accessibilityRole="button">
             <Text style={styles.buttonText}>{buttonText}</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -75,5 +78,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.86,
   },
 });

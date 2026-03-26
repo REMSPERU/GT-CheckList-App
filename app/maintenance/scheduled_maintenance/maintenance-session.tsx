@@ -1,9 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   ActivityIndicator,
   RefreshControl,
@@ -63,7 +63,7 @@ export default function MaintenanceSessionScreen() {
     }, [runRefresh]),
   );
 
-  const getSessionStatus = (session: any) => {
+  const getSessionStatus = useCallback((session: any) => {
     if (session.total > 0 && session.completed === session.total) {
       return { label: 'COMPLETADO', color: '#10B981', bgColor: '#D1FAE5' };
     }
@@ -71,14 +71,14 @@ export default function MaintenanceSessionScreen() {
       return { label: 'EN PROGRESO', color: '#06B6D4', bgColor: '#CFFAFE' };
     }
     return { label: 'NO INICIADO', color: '#6B7280', bgColor: '#F3F4F6' };
-  };
+  }, []);
 
-  const getProgressPercentage = (session: any) => {
+  const getProgressPercentage = useCallback((session: any) => {
     if (!session.total || session.total === 0) return 0;
     return (session.completed / session.total) * 100;
-  };
+  }, []);
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = useCallback((dateStr: string) => {
     if (!dateStr) return '';
     const dateObj = dateStr.includes('T')
       ? new Date(dateStr)
@@ -91,9 +91,9 @@ export default function MaintenanceSessionScreen() {
       year: 'numeric',
     });
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-  };
+  }, []);
 
-  const getEquipmentTypeConfig = (type: string) => {
+  const getEquipmentTypeConfig = useCallback((type: string) => {
     switch (type) {
       case 'Luces de Emergencia':
         return {
@@ -124,117 +124,137 @@ export default function MaintenanceSessionScreen() {
           label: type,
         };
     }
-  };
+  }, []);
 
-  const handleSessionPress = (session: any) => {
-    router.push({
-      pathname: '/maintenance/scheduled_maintenance/equipment-maintenance-list',
-      params: {
-        propertyId,
-        sessionId: session.id,
-        sessionName: session.nombre,
-        propertyName,
-      },
-    });
-  };
-
-  // Filter out fully completed sessions
-  const pendingSessions = sessions.filter(
-    (s: any) => s.total === 0 || s.completed < s.total,
+  const handleSessionPress = useCallback(
+    (session: any) => {
+      router.push({
+        pathname:
+          '/maintenance/scheduled_maintenance/equipment-maintenance-list',
+        params: {
+          propertyId,
+          sessionId: session.id,
+          sessionName: session.nombre,
+          propertyName,
+        },
+      });
+    },
+    [propertyId, propertyName, router],
   );
 
-  const renderSessionCard: ListRenderItem<any> = ({ item: session }) => {
-    const status = getSessionStatus(session);
-    const progress = getProgressPercentage(session);
-    const isComplete = session.total > 0 && session.completed === session.total;
+  // Filter out fully completed sessions
+  const pendingSessions = useMemo(
+    () => sessions.filter((s: any) => s.total === 0 || s.completed < s.total),
+    [sessions],
+  );
 
-    return (
-      <TouchableOpacity
-        style={styles.sessionCard}
-        onPress={() => handleSessionPress(session)}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel={`Abrir sesión ${session.nombre}`}
-        accessibilityHint="Navega a la lista de equipos de esta sesión">
-        <View style={styles.cardHeader}>
-          <View style={styles.dateRow}>
-            <Ionicons name="calendar-outline" size={20} color="#06B6D4" />
-            <Text style={styles.sessionName} numberOfLines={2}>
-              {session.nombre}
+  const renderSessionCard = useCallback<ListRenderItem<any>>(
+    ({ item: session }) => {
+      const status = getSessionStatus(session);
+      const progress = getProgressPercentage(session);
+      const isComplete =
+        session.total > 0 && session.completed === session.total;
+
+      return (
+        <Pressable
+          style={({ pressed }) => [
+            styles.sessionCard,
+            pressed && styles.cardPressed,
+          ]}
+          onPress={() => handleSessionPress(session)}
+          accessibilityRole="button"
+          accessibilityLabel={`Abrir sesión ${session.nombre}`}
+          accessibilityHint="Navega a la lista de equipos de esta sesión">
+          <View style={styles.cardHeader}>
+            <View style={styles.dateRow}>
+              <Ionicons name="calendar-outline" size={20} color="#06B6D4" />
+              <Text style={styles.sessionName} numberOfLines={2}>
+                {session.nombre}
+              </Text>
+            </View>
+
+            {session.fecha_programada && (
+              <Text style={styles.dateSubText}>
+                {formatDate(session.fecha_programada)}
+              </Text>
+            )}
+
+            {session.descripcion && (
+              <Text style={styles.descriptionText} numberOfLines={2}>
+                {session.descripcion}
+              </Text>
+            )}
+          </View>
+
+          {session.equipmentTypes && session.equipmentTypes.length > 0 && (
+            <View style={styles.equipmentTypesRow}>
+              {session.equipmentTypes.map((type: string, idx: number) => {
+                const config = getEquipmentTypeConfig(type);
+                return (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.equipmentTypeChip,
+                      { backgroundColor: config.bgColor },
+                    ]}>
+                    <MaterialCommunityIcons
+                      name={config.icon}
+                      size={14}
+                      color={config.color}
+                    />
+                    <Text
+                      style={[
+                        styles.equipmentTypeText,
+                        { color: config.color },
+                      ]}
+                      numberOfLines={1}>
+                      {config.label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${progress}%`,
+                    backgroundColor: status.color,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.progressText}>
+              {session.completed}/{session.total} equipos
             </Text>
           </View>
 
-          {session.fecha_programada && (
-            <Text style={styles.dateSubText}>
-              {formatDate(session.fecha_programada)}
-            </Text>
-          )}
-
-          {session.descripcion && (
-            <Text style={styles.descriptionText} numberOfLines={2}>
-              {session.descripcion}
-            </Text>
-          )}
-        </View>
-
-        {session.equipmentTypes && session.equipmentTypes.length > 0 && (
-          <View style={styles.equipmentTypesRow}>
-            {session.equipmentTypes.map((type: string, idx: number) => {
-              const config = getEquipmentTypeConfig(type);
-              return (
-                <View
-                  key={idx}
-                  style={[
-                    styles.equipmentTypeChip,
-                    { backgroundColor: config.bgColor },
-                  ]}>
-                  <MaterialCommunityIcons
-                    name={config.icon}
-                    size={14}
-                    color={config.color}
-                  />
-                  <Text
-                    style={[styles.equipmentTypeText, { color: config.color }]}
-                    numberOfLines={1}>
-                    {config.label}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        )}
-
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
+          <View style={styles.statusRow}>
             <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${progress}%`,
-                  backgroundColor: status.color,
-                },
-              ]}
-            />
+              style={[styles.statusBadge, { backgroundColor: status.bgColor }]}>
+              <Text style={[styles.statusText, { color: status.color }]}>
+                {status.label}
+              </Text>
+            </View>
+            {!isComplete && (
+              <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
+            )}
           </View>
-          <Text style={styles.progressText}>
-            {session.completed}/{session.total} equipos
-          </Text>
-        </View>
-
-        <View style={styles.statusRow}>
-          <View
-            style={[styles.statusBadge, { backgroundColor: status.bgColor }]}>
-            <Text style={[styles.statusText, { color: status.color }]}>
-              {status.label}
-            </Text>
-          </View>
-          {!isComplete && (
-            <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
+        </Pressable>
+      );
+    },
+    [
+      formatDate,
+      getEquipmentTypeConfig,
+      getProgressPercentage,
+      getSessionStatus,
+      handleSessionPress,
+    ],
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -340,6 +360,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
+  },
+  cardPressed: {
+    opacity: 0.85,
   },
   cardHeader: {
     marginBottom: 16,

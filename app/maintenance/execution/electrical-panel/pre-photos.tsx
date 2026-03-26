@@ -4,7 +4,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   ActivityIndicator,
   FlatList,
@@ -360,11 +360,15 @@ export default function PreMaintenancePhotosScreen() {
                 </View>
 
                 {/* Remove Button */}
-                <TouchableOpacity
-                  style={styles.removeBtn}
-                  onPress={() => handleRemoveItem(item.id)}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.removeBtn,
+                    pressed && styles.pressed,
+                  ]}
+                  onPress={() => handleRemoveItem(item.id)}
+                  accessibilityRole="button">
                   <Ionicons name="close-circle" size={20} color="#EF4444" />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             )}
           />
@@ -372,10 +376,14 @@ export default function PreMaintenancePhotosScreen() {
 
         {/* Add Button */}
         <View style={styles.adderContainer}>
-          <TouchableOpacity
-            style={styles.addBtnContainer}
+          <Pressable
+            style={({ pressed }) => [
+              styles.addBtnContainer,
+              pressed && styles.pressed,
+            ]}
             onPress={() => openSelectionModal(section)}
-            disabled={count >= MAX_PHOTOS}>
+            disabled={count >= MAX_PHOTOS}
+            accessibilityRole="button">
             <View
               style={[
                 styles.addBtn,
@@ -386,7 +394,7 @@ export default function PreMaintenancePhotosScreen() {
                 {count >= MAX_PHOTOS ? 'Máximo alcanzado' : 'Agregar Foto'}
               </Text>
             </View>
-          </TouchableOpacity>
+          </Pressable>
           {count < 1 && (
             <Text style={styles.requirementText}>Agregue al menos 1 foto</Text>
           )}
@@ -422,12 +430,13 @@ export default function PreMaintenancePhotosScreen() {
 
       {/* Footer */}
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Pressable
           style={[styles.continueBtn, !isFormValid && styles.disabledBtn]}
           onPress={handleContinue}
-          disabled={!isFormValid}>
+          disabled={!isFormValid}
+          accessibilityRole="button">
           <Text style={styles.continueBtnText}>Continuar</Text>
-        </TouchableOpacity>
+        </Pressable>
         {!isFormValid && (
           <Text style={styles.footerSubtext}>
             {isThermoRequired
@@ -443,32 +452,47 @@ export default function PreMaintenancePhotosScreen() {
         transparent={true}
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}>
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setModalVisible(false)}
+          />
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Seleccionar origen</Text>
 
-            <TouchableOpacity style={styles.modalOption} onPress={handleCamera}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.modalOption,
+                pressed && styles.pressed,
+              ]}
+              onPress={handleCamera}
+              accessibilityRole="button">
               <Ionicons name="camera" size={24} color="#06B6D4" />
               <Text style={styles.modalOptionText}>Tomar Foto</Text>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
-              style={styles.modalOption}
-              onPress={handleGallery}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.modalOption,
+                pressed && styles.pressed,
+              ]}
+              onPress={handleGallery}
+              accessibilityRole="button">
               <Ionicons name="images" size={24} color="#06B6D4" />
               <Text style={styles.modalOptionText}>Elegir de Galería</Text>
-            </TouchableOpacity>
+            </Pressable>
 
-            <TouchableOpacity
-              style={styles.modalCancelBtn}
-              onPress={() => setModalVisible(false)}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.modalCancelBtn,
+                pressed && styles.pressed,
+              ]}
+              onPress={() => setModalVisible(false)}
+              accessibilityRole="button">
               <Text style={styles.modalCancelText}>Cancelar</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -727,5 +751,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#EF4444',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

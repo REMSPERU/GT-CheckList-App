@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, Text, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface CameraSourceSheetProps {
@@ -23,30 +23,43 @@ export function CameraSourceSheet({
       transparent
       visible={visible}
       onRequestClose={onClose}>
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}>
+      <View style={styles.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.content}>
           <Text style={styles.title}>Seleccionar origen</Text>
 
-          <TouchableOpacity style={styles.option} onPress={onTakePhoto}>
+          <Pressable
+            style={({ pressed }) => [styles.option, pressed && styles.pressed]}
+            onPress={onTakePhoto}
+            accessibilityRole="button">
             <Ionicons name="camera" size={24} color="#06B6D4" />
             <Text style={styles.optionText}>Tomar Foto</Text>
-          </TouchableOpacity>
+          </Pressable>
 
           {showGallery && onPickFromGallery ? (
-            <TouchableOpacity style={styles.option} onPress={onPickFromGallery}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.option,
+                pressed && styles.pressed,
+              ]}
+              onPress={onPickFromGallery}
+              accessibilityRole="button">
               <Ionicons name="images" size={24} color="#06B6D4" />
               <Text style={styles.optionText}>Elegir de Galeria</Text>
-            </TouchableOpacity>
+            </Pressable>
           ) : null}
 
-          <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.cancelBtn,
+              pressed && styles.pressed,
+            ]}
+            onPress={onClose}
+            accessibilityRole="button">
             <Text style={styles.cancelText}>Cancelar</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
-      </TouchableOpacity>
+      </View>
     </Modal>
   );
 }
@@ -93,5 +106,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#EF4444',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });
