@@ -34,6 +34,7 @@ import {
   checklistStorageService,
   type StoredPhotoRef,
 } from '@/services/checklist-storage.service';
+import { supabaseChecklistScheduleService } from '@/services/supabase-checklist-schedule.service';
 import { DatabaseService } from '@/services/database';
 
 type AnswerErrors = Record<string, { observation?: string; photos?: string }>;
@@ -80,6 +81,7 @@ interface ChecklistResponseInsert {
   submitted_at: string;
   duration_seconds: number;
   interaction_count: number;
+  checklist_schedule_id?: string | null;
 }
 
 function getPeriodFromFrequency(frequencyRaw: string) {
@@ -225,6 +227,7 @@ export default function ChecklistFormScreen() {
     equipoId: string;
     equipoCodigo: string;
     equipoUbicacion: string;
+    equipoDetalleUbicacion?: string;
   }>();
 
   const [questions, setQuestions] = useState<PreguntaEquipamento[]>([]);
@@ -554,14 +557,58 @@ export default function ChecklistFormScreen() {
         return;
       }
 
-      const alreadyExists = await checkAlreadySubmitted();
-      if (alreadyExists) {
-        showAppAlert(
-          'Checklist ya registrado',
-          `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStart} a ${periodEnd}.`,
+      let checklistScheduleId: string | null = null;
+      let effectiveFrequency = frecuencia;
+
+      try {
+        const scheduleValidation =
+          await supabaseChecklistScheduleService.validateChecklistSubmission(
+            params.equipoId,
+          );
+
+        if (scheduleValidation.has_schedule) {
+          checklistScheduleId = scheduleValidation.schedule_id;
+          effectiveFrequency = scheduleValidation.frequency || frecuencia;
+
+          if (!scheduleValidation.allowed) {
+            const timeWindow =
+              scheduleValidation.window_start && scheduleValidation.window_end
+                ? `${scheduleValidation.window_start.slice(0, 5)} - ${scheduleValidation.window_end.slice(0, 5)}`
+                : '-';
+
+            showAppAlert(
+              'Checklist fuera de programación',
+              `${scheduleValidation.reason || 'No está permitido registrar el checklist en este momento.'}\nHorario: ${timeWindow}\nLímite diario: ${scheduleValidation.current_count}/${scheduleValidation.occurrences_per_day ?? '-'} registros.`,
+            );
+            return;
+          }
+        } else {
+          const alreadyExists = await checkAlreadySubmitted();
+          if (alreadyExists) {
+            showAppAlert(
+              'Checklist ya registrado',
+              `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStart} a ${periodEnd}.`,
+            );
+            return;
+          }
+        }
+      } catch (scheduleValidationError) {
+        console.error(
+          'Schedule validation unavailable, fallback to period check:',
+          scheduleValidationError,
         );
-        return;
+
+        const alreadyExists = await checkAlreadySubmitted();
+        if (alreadyExists) {
+          showAppAlert(
+            'Checklist ya registrado',
+            `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStart} a ${periodEnd}.`,
+          );
+          return;
+        }
       }
+
+      const schedulePeriod = getPeriodFromFrequency(effectiveFrequency);
 
       const { uploadedGeneralPhotos, uploadedQuestionPhotos } =
         await uploadChecklistPhotos(user.id);
@@ -593,11 +640,16 @@ export default function ChecklistFormScreen() {
         equipamento_nombre: params.equipamentoNombre,
         equipo_id: params.equipoId,
         equipo_codigo: params.equipoCodigo,
-        equipo_ubicacion: params.equipoUbicacion,
+        equipo_ubicacion: [
+          params.equipoUbicacion,
+          params.equipoDetalleUbicacion,
+        ]
+          .filter(Boolean)
+          .join(' - '),
         building_name: params.buildingName,
-        frequency: frecuencia,
-        period_start: periodStart,
-        period_end: periodEnd,
+        frequency: effectiveFrequency,
+        period_start: schedulePeriod.periodStart,
+        period_end: schedulePeriod.periodEnd,
         respuestas_json: respuestasJson,
         evidencia_general_fotos: uploadedGeneralPhotos,
         total_questions: respuestasJson.resumen.total_preguntas,
@@ -610,6 +662,7 @@ export default function ChecklistFormScreen() {
         submitted_at: submittedAt,
         duration_seconds: durationSeconds,
         interaction_count: interactionCountRef.current,
+        checklist_schedule_id: checklistScheduleId,
       };
 
       const { error } = await supabase
@@ -648,6 +701,7 @@ export default function ChecklistFormScreen() {
     frecuencia,
     params.buildingName,
     params.equipoCodigo,
+    params.equipoDetalleUbicacion,
     params.equipoId,
     params.equipoUbicacion,
     params.equipamentoId,

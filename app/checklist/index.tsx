@@ -46,15 +46,21 @@ function getSingleParam(value: string | string[] | undefined) {
 interface EquipmentListItemProps {
   item: BaseEquipment;
   onPress: (item: BaseEquipment) => void;
+  onSchedulePress: (item: BaseEquipment) => void;
 }
 
 const EquipmentListItem = React.memo(function EquipmentListItem({
   item,
   onPress,
+  onSchedulePress,
 }: EquipmentListItemProps) {
   const handlePress = useCallback(() => {
     onPress(item);
   }, [item, onPress]);
+
+  const handleSchedulePress = useCallback(() => {
+    onSchedulePress(item);
+  }, [item, onSchedulePress]);
 
   const locationText = [item.ubicacion, item.detalle_ubicacion]
     .filter(Boolean)
@@ -78,7 +84,19 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
           {locationText || 'Sin ubicacion'}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+      <View style={styles.itemActions}>
+        <Pressable
+          onPress={event => {
+            event.stopPropagation();
+            handleSchedulePress();
+          }}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Programar checklist de ${item.codigo || 'equipo'}`}>
+          <Ionicons name="calendar-outline" size={20} color="#0EA5E9" />
+        </Pressable>
+        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+      </View>
     </Pressable>
   );
 });
@@ -202,6 +220,25 @@ export default function EquipmentChecklistListScreen() {
           equipoId: equipo.id,
           equipoCodigo: equipo.codigo,
           equipoUbicacion: equipo.ubicacion,
+          equipoDetalleUbicacion: equipo.detalle_ubicacion,
+        },
+      });
+    },
+    [building?.name, equipamento, router],
+  );
+
+  const handleScheduleEquipment = useCallback(
+    (equipo: BaseEquipment) => {
+      if (!equipamento) return;
+
+      router.push({
+        pathname: '/checklist/schedule',
+        params: {
+          buildingName: building?.name || '',
+          equipamentoId: equipamento.id,
+          equipamentoNombre: equipamento.nombre,
+          equipoId: equipo.id,
+          equipoCodigo: equipo.codigo,
         },
       });
     },
@@ -210,9 +247,13 @@ export default function EquipmentChecklistListScreen() {
 
   const renderEquipmentItem = useCallback(
     ({ item }: { item: BaseEquipment }) => (
-      <EquipmentListItem item={item} onPress={handlePressEquipment} />
+      <EquipmentListItem
+        item={item}
+        onPress={handlePressEquipment}
+        onSchedulePress={handleScheduleEquipment}
+      />
     ),
-    [handlePressEquipment],
+    [handlePressEquipment, handleScheduleEquipment],
   );
 
   return (
@@ -371,5 +412,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#64748B',
     marginTop: 2,
+  },
+  itemActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 });
