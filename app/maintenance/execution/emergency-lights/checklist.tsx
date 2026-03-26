@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Switch,
-  Image,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -251,19 +251,29 @@ export default function EmergencyLightsChecklistScreen() {
                   <Image
                     source={{ uri: item.photoUri }}
                     style={styles.previewImage}
+                    contentFit="cover"
+                    transition={100}
                   />
-                  <TouchableOpacity
-                    style={styles.removePhotoBtn}
-                    onPress={() => handleRemovePhoto(itemKey)}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.removePhotoBtn,
+                      pressed && styles.pressed,
+                    ]}
+                    onPress={() => handleRemovePhoto(itemKey)}
+                    accessibilityRole="button">
                     <Ionicons name="close-circle" size={20} color="#EF4444" />
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               ) : null}
-              <TouchableOpacity
+              <Pressable
                 onPress={() => handleTakePhoto(itemKey)}
-                style={styles.cameraBtn}>
+                style={({ pressed }) => [
+                  styles.cameraBtn,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button">
                 <Ionicons name="camera-outline" size={24} color="#6B7280" />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         )}
@@ -319,19 +329,29 @@ export default function EmergencyLightsChecklistScreen() {
                   <Image
                     source={{ uri: item.photoUri }}
                     style={styles.previewImage}
+                    contentFit="cover"
+                    transition={100}
                   />
-                  <TouchableOpacity
-                    style={styles.removePhotoBtn}
-                    onPress={() => handleRemovePhoto(itemKey)}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.removePhotoBtn,
+                      pressed && styles.pressed,
+                    ]}
+                    onPress={() => handleRemovePhoto(itemKey)}
+                    accessibilityRole="button">
                     <Ionicons name="close-circle" size={20} color="#EF4444" />
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               ) : null}
-              <TouchableOpacity
+              <Pressable
                 onPress={() => handleTakePhoto(itemKey)}
-                style={styles.cameraBtn}>
+                style={({ pressed }) => [
+                  styles.cameraBtn,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button">
                 <Ionicons name="camera-outline" size={24} color="#6B7280" />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         )}
@@ -343,9 +363,12 @@ export default function EmergencyLightsChecklistScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+          accessibilityRole="button">
           <Ionicons name="chevron-back" size={24} color="#11181C" />
-        </TouchableOpacity>
+        </Pressable>
         <View style={styles.headerIconContainer}>
           <MaterialCommunityIcons name="lightbulb-on" size={20} color="white" />
         </View>
@@ -444,9 +467,15 @@ export default function EmergencyLightsChecklistScreen() {
 
       {/* Footer */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.continueBtn} onPress={handleContinue}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.continueBtn,
+            pressed && styles.pressed,
+          ]}
+          onPress={handleContinue}
+          accessibilityRole="button">
           <Text style={styles.continueBtnText}>Continuar</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -610,5 +639,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

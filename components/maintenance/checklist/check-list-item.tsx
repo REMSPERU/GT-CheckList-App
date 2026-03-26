@@ -1,12 +1,12 @@
 import React from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
   StyleSheet,
   Switch,
   TextInput,
-  TouchableOpacity,
-  Image,
+  Pressable,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -90,20 +90,33 @@ export const ChecklistItem = React.memo(function ChecklistItem({
                 contentContainerStyle={styles.photosScroll}>
                 {allPhotos.map((uri, index) => (
                   <View key={`photo_${index}`} style={styles.photoWrapper}>
-                    <Image source={{ uri }} style={styles.previewImage} />
-                    <TouchableOpacity
-                      style={styles.removePhotoBtn}
-                      onPress={() => onRemovePhoto?.(index)}>
+                    <Image
+                      source={{ uri }}
+                      style={styles.previewImage}
+                      contentFit="cover"
+                      transition={100}
+                    />
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.removePhotoBtn,
+                        pressed && styles.pressed,
+                      ]}
+                      onPress={() => onRemovePhoto?.(index)}
+                      accessibilityRole="button">
                       <Ionicons name="close-circle" size={20} color="#EF4444" />
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 ))}
                 {/* Add photo button - always visible to allow adding more */}
-                <TouchableOpacity
+                <Pressable
                   onPress={onPhotoPress}
-                  style={styles.cameraBtn}>
+                  style={({ pressed }) => [
+                    styles.cameraBtn,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button">
                   <Ionicons name="camera-outline" size={24} color="#6B7280" />
-                </TouchableOpacity>
+                </Pressable>
               </ScrollView>
             </View>
           )}
@@ -197,5 +210,8 @@ const styles = StyleSheet.create({
   },
   photoWrapper: {
     position: 'relative',
+  },
+  pressed: {
+    opacity: 0.82,
   },
 });

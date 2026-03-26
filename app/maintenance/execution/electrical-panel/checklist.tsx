@@ -5,7 +5,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  TouchableOpacity,
+  Pressable,
   Text,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -581,9 +581,15 @@ export default function MaintenanceChecklistScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.continueBtn} onPress={handleContinue}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.continueBtn,
+            pressed && styles.pressed,
+          ]}
+          onPress={handleContinue}
+          accessibilityRole="button">
           <Text style={styles.continueBtnText}>Continuar</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -620,6 +626,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  pressed: {
+    opacity: 0.84,
   },
   footerSpacer: {
     height: 40,

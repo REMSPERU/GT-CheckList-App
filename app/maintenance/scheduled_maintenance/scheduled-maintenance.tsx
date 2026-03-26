@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   ActivityIndicator,
   RefreshControl,
@@ -73,7 +73,7 @@ export default function ScheduledMaintenanceScreen() {
     void syncInBackground();
   }, [refetch]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setIsManualRefreshing(true);
     try {
       await syncService.pushData();
@@ -85,11 +85,9 @@ export default function ScheduledMaintenanceScreen() {
     } finally {
       setIsManualRefreshing(false);
     }
-  };
+  }, [refetch]);
 
-  const filterData = () => {
-    if (!maintenanceData) return [];
-
+  const filteredData = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -130,12 +128,9 @@ export default function ScheduledMaintenanceScreen() {
       // "Todos"
       return true;
     });
-  };
+  }, [activeTab, maintenanceData, searchQuery]);
 
-  // Group filtered data by Property Name (or ID)
-  const filteredData = filterData();
-
-  const groupedData = React.useMemo(() => {
+  const groupedData = useMemo(() => {
     const groups: { [key: string]: any } = {};
 
     filteredData.forEach((item: any) => {
@@ -165,36 +160,40 @@ export default function ScheduledMaintenanceScreen() {
     return Object.values(groups);
   }, [filteredData]);
 
-  const renderPropertyCard: ListRenderItem<any> = ({ item: group }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => {
-        if (group.items.length > 0) {
-          router.push({
-            pathname: '/maintenance/scheduled_maintenance/maintenance-session',
-            params: {
-              propertyId: group.propertyId,
-              propertyName: group.propertyName,
-            },
-          });
-        }
-      }}
-      accessibilityRole="button"
-      accessibilityLabel={`Abrir sesiones de ${group.propertyName}`}
-      accessibilityHint="Navega a la lista de sesiones de mantenimiento">
-      <View style={styles.cardIconContainer}>
-        <MaterialIcons name="business" size={24} color="#06B6D4" />
-      </View>
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle}>{group.propertyName}</Text>
-        <Text style={styles.cardAddress} numberOfLines={2}>
-          {group.propertyAddress}
-        </Text>
+  const renderPropertyCard = useCallback<ListRenderItem<any>>(
+    ({ item: group }) => (
+      <Pressable
+        style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+        onPress={() => {
+          if (group.items.length > 0) {
+            router.push({
+              pathname:
+                '/maintenance/scheduled_maintenance/maintenance-session',
+              params: {
+                propertyId: group.propertyId,
+                propertyName: group.propertyName,
+              },
+            });
+          }
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={`Abrir sesiones de ${group.propertyName}`}
+        accessibilityHint="Navega a la lista de sesiones de mantenimiento">
+        <View style={styles.cardIconContainer}>
+          <MaterialIcons name="business" size={24} color="#06B6D4" />
+        </View>
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle}>{group.propertyName}</Text>
+          <Text style={styles.cardAddress} numberOfLines={2}>
+            {group.propertyAddress}
+          </Text>
 
-        <View style={styles.cardFooter} />
-      </View>
-      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-    </TouchableOpacity>
+          <View style={styles.cardFooter} />
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+      </Pressable>
+    ),
+    [router],
   );
 
   return (
@@ -202,14 +201,17 @@ export default function ScheduledMaintenanceScreen() {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
+          <Pressable
             onPress={() => router.back()}
-            style={styles.backButton}
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.pressed,
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Regresar"
             accessibilityHint="Vuelve a la pantalla anterior">
             <Ionicons name="chevron-back" size={24} color={Colors.light.text} />
-          </TouchableOpacity>
+          </Pressable>
           <View style={styles.headerIconContainer}>
             <MaterialIcons name="home-repair-service" size={20} color="white" />
           </View>
@@ -236,8 +238,12 @@ export default function ScheduledMaintenanceScreen() {
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'Todos' && styles.activeTab]}
+          <Pressable
+            style={({ pressed }) => [
+              styles.tab,
+              activeTab === 'Todos' && styles.activeTab,
+              pressed && styles.pressed,
+            ]}
             onPress={() => setActiveTab('Todos')}
             accessibilityRole="tab"
             accessibilityState={{ selected: activeTab === 'Todos' }}
@@ -249,9 +255,13 @@ export default function ScheduledMaintenanceScreen() {
               ]}>
               Todos
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'Hoy' && styles.activeTab]}
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.tab,
+              activeTab === 'Hoy' && styles.activeTab,
+              pressed && styles.pressed,
+            ]}
             onPress={() => setActiveTab('Hoy')}
             accessibilityRole="tab"
             accessibilityState={{ selected: activeTab === 'Hoy' }}
@@ -263,11 +273,12 @@ export default function ScheduledMaintenanceScreen() {
               ]}>
               Hoy
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
               styles.tab,
               activeTab === 'Esta Semana' && styles.activeTabWhite,
+              pressed && styles.pressed,
             ]}
             onPress={() => setActiveTab('Esta Semana')}
             accessibilityRole="tab"
@@ -280,7 +291,7 @@ export default function ScheduledMaintenanceScreen() {
               ]}>
               Esta Semana
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {isLoading ? (
@@ -489,5 +500,8 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 11,
     color: '#6B7280',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

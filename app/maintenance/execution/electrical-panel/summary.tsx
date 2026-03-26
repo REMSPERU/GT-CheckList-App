@@ -5,14 +5,14 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
-  Image,
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -453,6 +453,8 @@ export default function SummaryScreen() {
             key={photo.id || index}
             source={{ uri: photo.uri }}
             style={styles.photoThumbnail}
+            contentFit="cover"
+            transition={100}
           />
         ))}
       </View>
@@ -539,6 +541,8 @@ export default function SummaryScreen() {
                     <Image
                       source={{ uri: obs.photoUri }}
                       style={styles.obsPhoto}
+                      contentFit="cover"
+                      transition={100}
                     />
                   )}
                 </View>
@@ -677,25 +681,20 @@ export default function SummaryScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Pressable
           style={[styles.continueBtn, isUploading && styles.disabledBtn]}
           onPress={handleFinalize}
-          disabled={isUploading}>
+          disabled={isUploading}
+          accessibilityRole="button">
           {isUploading ? (
-            <View
-              style={{
-                flexDirection: 'row',
-                gap: 10,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
+            <View style={styles.submittingRow}>
               <ActivityIndicator color="#fff" />
               <Text style={styles.continueBtnText}>{uploadProgress}</Text>
             </View>
           ) : (
             <Text style={styles.continueBtnText}>Finalizar y Guardar</Text>
           )}
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {/* Save Feedback Modal */}
@@ -856,6 +855,12 @@ const styles = StyleSheet.create({
   },
   disabledBtn: { backgroundColor: '#A5F3FC' },
   continueBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  submittingRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   // Protocol Styles
   protocolList: {
     marginTop: 8,

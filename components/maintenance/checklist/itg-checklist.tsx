@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   TextInput,
-  Image,
   Switch,
 } from 'react-native';
 import { ItemObservation, ItemMeasurement } from '@/types/maintenance-session';
@@ -71,9 +71,13 @@ export const ITGChecklist = React.memo(function ITGChecklist({
         style={styles.tabsContainer}
         contentContainerStyle={styles.tabsContent}>
         {itgs.map((itg, index) => (
-          <TouchableOpacity
+          <Pressable
             key={`tab_${index}`}
-            style={[styles.tab, activeTab === index && styles.activeTab]}
+            style={({ pressed }) => [
+              styles.tab,
+              activeTab === index && styles.activeTab,
+              pressed && styles.pressed,
+            ]}
             onPress={() => setActiveTab(index)}>
             <Text
               style={[
@@ -82,7 +86,7 @@ export const ITGChecklist = React.memo(function ITGChecklist({
               ]}>
               {itg.id ? `ITG-${itg.id}` : `ITG-${index + 1}`}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </ScrollView>
 
@@ -140,17 +144,23 @@ export const ITGChecklist = React.memo(function ITGChecklist({
                     <Image
                       source={{ uri: obs.photoUri }}
                       style={styles.observationPhoto}
+                      contentFit="cover"
+                      transition={100}
                     />
                   ) : null}
-                  <TouchableOpacity
-                    style={styles.photoButton}
-                    onPress={() => onPhotoPress(obsId)}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.photoButton,
+                      pressed && styles.pressed,
+                    ]}
+                    onPress={() => onPhotoPress(obsId)}
+                    accessibilityRole="button">
                     <Text style={styles.photoButtonText}>
                       {obs?.photoUri
                         ? 'Cambiar o eliminar foto'
                         : 'Agregar foto (opcional)'}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               </View>
             );
@@ -411,10 +421,11 @@ export const ITGChecklist = React.memo(function ITGChecklist({
                 {isTestApplicable && (
                   <View style={styles.testBody}>
                     <View style={styles.resultToggleRow}>
-                      <TouchableOpacity
-                        style={[
+                      <Pressable
+                        style={({ pressed }) => [
                           styles.resultButton,
                           isTestOk && styles.resultButtonOkActive,
+                          pressed && styles.pressed,
                         ]}
                         onPress={() => onStatusChange(testResultId, true)}>
                         <Text
@@ -424,11 +435,12 @@ export const ITGChecklist = React.memo(function ITGChecklist({
                           ]}>
                           OK
                         </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[
+                      </Pressable>
+                      <Pressable
+                        style={({ pressed }) => [
                           styles.resultButton,
                           !isTestOk && styles.resultButtonObsActive,
+                          pressed && styles.pressed,
                         ]}
                         onPress={() => onStatusChange(testResultId, false)}>
                         <Text
@@ -438,7 +450,7 @@ export const ITGChecklist = React.memo(function ITGChecklist({
                           ]}>
                           OBS
                         </Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     </View>
 
                     {!isTestOk && (
@@ -460,17 +472,23 @@ export const ITGChecklist = React.memo(function ITGChecklist({
                             <Image
                               source={{ uri: testObs.photoUri }}
                               style={styles.observationPhoto}
+                              contentFit="cover"
+                              transition={100}
                             />
                           ) : null}
-                          <TouchableOpacity
-                            style={styles.photoButton}
-                            onPress={() => onPhotoPress(testId)}>
+                          <Pressable
+                            style={({ pressed }) => [
+                              styles.photoButton,
+                              pressed && styles.pressed,
+                            ]}
+                            onPress={() => onPhotoPress(testId)}
+                            accessibilityRole="button">
                             <Text style={styles.photoButtonText}>
                               {testObs?.photoUri
                                 ? 'Cambiar o eliminar foto'
                                 : 'Agregar foto (opcional)'}
                             </Text>
-                          </TouchableOpacity>
+                          </Pressable>
                         </View>
                       </View>
                     )}
@@ -690,5 +708,8 @@ const styles = StyleSheet.create({
     color: '#0369A1',
     fontSize: 13,
     fontWeight: '600',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

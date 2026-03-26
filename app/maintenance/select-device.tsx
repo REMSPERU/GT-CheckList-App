@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
   Text,
   Alert,
-  TouchableOpacity,
+  Pressable,
   type ListRenderItem,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -126,33 +126,14 @@ export default function SelectDeviceScreen() {
     setIsRefreshing(false);
   }, [loadData]);
 
-  const handleEquipamentoPress = (equipamento: EquipamentoResponse) => {
-    log('Selected equipamento:', equipamento);
-    log('Building:', building);
+  const handleEquipamentoPress = useCallback(
+    (equipamento: EquipamentoResponse) => {
+      log('Selected equipamento:', equipamento);
+      log('Building:', building);
 
-    if (flowType === 'checklist') {
-      router.push({
-        pathname: '/checklist',
-        params: {
-          buildingId: building?.id ?? '',
-          buildingName: building?.name ?? '',
-          buildingAddress: building?.address ?? '',
-          buildingImageUrl: building?.image_url ?? '',
-          equipamentoId: equipamento.id,
-          equipamentoNombre: equipamento.nombre,
-          equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
-          equipamentoAbreviatura: equipamento.abreviatura,
-        },
-      });
-      return;
-    }
-
-    // Route based on equipment abbreviation from DB
-    switch (equipamento.abreviatura) {
-      case 'TBELEC':
-        // Tablero electrico
+      if (flowType === 'checklist') {
         router.push({
-          pathname: '/maintenance/electrical-panels',
+          pathname: '/checklist',
           params: {
             buildingId: building?.id ?? '',
             buildingName: building?.name ?? '',
@@ -164,47 +145,69 @@ export default function SelectDeviceScreen() {
             equipamentoAbreviatura: equipamento.abreviatura,
           },
         });
-        break;
-      case 'LUZ':
-        // Luces de Emergencia
-        router.push({
-          pathname: '/maintenance/emergency-lights',
-          params: {
-            buildingId: building?.id ?? '',
-            buildingName: building?.name ?? '',
-            buildingAddress: building?.address ?? '',
-            buildingImageUrl: building?.image_url ?? '',
-            equipamentoId: equipamento.id,
-            equipamentoNombre: equipamento.nombre,
-            equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
-            equipamentoAbreviatura: equipamento.abreviatura,
-          },
-        });
-        break;
-      case 'PAT':
-        // Pozo a Tierra
-        router.push({
-          pathname: '/maintenance/grounding-wells',
-          params: {
-            buildingId: building?.id ?? '',
-            buildingName: building?.name ?? '',
-            buildingAddress: building?.address ?? '',
-            buildingImageUrl: building?.image_url ?? '',
-            equipamentoId: equipamento.id,
-            equipamentoNombre: equipamento.nombre,
-            equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
-            equipamentoAbreviatura: equipamento.abreviatura,
-          },
-        });
-        break;
-      default:
-        // Fallback for other equipment types
-        log('No route configured for:', equipamento.abreviatura);
-        break;
-    }
-  };
+        return;
+      }
 
-  const getIconForEquipamento = (abreviatura: string) => {
+      // Route based on equipment abbreviation from DB
+      switch (equipamento.abreviatura) {
+        case 'TBELEC':
+          // Tablero electrico
+          router.push({
+            pathname: '/maintenance/electrical-panels',
+            params: {
+              buildingId: building?.id ?? '',
+              buildingName: building?.name ?? '',
+              buildingAddress: building?.address ?? '',
+              buildingImageUrl: building?.image_url ?? '',
+              equipamentoId: equipamento.id,
+              equipamentoNombre: equipamento.nombre,
+              equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
+              equipamentoAbreviatura: equipamento.abreviatura,
+            },
+          });
+          break;
+        case 'LUZ':
+          // Luces de Emergencia
+          router.push({
+            pathname: '/maintenance/emergency-lights',
+            params: {
+              buildingId: building?.id ?? '',
+              buildingName: building?.name ?? '',
+              buildingAddress: building?.address ?? '',
+              buildingImageUrl: building?.image_url ?? '',
+              equipamentoId: equipamento.id,
+              equipamentoNombre: equipamento.nombre,
+              equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
+              equipamentoAbreviatura: equipamento.abreviatura,
+            },
+          });
+          break;
+        case 'PAT':
+          // Pozo a Tierra
+          router.push({
+            pathname: '/maintenance/grounding-wells',
+            params: {
+              buildingId: building?.id ?? '',
+              buildingName: building?.name ?? '',
+              buildingAddress: building?.address ?? '',
+              buildingImageUrl: building?.image_url ?? '',
+              equipamentoId: equipamento.id,
+              equipamentoNombre: equipamento.nombre,
+              equipamentoFrecuencia: equipamento.frecuencia ?? 'MENSUAL',
+              equipamentoAbreviatura: equipamento.abreviatura,
+            },
+          });
+          break;
+        default:
+          // Fallback for other equipment types
+          log('No route configured for:', equipamento.abreviatura);
+          break;
+      }
+    },
+    [building, flowType, router],
+  );
+
+  const getIconForEquipamento = useCallback((abreviatura: string) => {
     // Map equipment abbreviations to icons
     const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
       TBELEC: 'stats-chart-outline', // Tablero electrico
@@ -214,18 +217,21 @@ export default function SelectDeviceScreen() {
       ASC: 'arrow-up-outline',
     };
     return iconMap[abreviatura] || 'cube-outline';
-  };
+  }, []);
 
-  const renderEquipamentoItem: ListRenderItem<EquipamentoResponse> = ({
-    item,
-  }) => (
-    <MaintenanceCard
-      icon={getIconForEquipamento(item.abreviatura)}
-      title={item.nombre}
-      onPress={() => handleEquipamentoPress(item)}
-      accessibilityLabel={`Abrir mantenimiento de ${item.nombre}`}
-      accessibilityHint="Navega al flujo de mantenimiento del equipo"
-    />
+  const renderEquipamentoItem = useCallback<
+    ListRenderItem<EquipamentoResponse>
+  >(
+    ({ item }) => (
+      <MaintenanceCard
+        icon={getIconForEquipamento(item.abreviatura)}
+        title={item.nombre}
+        onPress={() => handleEquipamentoPress(item)}
+        accessibilityLabel={`Abrir mantenimiento de ${item.nombre}`}
+        accessibilityHint="Navega al flujo de mantenimiento del equipo"
+      />
+    ),
+    [getIconForEquipamento, handleEquipamentoPress],
   );
 
   return (
@@ -248,14 +254,17 @@ export default function SelectDeviceScreen() {
         )}
         <View style={styles.headerOverlay} />
         <SafeAreaView edges={['top']} style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
+          <Pressable
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && styles.pressed,
+            ]}
             onPress={() => router.back()}
             accessibilityRole="button"
             accessibilityLabel="Regresar"
             accessibilityHint="Vuelve a la pantalla anterior">
             <Ionicons name="chevron-back" size={24} color="#fff" />
-          </TouchableOpacity>
+          </Pressable>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>
               {building?.name || 'Seleccionar Equipo'}
@@ -393,5 +402,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });

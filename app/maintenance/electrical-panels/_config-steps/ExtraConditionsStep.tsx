@@ -52,7 +52,7 @@ export default memo(function ExtraConditionsStep({
       <Text style={styles.equipmentLabel}>
         Equipo {panel?.equipment_detail?.rotulo || panel?.codigo || ''}
       </Text>
-      <Text style={styles.stepTitleStrong}>Condiciones adicionales</Text>
+      <Text style={styles.stepTitleStrong}>Condiciones extras</Text>
 
       <View style={styles.componentContainer}>
         {CONDITIONS.map(item => (

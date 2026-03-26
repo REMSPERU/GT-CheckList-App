@@ -1,16 +1,16 @@
-import React, { useState, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   FlatList,
   TextInput,
   ActivityIndicator,
   Modal,
   RefreshControl,
-  Image,
   Alert,
   type ListRenderItem,
 } from 'react-native';
@@ -229,34 +229,38 @@ export default function EquipmentMaintenanceListScreen() {
   };
 
   // --- Session Photo Logic for Luces de Emergencia ---
-  const handleEmergencyLightNavigation = async (
-    navParams: ExecutionRouteParams,
-  ) => {
-    if (!sessionId) {
-      router.push({ pathname: '/maintenance/execution', params: navParams });
-      return;
-    }
-
-    setCheckingPhotos(true);
-    try {
-      const hasPhotos = await DatabaseService.sessionHasPhotos(sessionId);
-      if (hasPhotos) {
-        // Already has photos, navigate directly
+  const handleEmergencyLightNavigation = useCallback(
+    async (navParams: ExecutionRouteParams) => {
+      if (!sessionId) {
         router.push({ pathname: '/maintenance/execution', params: navParams });
-      } else {
-        // Need to capture session photos first
-        setPendingNavigation(navParams);
-        setSessionPhotos([]);
-        setShowPhotoModal(true);
+        return;
       }
-    } catch (error) {
-      console.error('Error checking session photos:', error);
-      // On error, allow navigation anyway
-      router.push({ pathname: '/maintenance/execution', params: navParams });
-    } finally {
-      setCheckingPhotos(false);
-    }
-  };
+
+      setCheckingPhotos(true);
+      try {
+        const hasPhotos = await DatabaseService.sessionHasPhotos(sessionId);
+        if (hasPhotos) {
+          // Already has photos, navigate directly
+          router.push({
+            pathname: '/maintenance/execution',
+            params: navParams,
+          });
+        } else {
+          // Need to capture session photos first
+          setPendingNavigation(navParams);
+          setSessionPhotos([]);
+          setShowPhotoModal(true);
+        }
+      } catch (error) {
+        console.error('Error checking session photos:', error);
+        // On error, allow navigation anyway
+        router.push({ pathname: '/maintenance/execution', params: navParams });
+      } finally {
+        setCheckingPhotos(false);
+      }
+    },
+    [router, sessionId],
+  );
 
   const handleTakeSessionPhoto = async () => {
     try {
@@ -325,113 +329,127 @@ export default function EquipmentMaintenanceListScreen() {
     }
   };
 
-  const renderMaintenanceItem: ListRenderItem<MaintenanceByPropertyItem> = ({
-    item,
-  }) => {
-    const equipment = item.equipos || ({} as EquipmentInfo);
+  const renderMaintenanceItem = useCallback<
+    ListRenderItem<MaintenanceByPropertyItem>
+  >(
+    ({ item }) => {
+      const equipment = item.equipos || ({} as EquipmentInfo);
 
-    return (
-      <TouchableOpacity
-        key={item.id}
-        style={styles.card}
-        onPress={() => {
-          if (item.estatus === MaintenanceStatusEnum.FINALIZADO) {
-            router.push({
-              pathname:
-                '/maintenance/scheduled_maintenance/maintenance-response-detail',
-              params: {
-                maintenanceId: item.id,
-              },
-            });
-            return;
-          }
+      return (
+        <Pressable
+          key={item.id}
+          style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+          onPress={() => {
+            if (item.estatus === MaintenanceStatusEnum.FINALIZADO) {
+              router.push({
+                pathname:
+                  '/maintenance/scheduled_maintenance/maintenance-response-detail',
+                params: {
+                  maintenanceId: item.id,
+                },
+              });
+              return;
+            }
 
-          const navParams: ExecutionRouteParams = {
-            panelId: equipment.id,
-            maintenanceId: item.id,
-            equipmentType: equipment.equipamentos?.nombre,
-            propertyId: propertyId || '',
-            propertyName,
-            maintenanceType: item.tipo_mantenimiento,
-            sessionTotal: sessionTotals.total.toString(),
-            sessionCompleted: sessionTotals.completed.toString(),
-            sessionId: sessionId || '',
-          };
+            const navParams: ExecutionRouteParams = {
+              panelId: equipment.id,
+              maintenanceId: item.id,
+              equipmentType: equipment.equipamentos?.nombre,
+              propertyId: propertyId || '',
+              propertyName,
+              maintenanceType: item.tipo_mantenimiento,
+              sessionTotal: sessionTotals.total.toString(),
+              sessionCompleted: sessionTotals.completed.toString(),
+              sessionId: sessionId || '',
+            };
 
-          if (
-            equipment.equipamentos?.nombre === 'Luces de Emergencia' &&
-            sessionId
-          ) {
-            handleEmergencyLightNavigation(navParams);
-          } else {
-            router.push({
-              pathname: '/maintenance/execution',
-              params: navParams,
-            });
-          }
-        }}>
-        <View style={styles.cardHeader}>
-          <View style={styles.cardHeaderInfo}>
-            {equipment.equipment_detail?.rotulo && (
-              <Text style={styles.cardRotulo}>
-                {equipment.equipment_detail.rotulo}
-              </Text>
-            )}
-            <Text style={styles.cardCode}>{equipment.codigo || 'S/N'}</Text>
+            if (
+              equipment.equipamentos?.nombre === 'Luces de Emergencia' &&
+              sessionId
+            ) {
+              handleEmergencyLightNavigation(navParams);
+            } else {
+              router.push({
+                pathname: '/maintenance/execution',
+                params: navParams,
+              });
+            }
+          }}
+          accessibilityRole="button">
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderInfo}>
+              {equipment.equipment_detail?.rotulo && (
+                <Text style={styles.cardRotulo}>
+                  {equipment.equipment_detail.rotulo}
+                </Text>
+              )}
+              <Text style={styles.cardCode}>{equipment.codigo || 'S/N'}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-        </View>
 
-        <View
-          style={[
-            styles.statusBadge,
-            {
-              backgroundColor: getStatusColor(item.estatus || '') + '20',
-            },
-          ]}>
-          <Text
-            style={[
-              styles.statusText,
-              { color: getStatusColor(item.estatus || '') },
-            ]}>
-            {item.estatus || 'SIN ESTADO'}
-          </Text>
-        </View>
-
-        {item.estatus === MaintenanceStatusEnum.FINALIZADO && (
           <View
             style={[
-              styles.syncBadge,
+              styles.statusBadge,
               {
-                backgroundColor: getSyncBadgeConfig(item.sync_status).bgColor,
+                backgroundColor: getStatusColor(item.estatus || '') + '20',
               },
             ]}>
             <Text
               style={[
-                styles.syncBadgeText,
-                { color: getSyncBadgeConfig(item.sync_status).color },
+                styles.statusText,
+                { color: getStatusColor(item.estatus || '') },
               ]}>
-              {getSyncBadgeConfig(item.sync_status).label}
+              {item.estatus || 'SIN ESTADO'}
             </Text>
           </View>
-        )}
 
-        <View style={styles.infoRow}>
-          <Ionicons name="location-outline" size={18} color="#4B5563" />
-          <Text style={styles.infoLabel}>Ubicación:</Text>
-          <Text style={styles.infoValue}>{equipment.ubicacion || 'N/A'}</Text>
-        </View>
+          {item.estatus === MaintenanceStatusEnum.FINALIZADO && (
+            <View
+              style={[
+                styles.syncBadge,
+                {
+                  backgroundColor: getSyncBadgeConfig(item.sync_status).bgColor,
+                },
+              ]}>
+              <Text
+                style={[
+                  styles.syncBadgeText,
+                  { color: getSyncBadgeConfig(item.sync_status).color },
+                ]}>
+                {getSyncBadgeConfig(item.sync_status).label}
+              </Text>
+            </View>
+          )}
 
-        {equipment.detalle_ubicacion ? (
           <View style={styles.infoRow}>
-            <Ionicons name="navigate-outline" size={18} color="#4B5563" />
-            <Text style={styles.infoLabel}>Detalle:</Text>
-            <Text style={styles.infoValue}>{equipment.detalle_ubicacion}</Text>
+            <Ionicons name="location-outline" size={18} color="#4B5563" />
+            <Text style={styles.infoLabel}>Ubicación:</Text>
+            <Text style={styles.infoValue}>{equipment.ubicacion || 'N/A'}</Text>
           </View>
-        ) : null}
-      </TouchableOpacity>
-    );
-  };
+
+          {equipment.detalle_ubicacion ? (
+            <View style={styles.infoRow}>
+              <Ionicons name="navigate-outline" size={18} color="#4B5563" />
+              <Text style={styles.infoLabel}>Detalle:</Text>
+              <Text style={styles.infoValue}>
+                {equipment.detalle_ubicacion}
+              </Text>
+            </View>
+          ) : null}
+        </Pressable>
+      );
+    },
+    [
+      handleEmergencyLightNavigation,
+      propertyId,
+      propertyName,
+      router,
+      sessionId,
+      sessionTotals.completed,
+      sessionTotals.total,
+    ],
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -472,18 +490,19 @@ export default function EquipmentMaintenanceListScreen() {
               onChangeText={setSearchQuery}
             />
           </View>
-          <TouchableOpacity
+          <Pressable
             style={[
               styles.filterButton,
               selectedLocation && styles.filterButtonActive,
             ]}
-            onPress={() => setShowFilters(true)}>
+            onPress={() => setShowFilters(true)}
+            accessibilityRole="button">
             <Feather
               name="filter"
               size={20}
               color={selectedLocation ? '#fff' : '#4B5563'}
             />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {/* Active Filters Display */}
@@ -496,12 +515,13 @@ export default function EquipmentMaintenanceListScreen() {
               paddingHorizontal: 4,
             }}>
             {selectedLocation && (
-              <TouchableOpacity
+              <Pressable
                 onPress={() => setSelectedLocation(null)}
-                style={styles.chip}>
+                style={styles.chip}
+                accessibilityRole="button">
                 <Text style={styles.chipText}>{selectedLocation}</Text>
                 <Feather name="x" size={14} color="#FFF" />
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
         )}
@@ -547,9 +567,9 @@ export default function EquipmentMaintenanceListScreen() {
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Filtrar por</Text>
-                <TouchableOpacity onPress={() => setShowFilters(false)}>
+                <Pressable onPress={() => setShowFilters(false)}>
                   <Feather name="x" size={24} color="#000" />
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
               <ScrollView style={{ maxHeight: 400 }}>
@@ -566,14 +586,15 @@ export default function EquipmentMaintenanceListScreen() {
                       value: MaintenanceStatusEnum.FINALIZADO,
                     },
                   ].map(option => (
-                    <TouchableOpacity
+                    <Pressable
                       key={option.label}
                       style={[
                         styles.filterOption,
                         selectedStatus === option.value &&
                           styles.filterOptionActive,
                       ]}
-                      onPress={() => setSelectedStatus(option.value)}>
+                      onPress={() => setSelectedStatus(option.value)}
+                      accessibilityRole="button">
                       <Text
                         style={[
                           styles.filterOptionText,
@@ -582,14 +603,14 @@ export default function EquipmentMaintenanceListScreen() {
                         ]}>
                         {option.label}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </View>
 
                 <Text style={styles.filterSectionTitle}>Ubicación</Text>
                 <View style={styles.filterOptionsContainer}>
                   {locations.map(loc => (
-                    <TouchableOpacity
+                    <Pressable
                       key={loc}
                       style={[
                         styles.filterOption,
@@ -599,7 +620,8 @@ export default function EquipmentMaintenanceListScreen() {
                         setSelectedLocation(
                           selectedLocation === loc ? null : loc,
                         )
-                      }>
+                      }
+                      accessibilityRole="button">
                       <Text
                         style={[
                           styles.filterOptionText,
@@ -608,16 +630,17 @@ export default function EquipmentMaintenanceListScreen() {
                         ]}>
                         {loc}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </View>
               </ScrollView>
 
-              <TouchableOpacity
+              <Pressable
                 style={styles.applyButton}
-                onPress={() => setShowFilters(false)}>
+                onPress={() => setShowFilters(false)}
+                accessibilityRole="button">
                 <Text style={styles.applyButtonText}>Aplicar Filtros</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </Modal>
@@ -636,14 +659,14 @@ export default function EquipmentMaintenanceListScreen() {
             <View style={styles.sessionPhotoModalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Fotos de Sesión</Text>
-                <TouchableOpacity
+                <Pressable
                   onPress={() => {
                     setShowPhotoModal(false);
                     setPendingNavigation(null);
                     setSessionPhotos([]);
                   }}>
                   <Feather name="x" size={24} color="#000" />
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
               <Text style={styles.sessionPhotoSubtitle}>
@@ -661,24 +684,26 @@ export default function EquipmentMaintenanceListScreen() {
                           source={{ uri: sessionPhotos[index] }}
                           style={styles.sessionPhotoImage}
                         />
-                        <TouchableOpacity
+                        <Pressable
                           style={styles.sessionPhotoRemoveBtn}
-                          onPress={() => handleRemoveSessionPhoto(index)}>
+                          onPress={() => handleRemoveSessionPhoto(index)}
+                          accessibilityRole="button">
                           <Ionicons
                             name="close-circle"
                             size={24}
                             color="#EF4444"
                           />
-                        </TouchableOpacity>
+                        </Pressable>
                       </View>
                     ) : (
-                      <TouchableOpacity
+                      <Pressable
                         style={styles.sessionPhotoEmpty}
                         onPress={
                           sessionPhotos.length === index
                             ? handleTakeSessionPhoto
                             : undefined
-                        }>
+                        }
+                        accessibilityRole="button">
                         <Ionicons
                           name="camera-outline"
                           size={32}
@@ -697,7 +722,7 @@ export default function EquipmentMaintenanceListScreen() {
                           ]}>
                           Foto {index + 1}
                         </Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     )}
                   </View>
                 ))}
@@ -709,17 +734,18 @@ export default function EquipmentMaintenanceListScreen() {
               </Text>
 
               {/* Confirm Button */}
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.applyButton,
                   sessionPhotos.length !== 2 && { backgroundColor: '#D1D5DB' },
                 ]}
                 onPress={handleConfirmSessionPhotos}
-                disabled={sessionPhotos.length !== 2}>
+                disabled={sessionPhotos.length !== 2}
+                accessibilityRole="button">
                 <Text style={styles.applyButtonText}>
                   Continuar con Mantenimiento
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </Modal>
@@ -1055,5 +1081,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });
