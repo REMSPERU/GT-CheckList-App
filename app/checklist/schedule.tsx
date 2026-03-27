@@ -349,7 +349,7 @@ export default function ChecklistScheduleScreen() {
           placeholderTextColor="#94A3B8"
         />
 
-        <Text style={styles.label}>Rango horario (HH:mm)</Text>
+        <Text style={styles.label}>Rango horario</Text>
         <View style={styles.timeRow}>
           <Pressable
             style={({ pressed }) => [
@@ -374,7 +374,7 @@ export default function ChecklistScheduleScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.label}>Fecha inicio (opcional, YYYY-MM-DD)</Text>
+        <Text style={styles.label}>Fecha inicio (opcional)</Text>
         <View style={styles.dateRow}>
           <Pressable
             onPress={() => openDatePicker('startDate')}
@@ -409,7 +409,7 @@ export default function ChecklistScheduleScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.label}>Fecha fin (opcional, YYYY-MM-DD)</Text>
+        <Text style={styles.label}>Fecha fin (opcional)</Text>
         <View style={styles.dateRow}>
           <Pressable
             onPress={() => openDatePicker('endDate')}
