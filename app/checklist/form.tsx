@@ -84,13 +84,25 @@ interface ChecklistResponseInsert {
   checklist_schedule_id?: string | null;
 }
 
+interface ChecklistSchedulePreview {
+  isLoading: boolean;
+  hasSchedule: boolean;
+  allowed: boolean;
+  message: string;
+  frequency: string;
+  currentCount: number;
+  occurrencesPerDay: number | null;
+  windowStart: string | null;
+  windowEnd: string | null;
+}
+
 function getPeriodFromFrequency(frequencyRaw: string) {
   const frequency = frequencyRaw.toUpperCase();
   const now = new Date();
   const start = new Date(now);
   const end = new Date(now);
 
-  if (frequency === 'DIARIA') {
+  if (frequency === 'DIARIA' || frequency === 'INTERDIARIA') {
     start.setHours(0, 0, 0, 0);
     end.setHours(23, 59, 59, 999);
   } else if (frequency === 'SEMANAL') {
@@ -246,6 +258,18 @@ export default function ChecklistFormScreen() {
   const [isCameraSheetVisible, setIsCameraSheetVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [schedulePreview, setSchedulePreview] =
+    useState<ChecklistSchedulePreview>({
+      isLoading: false,
+      hasSchedule: false,
+      allowed: true,
+      message: 'Sin programacion activa. Se aplicara control por periodo.',
+      frequency: '',
+      currentCount: 0,
+      occurrencesPerDay: null,
+      windowStart: null,
+      windowEnd: null,
+    });
   const startedAtMsRef = useRef<number>(Date.now());
   const firstInteractionAtMsRef = useRef<number | null>(null);
   const interactionCountRef = useRef<number>(0);
@@ -334,6 +358,92 @@ export default function ChecklistFormScreen() {
 
     loadQuestions();
   }, [params.equipamentoId, showAppAlert]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSchedulePreview = async () => {
+      if (!params.buildingId || !params.equipamentoId) {
+        return;
+      }
+
+      setSchedulePreview(prev => ({ ...prev, isLoading: true }));
+
+      try {
+        const result =
+          await supabaseChecklistScheduleService.validateChecklistSubmission(
+            params.buildingId,
+            params.equipamentoId,
+          );
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!result.has_schedule) {
+          setSchedulePreview({
+            isLoading: false,
+            hasSchedule: false,
+            allowed: true,
+            message:
+              'Sin programacion activa. Se aplicara control por periodo.',
+            frequency: '',
+            currentCount: 0,
+            occurrencesPerDay: null,
+            windowStart: null,
+            windowEnd: null,
+          });
+          return;
+        }
+
+        const windowLabel =
+          result.window_start && result.window_end
+            ? `${result.window_start.slice(0, 5)} - ${result.window_end.slice(0, 5)}`
+            : '-';
+        const limitLabel =
+          typeof result.occurrences_per_day === 'number'
+            ? `${result.current_count}/${result.occurrences_per_day}`
+            : '-';
+
+        setSchedulePreview({
+          isLoading: false,
+          hasSchedule: true,
+          allowed: result.allowed,
+          message: result.allowed
+            ? `Dentro de programacion (${limitLabel} hoy). Horario ${windowLabel}.`
+            : `${result.reason || 'Fuera de programacion.'} Horario ${windowLabel}.`,
+          frequency: result.frequency || '',
+          currentCount: result.current_count,
+          occurrencesPerDay: result.occurrences_per_day,
+          windowStart: result.window_start,
+          windowEnd: result.window_end,
+        });
+      } catch (error) {
+        console.error('Error checking checklist schedule preview:', error);
+        if (!isMounted) {
+          return;
+        }
+        setSchedulePreview({
+          isLoading: false,
+          hasSchedule: false,
+          allowed: true,
+          message:
+            'No se pudo validar la programacion. Se intentara validar al guardar.',
+          frequency: '',
+          currentCount: 0,
+          occurrencesPerDay: null,
+          windowStart: null,
+          windowEnd: null,
+        });
+      }
+    };
+
+    loadSchedulePreview();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [params.buildingId, params.equipamentoId]);
 
   const updateAnswer = useCallback(
     (
@@ -842,6 +952,29 @@ export default function ChecklistFormScreen() {
         </Text>
       </View>
 
+      <View
+        style={[
+          styles.scheduleCard,
+          schedulePreview.hasSchedule
+            ? schedulePreview.allowed
+              ? styles.scheduleCardAllowed
+              : styles.scheduleCardBlocked
+            : styles.scheduleCardNoSchedule,
+        ]}>
+        <Text style={styles.scheduleTitle}>
+          {schedulePreview.hasSchedule
+            ? schedulePreview.allowed
+              ? 'Programacion activa'
+              : 'Programacion restringida'
+            : 'Sin programacion'}
+        </Text>
+        <Text style={styles.scheduleText}>
+          {schedulePreview.isLoading
+            ? 'Validando programacion...'
+            : schedulePreview.message}
+        </Text>
+      </View>
+
       <FlatList
         data={questions}
         keyExtractor={item => item.id}
@@ -866,7 +999,10 @@ export default function ChecklistFormScreen() {
       <View style={styles.footer}>
         <Pressable
           style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
-          disabled={isSaving}
+          disabled={
+            isSaving ||
+            (schedulePreview.hasSchedule && !schedulePreview.allowed)
+          }
           onPress={handleSave}
           accessibilityRole="button">
           <Text style={styles.saveBtnText}>
@@ -930,6 +1066,37 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 12,
     color: '#64748B',
+  },
+  scheduleCard: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 2,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+  },
+  scheduleCardAllowed: {
+    borderColor: '#86EFAC',
+    backgroundColor: '#F0FDF4',
+  },
+  scheduleCardBlocked: {
+    borderColor: '#FECACA',
+    backgroundColor: '#FEF2F2',
+  },
+  scheduleCardNoSchedule: {
+    borderColor: '#FDE68A',
+    backgroundColor: '#FFFBEB',
+  },
+  scheduleTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  scheduleText: {
+    fontSize: 12,
+    color: '#334155',
+    lineHeight: 17,
   },
   content: {
     padding: 16,
