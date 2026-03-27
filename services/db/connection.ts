@@ -2,6 +2,26 @@ import * as SQLite from 'expo-sqlite';
 
 export const dbPromise = SQLite.openDatabaseAsync('offline_maintenance.db');
 
+const SQLITE_BUSY_MAX_RETRIES = 5;
+const SQLITE_BUSY_BASE_DELAY_MS = 120;
+
+function isSqliteBusyError(error: unknown) {
+  if (!error) return false;
+  const message = String((error as { message?: string }).message || error)
+    .toLowerCase()
+    .trim();
+
+  return (
+    message.includes('database is locked') ||
+    message.includes('database busy') ||
+    message.includes('sqlstate 5')
+  );
+}
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Simple mutex to prevent concurrent transactions
 let transactionLock: Promise<void> = Promise.resolve();
 
@@ -13,7 +33,27 @@ export const withLock = async <T>(fn: () => Promise<T>): Promise<T> => {
   });
   try {
     await previousLock;
-    return await fn();
+
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await fn();
+      } catch (error) {
+        const shouldRetry =
+          isSqliteBusyError(error) && attempt < SQLITE_BUSY_MAX_RETRIES;
+
+        if (!shouldRetry) {
+          throw error;
+        }
+
+        const delay = SQLITE_BUSY_BASE_DELAY_MS * (attempt + 1);
+        if (__DEV__) {
+          console.warn(
+            `[DB] SQLITE_BUSY retry ${attempt + 1}/${SQLITE_BUSY_MAX_RETRIES} in ${delay}ms`,
+          );
+        }
+        await sleep(delay);
+      }
+    }
   } finally {
     resolve!();
   }
@@ -30,6 +70,8 @@ export async function initDatabase() {
     const db = await dbPromise;
     await db.execAsync(`
         PRAGMA journal_mode = WAL;
+        PRAGMA busy_timeout = 8000;
+        PRAGMA synchronous = NORMAL;
         
         -- Mirror Tables (Read-Only Offline)
         CREATE TABLE IF NOT EXISTS local_equipos (
