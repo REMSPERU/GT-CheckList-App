@@ -46,21 +46,15 @@ function getSingleParam(value: string | string[] | undefined) {
 interface EquipmentListItemProps {
   item: BaseEquipment;
   onPress: (item: BaseEquipment) => void;
-  onSchedulePress: (item: BaseEquipment) => void;
 }
 
 const EquipmentListItem = React.memo(function EquipmentListItem({
   item,
   onPress,
-  onSchedulePress,
 }: EquipmentListItemProps) {
   const handlePress = useCallback(() => {
     onPress(item);
   }, [item, onPress]);
-
-  const handleSchedulePress = useCallback(() => {
-    onSchedulePress(item);
-  }, [item, onSchedulePress]);
 
   const locationText = [item.ubicacion, item.detalle_ubicacion]
     .filter(Boolean)
@@ -85,16 +79,6 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
         </Text>
       </View>
       <View style={styles.itemActions}>
-        <Pressable
-          onPress={event => {
-            event.stopPropagation();
-            handleSchedulePress();
-          }}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={`Programar checklist de ${item.codigo || 'equipo'}`}>
-          <Ionicons name="calendar-outline" size={20} color="#0EA5E9" />
-        </Pressable>
         <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
       </View>
     </Pressable>
@@ -213,6 +197,7 @@ export default function EquipmentChecklistListScreen() {
       router.push({
         pathname: '/checklist/form',
         params: {
+          buildingId: building?.id || '',
           buildingName: building?.name || '',
           equipamentoId: equipamento.id,
           equipamentoNombre: equipamento.nombre,
@@ -224,36 +209,14 @@ export default function EquipmentChecklistListScreen() {
         },
       });
     },
-    [building?.name, equipamento, router],
-  );
-
-  const handleScheduleEquipment = useCallback(
-    (equipo: BaseEquipment) => {
-      if (!equipamento) return;
-
-      router.push({
-        pathname: '/checklist/schedule',
-        params: {
-          buildingName: building?.name || '',
-          equipamentoId: equipamento.id,
-          equipamentoNombre: equipamento.nombre,
-          equipoId: equipo.id,
-          equipoCodigo: equipo.codigo,
-        },
-      });
-    },
-    [building?.name, equipamento, router],
+    [building?.id, building?.name, equipamento, router],
   );
 
   const renderEquipmentItem = useCallback(
     ({ item }: { item: BaseEquipment }) => (
-      <EquipmentListItem
-        item={item}
-        onPress={handlePressEquipment}
-        onSchedulePress={handleScheduleEquipment}
-      />
+      <EquipmentListItem item={item} onPress={handlePressEquipment} />
     ),
-    [handlePressEquipment, handleScheduleEquipment],
+    [handlePressEquipment],
   );
 
   return (

@@ -8,7 +8,9 @@ export type ChecklistScheduleFrequency =
 
 export interface ChecklistSchedule {
   id: string;
-  equipo_id: string;
+  property_id: string;
+  equipamento_id: string;
+  equipo_id: string | null;
   frequency: ChecklistScheduleFrequency;
   occurrences_per_day: number;
   window_start: string;
@@ -24,7 +26,8 @@ export interface ChecklistSchedule {
 }
 
 export interface ChecklistScheduleUpsertInput {
-  equipoId: string;
+  propertyId: string;
+  equipamentoId: string;
   frequency: ChecklistScheduleFrequency;
   occurrencesPerDay: number;
   windowStart: string;
@@ -49,13 +52,15 @@ export interface ChecklistScheduleValidation {
 }
 
 class SupabaseChecklistScheduleService {
-  async getScheduleByEquipoId(
-    equipoId: string,
+  async getScheduleByScope(
+    propertyId: string,
+    equipamentoId: string,
   ): Promise<ChecklistSchedule | null> {
     const { data, error } = await supabase
       .from('checklist_schedules')
       .select('*')
-      .eq('equipo_id', equipoId)
+      .eq('property_id', propertyId)
+      .eq('equipamento_id', equipamentoId)
       .limit(1)
       .maybeSingle();
 
@@ -70,7 +75,8 @@ class SupabaseChecklistScheduleService {
     input: ChecklistScheduleUpsertInput,
   ): Promise<ChecklistSchedule> {
     const payload = {
-      equipo_id: input.equipoId,
+      property_id: input.propertyId,
+      equipamento_id: input.equipamentoId,
       frequency: input.frequency,
       occurrences_per_day: input.occurrencesPerDay,
       window_start: input.windowStart,
@@ -85,7 +91,7 @@ class SupabaseChecklistScheduleService {
 
     const { data, error } = await supabase
       .from('checklist_schedules')
-      .upsert(payload, { onConflict: 'equipo_id' })
+      .upsert(payload, { onConflict: 'property_id,equipamento_id' })
       .select('*')
       .single();
 
@@ -97,10 +103,12 @@ class SupabaseChecklistScheduleService {
   }
 
   async validateChecklistSubmission(
-    equipoId: string,
+    propertyId: string,
+    equipamentoId: string,
   ): Promise<ChecklistScheduleValidation> {
     const { data, error } = await supabase.rpc('validate_checklist_schedule', {
-      p_equipo_id: equipoId,
+      p_property_id: propertyId,
+      p_equipamento_id: equipamentoId,
       p_submitted_at: new Date().toISOString(),
     });
 

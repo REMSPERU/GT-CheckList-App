@@ -220,6 +220,7 @@ const ChecklistQuestionRow = memo(function ChecklistQuestionRow({
 export default function ChecklistFormScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
+    buildingId: string;
     buildingName: string;
     equipamentoId: string;
     equipamentoNombre: string;
@@ -563,7 +564,8 @@ export default function ChecklistFormScreen() {
       try {
         const scheduleValidation =
           await supabaseChecklistScheduleService.validateChecklistSubmission(
-            params.equipoId,
+            params.buildingId,
+            params.equipamentoId,
           );
 
         if (scheduleValidation.has_schedule) {
@@ -700,6 +702,7 @@ export default function ChecklistFormScreen() {
     checkAlreadySubmitted,
     frecuencia,
     params.buildingName,
+    params.buildingId,
     params.equipoCodigo,
     params.equipoDetalleUbicacion,
     params.equipoId,

@@ -207,6 +207,21 @@ export default function SelectDeviceScreen() {
     [building, flowType, router],
   );
 
+  const handleChecklistSchedulePress = useCallback(
+    (equipamento: EquipamentoResponse) => {
+      router.push({
+        pathname: '/checklist/schedule',
+        params: {
+          buildingId: building?.id ?? '',
+          buildingName: building?.name ?? '',
+          equipamentoId: equipamento.id,
+          equipamentoNombre: equipamento.nombre,
+        },
+      });
+    },
+    [building?.id, building?.name, router],
+  );
+
   const getIconForEquipamento = useCallback((abreviatura: string) => {
     // Map equipment abbreviations to icons
     const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -222,16 +237,62 @@ export default function SelectDeviceScreen() {
   const renderEquipamentoItem = useCallback<
     ListRenderItem<EquipamentoResponse>
   >(
-    ({ item }) => (
-      <MaintenanceCard
-        icon={getIconForEquipamento(item.abreviatura)}
-        title={item.nombre}
-        onPress={() => handleEquipamentoPress(item)}
-        accessibilityLabel={`Abrir mantenimiento de ${item.nombre}`}
-        accessibilityHint="Navega al flujo de mantenimiento del equipo"
-      />
-    ),
-    [getIconForEquipamento, handleEquipamentoPress],
+    ({ item }) => {
+      if (flowType === 'checklist') {
+        return (
+          <Pressable
+            style={({ pressed }) => [
+              styles.checklistCard,
+              pressed && styles.checklistCardPressed,
+            ]}
+            onPress={() => handleEquipamentoPress(item)}
+            accessibilityRole="button"
+            accessibilityLabel={`Abrir checklist de ${item.nombre}`}
+            accessibilityHint="Navega a la lista de equipos para registrar checklist">
+            <View style={styles.checklistCardContent}>
+              <View style={styles.checklistIconWrap}>
+                <Ionicons
+                  name={getIconForEquipamento(item.abreviatura)}
+                  size={22}
+                  color="#06B6D4"
+                />
+              </View>
+              <Text style={styles.checklistCardTitle}>{item.nombre}</Text>
+            </View>
+
+            <View style={styles.checklistActions}>
+              <Pressable
+                onPress={event => {
+                  event.stopPropagation();
+                  handleChecklistSchedulePress(item);
+                }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`Programar checklist de tipo ${item.nombre}`}>
+                <Ionicons name="calendar-outline" size={20} color="#0891B2" />
+              </Pressable>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </View>
+          </Pressable>
+        );
+      }
+
+      return (
+        <MaintenanceCard
+          icon={getIconForEquipamento(item.abreviatura)}
+          title={item.nombre}
+          onPress={() => handleEquipamentoPress(item)}
+          accessibilityLabel={`Abrir mantenimiento de ${item.nombre}`}
+          accessibilityHint="Navega al flujo de mantenimiento del equipo"
+        />
+      );
+    },
+    [
+      flowType,
+      getIconForEquipamento,
+      handleChecklistSchedulePress,
+      handleEquipamentoPress,
+    ],
   );
 
   return (
@@ -405,5 +466,48 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.84,
+  },
+  checklistCard: {
+    minHeight: 60,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    shadowColor: '#171a1f',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+    gap: 10,
+  },
+  checklistCardPressed: {
+    opacity: 0.75,
+  },
+  checklistCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  checklistIconWrap: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  checklistCardTitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '500',
+    color: '#1F2937',
+    flex: 1,
+  },
+  checklistActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 });

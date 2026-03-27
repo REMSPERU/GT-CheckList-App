@@ -13,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
 
+import { DatePickerModal } from '@/components/scheduling/date-picker-modal';
+import { TimeWheelPickerModal } from '@/components/scheduling/time-wheel-picker-modal';
 import { useUserRole } from '@/hooks/use-user-role';
 import {
   supabaseChecklistScheduleService,
@@ -57,11 +59,36 @@ function isValidDate(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+type DateField = 'startDate' | 'endDate';
+type TimeField = 'windowStart' | 'windowEnd';
+
+function formatDateValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateValue(value: string) {
+  if (!isValidDate(value)) {
+    return new Date();
+  }
+
+  const [yearText, monthText, dayText] = value.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+
+  const parsed = new Date(year, month - 1, day);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
 export default function ChecklistScheduleScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
-    equipoId: string;
-    equipoCodigo: string;
+    buildingId: string;
+    buildingName: string;
+    equipamentoId: string;
     equipamentoNombre: string;
   }>();
   const { canScheduleMaintenance } = useUserRole();
@@ -76,14 +103,20 @@ export default function ChecklistScheduleScreen() {
   const [isActive, setIsActive] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [datePickerField, setDatePickerField] = useState<DateField | null>(
+    null,
+  );
+  const [timePickerField, setTimePickerField] = useState<TimeField | null>(
+    null,
+  );
 
   const title = useMemo(
-    () => params.equipoCodigo || 'Programar checklist',
-    [params.equipoCodigo],
+    () => params.equipamentoNombre || 'Programar checklist',
+    [params.equipamentoNombre],
   );
 
   const loadSchedule = useCallback(async () => {
-    if (!params.equipoId) {
+    if (!params.buildingId || !params.equipamentoId) {
       setIsLoading(false);
       return;
     }
@@ -91,8 +124,9 @@ export default function ChecklistScheduleScreen() {
     setIsLoading(true);
     try {
       const schedule =
-        await supabaseChecklistScheduleService.getScheduleByEquipoId(
-          params.equipoId,
+        await supabaseChecklistScheduleService.getScheduleByScope(
+          params.buildingId,
+          params.equipamentoId,
         );
 
       if (schedule) {
@@ -110,7 +144,7 @@ export default function ChecklistScheduleScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [params.equipoId]);
+  }, [params.buildingId, params.equipamentoId]);
 
   useEffect(() => {
     loadSchedule();
@@ -127,8 +161,8 @@ export default function ChecklistScheduleScreen() {
   }, [canScheduleMaintenance, router]);
 
   const handleSave = useCallback(async () => {
-    if (!params.equipoId) {
-      Alert.alert('Error', 'No se encontró el equipo.');
+    if (!params.buildingId || !params.equipamentoId) {
+      Alert.alert('Error', 'No se encontró el inmueble o tipo de equipo.');
       return;
     }
 
@@ -189,7 +223,8 @@ export default function ChecklistScheduleScreen() {
       }
 
       await supabaseChecklistScheduleService.upsertSchedule({
-        equipoId: params.equipoId,
+        propertyId: params.buildingId,
+        equipamentoId: params.equipamentoId,
         frequency,
         occurrencesPerDay: parsedOccurrences,
         windowStart: `${windowStart}:00`,
@@ -215,12 +250,58 @@ export default function ChecklistScheduleScreen() {
     frequency,
     isActive,
     occurrencesPerDay,
-    params.equipoId,
+    params.buildingId,
+    params.equipamentoId,
     router,
     startDate,
     windowEnd,
     windowStart,
   ]);
+
+  const openDatePicker = useCallback((field: DateField) => {
+    setDatePickerField(field);
+  }, []);
+
+  const openTimePicker = useCallback((field: TimeField) => {
+    setTimePickerField(field);
+  }, []);
+
+  const handleConfirmDate = useCallback(
+    (date: Date) => {
+      const formattedDate = formatDateValue(date);
+
+      if (datePickerField === 'startDate') {
+        setStartDate(formattedDate);
+      } else if (datePickerField === 'endDate') {
+        setEndDate(formattedDate);
+      }
+
+      setDatePickerField(null);
+    },
+    [datePickerField],
+  );
+
+  const handleConfirmTime = useCallback(
+    (value: string) => {
+      if (timePickerField === 'windowStart') {
+        setWindowStart(value);
+      } else if (timePickerField === 'windowEnd') {
+        setWindowEnd(value);
+      }
+
+      setTimePickerField(null);
+    },
+    [timePickerField],
+  );
+
+  const handleClearDate = useCallback((field: DateField) => {
+    if (field === 'startDate') {
+      setStartDate('');
+      return;
+    }
+
+    setEndDate('');
+  }, []);
 
   if (isLoading || !canScheduleMaintenance) {
     return (
@@ -237,9 +318,7 @@ export default function ChecklistScheduleScreen() {
           <Text style={styles.backText}>Volver</Text>
         </Pressable>
         <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>
-          {params.equipamentoNombre || 'Checklist'}
-        </Text>
+        <Text style={styles.subtitle}>{params.buildingName || 'Inmueble'}</Text>
       </View>
 
       <View style={styles.formCard}>
@@ -272,40 +351,98 @@ export default function ChecklistScheduleScreen() {
 
         <Text style={styles.label}>Rango horario (HH:mm)</Text>
         <View style={styles.timeRow}>
-          <TextInput
-            value={windowStart}
-            onChangeText={setWindowStart}
-            style={[styles.input, styles.timeInput]}
-            placeholder="08:00"
-            placeholderTextColor="#94A3B8"
-          />
+          <Pressable
+            style={({ pressed }) => [
+              styles.timePickerField,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => openTimePicker('windowStart')}
+            accessibilityRole="button"
+            accessibilityLabel="Seleccionar hora inicio">
+            <Text style={styles.timePickerValue}>{windowStart}</Text>
+          </Pressable>
           <Text style={styles.timeSeparator}>a</Text>
-          <TextInput
-            value={windowEnd}
-            onChangeText={setWindowEnd}
-            style={[styles.input, styles.timeInput]}
-            placeholder="18:00"
-            placeholderTextColor="#94A3B8"
-          />
+          <Pressable
+            style={({ pressed }) => [
+              styles.timePickerField,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => openTimePicker('windowEnd')}
+            accessibilityRole="button"
+            accessibilityLabel="Seleccionar hora fin">
+            <Text style={styles.timePickerValue}>{windowEnd}</Text>
+          </Pressable>
         </View>
 
         <Text style={styles.label}>Fecha inicio (opcional, YYYY-MM-DD)</Text>
-        <TextInput
-          value={startDate}
-          onChangeText={setStartDate}
-          style={styles.input}
-          placeholder="2026-03-26"
-          placeholderTextColor="#94A3B8"
-        />
+        <View style={styles.dateRow}>
+          <Pressable
+            onPress={() => openDatePicker('startDate')}
+            style={({ pressed }) => [
+              styles.dateInput,
+              pressed && styles.pressed,
+            ]}
+            disabled={isSaving}
+            accessibilityRole="button"
+            accessibilityLabel="Seleccionar fecha de inicio">
+            <Text style={startDate ? styles.dateText : styles.datePlaceholder}>
+              {startDate || 'Seleccionar fecha'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => handleClearDate('startDate')}
+            style={({ pressed }) => [
+              styles.clearDateButton,
+              pressed && styles.pressed,
+            ]}
+            disabled={isSaving || !startDate}
+            accessibilityRole="button"
+            accessibilityLabel="Limpiar fecha de inicio">
+            <Text
+              style={[
+                styles.clearDateText,
+                !startDate && styles.clearDateTextDisabled,
+              ]}>
+              Limpiar
+            </Text>
+          </Pressable>
+        </View>
 
         <Text style={styles.label}>Fecha fin (opcional, YYYY-MM-DD)</Text>
-        <TextInput
-          value={endDate}
-          onChangeText={setEndDate}
-          style={styles.input}
-          placeholder="2026-12-31"
-          placeholderTextColor="#94A3B8"
-        />
+        <View style={styles.dateRow}>
+          <Pressable
+            onPress={() => openDatePicker('endDate')}
+            style={({ pressed }) => [
+              styles.dateInput,
+              pressed && styles.pressed,
+            ]}
+            disabled={isSaving}
+            accessibilityRole="button"
+            accessibilityLabel="Seleccionar fecha de fin">
+            <Text style={endDate ? styles.dateText : styles.datePlaceholder}>
+              {endDate || 'Seleccionar fecha'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => handleClearDate('endDate')}
+            style={({ pressed }) => [
+              styles.clearDateButton,
+              pressed && styles.pressed,
+            ]}
+            disabled={isSaving || !endDate}
+            accessibilityRole="button"
+            accessibilityLabel="Limpiar fecha de fin">
+            <Text
+              style={[
+                styles.clearDateText,
+                !endDate && styles.clearDateTextDisabled,
+              ]}>
+              Limpiar
+            </Text>
+          </Pressable>
+        </View>
 
         <View style={styles.switchRow}>
           <Text style={styles.label}>Programación activa</Text>
@@ -322,6 +459,34 @@ export default function ChecklistScheduleScreen() {
           </Text>
         </Pressable>
       </View>
+
+      <DatePickerModal
+        visible={datePickerField !== null}
+        title={
+          datePickerField === 'endDate'
+            ? 'Seleccionar fecha fin'
+            : 'Seleccionar fecha inicio'
+        }
+        selectedDate={
+          datePickerField === 'endDate'
+            ? parseDateValue(endDate)
+            : parseDateValue(startDate)
+        }
+        onCancel={() => setDatePickerField(null)}
+        onConfirm={handleConfirmDate}
+      />
+
+      <TimeWheelPickerModal
+        visible={timePickerField !== null}
+        title={
+          timePickerField === 'windowEnd'
+            ? 'Seleccionar hora fin'
+            : 'Seleccionar hora inicio'
+        }
+        value={timePickerField === 'windowEnd' ? windowEnd : windowStart}
+        onCancel={() => setTimePickerField(null)}
+        onConfirm={handleConfirmTime}
+      />
     </SafeAreaView>
   );
 }
@@ -393,13 +558,65 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     backgroundColor: '#FFFFFF',
   },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  dateText: {
+    color: '#0F172A',
+    fontSize: 14,
+  },
+  datePlaceholder: {
+    color: '#94A3B8',
+    fontSize: 14,
+  },
+  clearDateButton: {
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clearDateText: {
+    color: '#0F172A',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  clearDateTextDisabled: {
+    color: '#94A3B8',
+  },
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  timeInput: {
+  timePickerField: {
     flex: 1,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  timePickerValue: {
+    fontSize: 14,
+    color: '#0F172A',
   },
   timeSeparator: {
     color: '#64748B',
@@ -427,5 +644,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.84,
   },
 });
