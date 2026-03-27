@@ -48,3 +48,6 @@ app-example
 .secrets/
 
 .env.local
+
+# Supabase CLI local state
+supabase/.temp/

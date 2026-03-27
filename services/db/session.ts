@@ -1,4 +1,4 @@
-import { dbPromise, withLock } from './connection';
+import { dbPromise, ensureInitialized, withLock } from './connection';
 
 export interface LocalSession {
   user_id: string;
@@ -10,6 +10,7 @@ export interface LocalSession {
 }
 
 export async function saveSession(session: LocalSession): Promise<void> {
+  await ensureInitialized();
   const db = await dbPromise;
   await withLock(async () => {
     await db.runAsync(
@@ -34,6 +35,7 @@ export async function saveSession(session: LocalSession): Promise<void> {
 }
 
 export async function getSession(): Promise<LocalSession | null> {
+  await ensureInitialized();
   const db = await dbPromise;
   return withLock(async () => {
     // Get the most recent session or the only one (assuming single user per device for now)
@@ -58,6 +60,7 @@ export async function getSession(): Promise<LocalSession | null> {
 }
 
 export async function clearSession(): Promise<void> {
+  await ensureInitialized();
   const db = await dbPromise;
   await withLock(async () => {
     await db.runAsync('DELETE FROM app_session');

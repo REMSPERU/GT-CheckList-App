@@ -161,10 +161,10 @@ function HomeScreen() {
                 color: '#11181C',
                 marginBottom: 4,
               }}>
-              Ficha técnica
+              Generar informes
             </Text>
             <Text style={{ color: '#4B5563', fontSize: 14 }}>
-              Accese al historial de los equipo
+              Genera informes de mantenimiento
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />

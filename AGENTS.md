@@ -7,6 +7,12 @@ building equipment maintenance checklists. Targets Spanish-speaking users in Per
 Backend: Supabase (auth, DB, storage) + a REST API. Offline-first architecture using
 expo-sqlite mirror tables with background sync to Supabase.
 
+## Project Skill Standard
+
+Use `.agents/skills/gt-checklist-standards/SKILL.md` as the base operating
+standard for any task in this repository. Apply it by default, and layer
+domain-specific skills only when needed.
+
 ## Build / Run / Lint Commands
 
 ```bash
