@@ -2,7 +2,6 @@ import { useMemo, type ReactNode } from 'react';
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Octicons from '@expo/vector-icons/Octicons';
-import Constants from 'expo-constants';
 import {
   ScrollView,
   StyleSheet,
@@ -101,7 +100,7 @@ function HomeScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <View style={styles.centered}>
           <Text style={styles.statusText}>Cargando...</Text>
         </View>
@@ -111,7 +110,7 @@ function HomeScreen() {
 
   if (isError) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <View style={styles.centered}>
           <Text style={styles.errorText}>Error al cargar los inmuebles</Text>
         </View>
@@ -125,7 +124,7 @@ function HomeScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <HomeHeader username={userDisplayName} onLogoutPress={openLogoutModal} />
 
       <ScrollView
@@ -163,12 +162,6 @@ function HomeScreen() {
               containerStyle={actionCardStyle}
             />
           ))}
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            v{Constants.expoConfig?.version || '1.0.0'}
-          </Text>
         </View>
       </ScrollView>
 
@@ -209,14 +202,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F3F4F6',
     paddingHorizontal: 20,
-    paddingBottom: 12,
   },
   scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 14,
+    paddingBottom: 8,
   },
   scrollContentTall: {
-    paddingBottom: 20,
+    paddingBottom: 10,
   },
   sectionTitleWrapper: {
     marginBottom: 8,
@@ -245,15 +236,6 @@ const styles = StyleSheet.create({
   },
   gridActionCard: {
     width: '48.5%',
-  },
-  footer: {
-    alignItems: 'center',
-    marginTop: 14,
-    paddingBottom: 4,
-  },
-  footerText: {
-    color: '#6B7280',
-    fontSize: 14,
   },
   centered: {
     flex: 1,
