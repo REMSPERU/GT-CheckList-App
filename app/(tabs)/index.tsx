@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
+import Constants from 'expo-constants';
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Octicons from '@expo/vector-icons/Octicons';
@@ -27,9 +28,9 @@ interface HomeActionCard {
 }
 
 function HomeScreen() {
-  const { height, width } = useWindowDimensions();
+  const { height } = useWindowDimensions();
   const isTallScreen = height >= 820;
-  const useGridActions = isTallScreen && width >= 360;
+  const appVersion = Constants.expoConfig?.version ?? '1.0.36';
 
   const {
     userDisplayName,
@@ -118,10 +119,7 @@ function HomeScreen() {
     );
   }
 
-  const actionCardStyle = [
-    isTallScreen && styles.cardTall,
-    useGridActions && styles.gridActionCard,
-  ];
+  const actionCardStyle = [isTallScreen && styles.cardTall];
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -133,8 +131,9 @@ function HomeScreen() {
           styles.scrollContent,
           isTallScreen && styles.scrollContentTall,
         ]}>
-        <View style={styles.sectionTitleWrapper}>
+        <View style={[styles.sectionTitleWrapper, styles.sectionTitleRow]}>
           <Text style={styles.sectionTitle}>Inmueble de trabajo</Text>
+          <Text style={styles.versionText}>Version {appVersion}</Text>
         </View>
 
         <BuildingHeroCard
@@ -150,7 +149,6 @@ function HomeScreen() {
           style={[
             styles.optionsWrapper,
             isTallScreen && styles.optionsWrapperTall,
-            useGridActions && styles.optionsGrid,
           ]}>
           {actionCards.map(action => (
             <AppActionCard
@@ -212,6 +210,11 @@ const styles = StyleSheet.create({
   sectionTitleWrapper: {
     marginBottom: 8,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   actionsTitle: {
     marginTop: 12,
   },
@@ -223,19 +226,11 @@ const styles = StyleSheet.create({
   optionsWrapper: {
     gap: 10,
   },
-  optionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
   optionsWrapperTall: {
     gap: 14,
   },
   cardTall: {
     minHeight: 88,
-  },
-  gridActionCard: {
-    width: '48.5%',
   },
   centered: {
     flex: 1,
@@ -249,6 +244,11 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 14,
     color: '#EF4444',
+  },
+  versionText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    opacity: 0.85,
   },
 });
 
