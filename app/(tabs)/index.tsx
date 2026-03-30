@@ -1,5 +1,4 @@
 import { useMemo, type ReactNode } from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Octicons from '@expo/vector-icons/Octicons';
@@ -14,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppActionCard } from '@/components/app-action-card';
 import { AppAlertModal } from '@/components/app-alert-modal';
+import { BuildingHeroCard } from '@/components/home/building-hero-card';
 import { BuildingSelectorModal } from '@/components/home/building-selector-modal';
 import { HomeHeader } from '@/components/home/home-header';
 import { LogoutConfirmModal } from '@/components/home/logout-confirm-modal';
@@ -28,8 +28,9 @@ interface HomeActionCard {
 }
 
 function HomeScreen() {
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const isTallScreen = height >= 820;
+  const useGridActions = isTallScreen && width >= 360;
 
   const {
     userDisplayName,
@@ -118,7 +119,10 @@ function HomeScreen() {
     );
   }
 
-  const cardStyle = isTallScreen ? styles.cardTall : undefined;
+  const actionCardStyle = [
+    isTallScreen && styles.cardTall,
+    useGridActions && styles.gridActionCard,
+  ];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -134,20 +138,9 @@ function HomeScreen() {
           <Text style={styles.sectionTitle}>Inmueble de trabajo</Text>
         </View>
 
-        <AppActionCard
-          title={selectedBuilding?.name || 'Seleccionar inmueble'}
-          description={
-            selectedBuilding?.address ||
-            'Elige un inmueble una vez y luego ejecuta cualquier accion.'
-          }
-          icon={
-            <View style={styles.selectedBuildingIconWrap}>
-              <Ionicons name="business-outline" size={20} color="#06B6D4" />
-            </View>
-          }
+        <BuildingHeroCard
+          building={selectedBuilding}
           onPress={openBuildingModal}
-          accessibilityLabel="Seleccionar inmueble"
-          containerStyle={cardStyle}
         />
 
         <View style={[styles.sectionTitleWrapper, styles.actionsTitle]}>
@@ -158,6 +151,7 @@ function HomeScreen() {
           style={[
             styles.optionsWrapper,
             isTallScreen && styles.optionsWrapperTall,
+            useGridActions && styles.optionsGrid,
           ]}>
           {actionCards.map(action => (
             <AppActionCard
@@ -166,7 +160,7 @@ function HomeScreen() {
               description={action.description}
               icon={action.icon}
               onPress={action.onPress}
-              containerStyle={cardStyle}
+              containerStyle={actionCardStyle}
             />
           ))}
         </View>
@@ -180,7 +174,7 @@ function HomeScreen() {
 
       <BuildingSelectorModal
         visible={isBuildingModalVisible}
-        isLoading={false}
+        isLoading={isLoading}
         searchInput={searchInput}
         buildings={filteredBuildings}
         selectedBuildingId={
@@ -218,7 +212,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   scrollContent: {
-    paddingBottom: 8,
+    flexGrow: 1,
+    paddingBottom: 14,
   },
   scrollContentTall: {
     paddingBottom: 20,
@@ -234,23 +229,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#11181C',
   },
-  selectedBuildingIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ECFEFF',
-    marginRight: 12,
-  },
   optionsWrapper: {
     gap: 10,
+  },
+  optionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   optionsWrapperTall: {
     gap: 14,
   },
   cardTall: {
     minHeight: 88,
+  },
+  gridActionCard: {
+    width: '48.5%',
   },
   footer: {
     alignItems: 'center',

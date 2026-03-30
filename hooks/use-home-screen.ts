@@ -118,6 +118,10 @@ export function useHomeScreen() {
     );
   }, [data?.items, debouncedSearch]);
 
+  const hasProperties = (data?.items?.length ?? 0) > 0;
+  const isInitialLoading = isLoading && !hasProperties;
+  const hasInitialError = isError && !hasProperties;
+
   const ensureBuildingIsSelected = useCallback(() => {
     if (selectedBuilding) return true;
 
@@ -210,8 +214,8 @@ export function useHomeScreen() {
     userDisplayName,
     selectedBuilding,
     filteredBuildings,
-    isLoading,
-    isError,
+    isLoading: isInitialLoading,
+    isError: hasInitialError,
     searchInput,
     setSearchInput,
     isBuildingModalVisible,

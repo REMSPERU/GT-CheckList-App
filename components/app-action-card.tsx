@@ -36,7 +36,7 @@ export function AppActionCard({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel || title}>
-      {icon}
+      <View style={styles.iconWrap}>{icon}</View>
       <View style={styles.content}>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.description} numberOfLines={1}>
@@ -63,6 +63,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     marginRight: 10,
+  },
+  iconWrap: {
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   title: {
     fontSize: 16,
