@@ -83,6 +83,15 @@ function parseDateValue(value: string) {
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
+function formatDateToSpanish(value: string) {
+  if (!isValidDate(value)) {
+    return value;
+  }
+
+  const [year, month, day] = value.split('-');
+  return `${day}-${month}-${year}`;
+}
+
 export default function ChecklistScheduleScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -198,7 +207,7 @@ export default function ChecklistScheduleScreen() {
     if (!isValidDate(startDate) || !isValidDate(endDate)) {
       Alert.alert(
         'Dato inválido',
-        'Las fechas deben tener formato YYYY-MM-DD.',
+        'Las fechas deben tener formato DD-MM-AAAA.',
       );
       return;
     }
@@ -386,7 +395,7 @@ export default function ChecklistScheduleScreen() {
             accessibilityRole="button"
             accessibilityLabel="Seleccionar fecha de inicio">
             <Text style={startDate ? styles.dateText : styles.datePlaceholder}>
-              {startDate || 'Seleccionar fecha'}
+              {startDate ? formatDateToSpanish(startDate) : 'Seleccionar fecha'}
             </Text>
           </Pressable>
 
@@ -421,7 +430,7 @@ export default function ChecklistScheduleScreen() {
             accessibilityRole="button"
             accessibilityLabel="Seleccionar fecha de fin">
             <Text style={endDate ? styles.dateText : styles.datePlaceholder}>
-              {endDate || 'Seleccionar fecha'}
+              {endDate ? formatDateToSpanish(endDate) : 'Seleccionar fecha'}
             </Text>
           </Pressable>
 

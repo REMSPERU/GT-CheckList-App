@@ -36,6 +36,7 @@ import {
 } from '@/services/checklist-storage.service';
 import { supabaseChecklistScheduleService } from '@/services/supabase-checklist-schedule.service';
 import { DatabaseService } from '@/services/database';
+import { useUserRole } from '@/hooks/use-user-role';
 
 type AnswerErrors = Record<string, { observation?: string; photos?: string }>;
 
@@ -89,6 +90,7 @@ interface ChecklistSchedulePreview {
   hasSchedule: boolean;
   allowed: boolean;
   message: string;
+  hint: string | null;
   frequency: string;
   currentCount: number;
   occurrencesPerDay: number | null;
@@ -122,6 +124,64 @@ function getPeriodFromFrequency(frequencyRaw: string) {
   const periodEnd = end.toISOString().slice(0, 10);
 
   return { periodStart, periodEnd };
+}
+
+function formatDateToSpanish(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const [year, month, day] = value.split('-');
+  return `${day}-${month}-${year}`;
+}
+
+function buildFriendlyRestrictionMessage(
+  reason: string,
+  windowLabel: string,
+  limitLabel: string,
+) {
+  const normalized = reason.toLowerCase();
+
+  if (normalized.includes('aun no inicia')) {
+    return {
+      message: 'La programacion todavia no inicia para este checklist.',
+      hint: 'Revisa la fecha de inicio en Programar checklist.',
+    };
+  }
+
+  if (normalized.includes('ya vencio')) {
+    return {
+      message: 'La programacion actual ya vencio para este checklist.',
+      hint: 'Actualiza la fecha de fin o crea una nueva programacion.',
+    };
+  }
+
+  if (normalized.includes('rango horario')) {
+    return {
+      message: `Hoy si corresponde, pero solo se puede registrar entre ${windowLabel}.`,
+      hint: 'Intenta nuevamente dentro del horario configurado.',
+    };
+  }
+
+  if (normalized.includes('frecuencia')) {
+    return {
+      message:
+        'Hoy no toca registrar este checklist segun la frecuencia programada.',
+      hint: `Horario configurado: ${windowLabel}. Ese horario aplica solo en dias que si corresponden.`,
+    };
+  }
+
+  if (normalized.includes('maximo')) {
+    return {
+      message: `Ya se completo el limite diario (${limitLabel}).`,
+      hint: 'Debes esperar al siguiente dia o ajustar la programacion.',
+    };
+  }
+
+  return {
+    message: 'Este checklist esta restringido en este momento.',
+    hint: `Horario configurado: ${windowLabel}. Limite diario: ${limitLabel}.`,
+  };
 }
 
 function buildChecklistAnswersJson(
@@ -231,6 +291,7 @@ const ChecklistQuestionRow = memo(function ChecklistQuestionRow({
 
 export default function ChecklistFormScreen() {
   const router = useRouter();
+  const { canScheduleMaintenance } = useUserRole();
   const params = useLocalSearchParams<{
     buildingId: string;
     buildingName: string;
@@ -263,7 +324,8 @@ export default function ChecklistFormScreen() {
       isLoading: false,
       hasSchedule: false,
       allowed: true,
-      message: 'Sin programacion activa. Se aplicara control por periodo.',
+      message: 'No hay programacion activa para este checklist.',
+      hint: null,
       frequency: '',
       currentCount: 0,
       occurrencesPerDay: null,
@@ -280,6 +342,14 @@ export default function ChecklistFormScreen() {
   const { periodStart, periodEnd } = useMemo(
     () => getPeriodFromFrequency(frecuencia),
     [frecuencia],
+  );
+  const periodStartLabel = useMemo(
+    () => formatDateToSpanish(periodStart),
+    [periodStart],
+  );
+  const periodEndLabel = useMemo(
+    () => formatDateToSpanish(periodEnd),
+    [periodEnd],
   );
 
   const showAppAlert = useCallback(
@@ -385,8 +455,8 @@ export default function ChecklistFormScreen() {
             isLoading: false,
             hasSchedule: false,
             allowed: true,
-            message:
-              'Sin programacion activa. Se aplicara control por periodo.',
+            message: 'No hay programacion activa para este checklist.',
+            hint: null,
             frequency: '',
             currentCount: 0,
             occurrencesPerDay: null,
@@ -404,6 +474,11 @@ export default function ChecklistFormScreen() {
           typeof result.occurrences_per_day === 'number'
             ? `${result.current_count}/${result.occurrences_per_day}`
             : '-';
+        const restrictionCopy = buildFriendlyRestrictionMessage(
+          result.reason || 'Fuera de programacion.',
+          windowLabel,
+          limitLabel,
+        );
 
         setSchedulePreview({
           isLoading: false,
@@ -411,7 +486,8 @@ export default function ChecklistFormScreen() {
           allowed: result.allowed,
           message: result.allowed
             ? `Dentro de programacion (${limitLabel} hoy). Horario ${windowLabel}.`
-            : `${result.reason || 'Fuera de programacion.'} Horario ${windowLabel}.`,
+            : restrictionCopy.message,
+          hint: result.allowed ? null : restrictionCopy.hint,
           frequency: result.frequency || '',
           currentCount: result.current_count,
           occurrencesPerDay: result.occurrences_per_day,
@@ -429,6 +505,7 @@ export default function ChecklistFormScreen() {
           allowed: true,
           message:
             'No se pudo validar la programacion. Se intentara validar al guardar.',
+          hint: null,
           frequency: '',
           currentCount: 0,
           occurrencesPerDay: null,
@@ -699,7 +776,7 @@ export default function ChecklistFormScreen() {
           if (alreadyExists) {
             showAppAlert(
               'Checklist ya registrado',
-              `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStart} a ${periodEnd}.`,
+              `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStartLabel} a ${periodEndLabel}.`,
             );
             return;
           }
@@ -714,7 +791,7 @@ export default function ChecklistFormScreen() {
         if (alreadyExists) {
           showAppAlert(
             'Checklist ya registrado',
-            `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStart} a ${periodEnd}.`,
+            `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStartLabel} a ${periodEndLabel}.`,
           );
           return;
         }
@@ -819,8 +896,8 @@ export default function ChecklistFormScreen() {
     params.equipoUbicacion,
     params.equipamentoId,
     params.equipamentoNombre,
-    periodEnd,
-    periodStart,
+    periodEndLabel,
+    periodStartLabel,
     questions,
     router,
     showAppAlert,
@@ -883,6 +960,24 @@ export default function ChecklistFormScreen() {
       handleRemovePhoto,
     ],
   );
+
+  const handleOpenSchedule = useCallback(() => {
+    router.push({
+      pathname: '/checklist/schedule',
+      params: {
+        buildingId: params.buildingId,
+        buildingName: params.buildingName,
+        equipamentoId: params.equipamentoId,
+        equipamentoNombre: params.equipamentoNombre,
+      },
+    });
+  }, [
+    params.buildingId,
+    params.buildingName,
+    params.equipamentoId,
+    params.equipamentoNombre,
+    router,
+  ]);
 
   const listHeader = useMemo(
     () => (
@@ -948,7 +1043,7 @@ export default function ChecklistFormScreen() {
         </Pressable>
         <Text style={styles.title}>{params.equipoCodigo || 'Checklist'}</Text>
         <Text style={styles.subtitle}>
-          {params.equipamentoNombre || '-'} - {frecuencia} ({periodStart})
+          {params.equipamentoNombre || '-'} - {frecuencia} ({periodStartLabel})
         </Text>
       </View>
 
@@ -973,6 +1068,24 @@ export default function ChecklistFormScreen() {
             ? 'Validando programacion...'
             : schedulePreview.message}
         </Text>
+        {!schedulePreview.allowed && schedulePreview.hint ? (
+          <Text style={styles.scheduleHint}>{schedulePreview.hint}</Text>
+        ) : null}
+        {!schedulePreview.allowed ? (
+          <Pressable
+            onPress={handleOpenSchedule}
+            style={({ pressed }) => [
+              styles.scheduleActionBtn,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button">
+            <Text style={styles.scheduleActionText}>
+              {canScheduleMaintenance
+                ? 'Ajustar programacion'
+                : 'Ver programacion'}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <FlatList
@@ -1097,6 +1210,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#334155',
     lineHeight: 17,
+  },
+  scheduleHint: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 17,
+  },
+  scheduleActionBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  scheduleActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F766E',
   },
   content: {
     padding: 16,
