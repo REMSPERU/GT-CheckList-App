@@ -1,6 +1,7 @@
 // PDF Report Service - Main Service Class
 
 import { Platform } from 'react-native';
+import { Asset } from 'expo-asset';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -27,7 +28,10 @@ import {
   generateHeaderPageHTML as generateELHeader,
   generateSummaryAndObservationsHTML as generateELSummary,
 } from './emergency-lights/technical-generator';
-import { generatePATReportHTML } from './PAT/technical-generator';
+import {
+  generatePATReportHTML,
+  type PATReportSignatures,
+} from './PAT/technical-generator';
 
 /**
  * PDF Report Generation Service
@@ -35,6 +39,8 @@ import { generatePATReportHTML } from './PAT/technical-generator';
  */
 class PDFReportService {
   private readonly PDF_GENERATION_TIMEOUT_MS = 60000;
+
+  private patSignaturesCache: PATReportSignatures | null = null;
 
   private generationQueue: Promise<void> = Promise.resolve();
 
@@ -156,8 +162,50 @@ class PDFReportService {
   /**
    * Generate PAT (Pozo a Tierra) report HTML
    */
-  generatePATReportHTML(data: MaintenanceSessionReport): string {
-    return generatePATReportHTML(data);
+  generatePATReportHTML(
+    data: MaintenanceSessionReport,
+    signatures?: PATReportSignatures,
+  ): string {
+    return generatePATReportHTML(data, signatures);
+  }
+
+  private async getImageDataUriFromAsset(moduleId: number): Promise<string> {
+    const asset = Asset.fromModule(moduleId);
+
+    if (!asset.localUri) {
+      await asset.downloadAsync();
+    }
+
+    const assetUri = asset.localUri || asset.uri;
+    const base64 = await FileSystem.readAsStringAsync(assetUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    return `data:image/png;base64,${base64}`;
+  }
+
+  private async getPATSignatures(): Promise<PATReportSignatures> {
+    if (this.patSignaturesCache) {
+      return this.patSignaturesCache;
+    }
+
+    try {
+      const [gabriel, gian] = await Promise.all([
+        this.getImageDataUriFromAsset(
+          require('../../assets/pdf/firmagabriel.png'),
+        ),
+        this.getImageDataUriFromAsset(
+          require('../../assets/pdf/firmagian.png'),
+        ),
+      ]);
+
+      this.patSignaturesCache = { gabriel, gian };
+    } catch (error) {
+      console.error('Error loading PAT signatures:', error);
+      this.patSignaturesCache = { gabriel: null, gian: null };
+    }
+
+    return this.patSignaturesCache;
   }
 
   /**
@@ -181,7 +229,7 @@ class PDFReportService {
         html = this.generateEmergencyLightsReportHTML(data);
         break;
       case ReportType.PAT:
-        html = this.generatePATReportHTML(data);
+        html = this.generatePATReportHTML(data, await this.getPATSignatures());
         break;
       case ReportType.TECHNICAL:
       default:

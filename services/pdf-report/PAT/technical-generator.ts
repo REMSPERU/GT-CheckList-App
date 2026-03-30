@@ -4,6 +4,11 @@
 import { MaintenanceSessionReport } from '../common/types';
 import { formatDate } from '../common/utils';
 
+export interface PATReportSignatures {
+  gabriel?: string | null;
+  gian?: string | null;
+}
+
 const DEFAULT_PAT_PROCEDURE_STEPS = [
   'Inspección visual e identificación de los pozos.',
   'Delimitar el área de trabajo con conos y separadores.',
@@ -224,8 +229,19 @@ function getPATStyles(): string {
     }
     .signature-box {
       width: 45%;
-      border-top: 1px solid #000;
-      padding-top: 10px;
+      padding-top: 6px;
+    }
+    .signature-image-wrap {
+      height: 84px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .signature-image {
+      max-width: 100%;
+      max-height: 80px;
+      object-fit: contain;
     }
     .cover-header {
       text-align: center;
@@ -979,6 +995,7 @@ function generateResistanceTablePage(): string {
 
 function generateRecommendationsAndConclusionsPage(
   data: MaintenanceSessionReport,
+  signatures?: PATReportSignatures,
 ): string {
   const defaultRecommendations = `
     <ul class="arrow-list">
@@ -1018,11 +1035,21 @@ function generateRecommendationsAndConclusionsPage(
 
       <div class="signature-section">
         <div class="signature-box">
+          ${
+            signatures?.gabriel
+              ? `<div class="signature-image-wrap"><img class="signature-image" src="${signatures.gabriel}" alt="Firma Gabriel Enrique Flores Meza" /></div>`
+              : ''
+          }
           GABRIEL ENRIQUE FLORES MEZA<br/>
           INGENIERO ELECTRICISTA<br/>
           CIP 75628
         </div>
         <div class="signature-box">
+          ${
+            signatures?.gian
+              ? `<div class="signature-image-wrap"><img class="signature-image" src="${signatures.gian}" alt="Firma Gianmarco Isique Neciosup" /></div>`
+              : ''
+          }
           Gianmarco Isique Neciosup<br/>
           Jefe de Servicios Eléctricos
         </div>
@@ -1037,7 +1064,10 @@ function generateRecommendationsAndConclusionsPage(
  * Generate the full HTML for a PAT (Pozo a Tierra) technical report.
  * Self-contained HTML document with inline styles based on the SPAT template.
  */
-export function generatePATReportHTML(data: MaintenanceSessionReport): string {
+export function generatePATReportHTML(
+  data: MaintenanceSessionReport,
+  signatures?: PATReportSignatures,
+): string {
   return `
 <!DOCTYPE html>
 <html lang="es">
@@ -1057,7 +1087,7 @@ export function generatePATReportHTML(data: MaintenanceSessionReport): string {
   ${generatePostMeasurementPages(data)}
   ${generateInspectionChecklistPages(data)}
   ${generateResistanceTablePage()}
-  ${generateRecommendationsAndConclusionsPage(data)}
+  ${generateRecommendationsAndConclusionsPage(data, signatures)}
 </body>
 </html>
   `;
