@@ -1,6 +1,13 @@
 import { type ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 interface AppActionCardProps {
   icon: ReactNode;
@@ -8,6 +15,7 @@ interface AppActionCardProps {
   description: string;
   onPress: () => void;
   accessibilityLabel?: string;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
 export function AppActionCard({
@@ -16,10 +24,15 @@ export function AppActionCard({
   description,
   onPress,
   accessibilityLabel,
+  containerStyle,
 }: AppActionCardProps) {
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.card,
+        containerStyle,
+        pressed && styles.pressed,
+      ]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel || title}>
