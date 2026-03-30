@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -34,6 +41,14 @@ function normalizeText(value: string) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+}
+
+interface HomeActionCard {
+  key: string;
+  title: string;
+  description: string;
+  icon: ReactNode;
+  onPress: () => void;
 }
 
 function HomeScreen() {
@@ -203,6 +218,73 @@ function HomeScreen() {
     await logout();
   }, [logout]);
 
+  const actionCards = useMemo<HomeActionCard[]>(
+    () => [
+      {
+        key: 'checklist',
+        title: 'Checklist',
+        description: 'Gestione sus tareas de inspeccion',
+        icon: (
+          <Octicons
+            name="checklist"
+            size={24}
+            color="#06B6D4"
+            style={styles.optionIcon}
+          />
+        ),
+        onPress: handleChecklistPress,
+      },
+      {
+        key: 'schedule-maintenance',
+        title: 'Programar Mantenimiento',
+        description: 'Registre problemas inmediatos del equipo',
+        icon: (
+          <MaterialIcons
+            name="home-repair-service"
+            size={24}
+            color="#06B6D4"
+            style={styles.optionIcon}
+          />
+        ),
+        onPress: handleScheduleMaintenancePress,
+      },
+      {
+        key: 'execute-maintenance',
+        title: 'Ejecutar mantenimiento',
+        description: 'Registre sus revisiones de rutina',
+        icon: (
+          <MaterialIcons
+            name="home-repair-service"
+            size={24}
+            color="#06B6D4"
+            style={styles.optionIcon}
+          />
+        ),
+        onPress: handleExecuteMaintenancePress,
+      },
+      {
+        key: 'reports',
+        title: 'Generar informes',
+        description: 'Genera informes de mantenimiento',
+        icon: (
+          <Feather
+            name="file-text"
+            size={24}
+            color="#06B6D4"
+            style={styles.optionIcon}
+          />
+        ),
+        onPress: handleReportsPress,
+      },
+    ],
+    [
+      handleChecklistPress,
+      handleExecuteMaintenancePress,
+      handleReportsPress,
+      handleScheduleMaintenancePress,
+    ],
+  );
+
   const renderBuildingRow = useCallback(
     ({ item }: { item: Property }) => {
       const isSelected = selectedBuilding?.id === item.id;
@@ -317,61 +399,15 @@ function HomeScreen() {
           </View>
 
           <View style={styles.optionsWrapper}>
-            <AppActionCard
-              title="Checklist"
-              description="Gestione sus tareas de inspeccion"
-              icon={
-                <Octicons
-                  name="checklist"
-                  size={24}
-                  color="#06B6D4"
-                  style={styles.optionIcon}
-                />
-              }
-              onPress={handleChecklistPress}
-            />
-
-            <AppActionCard
-              title="Programar Mantenimiento"
-              description="Registre problemas inmediatos del equipo"
-              icon={
-                <MaterialIcons
-                  name="home-repair-service"
-                  size={24}
-                  color="#06B6D4"
-                  style={styles.optionIcon}
-                />
-              }
-              onPress={handleScheduleMaintenancePress}
-            />
-
-            <AppActionCard
-              title="Ejecutar mantenimiento"
-              description="Registre sus revisiones de rutina"
-              icon={
-                <MaterialIcons
-                  name="home-repair-service"
-                  size={24}
-                  color="#06B6D4"
-                  style={styles.optionIcon}
-                />
-              }
-              onPress={handleExecuteMaintenancePress}
-            />
-
-            <AppActionCard
-              title="Generar informes"
-              description="Genera informes de mantenimiento"
-              icon={
-                <Feather
-                  name="file-text"
-                  size={24}
-                  color="#06B6D4"
-                  style={styles.optionIcon}
-                />
-              }
-              onPress={handleReportsPress}
-            />
+            {actionCards.map(action => (
+              <AppActionCard
+                key={action.key}
+                title={action.title}
+                description={action.description}
+                icon={action.icon}
+                onPress={action.onPress}
+              />
+            ))}
           </View>
         </View>
 
@@ -536,7 +572,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
     paddingBottom: 8,
   },
   mainContent: {
@@ -580,8 +615,8 @@ const styles = StyleSheet.create({
   },
   footer: {
     alignItems: 'center',
-    marginTop: 'auto',
-    paddingTop: 10,
+    marginTop: 14,
+    paddingBottom: 4,
   },
   footerText: {
     color: '#6B7280',
