@@ -725,6 +725,38 @@ export default function ChecklistFormScreen() {
   }, [frecuencia, params.equipoId, periodStart]);
 
   const handleSave = useCallback(async () => {
+    if (schedulePreview.isLoading) {
+      showAppAlert(
+        'Validando programacion',
+        'Todavia estamos validando la programacion. Intente nuevamente en unos segundos.',
+      );
+      return;
+    }
+
+    if (questions.length === 0) {
+      showAppAlert(
+        'Checklist sin preguntas',
+        'No se puede guardar este checklist porque no tiene preguntas activas.',
+      );
+      return;
+    }
+
+    if (!schedulePreview.hasSchedule) {
+      showAppAlert(
+        'Programacion requerida',
+        'Para guardar el checklist primero debes crear una programacion activa.',
+      );
+      return;
+    }
+
+    if (!schedulePreview.allowed) {
+      showAppAlert(
+        'Checklist fuera de programacion',
+        `${schedulePreview.message}${schedulePreview.hint ? `\n${schedulePreview.hint}` : ''}`,
+      );
+      return;
+    }
+
     if (!validate()) {
       showAppAlert(
         'Faltan datos',
@@ -900,6 +932,11 @@ export default function ChecklistFormScreen() {
     periodStartLabel,
     questions,
     router,
+    schedulePreview.allowed,
+    schedulePreview.hasSchedule,
+    schedulePreview.hint,
+    schedulePreview.isLoading,
+    schedulePreview.message,
     showAppAlert,
     uploadChecklistPhotos,
     validate,
@@ -977,6 +1014,35 @@ export default function ChecklistFormScreen() {
     params.equipamentoId,
     params.equipamentoNombre,
     router,
+  ]);
+
+  const saveBlockedReason = useMemo(() => {
+    if (schedulePreview.isLoading) {
+      return 'Se esta validando la programacion. Intente en unos segundos.';
+    }
+
+    if (questions.length === 0) {
+      return 'No se puede guardar porque este checklist no tiene preguntas activas.';
+    }
+
+    if (!schedulePreview.hasSchedule) {
+      return 'No se puede guardar porque no hay una programacion activa para este checklist.';
+    }
+
+    if (!schedulePreview.allowed) {
+      return (
+        schedulePreview.message ||
+        'No se puede guardar porque la programacion actual lo restringe.'
+      );
+    }
+
+    return null;
+  }, [
+    questions.length,
+    schedulePreview.allowed,
+    schedulePreview.hasSchedule,
+    schedulePreview.isLoading,
+    schedulePreview.message,
   ]);
 
   const listHeader = useMemo(
@@ -1071,7 +1137,7 @@ export default function ChecklistFormScreen() {
         {!schedulePreview.allowed && schedulePreview.hint ? (
           <Text style={styles.scheduleHint}>{schedulePreview.hint}</Text>
         ) : null}
-        {!schedulePreview.allowed ? (
+        {!schedulePreview.allowed || !schedulePreview.hasSchedule ? (
           <Pressable
             onPress={handleOpenSchedule}
             style={({ pressed }) => [
@@ -1081,7 +1147,9 @@ export default function ChecklistFormScreen() {
             accessibilityRole="button">
             <Text style={styles.scheduleActionText}>
               {canScheduleMaintenance
-                ? 'Ajustar programacion'
+                ? schedulePreview.hasSchedule
+                  ? 'Ajustar programacion'
+                  : 'Crear programacion'
                 : 'Ver programacion'}
             </Text>
           </Pressable>
@@ -1111,17 +1179,20 @@ export default function ChecklistFormScreen() {
 
       <View style={styles.footer}>
         <Pressable
-          style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
-          disabled={
-            isSaving ||
-            (schedulePreview.hasSchedule && !schedulePreview.allowed)
-          }
+          style={[
+            styles.saveBtn,
+            (isSaving || saveBlockedReason !== null) && styles.saveBtnDisabled,
+          ]}
+          disabled={isSaving || saveBlockedReason !== null}
           onPress={handleSave}
           accessibilityRole="button">
           <Text style={styles.saveBtnText}>
             {isSaving ? 'Guardando...' : 'Guardar checklist'}
           </Text>
         </Pressable>
+        {saveBlockedReason ? (
+          <Text style={styles.saveBlockedText}>{saveBlockedReason}</Text>
+        ) : null}
       </View>
 
       <CameraSourceSheet
@@ -1332,6 +1403,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  saveBlockedText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#B91C1C',
+    lineHeight: 17,
   },
   pressed: {
     opacity: 0.82,
