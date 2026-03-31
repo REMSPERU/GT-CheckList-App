@@ -31,6 +31,7 @@ import {
 import {
   generatePATReportHTML,
   type PATReportSignatures,
+  type PATReportStaticAssets,
 } from './PAT/technical-generator';
 
 /**
@@ -41,6 +42,10 @@ class PDFReportService {
   private readonly PDF_GENERATION_TIMEOUT_MS = 60000;
 
   private patSignaturesCache: PATReportSignatures | null = null;
+
+  private patResistanceTableImageCache: string | null = null;
+
+  private patResistanceTableImageLoaded = false;
 
   private generationQueue: Promise<void> = Promise.resolve();
 
@@ -165,8 +170,9 @@ class PDFReportService {
   generatePATReportHTML(
     data: MaintenanceSessionReport,
     signatures?: PATReportSignatures,
+    staticAssets?: PATReportStaticAssets,
   ): string {
-    return generatePATReportHTML(data, signatures);
+    return generatePATReportHTML(data, signatures, staticAssets);
   }
 
   private async getImageDataUriFromAsset(moduleId: number): Promise<string> {
@@ -208,6 +214,24 @@ class PDFReportService {
     return this.patSignaturesCache;
   }
 
+  private async getPATResistanceTableImage(): Promise<string | null> {
+    if (this.patResistanceTableImageLoaded) {
+      return this.patResistanceTableImageCache;
+    }
+
+    try {
+      this.patResistanceTableImageCache = await this.getImageDataUriFromAsset(
+        require('../../assets/pdf/pat/valores.png'),
+      );
+    } catch (error) {
+      console.error('Error loading PAT resistance table image:', error);
+      this.patResistanceTableImageCache = null;
+    }
+
+    this.patResistanceTableImageLoaded = true;
+    return this.patResistanceTableImageCache;
+  }
+
   /**
    * Generate PDF based on report type
    * @returns URI of the generated PDF file
@@ -229,7 +253,15 @@ class PDFReportService {
         html = this.generateEmergencyLightsReportHTML(data);
         break;
       case ReportType.PAT:
-        html = this.generatePATReportHTML(data, await this.getPATSignatures());
+        {
+          const [signatures, resistanceTableImage] = await Promise.all([
+            this.getPATSignatures(),
+            this.getPATResistanceTableImage(),
+          ]);
+          html = this.generatePATReportHTML(data, signatures, {
+            resistanceTableImage,
+          });
+        }
         break;
       case ReportType.TECHNICAL:
       default:

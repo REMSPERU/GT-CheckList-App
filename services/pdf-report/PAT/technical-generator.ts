@@ -9,6 +9,10 @@ export interface PATReportSignatures {
   gian?: string | null;
 }
 
+export interface PATReportStaticAssets {
+  resistanceTableImage?: string | null;
+}
+
 const DEFAULT_PAT_PROCEDURE_STEPS = [
   'Inspección visual e identificación de los pozos.',
   'Delimitar el área de trabajo con conos y separadores.',
@@ -250,6 +254,37 @@ function getPATStyles(): string {
     }
     .header .division {
       color: #fc7c6e;
+    }
+    .resistance-table-image {
+      width: 100%;
+      max-width: 620px;
+      max-height: 240px;
+      margin: 8px auto 0;
+      display: block;
+      object-fit: contain;
+    }
+    .final-page h2 {
+      margin-top: 10px;
+      margin-bottom: 4px;
+    }
+    .final-page .signature-section {
+      margin-top: 24px;
+      font-size: 10px;
+    }
+    .final-page .signature-image-wrap {
+      height: 70px;
+      margin-bottom: 6px;
+    }
+    .final-page .signature-image {
+      max-height: 64px;
+    }
+    .final-page ul {
+      margin-top: 6px;
+    }
+    .final-page ul li {
+      margin-bottom: 3px;
+      font-size: 10.5px;
+      line-height: 1.3;
     }
   `;
 }
@@ -964,16 +999,14 @@ function generateInspectionChecklistPages(
   return pages;
 }
 
-function generateResistanceTablePage(): string {
-  return `
-    <div class="page">
-      ${generateCompanyHeader()}
-
-      <h2>9.- VALORES MÁXIMOS DE RESISTENCIA DE PUESTA A TIERRA</h2>
-      <p style="text-align: center; font-style: italic;">
-        Tabla 3.1. Valores máximos de resistencia de puesta a tierra
-      </p>
-
+function generateRecommendationsAndConclusionsPage(
+  data: MaintenanceSessionReport,
+  signatures?: PATReportSignatures,
+  resistanceTableImage?: string | null,
+): string {
+  const tableContent = resistanceTableImage
+    ? `<img class="resistance-table-image" src="${resistanceTableImage}" alt="Tabla 3.1. Valores máximos de resistencia de puesta a tierra" />`
+    : `
       <table class="data-table">
         <tr>
           <th>Para ser usado en:</th>
@@ -989,14 +1022,8 @@ function generateResistanceTablePage(): string {
         <tr><td>Equipos electrónicos sensibles</td><td>5</td></tr>
         <tr><td>Telecomunicaciones</td><td>5</td></tr>
       </table>
-    </div>
-  `;
-}
+    `;
 
-function generateRecommendationsAndConclusionsPage(
-  data: MaintenanceSessionReport,
-  signatures?: PATReportSignatures,
-): string {
   const defaultRecommendations = `
     <ul class="arrow-list">
       <li>Se recomienda aplicar un balde de agua una vez al mes, con la
@@ -1020,8 +1047,11 @@ function generateRecommendationsAndConclusionsPage(
   `;
 
   return `
-    <div class="page">
+    <div class="page final-page">
       ${generateCompanyHeader()}
+
+      <h2>9.- VALORES MÁXIMOS DE RESISTENCIA DE PUESTA A TIERRA</h2>
+      ${tableContent}
 
       <h2>10.- RECOMENDACIONES</h2>
       ${
@@ -1067,6 +1097,7 @@ function generateRecommendationsAndConclusionsPage(
 export function generatePATReportHTML(
   data: MaintenanceSessionReport,
   signatures?: PATReportSignatures,
+  staticAssets?: PATReportStaticAssets,
 ): string {
   return `
 <!DOCTYPE html>
@@ -1086,8 +1117,7 @@ export function generatePATReportHTML(
   ${generateTreatmentPages(data)}
   ${generatePostMeasurementPages(data)}
   ${generateInspectionChecklistPages(data)}
-  ${generateResistanceTablePage()}
-  ${generateRecommendationsAndConclusionsPage(data, signatures)}
+  ${generateRecommendationsAndConclusionsPage(data, signatures, staticAssets?.resistanceTableImage)}
 </body>
 </html>
   `;
