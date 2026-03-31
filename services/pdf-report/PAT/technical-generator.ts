@@ -252,6 +252,84 @@ function getPATStyles(): string {
       border: none;
       margin-top: 20px;
     }
+    .cover-page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 10px;
+    }
+    .cover-hero {
+      width: calc(100% - 16mm);
+      height: 122mm;
+      border: 1.2px solid #111;
+      border-radius: 10px;
+      overflow: hidden;
+      box-sizing: border-box;
+      background: linear-gradient(140deg, #f97316 0%, #fdba74 38%, #fff7ed 100%);
+    }
+    .cover-hero-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+    }
+    .cover-hero-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+      color: #7c2d12;
+    }
+    .cover-content {
+      width: 100%;
+      background: #fff;
+      border-radius: 12px;
+      padding: 8mm 8mm 7mm;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    .cover-company {
+      margin: 0;
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 0.3px;
+    }
+    .cover-division {
+      margin: 2px 0 10px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #fc5126;
+    }
+    .cover-report-title {
+      margin: 0;
+      font-size: 24px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #111827;
+      letter-spacing: 1px;
+    }
+    .cover-info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 11px;
+      font-weight: bold;
+      background: #fff;
+    }
+    .cover-info-table td {
+      border: 1.2px solid #111;
+      padding: 5px 6px;
+      text-transform: uppercase;
+    }
+    .cover-info-table td:first-child {
+      width: 30%;
+      background-color: #fff7ed;
+    }
     .header .division {
       color: #fc7c6e;
     }
@@ -316,6 +394,11 @@ interface PATEquipmentData {
   hasAccess?: PATChecklistItem;
 }
 
+const PAT_LABEL_COLLATOR = new Intl.Collator('es', {
+  numeric: true,
+  sensitivity: 'base',
+});
+
 function formatPatState(value: 'good' | 'bad' | null | undefined): string {
   if (value === 'good') return 'Conforme';
   if (value === 'bad') return 'Observado';
@@ -344,6 +427,17 @@ function formatChecklistDetail(item?: PATChecklistItem): string {
   return 'Observado';
 }
 
+function escapeHTML(value?: string | null): string {
+  if (!value) return '';
+
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function getPatData(eq: any): PATEquipmentData {
   const pat = (eq?.patData || {}) as PATEquipmentData;
 
@@ -368,13 +462,40 @@ function getPatData(eq: any): PATEquipmentData {
   };
 }
 
+function getPatSortLabel(eq: any): string {
+  return String(eq?.label || '').trim();
+}
+
+function sortPATEquipments(equipments: any[]): any[] {
+  return [...equipments].sort((a, b) => {
+    const byLabel = PAT_LABEL_COLLATOR.compare(
+      getPatSortLabel(a),
+      getPatSortLabel(b),
+    );
+    if (byLabel !== 0) return byLabel;
+
+    const byType = PAT_LABEL_COLLATOR.compare(
+      String(a?.type || ''),
+      String(b?.type || ''),
+    );
+    if (byType !== 0) return byType;
+
+    return PAT_LABEL_COLLATOR.compare(
+      String(getPATLocationDetail(a)),
+      String(getPATLocationDetail(b)),
+    );
+  });
+}
+
 function isReprogrammedPAT(eq: any): boolean {
   const pat = getPatData(eq);
   return pat.executionStatus === 'reprogrammed';
 }
 
 function getCompletedPATEquipments(data: MaintenanceSessionReport): any[] {
-  return data.equipments.filter(eq => !isReprogrammedPAT(eq));
+  return sortPATEquipments(
+    data.equipments.filter(eq => !isReprogrammedPAT(eq)),
+  );
 }
 
 function getPATLocationDetail(eq: any): string {
@@ -424,47 +545,61 @@ function generateCompanyHeader(): string {
 // ─── Page Generators ─────────────────────────────────────────────────
 
 function generateCoverPage(data: MaintenanceSessionReport): string {
-  return `
-    <div class="page">
-      <div class="header cover-header">
-        <span class="bold">PROPIEDAD ELITE S.R.L.</span><br/>
-        <span class="bold division">DIVISIÓN ELÉCTRICA</span><br/>
-        RUC: 20538436209<br/>
-        Teléfono: (511) 979351357<br/>
-        Correo: Gianmarco.Isique@rems.pe
-      </div>
+  const propertyName =
+    data.clientName?.trim() || data.locationName || 'Propiedad';
+  const reference = data.propertyCode
+    ? `${data.propertyCode} - ${propertyName}`
+    : data.locationName || propertyName;
+  const serviceDescription =
+    data.serviceDescription ||
+    'MANTENIMIENTO PREVENTIVO DE SISTEMA DE PUESTA A TIERRA';
 
-      <table class="info-table">
-        <tr>
-          <td colspan="2" style="text-align: center; font-size: 16px; background-color: #fc5126;">
-            INFORME TÉCNICO
-          </td>
-        </tr>
+  return `
+    <div class="page cover-page">
+      <div class="cover-content">
+        <p class="cover-company">PROPIEDAD ELITE S.R.L.</p>
+        <p class="cover-division">DIVISIÓN ELÉCTRICA</p>
+        <h1 class="cover-report-title">INFORME TÉCNICO</h1>
+
+        <table class="cover-info-table">
         <tr>
           <td>FECHA:</td>
           <td>${formatDate(data.serviceDate)}</td>
         </tr>
         <tr>
           <td>CLIENTE:</td>
-          <td>${data.clientName}</td>
+          <td>${escapeHTML(propertyName)}</td>
         </tr>
         <tr>
           <td>REFERENCIA:</td>
-          <td>${data.locationName}</td>
+          <td>${escapeHTML(reference)}</td>
         </tr>
         <tr>
           <td>DIRECCIÓN:</td>
-          <td>${data.address}</td>
+          <td>${escapeHTML(data.address || 'SIN DIRECCIÓN REGISTRADA')}</td>
+        </tr>
+        <tr>
+          <td>CIUDAD:</td>
+          <td>${escapeHTML(data.propertyCity || 'LIMA')}</td>
         </tr>
         <tr>
           <td>MOTIVO:</td>
-          <td>${data.serviceDescription || 'MANTENIMIENTO PREVENTIVO DE SISTEMA DE PUESTA A TIERRA'}</td>
+          <td>${escapeHTML(serviceDescription)}</td>
         </tr>
         <tr>
           <td>RESPONSABLE:</td>
           <td>Gianmarco Isique Neciosup</td>
         </tr>
       </table>
+      </div>
+
+      <div class="cover-hero">
+        ${
+          data.propertyImageUrl
+            ? `<img class="cover-hero-image" src="${escapeHTML(data.propertyImageUrl)}" alt="Imagen de la propiedad ${escapeHTML(propertyName)}" />`
+            : '<div class="cover-hero-placeholder">IMAGEN DE PROPIEDAD NO DISPONIBLE</div>'
+        }
+      </div>
     </div>
   `;
 }
@@ -542,7 +677,7 @@ function renderPreMeasurementBlock(eq: any, idx: number): string {
 function generateWellListingAndPreMeasurementPages(
   data: MaintenanceSessionReport,
 ): string {
-  const equipments = data.equipments;
+  const equipments = sortPATEquipments(data.equipments);
   const measurableEquipments = getCompletedPATEquipments(data);
   const totalWells = equipments.length;
   const totalMeasurableWells = measurableEquipments.length;
@@ -844,7 +979,7 @@ function generatePostMeasurementPages(data: MaintenanceSessionReport): string {
 function generateInspectionChecklistPages(
   data: MaintenanceSessionReport,
 ): string {
-  const equipments = data.equipments;
+  const equipments = sortPATEquipments(data.equipments);
   if (equipments.length === 0) return '';
 
   const batches: (typeof equipments)[] = [];

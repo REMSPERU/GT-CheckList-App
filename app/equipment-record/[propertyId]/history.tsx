@@ -19,6 +19,7 @@ import { ReportTypeModal } from '@/components/ReportTypeModal';
 import { useMaintenanceByProperty } from '@/hooks/use-maintenance';
 import { MaintenanceStatusEnum } from '@/types/api';
 import { supabase } from '@/lib/supabase';
+import { DatabaseService } from '@/services/db';
 import {
   pdfReportService as newPdfReportService,
   ReportType,
@@ -38,6 +39,75 @@ interface SessionHistoryItem {
 interface SessionCardProps {
   session: SessionHistoryItem;
   onShowReportOptions: (session: SessionHistoryItem) => void;
+}
+
+interface PropertyReportContext {
+  name: string;
+  address: string;
+  imageUrl: string | null;
+  code: string;
+  city: string;
+}
+
+async function resolvePropertyReportContext(
+  propertyId: string,
+  fallbackName?: string,
+): Promise<PropertyReportContext> {
+  const fallback: PropertyReportContext = {
+    name: fallbackName || 'Propiedad',
+    address: 'Dirección no registrada',
+    imageUrl: null,
+    code: '',
+    city: '',
+  };
+
+  let contextFromLocal: PropertyReportContext | null = null;
+
+  try {
+    const localProperties =
+      (await DatabaseService.getLocalProperties()) as any[];
+    const localProperty = localProperties.find(item => item.id === propertyId);
+
+    if (localProperty) {
+      contextFromLocal = {
+        name: localProperty.name || fallback.name,
+        address: localProperty.address || fallback.address,
+        imageUrl: localProperty.image_url || null,
+        code: localProperty.code || '',
+        city: localProperty.city || '',
+      };
+    }
+  } catch (error) {
+    console.log(
+      'No se pudo obtener la propiedad local para el reporte:',
+      error,
+    );
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('properties')
+      .select('name, address, image_url, code, city')
+      .eq('id', propertyId)
+      .maybeSingle();
+
+    if (!error && data) {
+      return {
+        name: data.name || contextFromLocal?.name || fallback.name,
+        address: data.address || contextFromLocal?.address || fallback.address,
+        imageUrl: data.image_url || contextFromLocal?.imageUrl || null,
+        code: data.code || contextFromLocal?.code || '',
+        city: data.city || contextFromLocal?.city || '',
+      };
+    }
+  } catch (error) {
+    console.log(
+      'No se pudo obtener la propiedad remota para el reporte, usando espejo local:',
+      error,
+    );
+  }
+
+  return contextFromLocal || fallback;
 }
 
 const SessionCard = React.memo(function SessionCard({
@@ -317,6 +387,11 @@ export default function SessionHistoryScreen() {
 
       setGenerationProgress('Procesando datos del informe...');
 
+      const propertyContext = await resolvePropertyReportContext(
+        propertyId,
+        typeof propertyName === 'string' ? propertyName : undefined,
+      );
+
       const equipments: any[] = [];
       let totalOkItems = 0;
       let totalIssueItems = 0;
@@ -541,10 +616,17 @@ export default function SessionHistoryScreen() {
       }
 
       // Build report data
+      const locationName = propertyContext.code
+        ? `${propertyContext.code} - ${propertyContext.name}`
+        : propertyContext.name;
+
       const reportData: MaintenanceSessionReport = {
-        clientName: 'CORPORACION MG SAC',
-        address: 'Av. Del Pinar 180, Surco',
-        locationName: propertyName || 'Propiedad',
+        clientName: propertyContext.name,
+        address: propertyContext.address,
+        locationName,
+        propertyCode: propertyContext.code || undefined,
+        propertyCity: propertyContext.city || undefined,
+        propertyImageUrl: propertyContext.imageUrl,
         serviceDescription: isPATReport
           ? 'MANTENIMIENTO PREVENTIVO DE SISTEMA DE PUESTA A TIERRA'
           : 'MANTENIMIENTO PREVENTIVO DE TABLEROS ELÉCTRICOS',
@@ -577,7 +659,7 @@ export default function SessionHistoryScreen() {
       setPdfUri(uri);
 
       setReportSummary({
-        propertyName: propertyName || 'Propiedad',
+        propertyName: propertyContext.name,
         sessionDate: selectedSession.displayDate,
         totalEquipments: equipments.length,
         totalOk: totalOkItems,
