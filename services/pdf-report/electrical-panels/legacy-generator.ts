@@ -35,19 +35,6 @@ export function generateMaintenanceHTML(
   data: ReportMaintenanceData,
   _index: number,
 ): string {
-  console.log(
-    'generateMaintenanceHTML input data:',
-    JSON.stringify(
-      {
-        id: data.maintenanceId,
-        itemObservations: data.itemObservations,
-        observations: data.observations,
-      },
-      null,
-      2,
-    ),
-  );
-
   // Convert legacy format to new format
   const equipment: EquipmentMaintenanceData = {
     code: data.maintenanceId,

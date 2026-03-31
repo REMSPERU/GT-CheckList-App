@@ -86,6 +86,26 @@ class PDFReportService {
     });
   }
 
+  private sanitizePdfFilename(filename: string): string {
+    return filename.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
+  }
+
+  private async copyPdfWithStableName(
+    sourceUri: string,
+    filename: string,
+  ): Promise<string> {
+    const cleanName = this.sanitizePdfFilename(filename);
+    const targetUri = `${FileSystem.documentDirectory}${cleanName}`;
+
+    const fileInfo = await FileSystem.getInfoAsync(targetUri);
+    if (fileInfo.exists) {
+      await FileSystem.deleteAsync(targetUri, { idempotent: true });
+    }
+
+    await FileSystem.copyAsync({ from: sourceUri, to: targetUri });
+    return targetUri;
+  }
+
   /**
    * Generate full HTML for the maintenance session report (TECHNICAL REPORT)
    */
@@ -334,10 +354,7 @@ class PDFReportService {
     // Use descriptive name if provided
     if (filename) {
       try {
-        const cleanName = filename.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
-        const newUri = `${FileSystem.documentDirectory}${cleanName}`;
-        await FileSystem.copyAsync({ from: pdfUri, to: newUri });
-        uriToOpen = newUri;
+        uriToOpen = await this.copyPdfWithStableName(pdfUri, filename);
       } catch (error) {
         console.error('Error renaming PDF for opening:', error);
       }
@@ -383,13 +400,7 @@ class PDFReportService {
     // This makes the share/save dialog show a nice name instead of "Print.pdf"
     if (filename) {
       try {
-        const cleanName = filename.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
-        const newUri = `${FileSystem.documentDirectory}${cleanName}`;
-        await FileSystem.copyAsync({
-          from: pdfUri,
-          to: newUri,
-        });
-        uriToShare = newUri;
+        uriToShare = await this.copyPdfWithStableName(pdfUri, filename);
       } catch (error) {
         console.error('Error renaming PDF for share:', error);
         // Fallback to original URI if renaming fails
