@@ -38,6 +38,13 @@ interface ChecklistItem {
   photo: string | null;
 }
 
+type InspectionItemKey =
+  | 'wellMeasurement'
+  | 'hasSignage'
+  | 'wellLabeling'
+  | 'connectorsOk'
+  | 'hasAccess';
+
 type MaintenanceType = 'conventional' | 'conductive-cement' | null;
 type ExecutionStatus = 'completed' | 'reprogrammed';
 
@@ -55,7 +62,9 @@ interface GroundingWellSession {
   lidStatus: 'good' | 'bad' | null;
   lidStatusObservation: string;
   lidStatusPhoto: string | null;
+  wellMeasurement: ChecklistItem;
   hasSignage: ChecklistItem;
+  wellLabeling: ChecklistItem;
   connectorsOk: ChecklistItem;
   hasAccess: ChecklistItem;
 }
@@ -113,9 +122,45 @@ const defaultSession: GroundingWellSession = {
   lidStatus: 'good',
   lidStatusObservation: '',
   lidStatusPhoto: null,
+  wellMeasurement: {
+    ...defaultItem,
+    observation: 'DENTRO DEL RANGO PERMITIDO',
+  },
   hasSignage: { ...defaultItem },
+  wellLabeling: { ...defaultItem },
   connectorsOk: { ...defaultItem },
   hasAccess: { ...defaultItem },
+};
+
+const LID_STATUS_TEXT = {
+  good: '',
+  bad: 'MAL ESTADO',
+} as const;
+
+const INSPECTION_STATUS_MAP: Record<
+  InspectionItemKey,
+  { ok: string; obs: string }
+> = {
+  wellMeasurement: {
+    ok: 'DENTRO DEL RANGO PERMITIDO',
+    obs: 'FUERA DEL RANGO PERMITIDO',
+  },
+  hasSignage: {
+    ok: '',
+    obs: 'NO CUENTA',
+  },
+  wellLabeling: {
+    ok: '',
+    obs: 'NO CUENTA / MAL ESTADO',
+  },
+  connectorsOk: {
+    ok: '',
+    obs: 'Mal estado',
+  },
+  hasAccess: {
+    ok: '',
+    obs: 'NO CUENTA',
+  },
 };
 
 const STORAGE_KEY_PREFIX = 'grounding_well_session_';
@@ -181,6 +226,8 @@ interface TypeOptionProps {
   selected: boolean;
   onPress: () => void;
 }
+
+type MdiIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const TypeOption = memo(function TypeOption({
   label,
@@ -486,10 +533,7 @@ export default function GroundingWellChecklistScreen() {
           persistDraft: true,
         });
       } else {
-        const checklistKey = itemKey as
-          | 'hasSignage'
-          | 'connectorsOk'
-          | 'hasAccess';
+        const checklistKey = itemKey as InspectionItemKey;
 
         setData(prev => {
           const item = prev[checklistKey];
@@ -504,8 +548,14 @@ export default function GroundingWellChecklistScreen() {
     [persistDraft, requestPermissions, scheduleDraftSave, updateData],
   );
 
-  const checklistKeys = useMemo<(keyof GroundingWellSession)[]>(
-    () => ['hasSignage', 'connectorsOk', 'hasAccess'],
+  const checklistKeys = useMemo<InspectionItemKey[]>(
+    () => [
+      'wellMeasurement',
+      'hasSignage',
+      'wellLabeling',
+      'connectorsOk',
+      'hasAccess',
+    ],
     [],
   );
 
@@ -614,14 +664,6 @@ export default function GroundingWellChecklistScreen() {
           'Tome una foto de la medición post-mantenimiento.',
         ],
         [data.lidStatus === null, 'Seleccione el estado de la tapa.'],
-        [
-          data.lidStatus === 'bad' && !data.lidStatusObservation,
-          'Ingrese una observación para el estado de la tapa.',
-        ],
-        [
-          data.lidStatus === 'bad' && !data.lidStatusPhoto,
-          'Tome una foto para el estado de la tapa.',
-        ],
       ];
 
       for (const [condition, message] of requiredChecks) {
@@ -630,29 +672,23 @@ export default function GroundingWellChecklistScreen() {
           return;
         }
       }
-
-      for (const key of checklistKeys) {
-        const item = data[key] as ChecklistItem;
-        if (!item.value) {
-          if (!item.observation) {
-            Alert.alert(
-              'Campo requerido',
-              `Ingrese una observación para "${key}".`,
-            );
-            return;
-          }
-          if (!item.photo) {
-            Alert.alert('Campo requerido', `Tome una foto para "${key}".`);
-            return;
-          }
-        }
-      }
     }
 
     setLoading(true);
     try {
       const photosToSave: { uri: string; itemKey: string }[] = [];
       const dataToSave = JSON.parse(JSON.stringify(data));
+
+      dataToSave.lidStatusObservation =
+        dataToSave.lidStatus === 'good'
+          ? LID_STATUS_TEXT.good
+          : LID_STATUS_TEXT.bad;
+      checklistKeys.forEach(key => {
+        const item = dataToSave[key] as ChecklistItem;
+        item.observation = item.value
+          ? INSPECTION_STATUS_MAP[key].ok
+          : INSPECTION_STATUS_MAP[key].obs;
+      });
 
       // Recolectar fotos directas
       const directPhotos: [string, string][] = [
@@ -741,15 +777,18 @@ export default function GroundingWellChecklistScreen() {
   // ─── Render Helpers ──────────────────────────────────────────────
 
   const renderToggleItem = useCallback(
-    (label: string, itemKey: keyof GroundingWellSession, iconName: string) => {
+    (label: string, itemKey: InspectionItemKey, iconName: MdiIconName) => {
       const item = data[itemKey] as ChecklistItem;
+      const statusText = item.value
+        ? INSPECTION_STATUS_MAP[itemKey].ok
+        : INSPECTION_STATUS_MAP[itemKey].obs;
       return (
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <View style={styles.labelRow}>
               <View style={styles.iconContainer}>
                 <MaterialCommunityIcons
-                  name={iconName as any}
+                  name={iconName}
                   size={16}
                   color={COLORS.primary}
                 />
@@ -762,13 +801,22 @@ export default function GroundingWellChecklistScreen() {
                   styles.statusBadge,
                   item.value ? styles.statusBadgeOk : styles.statusBadgeBad,
                 ]}>
-                {item.value ? 'Sí' : 'No'}
+                {item.value ? 'OK' : 'OBS'}
               </Text>
               <Switch
                 value={item.value}
                 onValueChange={value =>
                   updateData(
-                    { [itemKey]: { ...item, value } },
+                    {
+                      [itemKey]: {
+                        ...item,
+                        value,
+                        observation: value
+                          ? INSPECTION_STATUS_MAP[itemKey].ok
+                          : INSPECTION_STATUS_MAP[itemKey].obs,
+                        photo: value ? null : item.photo,
+                      },
+                    },
                     { persistDraft: true },
                   )
                 }
@@ -778,31 +826,27 @@ export default function GroundingWellChecklistScreen() {
               />
             </View>
           </View>
+          {!!statusText && (
+            <View style={styles.statusDescriptionBox}>
+              <Text style={styles.statusDescriptionLabel}>Estado</Text>
+              <Text style={styles.statusDescription}>{statusText}</Text>
+            </View>
+          )}
           {!item.value && (
             <>
-              <TextInput
-                style={styles.obsInput}
-                placeholder="Ingrese observación..."
-                placeholderTextColor={COLORS.textMuted}
-                value={item.observation}
-                onChangeText={observation =>
-                  updateData({ [itemKey]: { ...item, observation } })
-                }
-                onBlur={persistCurrentDraft}
-                multiline
-              />
               <PhotoButton
                 onPress={() => takePhoto(itemKey)}
                 hasPhoto={!!item.photo}
                 compact
               />
+              <Text style={styles.optionalHint}>Foto opcional</Text>
               {item.photo && <PhotoThumbnail uri={item.photo} />}
             </>
           )}
         </View>
       );
     },
-    [data, persistCurrentDraft, takePhoto, updateData],
+    [data, takePhoto, updateData],
   );
 
   if (loading || initializing) {
@@ -1108,13 +1152,19 @@ export default function GroundingWellChecklistScreen() {
                     ? styles.statusBadgeOk
                     : styles.statusBadgeBad,
                 ]}>
-                {data.lidStatus === 'good' ? 'Bueno' : 'Malo'}
+                {data.lidStatus === 'good' ? 'OK' : 'OBS'}
               </Text>
               <Switch
                 value={data.lidStatus === 'good'}
                 onValueChange={value =>
                   updateData(
-                    { lidStatus: value ? 'good' : 'bad' },
+                    {
+                      lidStatus: value ? 'good' : 'bad',
+                      lidStatusObservation: value
+                        ? LID_STATUS_TEXT.good
+                        : LID_STATUS_TEXT.bad,
+                      lidStatusPhoto: value ? null : data.lidStatusPhoto,
+                    },
                     { persistDraft: true },
                   )
                 }
@@ -1127,23 +1177,21 @@ export default function GroundingWellChecklistScreen() {
             </View>
           </View>
           {data.lidStatus === 'bad' && (
+            <View style={styles.statusDescriptionBox}>
+              <Text style={styles.statusDescriptionLabel}>Estado</Text>
+              <Text style={styles.statusDescription}>
+                {LID_STATUS_TEXT.bad}
+              </Text>
+            </View>
+          )}
+          {data.lidStatus === 'bad' && (
             <>
-              <TextInput
-                style={styles.obsInput}
-                placeholder="Ingrese observación..."
-                placeholderTextColor={COLORS.textMuted}
-                value={data.lidStatusObservation}
-                onChangeText={text =>
-                  updateData({ lidStatusObservation: text })
-                }
-                onBlur={persistCurrentDraft}
-                multiline
-              />
               <PhotoButton
                 onPress={() => takePhoto('lidStatus')}
                 hasPhoto={!!data.lidStatusPhoto}
                 compact
               />
+              <Text style={styles.optionalHint}>Foto opcional</Text>
               {data.lidStatusPhoto && (
                 <PhotoThumbnail uri={data.lidStatusPhoto} />
               )}
@@ -1151,15 +1199,17 @@ export default function GroundingWellChecklistScreen() {
           )}
         </View>
 
-        {renderToggleItem('Señalética Numérica', 'hasSignage', 'numeric')}
+        {renderToggleItem('Medición del Pozo', 'wellMeasurement', 'gauge')}
+        {renderToggleItem('Señalética en Pared', 'hasSignage', 'numeric')}
+        {renderToggleItem('Rotulado del Pozo', 'wellLabeling', 'tag-outline')}
         {renderToggleItem(
-          'Conectores en Buen Estado',
+          'Estado del Conductor (Cable)',
           'connectorsOk',
           'power-plug',
         )}
-        {renderToggleItem('Acceso Disponible', 'hasAccess', 'door-open')}
+        {renderToggleItem('Cuenta con Acceso', 'hasAccess', 'door-open')}
 
-        <View style={{ height: 30 }} />
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
       <View style={styles.syncStatusWrap}>
@@ -1442,6 +1492,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textSecondary,
     lineHeight: 18,
+  },
+  statusDescription: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  statusDescriptionBox: {
+    marginTop: 6,
+    backgroundColor: COLORS.borderLight,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  statusDescriptionLabel: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginBottom: 2,
+  },
+  optionalHint: {
+    marginTop: 6,
+    fontSize: 11,
+    color: COLORS.textMuted,
+  },
+  bottomSpacer: {
+    height: 30,
   },
 
   // Thumbnail
