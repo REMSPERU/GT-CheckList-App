@@ -322,6 +322,28 @@ function formatPatState(value: 'good' | 'bad' | null | undefined): string {
   return 'No registrado';
 }
 
+function formatLidStatusDetail(
+  status: 'good' | 'bad' | null | undefined,
+  observation?: string,
+): string {
+  const trimmedObservation = observation?.trim();
+
+  if (status === 'bad' && trimmedObservation) {
+    return trimmedObservation;
+  }
+
+  return formatPatState(status);
+}
+
+function formatChecklistDetail(item?: PATChecklistItem): string {
+  if (item?.value) return 'Conforme';
+
+  const observation = item?.observation?.trim();
+  if (observation) return observation;
+
+  return 'Observado';
+}
+
 function getPatData(eq: any): PATEquipmentData {
   const pat = (eq?.patData || {}) as PATEquipmentData;
 
@@ -902,7 +924,10 @@ function generateInspectionChecklistPages(
               `;
             }
 
-            const lidStatusLabel = formatPatState(pat.lidStatus);
+            const lidStatusDetail = formatLidStatusDetail(
+              pat.lidStatus,
+              pat.lidStatusObservation,
+            );
 
             const checklistRows = [
               {
@@ -927,29 +952,16 @@ function generateInspectionChecklistPages(
                     <th>ÍTEM</th>
                     <th>ESTADO / DETALLE</th>
                   </tr>
-                  <tr>
-                    <td>ESTADO DE TAPA</td>
-                    <td>${lidStatusLabel}</td>
-                  </tr>
-                  ${
-                    pat.lidStatusObservation?.trim()
-                      ? `
-                  <tr>
-                    <td>OBSERVACIÓN DE TAPA</td>
-                    <td>${pat.lidStatusObservation}</td>
-                  </tr>
-                  `
-                      : ''
-                  }
+                   <tr>
+                     <td>ESTADO DE TAPA</td>
+                     <td>${lidStatusDetail}</td>
+                   </tr>
                   ${checklistRows
                     .map(
                       row => `
                     <tr>
                       <td>${row.label}</td>
-                      <td>
-                        ${row.item?.value ? 'Conforme' : 'Observado'}
-                        ${row.item?.observation ? `<br/>${row.item.observation}` : ''}
-                      </td>
+                      <td>${formatChecklistDetail(row.item)}</td>
                     </tr>
                   `,
                     )
