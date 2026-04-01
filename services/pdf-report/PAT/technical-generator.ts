@@ -466,8 +466,26 @@ function getPatSortLabel(eq: any): string {
   return String(eq?.label || '').trim();
 }
 
+function getPatSortNumericSuffix(eq: any): number | null {
+  const label = getPatSortLabel(eq);
+  const matches = [...label.matchAll(/\d+/g)];
+  if (matches.length === 0) return null;
+
+  const rawValue = matches[matches.length - 1]?.[0] || '';
+  const parsed = Number.parseInt(rawValue, 10);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 function sortPATEquipments(equipments: any[]): any[] {
   return [...equipments].sort((a, b) => {
+    const numericA = getPatSortNumericSuffix(a);
+    const numericB = getPatSortNumericSuffix(b);
+    if (numericA !== null || numericB !== null) {
+      if (numericA === null) return 1;
+      if (numericB === null) return -1;
+      if (numericA !== numericB) return numericA - numericB;
+    }
+
     const byLabel = PAT_LABEL_COLLATOR.compare(
       getPatSortLabel(a),
       getPatSortLabel(b),
