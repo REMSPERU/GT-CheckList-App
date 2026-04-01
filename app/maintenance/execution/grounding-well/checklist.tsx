@@ -165,6 +165,8 @@ const INSPECTION_STATUS_MAP: Record<
 
 const STORAGE_KEY_PREFIX = 'grounding_well_session_';
 const SYNC_TIMEOUT_MS = 15000;
+const MAX_REPROGRAM_COMMENT_LENGTH = 220;
+const MAX_GENERAL_OBSERVATION_LENGTH = 280;
 
 // ─── Memoized Sub-Components ─────────────────────────────────────────
 
@@ -929,6 +931,7 @@ export default function GroundingWellChecklistScreen() {
                 value={data.reprogramComment}
                 onChangeText={text => updateData({ reprogramComment: text })}
                 onBlur={persistCurrentDraft}
+                maxLength={MAX_REPROGRAM_COMMENT_LENGTH}
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
@@ -1122,6 +1125,7 @@ export default function GroundingWellChecklistScreen() {
             value={data.generalObservation}
             onChangeText={text => updateData({ generalObservation: text })}
             onBlur={persistCurrentDraft}
+            maxLength={MAX_GENERAL_OBSERVATION_LENGTH}
             multiline
             numberOfLines={3}
             textAlignVertical="top"

@@ -164,7 +164,44 @@ function getPATStyles(): string {
     .inspection-block {
       page-break-inside: avoid;
       break-inside: avoid;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+    }
+    .section-inspection {
+      margin-top: 2px;
+    }
+    .section-inspection .inspection-block-title {
+      font-size: 11.5px;
+      margin-top: 6px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    .inspection-table {
+      margin-top: 4px;
+      margin-bottom: 5px;
+      font-size: 10px;
+    }
+    .inspection-table th,
+    .inspection-table td {
+      padding: 2px 4px;
+      line-height: 1.2;
+      vertical-align: top;
+    }
+    .inspection-table th {
+      font-size: 9.8px;
+    }
+    .inspection-table td:first-child {
+      width: 34%;
+      font-weight: bold;
+    }
+    .inspection-photo-grid {
+      margin-top: 4px;
+      gap: 6px;
+    }
+    .inspection-photo-grid .photo-container {
+      width: calc(50% - 3px);
+    }
+    .inspection-photo-grid .photo-small img {
+      max-height: 148px;
     }
     .section-subtitle {
       font-size: 11px;
@@ -438,6 +475,25 @@ function escapeHTML(value?: string | null): string {
     .replace(/'/g, '&#39;');
 }
 
+function normalizeComment(
+  value: string | null | undefined,
+  fallback: string,
+  maxLength = 220,
+): string {
+  const normalized = String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!normalized) return escapeHTML(fallback);
+
+  const clipped =
+    normalized.length > maxLength
+      ? `${normalized.slice(0, maxLength).trimEnd()}...`
+      : normalized;
+
+  return escapeHTML(clipped);
+}
+
 function getPatData(eq: any): PATEquipmentData {
   const pat = (eq?.patData || {}) as PATEquipmentData;
 
@@ -539,6 +595,7 @@ function renderPhoto(
 function renderPhotoGrid(
   photos: Array<{ url?: string | null; caption: string }>,
   small = true,
+  className?: string,
 ): string {
   const rendered = photos
     .filter(photo => !!photo.url)
@@ -547,7 +604,27 @@ function renderPhotoGrid(
 
   if (!rendered) return '';
 
-  return `<div class="photo-grid">${rendered}</div>`;
+  return `<div class="photo-grid ${className || ''}">${rendered}</div>`;
+}
+
+function estimateInspectionBlockWeight(eq: any): number {
+  const pat = getPatData(eq as any);
+
+  if (pat.executionStatus === 'reprogrammed') {
+    const commentLength = pat.reprogramComment?.trim().length || 0;
+    return commentLength > 140 ? 1.6 : 1.35;
+  }
+
+  const photoCount = [
+    pat.lidStatusPhoto,
+    pat.hasSignage?.photo,
+    pat.connectorsOk?.photo,
+    pat.hasAccess?.photo,
+  ].filter(Boolean).length;
+
+  const observationLength = pat.generalObservation?.trim().length || 0;
+
+  return 1.7 + photoCount * 0.55 + Math.min(observationLength / 260, 0.5);
 }
 
 function generateCompanyHeader(): string {
@@ -1005,19 +1082,9 @@ function generateInspectionChecklistPages(
   let currentWeight = 0;
 
   equipments.forEach(eq => {
-    const pat = getPatData(eq as any);
-    const photoCount = [
-      pat.lidStatusPhoto,
-      pat.hasSignage?.photo,
-      pat.connectorsOk?.photo,
-      pat.hasAccess?.photo,
-    ].filter(Boolean).length;
-    const hasGeneralObservation = !!pat.generalObservation?.trim();
-
-    const blockWeight =
-      2 + Math.min(photoCount, 4) * 0.8 + (hasGeneralObservation ? 0.4 : 0);
-    const maxWeightPerPage = 7.5;
-    const maxBlocksPerPage = 3;
+    const blockWeight = estimateInspectionBlockWeight(eq);
+    const maxWeightPerPage = 8.9;
+    const maxBlocksPerPage = 4;
 
     if (
       currentBatch.length > 0 &&
@@ -1049,6 +1116,7 @@ function generateInspectionChecklistPages(
         ${generateCompanyHeader()}
 
         ${isFirst ? '<h2>8.- INSPECCIÓN DETALLADA DE LOS POZOS</h2>' : ''}
+        <div class="section-inspection">
         ${batch
           .map((eq, index) => {
             const absoluteIndex = absoluteIndexOffset + index;
@@ -1058,8 +1126,8 @@ function generateInspectionChecklistPages(
             if (isReprogrammed) {
               return `
                 <div class="inspection-block">
-                  <h2 style="margin-top: ${index === 0 ? '4px' : '10px'};">POZO ${absoluteIndex + 1}: ${eq.label || 'SIN DENOMINACIÓN'}</h2>
-                  <table class="data-table">
+                  <h2 class="inspection-block-title" style="margin-top: ${index === 0 ? '2px' : '6px'};">POZO ${absoluteIndex + 1}: ${eq.label || 'SIN DENOMINACIÓN'}</h2>
+                  <table class="data-table inspection-table">
                     <tr>
                       <th>ÍTEM</th>
                       <th>ESTADO / DETALLE</th>
@@ -1070,7 +1138,7 @@ function generateInspectionChecklistPages(
                     </tr>
                     <tr>
                       <td>COMENTARIO</td>
-                      <td>${pat.reprogramComment?.trim() || 'Sin comentario registrado por el técnico.'}</td>
+                      <td>${normalizeComment(pat.reprogramComment, 'Sin comentario registrado por el técnico.', 180)}</td>
                     </tr>
                   </table>
                 </div>
@@ -1099,8 +1167,8 @@ function generateInspectionChecklistPages(
 
             return `
               <div class="inspection-block">
-                <h2 style="margin-top: ${index === 0 ? '4px' : '10px'};">POZO ${absoluteIndex + 1}: ${eq.label || 'SIN DENOMINACIÓN'}</h2>
-                <table class="data-table">
+                <h2 class="inspection-block-title" style="margin-top: ${index === 0 ? '2px' : '6px'};">POZO ${absoluteIndex + 1}: ${eq.label || 'SIN DENOMINACIÓN'}</h2>
+                <table class="data-table inspection-table">
                   <tr>
                     <th>ÍTEM</th>
                     <th>ESTADO / DETALLE</th>
@@ -1124,7 +1192,7 @@ function generateInspectionChecklistPages(
                       ? `
                   <tr>
                     <td>OBSERVACIÓN GENERAL</td>
-                    <td>${pat.generalObservation}</td>
+                    <td>${normalizeComment(pat.generalObservation, 'Sin observaciones adicionales.', 220)}</td>
                   </tr>
                   `
                       : ''
@@ -1151,11 +1219,13 @@ function generateInspectionChecklistPages(
                     },
                   ],
                   true,
+                  'inspection-photo-grid',
                 )}
               </div>
             `;
           })
           .join('')}
+        </div>
       </div>
     `;
     absoluteIndexOffset += batch.length;
