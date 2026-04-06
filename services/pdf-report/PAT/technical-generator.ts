@@ -4,6 +4,15 @@
 import { MaintenanceSessionReport } from '../common/types';
 import { formatDate } from '../common/utils';
 
+export interface PATReportSignatures {
+  gabriel?: string | null;
+  gian?: string | null;
+}
+
+export interface PATReportStaticAssets {
+  resistanceTableImage?: string | null;
+}
+
 const DEFAULT_PAT_PROCEDURE_STEPS = [
   'Inspección visual e identificación de los pozos.',
   'Delimitar el área de trabajo con conos y separadores.',
@@ -155,7 +164,44 @@ function getPATStyles(): string {
     .inspection-block {
       page-break-inside: avoid;
       break-inside: avoid;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+    }
+    .section-inspection {
+      margin-top: 2px;
+    }
+    .section-inspection .inspection-block-title {
+      font-size: 11.5px;
+      margin-top: 6px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    .inspection-table {
+      margin-top: 4px;
+      margin-bottom: 5px;
+      font-size: 10px;
+    }
+    .inspection-table th,
+    .inspection-table td {
+      padding: 2px 4px;
+      line-height: 1.2;
+      vertical-align: top;
+    }
+    .inspection-table th {
+      font-size: 9.8px;
+    }
+    .inspection-table td:first-child {
+      width: 34%;
+      font-weight: bold;
+    }
+    .inspection-photo-grid {
+      margin-top: 4px;
+      gap: 6px;
+    }
+    .inspection-photo-grid .photo-container {
+      width: calc(50% - 3px);
+    }
+    .inspection-photo-grid .photo-small img {
+      max-height: 148px;
     }
     .section-subtitle {
       font-size: 11px;
@@ -224,16 +270,136 @@ function getPATStyles(): string {
     }
     .signature-box {
       width: 45%;
-      border-top: 1px solid #000;
-      padding-top: 10px;
+      padding-top: 6px;
+    }
+    .signature-image-wrap {
+      height: 84px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .signature-image {
+      max-width: 100%;
+      max-height: 80px;
+      object-fit: contain;
     }
     .cover-header {
       text-align: center;
       border: none;
       margin-top: 20px;
     }
+    .cover-page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 10px;
+    }
+    .cover-hero {
+      width: calc(100% - 16mm);
+      height: 122mm;
+      border: 1.2px solid #111;
+      border-radius: 10px;
+      overflow: hidden;
+      box-sizing: border-box;
+      background: linear-gradient(140deg, #f97316 0%, #fdba74 38%, #fff7ed 100%);
+    }
+    .cover-hero-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+    }
+    .cover-hero-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+      color: #7c2d12;
+    }
+    .cover-content {
+      width: 100%;
+      background: #fff;
+      border-radius: 12px;
+      padding: 8mm 8mm 7mm;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    .cover-company {
+      margin: 0;
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 0.3px;
+    }
+    .cover-division {
+      margin: 2px 0 10px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #fc5126;
+    }
+    .cover-report-title {
+      margin: 0;
+      font-size: 24px;
+      font-weight: bold;
+      text-transform: uppercase;
+      color: #111827;
+      letter-spacing: 1px;
+    }
+    .cover-info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 11px;
+      font-weight: bold;
+      background: #fff;
+    }
+    .cover-info-table td {
+      border: 1.2px solid #111;
+      padding: 5px 6px;
+      text-transform: uppercase;
+    }
+    .cover-info-table td:first-child {
+      width: 30%;
+      background-color: #fff7ed;
+    }
     .header .division {
       color: #fc7c6e;
+    }
+    .resistance-table-image {
+      width: 100%;
+      max-width: 620px;
+      max-height: 240px;
+      margin: 8px auto 0;
+      display: block;
+      object-fit: contain;
+    }
+    .final-page h2 {
+      margin-top: 10px;
+      margin-bottom: 4px;
+    }
+    .final-page .signature-section {
+      margin-top: 24px;
+      font-size: 10px;
+    }
+    .final-page .signature-image-wrap {
+      height: 70px;
+      margin-bottom: 6px;
+    }
+    .final-page .signature-image {
+      max-height: 64px;
+    }
+    .final-page ul {
+      margin-top: 6px;
+    }
+    .final-page ul li {
+      margin-bottom: 3px;
+      font-size: 10.5px;
+      line-height: 1.3;
     }
   `;
 }
@@ -265,10 +431,67 @@ interface PATEquipmentData {
   hasAccess?: PATChecklistItem;
 }
 
+const PAT_LABEL_COLLATOR = new Intl.Collator('es', {
+  numeric: true,
+  sensitivity: 'base',
+});
+
 function formatPatState(value: 'good' | 'bad' | null | undefined): string {
   if (value === 'good') return 'Conforme';
   if (value === 'bad') return 'Observado';
   return 'No registrado';
+}
+
+function formatLidStatusDetail(
+  status: 'good' | 'bad' | null | undefined,
+  observation?: string,
+): string {
+  const trimmedObservation = observation?.trim();
+
+  if (status === 'bad' && trimmedObservation) {
+    return trimmedObservation;
+  }
+
+  return formatPatState(status);
+}
+
+function formatChecklistDetail(item?: PATChecklistItem): string {
+  if (item?.value) return 'Conforme';
+
+  const observation = item?.observation?.trim();
+  if (observation) return observation;
+
+  return 'Observado';
+}
+
+function escapeHTML(value?: string | null): string {
+  if (!value) return '';
+
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function normalizeComment(
+  value: string | null | undefined,
+  fallback: string,
+  maxLength = 220,
+): string {
+  const normalized = String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!normalized) return escapeHTML(fallback);
+
+  const clipped =
+    normalized.length > maxLength
+      ? `${normalized.slice(0, maxLength).trimEnd()}...`
+      : normalized;
+
+  return escapeHTML(clipped);
 }
 
 function getPatData(eq: any): PATEquipmentData {
@@ -295,13 +518,58 @@ function getPatData(eq: any): PATEquipmentData {
   };
 }
 
+function getPatSortLabel(eq: any): string {
+  return String(eq?.label || '').trim();
+}
+
+function getPatSortNumericSuffix(eq: any): number | null {
+  const label = getPatSortLabel(eq);
+  const matches = [...label.matchAll(/\d+/g)];
+  if (matches.length === 0) return null;
+
+  const rawValue = matches[matches.length - 1]?.[0] || '';
+  const parsed = Number.parseInt(rawValue, 10);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function sortPATEquipments(equipments: any[]): any[] {
+  return [...equipments].sort((a, b) => {
+    const numericA = getPatSortNumericSuffix(a);
+    const numericB = getPatSortNumericSuffix(b);
+    if (numericA !== null || numericB !== null) {
+      if (numericA === null) return 1;
+      if (numericB === null) return -1;
+      if (numericA !== numericB) return numericA - numericB;
+    }
+
+    const byLabel = PAT_LABEL_COLLATOR.compare(
+      getPatSortLabel(a),
+      getPatSortLabel(b),
+    );
+    if (byLabel !== 0) return byLabel;
+
+    const byType = PAT_LABEL_COLLATOR.compare(
+      String(a?.type || ''),
+      String(b?.type || ''),
+    );
+    if (byType !== 0) return byType;
+
+    return PAT_LABEL_COLLATOR.compare(
+      String(getPATLocationDetail(a)),
+      String(getPATLocationDetail(b)),
+    );
+  });
+}
+
 function isReprogrammedPAT(eq: any): boolean {
   const pat = getPatData(eq);
   return pat.executionStatus === 'reprogrammed';
 }
 
 function getCompletedPATEquipments(data: MaintenanceSessionReport): any[] {
-  return data.equipments.filter(eq => !isReprogrammedPAT(eq));
+  return sortPATEquipments(
+    data.equipments.filter(eq => !isReprogrammedPAT(eq)),
+  );
 }
 
 function getPATLocationDetail(eq: any): string {
@@ -327,6 +595,7 @@ function renderPhoto(
 function renderPhotoGrid(
   photos: Array<{ url?: string | null; caption: string }>,
   small = true,
+  className?: string,
 ): string {
   const rendered = photos
     .filter(photo => !!photo.url)
@@ -335,7 +604,27 @@ function renderPhotoGrid(
 
   if (!rendered) return '';
 
-  return `<div class="photo-grid">${rendered}</div>`;
+  return `<div class="photo-grid ${className || ''}">${rendered}</div>`;
+}
+
+function estimateInspectionBlockWeight(eq: any): number {
+  const pat = getPatData(eq as any);
+
+  if (pat.executionStatus === 'reprogrammed') {
+    const commentLength = pat.reprogramComment?.trim().length || 0;
+    return commentLength > 140 ? 1.6 : 1.35;
+  }
+
+  const photoCount = [
+    pat.lidStatusPhoto,
+    pat.hasSignage?.photo,
+    pat.connectorsOk?.photo,
+    pat.hasAccess?.photo,
+  ].filter(Boolean).length;
+
+  const observationLength = pat.generalObservation?.trim().length || 0;
+
+  return 1.7 + photoCount * 0.55 + Math.min(observationLength / 260, 0.5);
 }
 
 function generateCompanyHeader(): string {
@@ -351,47 +640,61 @@ function generateCompanyHeader(): string {
 // ─── Page Generators ─────────────────────────────────────────────────
 
 function generateCoverPage(data: MaintenanceSessionReport): string {
-  return `
-    <div class="page">
-      <div class="header cover-header">
-        <span class="bold">PROPIEDAD ELITE S.R.L.</span><br/>
-        <span class="bold division">DIVISIÓN ELÉCTRICA</span><br/>
-        RUC: 20538436209<br/>
-        Teléfono: (511) 979351357<br/>
-        Correo: Gianmarco.Isique@rems.pe
-      </div>
+  const propertyName =
+    data.clientName?.trim() || data.locationName || 'Propiedad';
+  const reference = data.propertyCode
+    ? `${data.propertyCode} - ${propertyName}`
+    : data.locationName || propertyName;
+  const serviceDescription =
+    data.serviceDescription ||
+    'MANTENIMIENTO PREVENTIVO DE SISTEMA DE PUESTA A TIERRA';
 
-      <table class="info-table">
-        <tr>
-          <td colspan="2" style="text-align: center; font-size: 16px; background-color: #fc5126;">
-            INFORME TÉCNICO
-          </td>
-        </tr>
+  return `
+    <div class="page cover-page">
+      <div class="cover-content">
+        <p class="cover-company">PROPIEDAD ELITE S.R.L.</p>
+        <p class="cover-division">DIVISIÓN ELÉCTRICA</p>
+        <h1 class="cover-report-title">INFORME TÉCNICO</h1>
+
+        <table class="cover-info-table">
         <tr>
           <td>FECHA:</td>
           <td>${formatDate(data.serviceDate)}</td>
         </tr>
         <tr>
           <td>CLIENTE:</td>
-          <td>${data.clientName}</td>
+          <td>${escapeHTML(propertyName)}</td>
         </tr>
         <tr>
           <td>REFERENCIA:</td>
-          <td>${data.locationName}</td>
+          <td>${escapeHTML(reference)}</td>
         </tr>
         <tr>
           <td>DIRECCIÓN:</td>
-          <td>${data.address}</td>
+          <td>${escapeHTML(data.address || 'SIN DIRECCIÓN REGISTRADA')}</td>
+        </tr>
+        <tr>
+          <td>CIUDAD:</td>
+          <td>${escapeHTML(data.propertyCity || 'LIMA')}</td>
         </tr>
         <tr>
           <td>MOTIVO:</td>
-          <td>${data.serviceDescription || 'MANTENIMIENTO PREVENTIVO DE SISTEMA DE PUESTA A TIERRA'}</td>
+          <td>${escapeHTML(serviceDescription)}</td>
         </tr>
         <tr>
           <td>RESPONSABLE:</td>
           <td>Gianmarco Isique Neciosup</td>
         </tr>
       </table>
+      </div>
+
+      <div class="cover-hero">
+        ${
+          data.propertyImageUrl
+            ? `<img class="cover-hero-image" src="${escapeHTML(data.propertyImageUrl)}" alt="Imagen de la propiedad ${escapeHTML(propertyName)}" />`
+            : '<div class="cover-hero-placeholder">IMAGEN DE PROPIEDAD NO DISPONIBLE</div>'
+        }
+      </div>
     </div>
   `;
 }
@@ -469,7 +772,7 @@ function renderPreMeasurementBlock(eq: any, idx: number): string {
 function generateWellListingAndPreMeasurementPages(
   data: MaintenanceSessionReport,
 ): string {
-  const equipments = data.equipments;
+  const equipments = sortPATEquipments(data.equipments);
   const measurableEquipments = getCompletedPATEquipments(data);
   const totalWells = equipments.length;
   const totalMeasurableWells = measurableEquipments.length;
@@ -771,7 +1074,7 @@ function generatePostMeasurementPages(data: MaintenanceSessionReport): string {
 function generateInspectionChecklistPages(
   data: MaintenanceSessionReport,
 ): string {
-  const equipments = data.equipments;
+  const equipments = sortPATEquipments(data.equipments);
   if (equipments.length === 0) return '';
 
   const batches: (typeof equipments)[] = [];
@@ -779,19 +1082,9 @@ function generateInspectionChecklistPages(
   let currentWeight = 0;
 
   equipments.forEach(eq => {
-    const pat = getPatData(eq as any);
-    const photoCount = [
-      pat.lidStatusPhoto,
-      pat.hasSignage?.photo,
-      pat.connectorsOk?.photo,
-      pat.hasAccess?.photo,
-    ].filter(Boolean).length;
-    const hasGeneralObservation = !!pat.generalObservation?.trim();
-
-    const blockWeight =
-      2 + Math.min(photoCount, 4) * 0.8 + (hasGeneralObservation ? 0.4 : 0);
-    const maxWeightPerPage = 7.5;
-    const maxBlocksPerPage = 3;
+    const blockWeight = estimateInspectionBlockWeight(eq);
+    const maxWeightPerPage = 8.9;
+    const maxBlocksPerPage = 4;
 
     if (
       currentBatch.length > 0 &&
@@ -823,6 +1116,7 @@ function generateInspectionChecklistPages(
         ${generateCompanyHeader()}
 
         ${isFirst ? '<h2>8.- INSPECCIÓN DETALLADA DE LOS POZOS</h2>' : ''}
+        <div class="section-inspection">
         ${batch
           .map((eq, index) => {
             const absoluteIndex = absoluteIndexOffset + index;
@@ -832,8 +1126,8 @@ function generateInspectionChecklistPages(
             if (isReprogrammed) {
               return `
                 <div class="inspection-block">
-                  <h2 style="margin-top: ${index === 0 ? '4px' : '10px'};">POZO ${absoluteIndex + 1}: ${eq.label || 'SIN DENOMINACIÓN'}</h2>
-                  <table class="data-table">
+                  <h2 class="inspection-block-title" style="margin-top: ${index === 0 ? '2px' : '6px'};">POZO ${absoluteIndex + 1}: ${eq.label || 'SIN DENOMINACIÓN'}</h2>
+                  <table class="data-table inspection-table">
                     <tr>
                       <th>ÍTEM</th>
                       <th>ESTADO / DETALLE</th>
@@ -844,14 +1138,17 @@ function generateInspectionChecklistPages(
                     </tr>
                     <tr>
                       <td>COMENTARIO</td>
-                      <td>${pat.reprogramComment?.trim() || 'Sin comentario registrado por el técnico.'}</td>
+                      <td>${normalizeComment(pat.reprogramComment, 'Sin comentario registrado por el técnico.', 180)}</td>
                     </tr>
                   </table>
                 </div>
               `;
             }
 
-            const lidStatusLabel = formatPatState(pat.lidStatus);
+            const lidStatusDetail = formatLidStatusDetail(
+              pat.lidStatus,
+              pat.lidStatusObservation,
+            );
 
             const checklistRows = [
               {
@@ -870,35 +1167,22 @@ function generateInspectionChecklistPages(
 
             return `
               <div class="inspection-block">
-                <h2 style="margin-top: ${index === 0 ? '4px' : '10px'};">POZO ${absoluteIndex + 1}: ${eq.label || 'SIN DENOMINACIÓN'}</h2>
-                <table class="data-table">
+                <h2 class="inspection-block-title" style="margin-top: ${index === 0 ? '2px' : '6px'};">POZO ${absoluteIndex + 1}: ${eq.label || 'SIN DENOMINACIÓN'}</h2>
+                <table class="data-table inspection-table">
                   <tr>
                     <th>ÍTEM</th>
                     <th>ESTADO / DETALLE</th>
                   </tr>
-                  <tr>
-                    <td>ESTADO DE TAPA</td>
-                    <td>${lidStatusLabel}</td>
-                  </tr>
-                  ${
-                    pat.lidStatusObservation?.trim()
-                      ? `
-                  <tr>
-                    <td>OBSERVACIÓN DE TAPA</td>
-                    <td>${pat.lidStatusObservation}</td>
-                  </tr>
-                  `
-                      : ''
-                  }
+                   <tr>
+                     <td>ESTADO DE TAPA</td>
+                     <td>${lidStatusDetail}</td>
+                   </tr>
                   ${checklistRows
                     .map(
                       row => `
                     <tr>
                       <td>${row.label}</td>
-                      <td>
-                        ${row.item?.value ? 'Conforme' : 'Observado'}
-                        ${row.item?.observation ? `<br/>${row.item.observation}` : ''}
-                      </td>
+                      <td>${formatChecklistDetail(row.item)}</td>
                     </tr>
                   `,
                     )
@@ -908,7 +1192,7 @@ function generateInspectionChecklistPages(
                       ? `
                   <tr>
                     <td>OBSERVACIÓN GENERAL</td>
-                    <td>${pat.generalObservation}</td>
+                    <td>${normalizeComment(pat.generalObservation, 'Sin observaciones adicionales.', 220)}</td>
                   </tr>
                   `
                       : ''
@@ -935,11 +1219,13 @@ function generateInspectionChecklistPages(
                     },
                   ],
                   true,
+                  'inspection-photo-grid',
                 )}
               </div>
             `;
           })
           .join('')}
+        </div>
       </div>
     `;
     absoluteIndexOffset += batch.length;
@@ -948,16 +1234,14 @@ function generateInspectionChecklistPages(
   return pages;
 }
 
-function generateResistanceTablePage(): string {
-  return `
-    <div class="page">
-      ${generateCompanyHeader()}
-
-      <h2>9.- VALORES MÁXIMOS DE RESISTENCIA DE PUESTA A TIERRA</h2>
-      <p style="text-align: center; font-style: italic;">
-        Tabla 3.1. Valores máximos de resistencia de puesta a tierra
-      </p>
-
+function generateRecommendationsAndConclusionsPage(
+  data: MaintenanceSessionReport,
+  signatures?: PATReportSignatures,
+  resistanceTableImage?: string | null,
+): string {
+  const tableContent = resistanceTableImage
+    ? `<img class="resistance-table-image" src="${resistanceTableImage}" alt="Tabla 3.1. Valores máximos de resistencia de puesta a tierra" />`
+    : `
       <table class="data-table">
         <tr>
           <th>Para ser usado en:</th>
@@ -973,13 +1257,8 @@ function generateResistanceTablePage(): string {
         <tr><td>Equipos electrónicos sensibles</td><td>5</td></tr>
         <tr><td>Telecomunicaciones</td><td>5</td></tr>
       </table>
-    </div>
-  `;
-}
+    `;
 
-function generateRecommendationsAndConclusionsPage(
-  data: MaintenanceSessionReport,
-): string {
   const defaultRecommendations = `
     <ul class="arrow-list">
       <li>Se recomienda aplicar un balde de agua una vez al mes, con la
@@ -1003,8 +1282,11 @@ function generateRecommendationsAndConclusionsPage(
   `;
 
   return `
-    <div class="page">
+    <div class="page final-page">
       ${generateCompanyHeader()}
+
+      <h2>9.- VALORES MÁXIMOS DE RESISTENCIA DE PUESTA A TIERRA</h2>
+      ${tableContent}
 
       <h2>10.- RECOMENDACIONES</h2>
       ${
@@ -1018,11 +1300,21 @@ function generateRecommendationsAndConclusionsPage(
 
       <div class="signature-section">
         <div class="signature-box">
+          ${
+            signatures?.gabriel
+              ? `<div class="signature-image-wrap"><img class="signature-image" src="${signatures.gabriel}" alt="Firma Gabriel Enrique Flores Meza" /></div>`
+              : ''
+          }
           GABRIEL ENRIQUE FLORES MEZA<br/>
           INGENIERO ELECTRICISTA<br/>
           CIP 75628
         </div>
         <div class="signature-box">
+          ${
+            signatures?.gian
+              ? `<div class="signature-image-wrap"><img class="signature-image" src="${signatures.gian}" alt="Firma Gianmarco Isique Neciosup" /></div>`
+              : ''
+          }
           Gianmarco Isique Neciosup<br/>
           Jefe de Servicios Eléctricos
         </div>
@@ -1037,7 +1329,11 @@ function generateRecommendationsAndConclusionsPage(
  * Generate the full HTML for a PAT (Pozo a Tierra) technical report.
  * Self-contained HTML document with inline styles based on the SPAT template.
  */
-export function generatePATReportHTML(data: MaintenanceSessionReport): string {
+export function generatePATReportHTML(
+  data: MaintenanceSessionReport,
+  signatures?: PATReportSignatures,
+  staticAssets?: PATReportStaticAssets,
+): string {
   return `
 <!DOCTYPE html>
 <html lang="es">
@@ -1056,8 +1352,7 @@ export function generatePATReportHTML(data: MaintenanceSessionReport): string {
   ${generateTreatmentPages(data)}
   ${generatePostMeasurementPages(data)}
   ${generateInspectionChecklistPages(data)}
-  ${generateResistanceTablePage()}
-  ${generateRecommendationsAndConclusionsPage(data)}
+  ${generateRecommendationsAndConclusionsPage(data, signatures, staticAssets?.resistanceTableImage)}
 </body>
 </html>
   `;

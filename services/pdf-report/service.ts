@@ -1,6 +1,7 @@
 // PDF Report Service - Main Service Class
 
 import { Platform } from 'react-native';
+import { Asset } from 'expo-asset';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -27,7 +28,11 @@ import {
   generateHeaderPageHTML as generateELHeader,
   generateSummaryAndObservationsHTML as generateELSummary,
 } from './emergency-lights/technical-generator';
-import { generatePATReportHTML } from './PAT/technical-generator';
+import {
+  generatePATReportHTML,
+  type PATReportSignatures,
+  type PATReportStaticAssets,
+} from './PAT/technical-generator';
 
 /**
  * PDF Report Generation Service
@@ -35,6 +40,12 @@ import { generatePATReportHTML } from './PAT/technical-generator';
  */
 class PDFReportService {
   private readonly PDF_GENERATION_TIMEOUT_MS = 60000;
+
+  private patSignaturesCache: PATReportSignatures | null = null;
+
+  private patResistanceTableImageCache: string | null = null;
+
+  private patResistanceTableImageLoaded = false;
 
   private generationQueue: Promise<void> = Promise.resolve();
 
@@ -73,6 +84,26 @@ class PDFReportService {
         }
       }
     });
+  }
+
+  private sanitizePdfFilename(filename: string): string {
+    return filename.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
+  }
+
+  private async copyPdfWithStableName(
+    sourceUri: string,
+    filename: string,
+  ): Promise<string> {
+    const cleanName = this.sanitizePdfFilename(filename);
+    const targetUri = `${FileSystem.documentDirectory}${cleanName}`;
+
+    const fileInfo = await FileSystem.getInfoAsync(targetUri);
+    if (fileInfo.exists) {
+      await FileSystem.deleteAsync(targetUri, { idempotent: true });
+    }
+
+    await FileSystem.copyAsync({ from: sourceUri, to: targetUri });
+    return targetUri;
   }
 
   /**
@@ -156,8 +187,69 @@ class PDFReportService {
   /**
    * Generate PAT (Pozo a Tierra) report HTML
    */
-  generatePATReportHTML(data: MaintenanceSessionReport): string {
-    return generatePATReportHTML(data);
+  generatePATReportHTML(
+    data: MaintenanceSessionReport,
+    signatures?: PATReportSignatures,
+    staticAssets?: PATReportStaticAssets,
+  ): string {
+    return generatePATReportHTML(data, signatures, staticAssets);
+  }
+
+  private async getImageDataUriFromAsset(moduleId: number): Promise<string> {
+    const asset = Asset.fromModule(moduleId);
+
+    if (!asset.localUri) {
+      await asset.downloadAsync();
+    }
+
+    const assetUri = asset.localUri || asset.uri;
+    const base64 = await FileSystem.readAsStringAsync(assetUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    return `data:image/png;base64,${base64}`;
+  }
+
+  private async getPATSignatures(): Promise<PATReportSignatures> {
+    if (this.patSignaturesCache) {
+      return this.patSignaturesCache;
+    }
+
+    try {
+      const [gabriel, gian] = await Promise.all([
+        this.getImageDataUriFromAsset(
+          require('../../assets/pdf/firmagabriel.png'),
+        ),
+        this.getImageDataUriFromAsset(
+          require('../../assets/pdf/firmagian.png'),
+        ),
+      ]);
+
+      this.patSignaturesCache = { gabriel, gian };
+    } catch (error) {
+      console.error('Error loading PAT signatures:', error);
+      this.patSignaturesCache = { gabriel: null, gian: null };
+    }
+
+    return this.patSignaturesCache;
+  }
+
+  private async getPATResistanceTableImage(): Promise<string | null> {
+    if (this.patResistanceTableImageLoaded) {
+      return this.patResistanceTableImageCache;
+    }
+
+    try {
+      this.patResistanceTableImageCache = await this.getImageDataUriFromAsset(
+        require('../../assets/pdf/pat/valores.png'),
+      );
+    } catch (error) {
+      console.error('Error loading PAT resistance table image:', error);
+      this.patResistanceTableImageCache = null;
+    }
+
+    this.patResistanceTableImageLoaded = true;
+    return this.patResistanceTableImageCache;
   }
 
   /**
@@ -181,7 +273,15 @@ class PDFReportService {
         html = this.generateEmergencyLightsReportHTML(data);
         break;
       case ReportType.PAT:
-        html = this.generatePATReportHTML(data);
+        {
+          const [signatures, resistanceTableImage] = await Promise.all([
+            this.getPATSignatures(),
+            this.getPATResistanceTableImage(),
+          ]);
+          html = this.generatePATReportHTML(data, signatures, {
+            resistanceTableImage,
+          });
+        }
         break;
       case ReportType.TECHNICAL:
       default:
@@ -254,10 +354,7 @@ class PDFReportService {
     // Use descriptive name if provided
     if (filename) {
       try {
-        const cleanName = filename.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
-        const newUri = `${FileSystem.documentDirectory}${cleanName}`;
-        await FileSystem.copyAsync({ from: pdfUri, to: newUri });
-        uriToOpen = newUri;
+        uriToOpen = await this.copyPdfWithStableName(pdfUri, filename);
       } catch (error) {
         console.error('Error renaming PDF for opening:', error);
       }
@@ -303,13 +400,7 @@ class PDFReportService {
     // This makes the share/save dialog show a nice name instead of "Print.pdf"
     if (filename) {
       try {
-        const cleanName = filename.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
-        const newUri = `${FileSystem.documentDirectory}${cleanName}`;
-        await FileSystem.copyAsync({
-          from: pdfUri,
-          to: newUri,
-        });
-        uriToShare = newUri;
+        uriToShare = await this.copyPdfWithStableName(pdfUri, filename);
       } catch (error) {
         console.error('Error renaming PDF for share:', error);
         // Fallback to original URI if renaming fails

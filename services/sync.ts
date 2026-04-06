@@ -476,7 +476,13 @@ class SyncService {
           },
         );
 
-        ['hasSignage', 'connectorsOk', 'hasAccess'].forEach(key => {
+        [
+          'wellMeasurement',
+          'hasSignage',
+          'wellLabeling',
+          'connectorsOk',
+          'hasAccess',
+        ].forEach(key => {
           if (photoItemMap[key]) {
             if (!detail[key]) detail[key] = { value: true, observation: '' };
             detail[key].photo = photoItemMap[key];

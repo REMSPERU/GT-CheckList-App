@@ -95,6 +95,12 @@ export interface MaintenanceSessionReport {
   address: string;
   /** Property/Location name */
   locationName: string;
+  /** Property code/reference */
+  propertyCode?: string;
+  /** Property city */
+  propertyCity?: string;
+  /** Property cover image URL */
+  propertyImageUrl?: string | null;
   /** Maintenance service motive */
   serviceDescription: string;
   /** Date of service (YYYY-MM-DD format) */
