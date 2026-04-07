@@ -23,12 +23,9 @@ create table if not exists public.checklist_schedules (
   constraint checklist_schedules_date_range_check
     check (end_date is null or start_date is null or end_date >= start_date)
 );
-
 create index if not exists idx_checklist_schedules_active
   on public.checklist_schedules (is_active, equipo_id);
-
 alter table public.checklist_schedules enable row level security;
-
 create or replace function public.is_supervisor_or_admin()
 returns boolean
 language sql
@@ -43,23 +40,19 @@ as $$
       and u.role in ('SUPERVISOR', 'SUPERADMIN')
   );
 $$;
-
 grant execute on function public.is_supervisor_or_admin() to authenticated;
-
 drop policy if exists checklist_schedules_select on public.checklist_schedules;
 create policy checklist_schedules_select
 on public.checklist_schedules
 for select
 to authenticated
 using (true);
-
 drop policy if exists checklist_schedules_insert on public.checklist_schedules;
 create policy checklist_schedules_insert
 on public.checklist_schedules
 for insert
 to authenticated
 with check (public.is_supervisor_or_admin());
-
 drop policy if exists checklist_schedules_update on public.checklist_schedules;
 create policy checklist_schedules_update
 on public.checklist_schedules
@@ -67,14 +60,12 @@ for update
 to authenticated
 using (public.is_supervisor_or_admin())
 with check (public.is_supervisor_or_admin());
-
 drop policy if exists checklist_schedules_delete on public.checklist_schedules;
 create policy checklist_schedules_delete
 on public.checklist_schedules
 for delete
 to authenticated
 using (public.is_supervisor_or_admin());
-
 create or replace function public.touch_checklist_schedules_updated_at()
 returns trigger
 language plpgsql
@@ -84,21 +75,17 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trg_touch_checklist_schedules_updated_at
   on public.checklist_schedules;
 create trigger trg_touch_checklist_schedules_updated_at
 before update on public.checklist_schedules
 for each row
 execute function public.touch_checklist_schedules_updated_at();
-
 alter table public.checklist_response
   add column if not exists checklist_schedule_id uuid
     references public.checklist_schedules(id) on delete set null;
-
 create index if not exists idx_checklist_response_equipo_submitted_at
   on public.checklist_response (equipo_id, submitted_at desc);
-
 create or replace function public.validate_checklist_schedule(
   p_equipo_id uuid,
   p_submitted_at timestamptz default timezone('utc', now())
@@ -244,6 +231,5 @@ begin
     v_schedule.window_end, v_current_count;
 end;
 $$;
-
 grant execute on function public.validate_checklist_schedule(uuid, timestamptz)
   to authenticated;

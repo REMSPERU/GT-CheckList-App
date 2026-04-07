@@ -60,6 +60,8 @@ const PROTOCOL_ITEMS = [
   },
 ];
 
+const SYNC_TIMEOUT_MS = 15000;
+
 export default function SummaryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -154,6 +156,27 @@ export default function SummaryScreen() {
   const preThermoPhotos = useMemo(
     () => session?.prePhotos.filter(p => p.category === 'thermo') || [],
     [session?.prePhotos],
+  );
+
+  const withTimeout = useCallback(
+    <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('SYNC_TIMEOUT'));
+        }, timeoutMs);
+
+        promise
+          .then(result => {
+            clearTimeout(timeout);
+            resolve(result);
+          })
+          .catch(error => {
+            clearTimeout(timeout);
+            reject(error);
+          });
+      });
+    },
+    [],
   );
 
   const handleFinalize = useCallback(async () => {
@@ -283,7 +306,7 @@ export default function SummaryScreen() {
         // Try to sync immediately
         setModalMessage('Sincronizando con el servidor...');
         try {
-          await syncService.pushData();
+          await withTimeout(syncService.pushData(), SYNC_TIMEOUT_MS);
 
           if (localMaintenanceId == null) {
             throw new Error('No se pudo identificar el mantenimiento local.');
@@ -298,13 +321,16 @@ export default function SummaryScreen() {
             } | null;
 
           if (!syncResult || syncResult.status !== 'synced') {
-            const syncErrorMessage =
-              syncResult?.error_message ||
-              'La sincronizacion no se completo. Se reintentara automaticamente.';
             console.warn(
               `[SYNC] Maintenance ${localMaintenanceId} not synced after pushData. status=${syncResult?.status || 'unknown'}`,
             );
-            throw new Error(syncErrorMessage);
+
+            setModalStatus('offline');
+            setModalMessage(
+              syncResult?.error_message ||
+                'Guardado local. Se reintentará la sincronización automáticamente.',
+            );
+            return;
           }
 
           // Save session notes if this is the last equipment
@@ -334,10 +360,10 @@ export default function SummaryScreen() {
           );
         } catch (syncError) {
           console.error('Sync failed:', syncError);
-          // Saved locally but sync failed - show error
-          setModalStatus('error');
+          // Saved locally but sync failed - continue flow with offline status
+          setModalStatus('offline');
           setModalMessage(
-            'Los datos se guardaron localmente pero hubo un error al sincronizar. Se reintentará automáticamente.',
+            'Guardado local. La sincronización está tardando o falló temporalmente; se reintentará automáticamente.',
           );
         }
       } else {
@@ -366,6 +392,7 @@ export default function SummaryScreen() {
     recommendationsInput,
     saveSession,
     session,
+    withTimeout,
   ]);
 
   const handleModalClose = async () => {
