@@ -3,6 +3,7 @@ import { DatabaseService } from './db';
 import { supabaseMaintenanceService } from './supabase-maintenance.service';
 import { supabaseElectricalPanelService } from './supabase-electrical-panel.service';
 import { supabaseGroundingWellService } from './supabase-grounding-well.service';
+import { supabaseAuditStorageService } from './supabase-audit-storage.service';
 import NetInfo from '@react-native-community/netinfo';
 import { syncQueue } from './sync-queue';
 
@@ -68,6 +69,23 @@ interface OfflineAuditSession {
   audit_payload: string | null;
   summary: string | null;
   sync_status: string;
+}
+
+interface AuditPhotoPayload {
+  url?: string;
+  path?: string;
+  bucket?: string;
+}
+
+interface AuditAnswerPayload {
+  question_id?: string;
+  status?: string;
+  photos?: AuditPhotoPayload[];
+}
+
+interface AuditPayload {
+  version?: number;
+  answers?: AuditAnswerPayload[];
 }
 
 interface MaintenanceRouteContext {
@@ -268,9 +286,46 @@ class SyncService {
         );
 
         const payload = item.audit_payload
-          ? JSON.parse(item.audit_payload)
+          ? (JSON.parse(item.audit_payload) as AuditPayload)
           : null;
         const summary = item.summary ? JSON.parse(item.summary) : {};
+
+        if (payload?.answers?.length) {
+          for (const answer of payload.answers) {
+            if (answer.status !== 'OBS' || !answer.photos?.length) continue;
+
+            const uploadedPhotos: AuditPhotoPayload[] = [];
+
+            for (const photo of answer.photos) {
+              const sourceUri = photo.url || photo.path;
+              if (!sourceUri) continue;
+
+              if (
+                sourceUri.startsWith('http://') ||
+                sourceUri.startsWith('https://')
+              ) {
+                uploadedPhotos.push(photo);
+                continue;
+              }
+
+              const uploaded = await supabaseAuditStorageService.uploadPhoto({
+                uri: sourceUri,
+                clientSubmissionId: item.client_submission_id,
+                propertyId: item.property_id,
+                auditorId: item.auditor_id,
+                questionId: answer.question_id,
+              });
+
+              uploadedPhotos.push({
+                bucket: uploaded.bucket,
+                path: uploaded.path,
+                url: uploaded.publicUrl,
+              });
+            }
+
+            answer.photos = uploadedPhotos;
+          }
+        }
 
         const { error } = await supabase.from('audit_sessions').upsert(
           {
@@ -295,7 +350,7 @@ class SyncService {
           'synced',
         );
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = this.getAuditSyncErrorMessage(error);
         await DatabaseService.updateOfflineAuditSessionStatus(
           item.local_id,
           'error',
@@ -304,6 +359,37 @@ class SyncService {
         console.error('[SYNC-AUDIT] Session sync error:', error);
       }
     }
+  }
+
+  private getAuditSyncErrorMessage(error: unknown): string {
+    const rawMessage =
+      error && typeof error === 'object' && 'message' in error
+        ? String((error as { message?: unknown }).message ?? '')
+        : String(error ?? '');
+
+    const normalized = rawMessage.toLowerCase();
+
+    if (
+      normalized.includes('row-level security') ||
+      normalized.includes('permission denied') ||
+      normalized.includes('42501')
+    ) {
+      return 'No autorizado: verifique rol AUDITOR y asignacion del inmueble.';
+    }
+
+    if (normalized.includes('violates check constraint')) {
+      return 'Datos invalidos en auditoria (OBS requiere comentario y foto).';
+    }
+
+    if (normalized.includes('network') || normalized.includes('fetch')) {
+      return 'Sin internet: la auditoria quedo pendiente para reintento automatico.';
+    }
+
+    if (normalized.includes('storage')) {
+      return 'No se pudo subir evidencia fotografica a storage.';
+    }
+
+    return rawMessage || 'Error desconocido al sincronizar auditoria.';
   }
 
   // ----------------------------------------------------------------
@@ -681,6 +767,9 @@ class SyncService {
       try {
         log('Starting Down-Sync...');
 
+        const localSession = await DatabaseService.getSession();
+        const currentUserId = localSession?.user_id || null;
+
         // Fetch all tables in parallel WITH limits and error checking
         const [
           equiposResult,
@@ -702,9 +791,18 @@ class SyncService {
           safeFetch(() =>
             supabase.from('properties').select('*').limit(SYNC_ROW_LIMIT),
           ),
-          safeFetch(() =>
-            supabase.from('user_properties').select('*').limit(SYNC_ROW_LIMIT),
-          ),
+          safeFetch(() => {
+            let query = supabase
+              .from('user_properties')
+              .select('*')
+              .limit(SYNC_ROW_LIMIT);
+
+            if (currentUserId) {
+              query = query.eq('user_id', currentUserId);
+            }
+
+            return query;
+          }),
           safeFetch(() =>
             supabase.from('instrumentos').select('*').limit(SYNC_ROW_LIMIT),
           ),

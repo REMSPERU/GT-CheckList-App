@@ -43,7 +43,7 @@ export default function AuditoriaSessionScreen() {
     buildingImageUrl?: string;
   }>();
   const { user } = useAuth();
-  const { canAudit } = useUserRole();
+  const { canAudit, isAuditor } = useUserRole();
 
   const startedAtRef = useRef(new Date().toISOString());
   const onPhotoSelectedRef = useRef<((uri: string) => void) | null>(null);
@@ -215,6 +215,33 @@ export default function AuditoriaSessionScreen() {
 
     setIsSaving(true);
     try {
+      if (isAuditor) {
+        const assignedProperties =
+          await DatabaseService.getAssignedPropertiesForAuditor(user.id);
+        const isAssigned = (assignedProperties || []).some(property => {
+          if (
+            !property ||
+            typeof property !== 'object' ||
+            !('id' in property)
+          ) {
+            return false;
+          }
+
+          return (
+            String((property as { id: string }).id) ===
+            String(params.buildingId)
+          );
+        });
+
+        if (!isAssigned) {
+          showAlert(
+            'Sin permiso',
+            'Este inmueble ya no esta asignado a su usuario auditor.',
+          );
+          return;
+        }
+      }
+
       const payloadAnswers = questions.map(question => {
         const answer = answers[question.id];
         const status = answer.status === true ? 'OK' : 'OBS';
@@ -278,6 +305,7 @@ export default function AuditoriaSessionScreen() {
   }, [
     answers,
     canAudit,
+    isAuditor,
     params.buildingId,
     questions,
     scheduledFor,
@@ -333,7 +361,7 @@ export default function AuditoriaSessionScreen() {
             {params.buildingName || 'Auditoria'}
           </Text>
           <Text style={styles.headerSubtitle}>
-            Fecha programada: {scheduledFor}
+            Fecha de auditoria: {scheduledFor}
           </Text>
         </View>
       </View>

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserRole } from '@/hooks/use-user-role';
 import { useProperties } from '@/hooks/use-property-query';
 import { syncService } from '@/services/sync';
+import { DatabaseService } from '@/services/database';
 import type { PropertyResponse as Property } from '@/types/api';
 
 const LAST_BUILDING_STORAGE_KEY = '@home:last-selected-building-id';
@@ -18,6 +20,7 @@ function normalizeText(value: string) {
 
 export function useHomeScreen() {
   const { user, logout } = useAuth();
+  const { canAudit, isAuditor } = useUserRole();
   const router = useRouter();
   const { data, isLoading, isError, refetch } = useProperties();
   const hasSynced = useRef(false);
@@ -195,8 +198,31 @@ export function useHomeScreen() {
     });
   }, [ensureBuildingIsSelected, router, selectedBuilding]);
 
-  const handleAuditPress = useCallback(() => {
-    if (!ensureBuildingIsSelected() || !selectedBuilding) return;
+  const handleAuditPress = useCallback(async () => {
+    if (!canAudit) return;
+
+    if (!selectedBuilding) {
+      router.push('/auditoria');
+      return;
+    }
+
+    if (isAuditor && user?.id) {
+      const assignedProperties =
+        await DatabaseService.getAssignedPropertiesForAuditor(user.id);
+      const selectedBuildingId = String(selectedBuilding.id);
+      const isAssigned = (assignedProperties || []).some(property => {
+        if (!property || typeof property !== 'object' || !('id' in property)) {
+          return false;
+        }
+
+        return String((property as { id: string }).id) === selectedBuildingId;
+      });
+
+      if (!isAssigned) {
+        router.push('/auditoria');
+        return;
+      }
+    }
 
     router.push({
       pathname: '/auditoria/session',
@@ -207,7 +233,7 @@ export function useHomeScreen() {
         buildingImageUrl: selectedBuilding.image_url ?? '',
       },
     });
-  }, [ensureBuildingIsSelected, router, selectedBuilding]);
+  }, [canAudit, isAuditor, router, selectedBuilding, user?.id]);
 
   const handleReportsPress = useCallback(() => {
     if (!ensureBuildingIsSelected() || !selectedBuilding) return;
