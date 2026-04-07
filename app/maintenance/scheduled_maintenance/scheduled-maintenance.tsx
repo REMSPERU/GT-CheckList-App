@@ -26,14 +26,7 @@ export default function ScheduledMaintenanceScreen() {
 
   useEffect(() => {
     if (autoOpenPropertyId) {
-      // Clear params first to prevent loop on back navigation
-      router.setParams({
-        autoOpenPropertyId: undefined,
-        autoOpenPropertyName: undefined,
-      });
-
-      // Navigate to session
-      router.push({
+      router.replace({
         pathname: '/maintenance/scheduled_maintenance/maintenance-session',
         params: {
           propertyId: autoOpenPropertyId,
