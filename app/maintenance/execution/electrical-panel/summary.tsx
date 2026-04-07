@@ -258,13 +258,20 @@ export default function SummaryScreen() {
       const cleanMaintenanceId =
         maintenanceId && maintenanceId !== 'null' ? maintenanceId : null;
 
-      await DatabaseService.saveOfflineMaintenance(
+      const localMaintenanceId = await DatabaseService.saveOfflineMaintenance(
         userId,
         cleanMaintenanceId,
         detailMaintenance,
         allPhotos,
         effectiveSession.protocol,
       );
+
+      if (cleanMaintenanceId) {
+        await DatabaseService.updateLocalScheduledMaintenanceStatus(
+          cleanMaintenanceId,
+          'FINALIZADO',
+        );
+      }
 
       console.log('SUCCESS: Saved locally');
 
@@ -277,6 +284,28 @@ export default function SummaryScreen() {
         setModalMessage('Sincronizando con el servidor...');
         try {
           await syncService.pushData();
+
+          if (localMaintenanceId == null) {
+            throw new Error('No se pudo identificar el mantenimiento local.');
+          }
+
+          const syncResult =
+            (await DatabaseService.getOfflineMaintenanceByLocalId(
+              localMaintenanceId,
+            )) as {
+              status?: string | null;
+              error_message?: string | null;
+            } | null;
+
+          if (!syncResult || syncResult.status !== 'synced') {
+            const syncErrorMessage =
+              syncResult?.error_message ||
+              'La sincronizacion no se completo. Se reintentara automaticamente.';
+            console.warn(
+              `[SYNC] Maintenance ${localMaintenanceId} not synced after pushData. status=${syncResult?.status || 'unknown'}`,
+            );
+            throw new Error(syncErrorMessage);
+          }
 
           // Save session notes if this is the last equipment
           if (

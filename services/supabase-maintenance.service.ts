@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { decode } from 'base64-arraybuffer';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export interface MaintenanceResponse {
   id_mantenimiento?: string | null;
@@ -84,59 +85,69 @@ export class SupabaseMaintenanceService {
           : `file://${uri}`;
 
       console.log(`[STORAGE] Fetching URI: ${cleanUri}`);
-      const response = await fetch(cleanUri);
 
-      if (!response.ok) {
-        throw new Error(`Fetch failed with status: ${response.status}`);
+      let arrayBuffer: ArrayBuffer;
+
+      if (cleanUri.startsWith('file://') || cleanUri.startsWith('content://')) {
+        if (cleanUri.startsWith('file://')) {
+          const fileInfo = await FileSystem.getInfoAsync(cleanUri);
+          if (!fileInfo.exists) {
+            throw new Error(`Local photo not found: ${cleanUri}`);
+          }
+        }
+
+        console.log('[STORAGE] Reading local file as base64...');
+        const base64 = await FileSystem.readAsStringAsync(cleanUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        arrayBuffer = decode(base64);
+      } else {
+        const response = await fetch(cleanUri);
+        if (!response.ok) {
+          throw new Error(`Fetch failed with status: ${response.status}`);
+        }
+        const blob = await response.blob();
+        const reader = new FileReader();
+
+        arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+          reader.onload = () => {
+            if (!reader.result) {
+              reject(new Error('FileReader returned empty result'));
+              return;
+            }
+            try {
+              resolve(decode((reader.result as string).split(',')[1]));
+            } catch (error) {
+              reject(error);
+            }
+          };
+          reader.onerror = error => reject(error);
+          reader.readAsDataURL(blob);
+        });
       }
 
-      const blob = await response.blob();
-      console.log(`[STORAGE] Blob created: ${blob.size} bytes`);
+      const fileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
+      const filePath = this.buildPhotoPath(fileName, context);
 
-      const reader = new FileReader();
+      console.log(`[STORAGE] Uploading to Supabase: ${filePath}...`);
+      const { error } = await supabase.storage
+        .from(this.bucketName)
+        .upload(filePath, arrayBuffer, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
 
-      return new Promise<string>((resolve, reject) => {
-        reader.onload = async () => {
-          if (reader.result) {
-            try {
-              console.log('[STORAGE] Decoding base64...');
-              const arrayBuffer = decode(
-                (reader.result as string).split(',')[1],
-              );
-              const fileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
-              const filePath = this.buildPhotoPath(fileName, context);
+      if (error) {
+        console.error('[STORAGE] Supabase upload error:', error);
+        throw error;
+      }
 
-              console.log(`[STORAGE] Uploading to Supabase: ${filePath}...`);
-              const { data, error } = await supabase.storage
-                .from(this.bucketName)
-                .upload(filePath, arrayBuffer, {
-                  contentType: 'image/jpeg',
-                  upsert: false,
-                });
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from(this.bucketName).getPublicUrl(filePath);
 
-              if (error) {
-                console.error('[STORAGE] Supabase upload error:', error);
-                throw error;
-              }
-
-              const {
-                data: { publicUrl },
-              } = supabase.storage.from(this.bucketName).getPublicUrl(filePath);
-
-              console.log(`[STORAGE] Upload success: ${publicUrl}`);
-              resolve(publicUrl);
-            } catch (e) {
-              console.error('[STORAGE] Error in reader.onload:', e);
-              reject(e);
-            }
-          }
-        };
-        reader.onerror = e => {
-          console.error('[STORAGE] FileReader error:', e);
-          reject(e);
-        };
-        reader.readAsDataURL(blob);
-      });
+      console.log(`[STORAGE] Upload success: ${publicUrl}`);
+      return publicUrl;
     } catch (e) {
       console.error('[STORAGE] Critical upload error:', e);
       throw e;

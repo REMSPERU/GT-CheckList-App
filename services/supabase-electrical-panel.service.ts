@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { DatabaseService } from './db';
 import type { TableroElectricoResponse } from '../types/api';
 
 export class SupabaseElectricalPanelService {
@@ -61,6 +62,14 @@ export class SupabaseElectricalPanelService {
    * Obtener un tablero eléctrico por ID
    */
   async getById(id: string): Promise<TableroElectricoResponse> {
+    const localPanel = (await DatabaseService.getEquipmentById(
+      id,
+    )) as TableroElectricoResponse | null;
+
+    if (localPanel) {
+      return localPanel;
+    }
+
     const { data, error } = await supabase
       .from(this.tableName)
       .select('*')

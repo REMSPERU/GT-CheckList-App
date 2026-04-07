@@ -11,6 +11,7 @@ import {
   getPendingMaintenances,
   updateMaintenanceStatus,
   getLatestOfflineMaintenanceByMaintenanceId,
+  getOfflineMaintenanceByLocalId,
 } from './maintenance';
 import {
   saveOfflinePanelConfiguration,
@@ -94,6 +95,7 @@ export const DatabaseService = {
   getPendingMaintenances,
   updateMaintenanceStatus,
   getLatestOfflineMaintenanceByMaintenanceId,
+  getOfflineMaintenanceByLocalId,
 
   // Panel Configuration
   saveOfflinePanelConfiguration,

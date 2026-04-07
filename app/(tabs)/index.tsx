@@ -52,6 +52,7 @@ function HomeScreen() {
     handleChecklistPress,
     handleScheduleMaintenancePress,
     handleExecuteMaintenancePress,
+    handleAuditPress,
     handleReportsPress,
     handleLogoutConfirm,
   } = useHomeScreen();
@@ -84,6 +85,13 @@ function HomeScreen() {
         onPress: handleExecuteMaintenancePress,
       },
       {
+        key: 'auditoria',
+        title: 'Auditoria',
+        description: 'Revise el estado general del inmueble',
+        icon: <Feather name="clipboard" size={24} color="#06B6D4" />,
+        onPress: handleAuditPress,
+      },
+      {
         key: 'reports',
         title: 'Generar informes',
         description: 'Genera informes de mantenimiento',
@@ -93,6 +101,7 @@ function HomeScreen() {
     ],
     [
       handleChecklistPress,
+      handleAuditPress,
       handleExecuteMaintenancePress,
       handleReportsPress,
       handleScheduleMaintenancePress,

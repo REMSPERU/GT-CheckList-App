@@ -96,3 +96,18 @@ export async function getLatestOfflineMaintenanceByMaintenanceId(
     );
   });
 }
+
+export async function getOfflineMaintenanceByLocalId(localId: number) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+
+    return await db.getFirstAsync(
+      `SELECT local_id, id_mantenimiento, status, error_message, created_at, synced_at
+       FROM offline_maintenance_response
+       WHERE local_id = ?
+       LIMIT 1`,
+      [localId],
+    );
+  });
+}

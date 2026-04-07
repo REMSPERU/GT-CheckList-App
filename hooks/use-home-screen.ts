@@ -195,6 +195,21 @@ export function useHomeScreen() {
     });
   }, [ensureBuildingIsSelected, router, selectedBuilding]);
 
+  const handleAuditPress = useCallback(() => {
+    if (!ensureBuildingIsSelected() || !selectedBuilding) return;
+
+    router.push({
+      pathname: '/auditoria/select-device',
+      params: {
+        type: 'auditoria',
+        buildingId: String(selectedBuilding.id),
+        buildingName: selectedBuilding.name,
+        buildingAddress: selectedBuilding.address ?? '',
+        buildingImageUrl: selectedBuilding.image_url ?? '',
+      },
+    });
+  }, [ensureBuildingIsSelected, router, selectedBuilding]);
+
   const handleReportsPress = useCallback(() => {
     if (!ensureBuildingIsSelected() || !selectedBuilding) return;
 
@@ -230,6 +245,7 @@ export function useHomeScreen() {
     handleChecklistPress,
     handleScheduleMaintenancePress,
     handleExecuteMaintenancePress,
+    handleAuditPress,
     handleReportsPress,
     handleLogoutConfirm,
   };
