@@ -199,9 +199,8 @@ export function useHomeScreen() {
     if (!ensureBuildingIsSelected() || !selectedBuilding) return;
 
     router.push({
-      pathname: '/auditoria/select-device',
+      pathname: '/auditoria/session',
       params: {
-        type: 'auditoria',
         buildingId: String(selectedBuilding.id),
         buildingName: selectedBuilding.name,
         buildingAddress: selectedBuilding.address ?? '',

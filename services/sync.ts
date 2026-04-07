@@ -55,6 +55,21 @@ interface OfflineSessionPhoto {
   status: string;
 }
 
+interface OfflineAuditSession {
+  local_id: number;
+  client_submission_id: string;
+  property_id: string;
+  auditor_id: string;
+  created_by: string | null;
+  scheduled_for: string;
+  status: string;
+  started_at: string | null;
+  submitted_at: string | null;
+  audit_payload: string | null;
+  summary: string | null;
+  sync_status: string;
+}
+
 interface MaintenanceRouteContext {
   id: string;
   id_equipo: string | null;
@@ -212,6 +227,9 @@ class SyncService {
         // 4. Sync Session Photos
         await this.syncPendingSessionPhotos();
 
+        // 5. Sync Audit Sessions
+        await this.syncPendingAuditSessions();
+
         try {
           await DatabaseService.cleanupOfflineQueue();
         } catch (cleanupError) {
@@ -228,6 +246,63 @@ class SyncService {
       await this.currentPushPromise;
     } finally {
       this.currentPushPromise = null;
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // SUB-ROUTINE 5: AUDIT SESSIONS
+  // ----------------------------------------------------------------
+  private async syncPendingAuditSessions() {
+    const pendingItems =
+      (await DatabaseService.getPendingAuditSessions()) as OfflineAuditSession[];
+
+    if (pendingItems.length === 0) return;
+
+    log(`[SYNC-AUDIT] Found ${pendingItems.length} pending sessions`);
+
+    for (const item of pendingItems) {
+      try {
+        await DatabaseService.updateOfflineAuditSessionStatus(
+          item.local_id,
+          'syncing',
+        );
+
+        const payload = item.audit_payload
+          ? JSON.parse(item.audit_payload)
+          : null;
+        const summary = item.summary ? JSON.parse(item.summary) : {};
+
+        const { error } = await supabase.from('audit_sessions').upsert(
+          {
+            client_submission_id: item.client_submission_id,
+            property_id: item.property_id,
+            auditor_id: item.auditor_id,
+            created_by: item.created_by || item.auditor_id,
+            scheduled_for: item.scheduled_for,
+            status: item.status,
+            started_at: item.started_at,
+            submitted_at: item.submitted_at,
+            audit_payload: payload,
+            summary,
+          },
+          { onConflict: 'client_submission_id' },
+        );
+
+        if (error) throw error;
+
+        await DatabaseService.updateOfflineAuditSessionStatus(
+          item.local_id,
+          'synced',
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        await DatabaseService.updateOfflineAuditSessionStatus(
+          item.local_id,
+          'error',
+          message,
+        );
+        console.error('[SYNC-AUDIT] Session sync error:', error);
+      }
     }
   }
 
@@ -610,9 +685,11 @@ class SyncService {
         const [
           equiposResult,
           propertiesResult,
+          userPropertiesResult,
           instrumentosResult,
           equipamentosResult,
           preguntasEquipamentoResult,
+          auditQuestionsResult,
           equipamentosPropertyResult,
           scheduledMaintenancesResult,
           sessionsResult,
@@ -626,6 +703,9 @@ class SyncService {
             supabase.from('properties').select('*').limit(SYNC_ROW_LIMIT),
           ),
           safeFetch(() =>
+            supabase.from('user_properties').select('*').limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
             supabase.from('instrumentos').select('*').limit(SYNC_ROW_LIMIT),
           ),
           safeFetch(() =>
@@ -636,6 +716,14 @@ class SyncService {
               .from('preguntas_equipamento')
               .select('*')
               .eq('activa', true)
+              .limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
+            supabase
+              .from('audit_questions')
+              .select('*')
+              .eq('is_active', true)
+              .order('order_index', { ascending: true })
               .limit(SYNC_ROW_LIMIT),
           ),
           safeFetch(() =>
@@ -677,10 +765,12 @@ class SyncService {
         const failedTables: string[] = [];
         if (equiposResult.failed) failedTables.push('equipos');
         if (propertiesResult.failed) failedTables.push('properties');
+        if (userPropertiesResult.failed) failedTables.push('user_properties');
         if (instrumentosResult.failed) failedTables.push('instrumentos');
         if (equipamentosResult.failed) failedTables.push('equipamentos');
         if (preguntasEquipamentoResult.failed)
           failedTables.push('preguntas_equipamento');
+        if (auditQuestionsResult.failed) failedTables.push('audit_questions');
         if (equipamentosPropertyResult.failed)
           failedTables.push('equipamentos_property');
         if (scheduledMaintenancesResult.failed)
@@ -702,9 +792,11 @@ class SyncService {
           equiposResult.data,
           propertiesResult.data,
           null, // users — not fetched in pull
+          userPropertiesResult.data,
           instrumentosResult.data,
           equipamentosResult.data,
           preguntasEquipamentoResult.data,
+          auditQuestionsResult.data,
           equipamentosPropertyResult.data,
           scheduledMaintenancesResult.data,
           sessionsResult.data,

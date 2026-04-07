@@ -59,6 +59,13 @@ import {
   getChecklistQuestionsByEquipamento,
 } from './queries';
 import {
+  getAuditQuestions,
+  getAssignedPropertiesForAuditor,
+  saveOfflineAuditSession,
+  getPendingAuditSessions,
+  updateOfflineAuditSessionStatus,
+} from './audit';
+import {
   createEquipment,
   softDeleteEquipment,
   generateEquipmentCode,
@@ -76,6 +83,7 @@ export * from './session';
 export * from './queries';
 export * from './equipment';
 export * from './session-photos';
+export * from './audit';
 
 // Create DatabaseService object for backward compatibility
 export const DatabaseService = {
@@ -141,6 +149,13 @@ export const DatabaseService = {
   getLocalSessionsByProperty,
   getInstrumentsByEquipmentType,
   getChecklistQuestionsByEquipamento,
+
+  // Audit
+  getAuditQuestions,
+  getAssignedPropertiesForAuditor,
+  saveOfflineAuditSession,
+  getPendingAuditSessions,
+  updateOfflineAuditSessionStatus,
 
   // Equipment CRUD
   createEquipment,

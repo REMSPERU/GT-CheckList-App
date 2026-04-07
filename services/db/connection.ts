@@ -147,6 +147,25 @@ export async function initDatabase() {
           PRIMARY KEY (id_equipamentos, id_property)
         );
 
+        CREATE TABLE IF NOT EXISTS local_user_properties (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          property_id TEXT,
+          property_role TEXT,
+          expires_at TEXT,
+          assigned_at TEXT,
+          updated_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS local_audit_questions (
+          id TEXT PRIMARY KEY,
+          question_code TEXT,
+          question_text TEXT,
+          order_index INTEGER,
+          is_active INTEGER,
+          updated_at TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS local_scheduled_maintenances (
           id TEXT PRIMARY KEY,
           dia_programado TEXT,
@@ -261,6 +280,24 @@ export async function initDatabase() {
           created_at TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS offline_audit_sessions (
+          local_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          client_submission_id TEXT NOT NULL UNIQUE,
+          property_id TEXT NOT NULL,
+          auditor_id TEXT NOT NULL,
+          created_by TEXT,
+          scheduled_for TEXT NOT NULL,
+          status TEXT NOT NULL,
+          started_at TEXT,
+          submitted_at TEXT,
+          audit_payload TEXT,
+          summary TEXT,
+          sync_status TEXT DEFAULT 'pending',
+          error_message TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          synced_at TEXT
+        );
+
         -- Performance indexes for frequent offline-first queries
         CREATE INDEX IF NOT EXISTS idx_local_equipos_property ON local_equipos(id_property);
         CREATE INDEX IF NOT EXISTS idx_local_equipos_equipamento ON local_equipos(id_equipamento);
@@ -283,6 +320,9 @@ export async function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_local_equipamentos_property_property ON local_equipamentos_property(id_property);
         CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_equipamento ON local_preguntas_equipamento(equipamento_id);
         CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_activa ON local_preguntas_equipamento(activa);
+        CREATE INDEX IF NOT EXISTS idx_local_user_properties_user ON local_user_properties(user_id);
+        CREATE INDEX IF NOT EXISTS idx_local_user_properties_property ON local_user_properties(property_id);
+        CREATE INDEX IF NOT EXISTS idx_local_audit_questions_active_order ON local_audit_questions(is_active, order_index);
 
         CREATE INDEX IF NOT EXISTS idx_offline_maint_status ON offline_maintenance_response(status);
         CREATE INDEX IF NOT EXISTS idx_offline_maint_created ON offline_maintenance_response(created_at);
@@ -290,6 +330,8 @@ export async function initDatabase() {
 
         CREATE INDEX IF NOT EXISTS idx_offline_panel_status ON offline_panel_configurations(status);
         CREATE INDEX IF NOT EXISTS idx_offline_panel_panel_status ON offline_panel_configurations(panel_id, status);
+        CREATE INDEX IF NOT EXISTS idx_offline_audit_sync_status ON offline_audit_sessions(sync_status);
+        CREATE INDEX IF NOT EXISTS idx_offline_audit_property_date ON offline_audit_sessions(property_id, scheduled_for);
 
         CREATE INDEX IF NOT EXISTS idx_offline_gw_status ON offline_grounding_well_checklist(status);
         CREATE INDEX IF NOT EXISTS idx_offline_gw_maint ON offline_grounding_well_checklist(maintenance_id);

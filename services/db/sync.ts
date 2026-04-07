@@ -32,8 +32,10 @@ export async function clearMirrorTables() {
     DELETE FROM local_equipos;
     DELETE FROM local_properties;
     DELETE FROM local_users;
+    DELETE FROM local_user_properties;
     DELETE FROM local_equipamentos;
     DELETE FROM local_preguntas_equipamento;
+    DELETE FROM local_audit_questions;
     DELETE FROM local_equipamentos_property;
     DELETE FROM offline_panel_configurations;
   `);
@@ -111,9 +113,11 @@ export async function bulkInsertMirrorData(
   equipos: any[] | null,
   properties: any[] | null,
   users: any[] | null,
+  userProperties: any[] | null = [],
   instrumentos: any[] | null = [],
   equipamentos: any[] | null = [],
   perguntasEquipamento: any[] | null = [],
+  auditQuestions: any[] | null = [],
   equipamentosProperty: any[] | null = [],
   scheduledMaintenances: any[] | null = [],
   sessions: any[] | null = [],
@@ -186,6 +190,26 @@ export async function bulkInsertMirrorData(
         );
       }
 
+      // --- Smart Sync for User Properties Assignments ---
+      if (userProperties !== null) {
+        await smartSyncTable(
+          db,
+          'local_user_properties',
+          userProperties,
+          'id',
+          'INSERT OR REPLACE INTO local_user_properties (id, user_id, property_id, property_role, expires_at, assigned_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          item => [
+            item.id,
+            item.user_id,
+            item.property_id,
+            item.property_role || null,
+            item.expires_at || null,
+            item.assigned_at || null,
+            item.updated_at || null,
+          ],
+        );
+      }
+
       // --- Smart Sync for Instrumentos ---
       if (instrumentos !== null) {
         await smartSyncTable(
@@ -233,6 +257,25 @@ export async function bulkInsertMirrorData(
             item.activa ? 1 : 0,
             item.created_at,
             item.updated_at,
+          ],
+        );
+      }
+
+      // --- Smart Sync for Audit Questions ---
+      if (auditQuestions !== null) {
+        await smartSyncTable(
+          db,
+          'local_audit_questions',
+          auditQuestions,
+          'id',
+          'INSERT OR REPLACE INTO local_audit_questions (id, question_code, question_text, order_index, is_active, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+          item => [
+            item.id,
+            item.question_code,
+            item.question_text,
+            item.order_index,
+            item.is_active ? 1 : 0,
+            item.updated_at || null,
           ],
         );
       }
@@ -428,6 +471,11 @@ export async function cleanupOfflineQueue() {
       await db.runAsync(`
         DELETE FROM offline_panel_configurations
         WHERE status = 'synced'
+      `);
+
+      await db.runAsync(`
+        DELETE FROM offline_audit_sessions
+        WHERE sync_status = 'synced'
       `);
     });
   });

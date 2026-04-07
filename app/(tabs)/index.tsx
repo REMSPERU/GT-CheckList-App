@@ -18,6 +18,7 @@ import { BuildingSelectorModal } from '@/components/home/building-selector-modal
 import { HomeHeader } from '@/components/home/home-header';
 import { LogoutConfirmModal } from '@/components/home/logout-confirm-modal';
 import { useHomeScreen } from '@/hooks/use-home-screen';
+import { useUserRole } from '@/hooks/use-user-role';
 
 interface HomeActionCard {
   key: string;
@@ -31,6 +32,8 @@ function HomeScreen() {
   const { height } = useWindowDimensions();
   const isTallScreen = height >= 820;
   const appVersion = Constants.expoConfig?.version ?? '1.0.36';
+  const { canScheduleMaintenance, canExecuteMaintenance, canAudit } =
+    useUserRole();
 
   const {
     userDisplayName,
@@ -57,16 +60,21 @@ function HomeScreen() {
     handleLogoutConfirm,
   } = useHomeScreen();
 
-  const actionCards = useMemo<HomeActionCard[]>(
-    () => [
-      {
+  const actionCards = useMemo<HomeActionCard[]>(() => {
+    const cards: HomeActionCard[] = [];
+
+    if (canExecuteMaintenance) {
+      cards.push({
         key: 'checklist',
         title: 'Checklist',
         description: 'Gestione sus tareas de inspeccion',
         icon: <Octicons name="checklist" size={24} color="#06B6D4" />,
         onPress: handleChecklistPress,
-      },
-      {
+      });
+    }
+
+    if (canScheduleMaintenance) {
+      cards.push({
         key: 'schedule-maintenance',
         title: 'Programar Mantenimiento',
         description: 'Registre problemas inmediatos del equipo',
@@ -74,8 +82,11 @@ function HomeScreen() {
           <MaterialIcons name="home-repair-service" size={24} color="#06B6D4" />
         ),
         onPress: handleScheduleMaintenancePress,
-      },
-      {
+      });
+    }
+
+    if (canExecuteMaintenance) {
+      cards.push({
         key: 'execute-maintenance',
         title: 'Ejecutar mantenimiento',
         description: 'Registre sus revisiones de rutina',
@@ -83,30 +94,38 @@ function HomeScreen() {
           <MaterialIcons name="home-repair-service" size={24} color="#06B6D4" />
         ),
         onPress: handleExecuteMaintenancePress,
-      },
-      {
+      });
+    }
+
+    if (canAudit) {
+      cards.push({
         key: 'auditoria',
         title: 'Auditoria',
-        description: 'Revise el estado general del inmueble',
+        description: 'Audite el inmueble por preguntas globales',
         icon: <Feather name="clipboard" size={24} color="#06B6D4" />,
         onPress: handleAuditPress,
-      },
-      {
-        key: 'reports',
-        title: 'Generar informes',
-        description: 'Genera informes de mantenimiento',
-        icon: <Feather name="file-text" size={24} color="#06B6D4" />,
-        onPress: handleReportsPress,
-      },
-    ],
-    [
-      handleChecklistPress,
-      handleAuditPress,
-      handleExecuteMaintenancePress,
-      handleReportsPress,
-      handleScheduleMaintenancePress,
-    ],
-  );
+      });
+    }
+
+    cards.push({
+      key: 'reports',
+      title: 'Generar informes',
+      description: 'Genera informes de mantenimiento',
+      icon: <Feather name="file-text" size={24} color="#06B6D4" />,
+      onPress: handleReportsPress,
+    });
+
+    return cards;
+  }, [
+    canAudit,
+    canExecuteMaintenance,
+    canScheduleMaintenance,
+    handleChecklistPress,
+    handleAuditPress,
+    handleExecuteMaintenancePress,
+    handleReportsPress,
+    handleScheduleMaintenancePress,
+  ]);
 
   if (isLoading) {
     return (
