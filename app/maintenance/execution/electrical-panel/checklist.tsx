@@ -20,7 +20,11 @@ import type { Componente, ITG, ITM } from '@/types/api';
 
 import { ITGChecklist } from '@/components/maintenance/checklist/itg-checklist';
 import { AuxiliaryChecklist } from '@/components/maintenance/checklist/auxiliary-checklist';
-import { ConditionsChecklist } from '@/components/maintenance/checklist/conditions-checklist';
+import {
+  ConditionsChecklist,
+  ELECTRICAL_PANEL_CONDITIONS,
+  shouldRenderElectricalPanelCondition,
+} from '@/components/maintenance/checklist/conditions-checklist';
 
 export default function MaintenanceChecklistScreen() {
   const router = useRouter();
@@ -221,11 +225,14 @@ export default function MaintenanceChecklistScreen() {
       });
     });
 
-    Object.keys(conditions).forEach(key => {
-      if (!conditions[key]) return;
-      const itemId = `cond_${key}`;
+    ELECTRICAL_PANEL_CONDITIONS.forEach(definition => {
+      if (!shouldRenderElectricalPanelCondition(definition.key, conditions)) {
+        return;
+      }
+
+      const itemId = `cond_${definition.key}`;
       if (session.checklist[itemId] === undefined) {
-        defaultChecklistValues[itemId] = true;
+        defaultChecklistValues[itemId] = definition.defaultStatus;
       }
     });
 

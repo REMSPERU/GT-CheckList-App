@@ -457,11 +457,13 @@ export async function getLocalSessionsByProperty(propertyId: string) {
 
 export async function getInstrumentsByEquipmentType(equipmentTypeId: string) {
   await ensureInitialized();
-  const db = await dbPromise;
-  return await db.getAllAsync(
-    'SELECT * FROM local_instrumentos WHERE equipamento = ?',
-    [equipmentTypeId],
-  );
+  return withLock(async () => {
+    const db = await dbPromise;
+    return await db.getAllAsync(
+      'SELECT * FROM local_instrumentos WHERE equipamento = ?',
+      [equipmentTypeId],
+    );
+  });
 }
 
 export async function getChecklistQuestionsByEquipamento(

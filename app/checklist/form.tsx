@@ -34,7 +34,9 @@ import {
   checklistStorageService,
   type StoredPhotoRef,
 } from '@/services/checklist-storage.service';
+import { supabaseChecklistScheduleService } from '@/services/supabase-checklist-schedule.service';
 import { DatabaseService } from '@/services/database';
+import { useUserRole } from '@/hooks/use-user-role';
 
 type AnswerErrors = Record<string, { observation?: string; photos?: string }>;
 
@@ -80,6 +82,20 @@ interface ChecklistResponseInsert {
   submitted_at: string;
   duration_seconds: number;
   interaction_count: number;
+  checklist_schedule_id?: string | null;
+}
+
+interface ChecklistSchedulePreview {
+  isLoading: boolean;
+  hasSchedule: boolean;
+  allowed: boolean;
+  message: string;
+  hint: string | null;
+  frequency: string;
+  currentCount: number;
+  occurrencesPerDay: number | null;
+  windowStart: string | null;
+  windowEnd: string | null;
 }
 
 function getPeriodFromFrequency(frequencyRaw: string) {
@@ -88,7 +104,7 @@ function getPeriodFromFrequency(frequencyRaw: string) {
   const start = new Date(now);
   const end = new Date(now);
 
-  if (frequency === 'DIARIA') {
+  if (frequency === 'DIARIA' || frequency === 'INTERDIARIA') {
     start.setHours(0, 0, 0, 0);
     end.setHours(23, 59, 59, 999);
   } else if (frequency === 'SEMANAL') {
@@ -108,6 +124,64 @@ function getPeriodFromFrequency(frequencyRaw: string) {
   const periodEnd = end.toISOString().slice(0, 10);
 
   return { periodStart, periodEnd };
+}
+
+function formatDateToSpanish(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const [year, month, day] = value.split('-');
+  return `${day}-${month}-${year}`;
+}
+
+function buildFriendlyRestrictionMessage(
+  reason: string,
+  windowLabel: string,
+  limitLabel: string,
+) {
+  const normalized = reason.toLowerCase();
+
+  if (normalized.includes('aun no inicia')) {
+    return {
+      message: 'La programacion todavia no inicia para este checklist.',
+      hint: 'Revisa la fecha de inicio en Programar checklist.',
+    };
+  }
+
+  if (normalized.includes('ya vencio')) {
+    return {
+      message: 'La programacion actual ya vencio para este checklist.',
+      hint: 'Actualiza la fecha de fin o crea una nueva programacion.',
+    };
+  }
+
+  if (normalized.includes('rango horario')) {
+    return {
+      message: `Hoy si corresponde, pero solo se puede registrar entre ${windowLabel}.`,
+      hint: 'Intenta nuevamente dentro del horario configurado.',
+    };
+  }
+
+  if (normalized.includes('frecuencia')) {
+    return {
+      message:
+        'Hoy no toca registrar este checklist segun la frecuencia programada.',
+      hint: `Horario configurado: ${windowLabel}. Ese horario aplica solo en dias que si corresponden.`,
+    };
+  }
+
+  if (normalized.includes('maximo')) {
+    return {
+      message: `Ya se completo el limite diario (${limitLabel}).`,
+      hint: 'Debes esperar al siguiente dia o ajustar la programacion.',
+    };
+  }
+
+  return {
+    message: 'Este checklist esta restringido en este momento.',
+    hint: `Horario configurado: ${windowLabel}. Limite diario: ${limitLabel}.`,
+  };
 }
 
 function buildChecklistAnswersJson(
@@ -217,7 +291,9 @@ const ChecklistQuestionRow = memo(function ChecklistQuestionRow({
 
 export default function ChecklistFormScreen() {
   const router = useRouter();
+  const { canScheduleMaintenance } = useUserRole();
   const params = useLocalSearchParams<{
+    buildingId: string;
     buildingName: string;
     equipamentoId: string;
     equipamentoNombre: string;
@@ -225,6 +301,7 @@ export default function ChecklistFormScreen() {
     equipoId: string;
     equipoCodigo: string;
     equipoUbicacion: string;
+    equipoDetalleUbicacion?: string;
   }>();
 
   const [questions, setQuestions] = useState<PreguntaEquipamento[]>([]);
@@ -242,6 +319,19 @@ export default function ChecklistFormScreen() {
   const [isCameraSheetVisible, setIsCameraSheetVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [schedulePreview, setSchedulePreview] =
+    useState<ChecklistSchedulePreview>({
+      isLoading: false,
+      hasSchedule: false,
+      allowed: true,
+      message: 'No hay programacion activa para este checklist.',
+      hint: null,
+      frequency: '',
+      currentCount: 0,
+      occurrencesPerDay: null,
+      windowStart: null,
+      windowEnd: null,
+    });
   const startedAtMsRef = useRef<number>(Date.now());
   const firstInteractionAtMsRef = useRef<number | null>(null);
   const interactionCountRef = useRef<number>(0);
@@ -252,6 +342,14 @@ export default function ChecklistFormScreen() {
   const { periodStart, periodEnd } = useMemo(
     () => getPeriodFromFrequency(frecuencia),
     [frecuencia],
+  );
+  const periodStartLabel = useMemo(
+    () => formatDateToSpanish(periodStart),
+    [periodStart],
+  );
+  const periodEndLabel = useMemo(
+    () => formatDateToSpanish(periodEnd),
+    [periodEnd],
   );
 
   const showAppAlert = useCallback(
@@ -330,6 +428,99 @@ export default function ChecklistFormScreen() {
 
     loadQuestions();
   }, [params.equipamentoId, showAppAlert]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSchedulePreview = async () => {
+      if (!params.buildingId || !params.equipamentoId) {
+        return;
+      }
+
+      setSchedulePreview(prev => ({ ...prev, isLoading: true }));
+
+      try {
+        const result =
+          await supabaseChecklistScheduleService.validateChecklistSubmission(
+            params.buildingId,
+            params.equipamentoId,
+          );
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!result.has_schedule) {
+          setSchedulePreview({
+            isLoading: false,
+            hasSchedule: false,
+            allowed: true,
+            message: 'No hay programacion activa para este checklist.',
+            hint: null,
+            frequency: '',
+            currentCount: 0,
+            occurrencesPerDay: null,
+            windowStart: null,
+            windowEnd: null,
+          });
+          return;
+        }
+
+        const windowLabel =
+          result.window_start && result.window_end
+            ? `${result.window_start.slice(0, 5)} - ${result.window_end.slice(0, 5)}`
+            : '-';
+        const limitLabel =
+          typeof result.occurrences_per_day === 'number'
+            ? `${result.current_count}/${result.occurrences_per_day}`
+            : '-';
+        const restrictionCopy = buildFriendlyRestrictionMessage(
+          result.reason || 'Fuera de programacion.',
+          windowLabel,
+          limitLabel,
+        );
+
+        setSchedulePreview({
+          isLoading: false,
+          hasSchedule: true,
+          allowed: result.allowed,
+          message: result.allowed
+            ? `Dentro de programacion (${limitLabel} hoy). Horario ${windowLabel}.`
+            : restrictionCopy.message,
+          hint: result.allowed ? null : restrictionCopy.hint,
+          frequency: result.frequency || '',
+          currentCount: result.current_count,
+          occurrencesPerDay: result.occurrences_per_day,
+          windowStart: result.window_start,
+          windowEnd: result.window_end,
+        });
+      } catch (error) {
+        console.error('Error checking checklist schedule preview:', error);
+        if (!isMounted) {
+          return;
+        }
+        setSchedulePreview({
+          isLoading: false,
+          hasSchedule: false,
+          allowed: true,
+          message:
+            'No se pudo validar la programacion. Se intentara validar al guardar.',
+          hint: null,
+          frequency: '',
+          currentCount: 0,
+          occurrencesPerDay: null,
+          windowStart: null,
+          windowEnd: null,
+        });
+      }
+    };
+
+    loadSchedulePreview();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [params.buildingId, params.equipamentoId]);
 
   const updateAnswer = useCallback(
     (
@@ -534,6 +725,38 @@ export default function ChecklistFormScreen() {
   }, [frecuencia, params.equipoId, periodStart]);
 
   const handleSave = useCallback(async () => {
+    if (schedulePreview.isLoading) {
+      showAppAlert(
+        'Validando programacion',
+        'Todavia estamos validando la programacion. Intente nuevamente en unos segundos.',
+      );
+      return;
+    }
+
+    if (questions.length === 0) {
+      showAppAlert(
+        'Checklist sin preguntas',
+        'No se puede guardar este checklist porque no tiene preguntas activas.',
+      );
+      return;
+    }
+
+    if (!schedulePreview.hasSchedule) {
+      showAppAlert(
+        'Programacion requerida',
+        'Para guardar el checklist primero debes crear una programacion activa.',
+      );
+      return;
+    }
+
+    if (!schedulePreview.allowed) {
+      showAppAlert(
+        'Checklist fuera de programacion',
+        `${schedulePreview.message}${schedulePreview.hint ? `\n${schedulePreview.hint}` : ''}`,
+      );
+      return;
+    }
+
     if (!validate()) {
       showAppAlert(
         'Faltan datos',
@@ -554,14 +777,59 @@ export default function ChecklistFormScreen() {
         return;
       }
 
-      const alreadyExists = await checkAlreadySubmitted();
-      if (alreadyExists) {
-        showAppAlert(
-          'Checklist ya registrado',
-          `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStart} a ${periodEnd}.`,
+      let checklistScheduleId: string | null = null;
+      let effectiveFrequency = frecuencia;
+
+      try {
+        const scheduleValidation =
+          await supabaseChecklistScheduleService.validateChecklistSubmission(
+            params.buildingId,
+            params.equipamentoId,
+          );
+
+        if (scheduleValidation.has_schedule) {
+          checklistScheduleId = scheduleValidation.schedule_id;
+          effectiveFrequency = scheduleValidation.frequency || frecuencia;
+
+          if (!scheduleValidation.allowed) {
+            const timeWindow =
+              scheduleValidation.window_start && scheduleValidation.window_end
+                ? `${scheduleValidation.window_start.slice(0, 5)} - ${scheduleValidation.window_end.slice(0, 5)}`
+                : '-';
+
+            showAppAlert(
+              'Checklist fuera de programación',
+              `${scheduleValidation.reason || 'No está permitido registrar el checklist en este momento.'}\nHorario: ${timeWindow}\nLímite diario: ${scheduleValidation.current_count}/${scheduleValidation.occurrences_per_day ?? '-'} registros.`,
+            );
+            return;
+          }
+        } else {
+          const alreadyExists = await checkAlreadySubmitted();
+          if (alreadyExists) {
+            showAppAlert(
+              'Checklist ya registrado',
+              `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStartLabel} a ${periodEndLabel}.`,
+            );
+            return;
+          }
+        }
+      } catch (scheduleValidationError) {
+        console.error(
+          'Schedule validation unavailable, fallback to period check:',
+          scheduleValidationError,
         );
-        return;
+
+        const alreadyExists = await checkAlreadySubmitted();
+        if (alreadyExists) {
+          showAppAlert(
+            'Checklist ya registrado',
+            `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStartLabel} a ${periodEndLabel}.`,
+          );
+          return;
+        }
       }
+
+      const schedulePeriod = getPeriodFromFrequency(effectiveFrequency);
 
       const { uploadedGeneralPhotos, uploadedQuestionPhotos } =
         await uploadChecklistPhotos(user.id);
@@ -593,11 +861,16 @@ export default function ChecklistFormScreen() {
         equipamento_nombre: params.equipamentoNombre,
         equipo_id: params.equipoId,
         equipo_codigo: params.equipoCodigo,
-        equipo_ubicacion: params.equipoUbicacion,
+        equipo_ubicacion: [
+          params.equipoUbicacion,
+          params.equipoDetalleUbicacion,
+        ]
+          .filter(Boolean)
+          .join(' - '),
         building_name: params.buildingName,
-        frequency: frecuencia,
-        period_start: periodStart,
-        period_end: periodEnd,
+        frequency: effectiveFrequency,
+        period_start: schedulePeriod.periodStart,
+        period_end: schedulePeriod.periodEnd,
         respuestas_json: respuestasJson,
         evidencia_general_fotos: uploadedGeneralPhotos,
         total_questions: respuestasJson.resumen.total_preguntas,
@@ -610,6 +883,7 @@ export default function ChecklistFormScreen() {
         submitted_at: submittedAt,
         duration_seconds: durationSeconds,
         interaction_count: interactionCountRef.current,
+        checklist_schedule_id: checklistScheduleId,
       };
 
       const { error } = await supabase
@@ -647,15 +921,22 @@ export default function ChecklistFormScreen() {
     checkAlreadySubmitted,
     frecuencia,
     params.buildingName,
+    params.buildingId,
     params.equipoCodigo,
+    params.equipoDetalleUbicacion,
     params.equipoId,
     params.equipoUbicacion,
     params.equipamentoId,
     params.equipamentoNombre,
-    periodEnd,
-    periodStart,
+    periodEndLabel,
+    periodStartLabel,
     questions,
     router,
+    schedulePreview.allowed,
+    schedulePreview.hasSchedule,
+    schedulePreview.hint,
+    schedulePreview.isLoading,
+    schedulePreview.message,
     showAppAlert,
     uploadChecklistPhotos,
     validate,
@@ -716,6 +997,53 @@ export default function ChecklistFormScreen() {
       handleRemovePhoto,
     ],
   );
+
+  const handleOpenSchedule = useCallback(() => {
+    router.push({
+      pathname: '/checklist/schedule',
+      params: {
+        buildingId: params.buildingId,
+        buildingName: params.buildingName,
+        equipamentoId: params.equipamentoId,
+        equipamentoNombre: params.equipamentoNombre,
+      },
+    });
+  }, [
+    params.buildingId,
+    params.buildingName,
+    params.equipamentoId,
+    params.equipamentoNombre,
+    router,
+  ]);
+
+  const saveBlockedReason = useMemo(() => {
+    if (schedulePreview.isLoading) {
+      return 'Se esta validando la programacion. Intente en unos segundos.';
+    }
+
+    if (questions.length === 0) {
+      return 'No se puede guardar porque este checklist no tiene preguntas activas.';
+    }
+
+    if (!schedulePreview.hasSchedule) {
+      return 'No se puede guardar porque no hay una programacion activa para este checklist.';
+    }
+
+    if (!schedulePreview.allowed) {
+      return (
+        schedulePreview.message ||
+        'No se puede guardar porque la programacion actual lo restringe.'
+      );
+    }
+
+    return null;
+  }, [
+    questions.length,
+    schedulePreview.allowed,
+    schedulePreview.hasSchedule,
+    schedulePreview.isLoading,
+    schedulePreview.message,
+  ]);
 
   const listHeader = useMemo(
     () => (
@@ -781,8 +1109,51 @@ export default function ChecklistFormScreen() {
         </Pressable>
         <Text style={styles.title}>{params.equipoCodigo || 'Checklist'}</Text>
         <Text style={styles.subtitle}>
-          {params.equipamentoNombre || '-'} - {frecuencia} ({periodStart})
+          {params.equipamentoNombre || '-'} - {frecuencia} ({periodStartLabel})
         </Text>
+      </View>
+
+      <View
+        style={[
+          styles.scheduleCard,
+          schedulePreview.hasSchedule
+            ? schedulePreview.allowed
+              ? styles.scheduleCardAllowed
+              : styles.scheduleCardBlocked
+            : styles.scheduleCardNoSchedule,
+        ]}>
+        <Text style={styles.scheduleTitle}>
+          {schedulePreview.hasSchedule
+            ? schedulePreview.allowed
+              ? 'Programacion activa'
+              : 'Programacion restringida'
+            : 'Sin programacion'}
+        </Text>
+        <Text style={styles.scheduleText}>
+          {schedulePreview.isLoading
+            ? 'Validando programacion...'
+            : schedulePreview.message}
+        </Text>
+        {!schedulePreview.allowed && schedulePreview.hint ? (
+          <Text style={styles.scheduleHint}>{schedulePreview.hint}</Text>
+        ) : null}
+        {!schedulePreview.allowed || !schedulePreview.hasSchedule ? (
+          <Pressable
+            onPress={handleOpenSchedule}
+            style={({ pressed }) => [
+              styles.scheduleActionBtn,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button">
+            <Text style={styles.scheduleActionText}>
+              {canScheduleMaintenance
+                ? schedulePreview.hasSchedule
+                  ? 'Ajustar programacion'
+                  : 'Crear programacion'
+                : 'Ver programacion'}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <FlatList
@@ -808,14 +1179,20 @@ export default function ChecklistFormScreen() {
 
       <View style={styles.footer}>
         <Pressable
-          style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
-          disabled={isSaving}
+          style={[
+            styles.saveBtn,
+            (isSaving || saveBlockedReason !== null) && styles.saveBtnDisabled,
+          ]}
+          disabled={isSaving || saveBlockedReason !== null}
           onPress={handleSave}
           accessibilityRole="button">
           <Text style={styles.saveBtnText}>
             {isSaving ? 'Guardando...' : 'Guardar checklist'}
           </Text>
         </Pressable>
+        {saveBlockedReason ? (
+          <Text style={styles.saveBlockedText}>{saveBlockedReason}</Text>
+        ) : null}
       </View>
 
       <CameraSourceSheet
@@ -873,6 +1250,58 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 12,
     color: '#64748B',
+  },
+  scheduleCard: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 2,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+  },
+  scheduleCardAllowed: {
+    borderColor: '#86EFAC',
+    backgroundColor: '#F0FDF4',
+  },
+  scheduleCardBlocked: {
+    borderColor: '#FECACA',
+    backgroundColor: '#FEF2F2',
+  },
+  scheduleCardNoSchedule: {
+    borderColor: '#FDE68A',
+    backgroundColor: '#FFFBEB',
+  },
+  scheduleTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  scheduleText: {
+    fontSize: 12,
+    color: '#334155',
+    lineHeight: 17,
+  },
+  scheduleHint: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 17,
+  },
+  scheduleActionBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  scheduleActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F766E',
   },
   content: {
     padding: 16,
@@ -974,6 +1403,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  saveBlockedText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#B91C1C',
+    lineHeight: 17,
   },
   pressed: {
     opacity: 0.82,

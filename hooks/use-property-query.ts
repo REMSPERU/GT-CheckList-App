@@ -51,6 +51,7 @@ function transformLocalToPropertyList(localProps: any[]): PropertyListResponse {
     code: p.code,
     address: p.address,
     city: p.city,
+    image_url: p.image_url || null,
     // defaults for missing fields in mirror
     property_type: 'Unknown',
     is_active: true,

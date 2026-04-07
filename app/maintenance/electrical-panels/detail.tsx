@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { TableroElectricoResponse } from '@/types/api';
 import { PanelDetailContent } from '@/components/maintenance/PanelDetailContent';
 import { useUserRole } from '@/hooks/use-user-role';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { DatabaseService } from '@/services/database';
 
 // ── Static style constant (avoid re-creating on every render) ──────────────
@@ -41,6 +41,19 @@ export default function PanelDetailScreen() {
 
   const detail = panel?.equipment_detail || null;
 
+  const handleBack = useCallback(() => router.back(), [router]);
+
+  const handleEditPress = useCallback(() => {
+    if (!panel) return;
+    router.push({
+      pathname: '/maintenance/electrical-panels/configuration',
+      params: {
+        panelId: panel.id,
+        isEditMode: 'true',
+      },
+    });
+  }, [router, panel]);
+
   // Single stable wrapper so SafeAreaView and header never remount,
   // which prevents the layout jump between loading and loaded states.
   return (
@@ -48,7 +61,7 @@ export default function PanelDetailScreen() {
       {/* Header – always visible */}
       <View style={styles.header}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={handleBack}
           style={({ pressed }) => [
             styles.backButton,
             pressed && styles.pressed,
@@ -58,17 +71,9 @@ export default function PanelDetailScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>Detalle del Tablero</Text>
         <View style={flexOneStyle} />
-        {!isLoading && panel && (isAdmin || isSupervisor) && (
+        {!isLoading && panel != null && (isAdmin || isSupervisor) ? (
           <Pressable
-            onPress={() => {
-              router.push({
-                pathname: '/maintenance/electrical-panels/configuration',
-                params: {
-                  panelId: panel.id,
-                  isEditMode: 'true',
-                },
-              });
-            }}
+            onPress={handleEditPress}
             style={({ pressed }) => [
               styles.editButton,
               pressed && styles.pressed,
@@ -77,7 +82,7 @@ export default function PanelDetailScreen() {
             <Ionicons name="pencil" size={20} color="#0891B2" />
             <Text style={styles.editButtonText}>Editar</Text>
           </Pressable>
-        )}
+        ) : null}
       </View>
 
       {/* Body – changes based on state */}
