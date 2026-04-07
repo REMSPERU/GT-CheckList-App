@@ -327,11 +327,19 @@ export default function SelectDeviceScreen() {
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </Pressable>
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>
+            <Text
+              style={styles.headerTitle}
+              numberOfLines={2}
+              ellipsizeMode="tail">
               {building?.name || 'Seleccionar Equipo'}
             </Text>
             {building?.address && (
-              <Text style={styles.headerSubtitle}>{building.address}</Text>
+              <Text
+                style={styles.headerSubtitle}
+                numberOfLines={2}
+                ellipsizeMode="tail">
+                {building.address}
+              </Text>
             )}
           </View>
         </SafeAreaView>
@@ -413,9 +421,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 2,
   },
   headerTitleContainer: {
     marginTop: 'auto',
+    paddingLeft: 56,
+    paddingRight: 4,
     paddingBottom: 8,
   },
   headerTitle: {
