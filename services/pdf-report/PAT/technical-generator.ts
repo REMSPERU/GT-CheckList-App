@@ -431,6 +431,8 @@ interface PATEquipmentData {
   hasAccess?: PATChecklistItem;
 }
 
+type PATMeasurementPhase = 'pre' | 'post';
+
 const PAT_LABEL_COLLATOR = new Intl.Collator('es', {
   numeric: true,
   sensitivity: 'base',
@@ -475,23 +477,128 @@ function escapeHTML(value?: string | null): string {
     .replace(/'/g, '&#39;');
 }
 
-function normalizeComment(
+function normalizeMultilineComment(
   value: string | null | undefined,
   fallback: string,
-  maxLength = 220,
+  maxLength = 260,
 ): string {
-  const normalized = String(value || '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const lines = String(value || '')
+    .replace(/\r\n?/g, '\n')
+    .trim()
+    .split('\n')
+    .map(line => line.replace(/[ \t]+/g, ' ').trim());
 
-  if (!normalized) return escapeHTML(fallback);
+  const compactLines: string[] = [];
+  let previousWasBlank = false;
 
+  lines.forEach(line => {
+    const isBlank = line.length === 0;
+
+    if (isBlank) {
+      if (!previousWasBlank && compactLines.length > 0) {
+        compactLines.push('');
+      }
+      previousWasBlank = true;
+      return;
+    }
+
+    compactLines.push(line);
+    previousWasBlank = false;
+  });
+
+  if (compactLines.length === 0) return escapeHTML(fallback);
+
+  const normalized = compactLines.join('\n');
   const clipped =
     normalized.length > maxLength
       ? `${normalized.slice(0, maxLength).trimEnd()}...`
       : normalized;
 
-  return escapeHTML(clipped);
+  return escapeHTML(clipped).replace(/\n/g, '<br/>');
+}
+
+function getThermoPhotos(eq: any): { url: string; caption?: string }[] {
+  return Array.isArray(eq?.thermoPhotos) ? eq.thermoPhotos : [];
+}
+
+function getMeasurementPhoto(
+  eq: any,
+  phase: PATMeasurementPhase,
+): string | null {
+  const pat = getPatData(eq as any);
+  const thermoPhotos = getThermoPhotos(eq);
+
+  if (phase === 'pre') {
+    return (
+      pat.preMeasurementPhoto ||
+      thermoPhotos.find(photo => photo.caption === 'preMeasurement')?.url ||
+      thermoPhotos[0]?.url ||
+      null
+    );
+  }
+
+  return (
+    pat.postMeasurementPhoto ||
+    thermoPhotos.find(photo => photo.caption === 'postMeasurement')?.url ||
+    (thermoPhotos.length > 1
+      ? thermoPhotos[thermoPhotos.length - 1]?.url
+      : null)
+  );
+}
+
+function estimateMeasurementBlockWeight(
+  eq: any,
+  phase: PATMeasurementPhase,
+): number {
+  const pat = getPatData(eq as any);
+  const hasPhoto = Boolean(getMeasurementPhoto(eq, phase));
+  const labelLength = String(eq?.label || '').trim().length;
+  const valueLength = String(
+    phase === 'pre'
+      ? pat.preMeasurement || eq?.voltage || ''
+      : pat.postMeasurement || eq?.amperage || '',
+  ).trim().length;
+
+  return (
+    1.45 +
+    (hasPhoto ? 0.55 : 0) +
+    Math.min(labelLength / 80, 0.35) +
+    Math.min(valueLength / 20, 0.2)
+  );
+}
+
+function chunkItemsByWeight<T>(
+  items: T[],
+  getWeight: (item: T) => number,
+  maxWeightPerPage: number,
+  maxItemsPerPage: number,
+): T[][] {
+  const batches: T[][] = [];
+  let currentBatch: T[] = [];
+  let currentWeight = 0;
+
+  items.forEach(item => {
+    const itemWeight = getWeight(item);
+
+    if (
+      currentBatch.length > 0 &&
+      (currentBatch.length >= maxItemsPerPage ||
+        currentWeight + itemWeight > maxWeightPerPage)
+    ) {
+      batches.push(currentBatch);
+      currentBatch = [];
+      currentWeight = 0;
+    }
+
+    currentBatch.push(item);
+    currentWeight += itemWeight;
+  });
+
+  if (currentBatch.length > 0) {
+    batches.push(currentBatch);
+  }
+
+  return batches;
 }
 
 function getPatData(eq: any): PATEquipmentData {
@@ -593,7 +700,7 @@ function renderPhoto(
 }
 
 function renderPhotoGrid(
-  photos: Array<{ url?: string | null; caption: string }>,
+  photos: { url?: string | null; caption: string }[],
   small = true,
   className?: string,
 ): string {
@@ -747,12 +854,7 @@ function generateProcedurePage(data: MaintenanceSessionReport): string {
 
 function renderPreMeasurementBlock(eq: any, idx: number): string {
   const pat = getPatData(eq as any);
-  const measurePhoto =
-    pat.preMeasurementPhoto ||
-    eq.thermoPhotos.find((photo: any) => photo.caption === 'preMeasurement')
-      ?.url ||
-    eq.thermoPhotos[0]?.url ||
-    null;
+  const measurePhoto = getMeasurementPhoto(eq, 'pre');
   const typeLabel = eq.type || 'POZO A TIERRA';
   const isGrid = typeLabel.toUpperCase().includes('MALLA');
   const prefix = isGrid ? `MALLA 1, ` : '';
@@ -856,13 +958,17 @@ function generatePreMeasurementPages(
 ): string {
   const measurableEquipments = equipments.slice(startIndex);
   if (measurableEquipments.length === 0) return '';
-  const globalStart = startIndex;
   let pages = '';
-  const perPage = 6;
+  const batches = chunkItemsByWeight(
+    measurableEquipments,
+    eq => estimateMeasurementBlockWeight(eq, 'pre'),
+    10.6,
+    6,
+  );
+  let offset = 0;
 
-  for (let i = 0; i < measurableEquipments.length; i += perPage) {
-    const batch = measurableEquipments.slice(i, i + perPage);
-    const isFirst = i === 0;
+  batches.forEach((batch, pageIndex) => {
+    const isFirst = pageIndex === 0;
 
     pages += `
       <div class="page">
@@ -876,21 +982,23 @@ function generatePreMeasurementPages(
         <div class="measurement-grid">
         ${batch
           .map((eq, j) => {
-            const idx = globalStart + i + j + 1;
+            const idx = startIndex + offset + j + 1;
             return renderPreMeasurementBlock(eq, idx);
           })
           .join('')}
         </div>
       </div>
     `;
-  }
+
+    offset += batch.length;
+  });
 
   return pages;
 }
 
 function generateTreatmentPages(data: MaintenanceSessionReport): string {
-  const thorGelPhotos: Array<{ url: string; wellLabel: string }> = [];
-  const greasePhotos: Array<{ url: string; wellLabel: string }> = [];
+  const thorGelPhotos: { url: string; wellLabel: string }[] = [];
+  const greasePhotos: { url: string; wellLabel: string }[] = [];
   const seenThor = new Set<string>();
   const seenGrease = new Set<string>();
 
@@ -1017,11 +1125,16 @@ function generatePostMeasurementPages(data: MaintenanceSessionReport): string {
   const equipments = getCompletedPATEquipments(data);
   if (equipments.length === 0) return '';
   let pages = '';
-  const perPage = 6;
+  const batches = chunkItemsByWeight(
+    equipments,
+    eq => estimateMeasurementBlockWeight(eq, 'post'),
+    10.6,
+    6,
+  );
+  let offset = 0;
 
-  for (let i = 0; i < equipments.length; i += perPage) {
-    const batch = equipments.slice(i, i + perPage);
-    const isFirst = i === 0;
+  batches.forEach((batch, pageIndex) => {
+    const isFirst = pageIndex === 0;
 
     pages += `
       <div class="page">
@@ -1035,17 +1148,9 @@ function generatePostMeasurementPages(data: MaintenanceSessionReport): string {
         <div class="measurement-grid">
         ${batch
           .map((eq, j) => {
-            const idx = i + j + 1;
+            const idx = offset + j + 1;
             const pat = getPatData(eq as any);
-            const measurePhoto =
-              pat.postMeasurementPhoto ||
-              eq.thermoPhotos.find(
-                (photo: { url: string; caption?: string }) =>
-                  photo.caption === 'postMeasurement',
-              )?.url ||
-              (eq.thermoPhotos.length > 1
-                ? eq.thermoPhotos[eq.thermoPhotos.length - 1].url
-                : null);
+            const measurePhoto = getMeasurementPhoto(eq, 'post');
             const typeLabel = eq.type || 'POZO A TIERRA';
             const isGrid = typeLabel.toUpperCase().includes('MALLA');
             const prefix = isGrid ? `MALLA 1, ` : '';
@@ -1066,7 +1171,9 @@ function generatePostMeasurementPages(data: MaintenanceSessionReport): string {
         </div>
       </div>
     `;
-  }
+
+    offset += batch.length;
+  });
 
   return pages;
 }
@@ -1138,7 +1245,7 @@ function generateInspectionChecklistPages(
                     </tr>
                     <tr>
                       <td>COMENTARIO</td>
-                      <td>${normalizeComment(pat.reprogramComment, 'Sin comentario registrado por el técnico.', 180)}</td>
+                      <td>${normalizeMultilineComment(pat.reprogramComment, 'Sin comentario registrado por el técnico.', 180)}</td>
                     </tr>
                   </table>
                 </div>
@@ -1192,7 +1299,7 @@ function generateInspectionChecklistPages(
                       ? `
                   <tr>
                     <td>OBSERVACIÓN GENERAL</td>
-                    <td>${normalizeComment(pat.generalObservation, 'Sin observaciones adicionales.', 220)}</td>
+                    <td>${normalizeMultilineComment(pat.generalObservation, 'Sin observaciones adicionales.', 220)}</td>
                   </tr>
                   `
                       : ''
@@ -1291,12 +1398,16 @@ function generateRecommendationsAndConclusionsPage(
       <h2>10.- RECOMENDACIONES</h2>
       ${
         data.recommendations
-          ? `<p>${data.recommendations}</p>`
+          ? `<p>${normalizeMultilineComment(data.recommendations, 'Sin recomendaciones registradas.', 900)}</p>`
           : defaultRecommendations
       }
 
       <h2>11.- CONCLUSIONES:</h2>
-      ${data.conclusions ? `<p>${data.conclusions}</p>` : defaultConclusions}
+      ${
+        data.conclusions
+          ? `<p>${normalizeMultilineComment(data.conclusions, 'Sin conclusiones registradas.', 900)}</p>`
+          : defaultConclusions
+      }
 
       <div class="signature-section">
         <div class="signature-box">
