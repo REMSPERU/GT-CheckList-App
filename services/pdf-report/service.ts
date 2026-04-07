@@ -1,11 +1,11 @@
 // PDF Report Service - Main Service Class
 
 import { Platform } from 'react-native';
-import { Asset } from 'expo-asset';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
+import { getAssetDataUri } from './common/asset-data-uri';
 import {
   MaintenanceSessionReport,
   SessionReportData,
@@ -196,18 +196,10 @@ class PDFReportService {
   }
 
   private async getImageDataUriFromAsset(moduleId: number): Promise<string> {
-    const asset = Asset.fromModule(moduleId);
-
-    if (!asset.localUri) {
-      await asset.downloadAsync();
-    }
-
-    const assetUri = asset.localUri || asset.uri;
-    const base64 = await FileSystem.readAsStringAsync(assetUri, {
-      encoding: FileSystem.EncodingType.Base64,
+    return getAssetDataUri(moduleId, {
+      mimeType: 'image/png',
+      fileExtension: 'png',
     });
-
-    return `data:image/png;base64,${base64}`;
   }
 
   private async getPATSignatures(): Promise<PATReportSignatures> {
