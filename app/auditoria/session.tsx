@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
 interface AuditAnswer {
+  isApplicable: boolean;
   status: boolean | null;
   observation: string;
   photoUris: string[];
@@ -37,6 +38,20 @@ interface AuditQuestion {
 }
 
 type AnswerErrors = Record<string, { observation?: string; photos?: string }>;
+
+type ApplicableAnswerEntry = {
+  question: AuditQuestion;
+  answer: AuditAnswer & { status: boolean };
+};
+
+function createEmptyAuditAnswer(): AuditAnswer {
+  return {
+    isApplicable: true,
+    status: null,
+    observation: '',
+    photoUris: [],
+  };
+}
 
 function parseLegacyAuditQuestion(questionText: string) {
   const match = questionText.match(/^\s*\[([^\]]+)\]\s*(.+)$/);
@@ -117,11 +132,7 @@ export default function AuditoriaSessionScreen() {
 
       const initialAnswers: Record<string, AuditAnswer> = {};
       safeQuestions.forEach(question => {
-        initialAnswers[question.id] = {
-          status: null,
-          observation: '',
-          photoUris: [],
-        };
+        initialAnswers[question.id] = createEmptyAuditAnswer();
       });
       setAnswers(initialAnswers);
     } catch (error) {
@@ -132,27 +143,122 @@ export default function AuditoriaSessionScreen() {
     }
   }, [showAlert]);
 
+  const clearQuestionErrors = useCallback((questionId: string) => {
+    setErrors(prev => {
+      if (!prev[questionId]) {
+        return prev;
+      }
+
+      const next = { ...prev };
+      delete next[questionId];
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     loadQuestions();
   }, [loadQuestions]);
 
-  const handleOpenCameraSheet = useCallback((questionId: string) => {
-    onPhotoSelectedRef.current = (uri: string) => {
+  const handleOpenCameraSheet = useCallback(
+    (questionId: string) => {
+      onPhotoSelectedRef.current = (uri: string) => {
+        setAnswers(prev => {
+          const current = prev[questionId];
+          if (!current) return prev;
+
+          return {
+            ...prev,
+            [questionId]: {
+              ...current,
+              photoUris: [...current.photoUris, uri],
+            },
+          };
+        });
+        clearQuestionErrors(questionId);
+      };
+      setIsCameraSheetVisible(true);
+    },
+    [clearQuestionErrors],
+  );
+
+  const handleChangeApplicable = useCallback(
+    (questionId: string, isApplicable: boolean) => {
       setAnswers(prev => {
-        const current = prev[questionId];
-        if (!current) return prev;
+        const current = prev[questionId] ?? createEmptyAuditAnswer();
 
         return {
           ...prev,
           [questionId]: {
             ...current,
-            photoUris: [...current.photoUris, uri],
+            isApplicable,
+            status: isApplicable ? current.status : null,
+            observation: isApplicable ? current.observation : '',
+            photoUris: isApplicable ? current.photoUris : [],
           },
         };
       });
-    };
-    setIsCameraSheetVisible(true);
-  }, []);
+      clearQuestionErrors(questionId);
+    },
+    [clearQuestionErrors],
+  );
+
+  const handleChangeStatus = useCallback(
+    (questionId: string, status: boolean) => {
+      setAnswers(prev => {
+        const current = prev[questionId] ?? createEmptyAuditAnswer();
+
+        return {
+          ...prev,
+          [questionId]: {
+            ...current,
+            status,
+            observation: status ? '' : current.observation,
+            photoUris: status ? [] : current.photoUris,
+          },
+        };
+      });
+      clearQuestionErrors(questionId);
+    },
+    [clearQuestionErrors],
+  );
+
+  const handleChangeObservation = useCallback(
+    (questionId: string, text: string) => {
+      setAnswers(prev => {
+        const current = prev[questionId] ?? createEmptyAuditAnswer();
+
+        return {
+          ...prev,
+          [questionId]: {
+            ...current,
+            observation: text,
+          },
+        };
+      });
+      clearQuestionErrors(questionId);
+    },
+    [clearQuestionErrors],
+  );
+
+  const handleRemovePhoto = useCallback(
+    (questionId: string, photoIndex: number) => {
+      setAnswers(prev => {
+        const current = prev[questionId] ?? createEmptyAuditAnswer();
+
+        return {
+          ...prev,
+          [questionId]: {
+            ...current,
+            photoUris: current.photoUris.filter(
+              (_, index) => index !== photoIndex,
+            ),
+          },
+        };
+      });
+      clearQuestionErrors(questionId);
+    },
+    [clearQuestionErrors],
+  );
 
   const takePhoto = useCallback(async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -205,9 +311,13 @@ export default function AuditoriaSessionScreen() {
     for (const question of questions) {
       const answer = answers[question.id];
 
-      if (!answer || answer.status === null) {
+      if (!answer || !answer.isApplicable) {
+        continue;
+      }
+
+      if (answer.status === null) {
         nextErrors[question.id] = {
-          observation: 'Debe marcar OK u OBS.',
+          observation: 'Seleccione OK u OBS para continuar.',
         };
         continue;
       }
@@ -277,27 +387,34 @@ export default function AuditoriaSessionScreen() {
         }
       }
 
-      const payloadAnswers = questions.map(question => {
-        const answer = answers[question.id];
-        const status = answer.status === true ? 'OK' : 'OBS';
+      const payloadAnswers = questions
+        .map(question => ({ question, answer: answers[question.id] }))
+        .filter((entry): entry is ApplicableAnswerEntry => {
+          return (
+            entry.answer?.isApplicable === true && entry.answer.status !== null
+          );
+        })
+        .map(({ question, answer }) => {
+          const status = answer.status === true ? 'OK' : 'OBS';
 
-        return {
-          question_id: question.id,
-          question_code: question.question_code,
-          status,
-          observation: status === 'OBS' ? answer.observation.trim() : null,
-          comment: status === 'OBS' ? answer.observation.trim() : null,
-          photos:
-            status === 'OBS'
-              ? answer.photoUris.map(uri => ({ url: uri, path: uri }))
-              : [],
-        };
-      });
+          return {
+            question_id: question.id,
+            question_code: question.question_code,
+            status,
+            observation: status === 'OBS' ? answer.observation.trim() : null,
+            comment: status === 'OBS' ? answer.observation.trim() : null,
+            photos:
+              status === 'OBS'
+                ? answer.photoUris.map(uri => ({ url: uri, path: uri }))
+                : [],
+          };
+        });
 
       const totalObs = payloadAnswers.filter(
         item => item.status === 'OBS',
       ).length;
       const totalOk = payloadAnswers.length - totalObs;
+      const totalNotApplicable = questions.length - payloadAnswers.length;
       const totalPhotos = payloadAnswers.reduce(
         (acc, item) => acc + item.photos.length,
         0,
@@ -316,7 +433,9 @@ export default function AuditoriaSessionScreen() {
           answers: payloadAnswers,
         },
         summary: {
-          total_questions: payloadAnswers.length,
+          total_questions: questions.length,
+          total_applies: payloadAnswers.length,
+          total_not_applicable: totalNotApplicable,
           total_ok: totalOk,
           total_obs: totalObs,
           total_photos: totalPhotos,
@@ -348,6 +467,51 @@ export default function AuditoriaSessionScreen() {
     user?.id,
     validateAnswers,
   ]);
+
+  const renderQuestionItem = useCallback(
+    ({ item, index }: { item: AuditQuestion; index: number }) => (
+      <View>
+        {item.section_name &&
+        item.section_name !== (questions[index - 1]?.section_name ?? null) ? (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{item.section_name}</Text>
+          </View>
+        ) : null}
+
+        <QuestionChecklistItem
+          order={index + 1}
+          question={item.question_text}
+          value={{
+            isApplicable: answers[item.id]?.isApplicable ?? true,
+            status: answers[item.id]?.status ?? null,
+            observation: answers[item.id]?.observation ?? '',
+            photoUris: answers[item.id]?.photoUris ?? [],
+          }}
+          onChangeApplicable={isApplicable =>
+            handleChangeApplicable(item.id, isApplicable)
+          }
+          showApplicabilityToggle={true}
+          onChangeStatus={status => handleChangeStatus(item.id, status)}
+          onChangeObservation={text => handleChangeObservation(item.id, text)}
+          onAddPhoto={() => handleOpenCameraSheet(item.id)}
+          onRemovePhoto={photoIndex => handleRemovePhoto(item.id, photoIndex)}
+          errors={errors[item.id]}
+          disabled={isSaving}
+        />
+      </View>
+    ),
+    [
+      answers,
+      errors,
+      handleChangeApplicable,
+      handleChangeObservation,
+      handleChangeStatus,
+      handleOpenCameraSheet,
+      handleRemovePhoto,
+      isSaving,
+      questions,
+    ],
+  );
 
   if (!canAudit) {
     return (
@@ -405,64 +569,7 @@ export default function AuditoriaSessionScreen() {
         data={questions}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item, index }) => (
-          <View>
-            {item.section_name &&
-            item.section_name !==
-              (questions[index - 1]?.section_name ?? null) ? (
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{item.section_name}</Text>
-              </View>
-            ) : null}
-
-            <QuestionChecklistItem
-              order={index + 1}
-              question={item.question_text}
-              value={{
-                status: answers[item.id]?.status ?? null,
-                observation: answers[item.id]?.observation ?? '',
-                photoUris: answers[item.id]?.photoUris ?? [],
-              }}
-              onChangeStatus={status => {
-                setAnswers(prev => ({
-                  ...prev,
-                  [item.id]: {
-                    ...prev[item.id],
-                    status,
-                    observation: status
-                      ? ''
-                      : (prev[item.id]?.observation ?? ''),
-                    photoUris: status ? [] : (prev[item.id]?.photoUris ?? []),
-                  },
-                }));
-              }}
-              onChangeObservation={text => {
-                setAnswers(prev => ({
-                  ...prev,
-                  [item.id]: {
-                    ...prev[item.id],
-                    observation: text,
-                  },
-                }));
-              }}
-              onAddPhoto={() => handleOpenCameraSheet(item.id)}
-              onRemovePhoto={photoIndex => {
-                setAnswers(prev => ({
-                  ...prev,
-                  [item.id]: {
-                    ...prev[item.id],
-                    photoUris:
-                      prev[item.id]?.photoUris.filter(
-                        (_, i) => i !== photoIndex,
-                      ) ?? [],
-                  },
-                }));
-              }}
-              errors={errors[item.id]}
-              disabled={isSaving}
-            />
-          </View>
-        )}
+        renderItem={renderQuestionItem}
         ListFooterComponent={
           <Pressable
             style={({ pressed }) => [

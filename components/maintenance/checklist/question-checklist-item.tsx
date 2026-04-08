@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 interface QuestionChecklistItemValue {
   status: boolean | null;
+  isApplicable?: boolean;
   observation: string;
   photoUris: string[];
 }
@@ -27,11 +28,13 @@ interface QuestionChecklistItemProps {
   question: string;
   value: QuestionChecklistItemValue;
   onChangeStatus: (status: boolean) => void;
+  onChangeApplicable?: (isApplicable: boolean) => void;
   onChangeObservation: (text: string) => void;
   onAddPhoto: () => void;
   onRemovePhoto: (index: number) => void;
   errors?: QuestionChecklistItemErrors;
   disabled?: boolean;
+  showApplicabilityToggle?: boolean;
 }
 
 export const QuestionChecklistItem = memo(function QuestionChecklistItem({
@@ -39,19 +42,32 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
   question,
   value,
   onChangeStatus,
+  onChangeApplicable,
   onChangeObservation,
   onAddPhoto,
   onRemovePhoto,
   errors,
   disabled = false,
+  showApplicabilityToggle = false,
 }: QuestionChecklistItemProps) {
-  const showObservationBlock = value.status === false;
-  const statusLabel = value.status === false ? 'OBS' : 'OK';
+  const isApplicable = value.isApplicable !== false;
+  const showObservationBlock = isApplicable && value.status === false;
+  const statusLabel =
+    value.status === null ? 'Sin respuesta' : value.status ? 'OK' : 'OBS';
   const handleAddPhotoPress = useCallback(() => {
     if (!disabled) {
       onAddPhoto();
     }
   }, [disabled, onAddPhoto]);
+
+  const handleApplicableToggle = useCallback(
+    (nextValue: boolean) => {
+      if (!disabled) {
+        onChangeApplicable?.(nextValue);
+      }
+    },
+    [disabled, onChangeApplicable],
+  );
 
   return (
     <View style={styles.card}>
@@ -63,16 +79,72 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
           <Text style={styles.questionText}>{question}</Text>
         </View>
 
-        <View style={styles.statusWrap}>
-          <Text style={styles.statusText}>{statusLabel}</Text>
-          <Switch
-            value={value.status === true}
-            onValueChange={onChangeStatus}
-            disabled={disabled}
-            trackColor={{ false: '#E5E7EB', true: '#0EA5E9' }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
+        {showApplicabilityToggle ? (
+          <View style={styles.applyWrap}>
+            <View style={styles.applyRow}>
+              <Text style={styles.applyText}>Aplica</Text>
+              <Switch
+                value={isApplicable}
+                onValueChange={handleApplicableToggle}
+                disabled={disabled}
+                trackColor={{ false: '#E5E7EB', true: '#0EA5E9' }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            {isApplicable ? (
+              <View style={styles.statusButtonsRow}>
+                <Pressable
+                  onPress={() => onChangeStatus(true)}
+                  style={({ pressed }) => [
+                    styles.statusButton,
+                    value.status === true && styles.statusButtonActiveOk,
+                    pressed && styles.pressed,
+                  ]}
+                  disabled={disabled}
+                  accessibilityRole="button">
+                  <Text
+                    style={[
+                      styles.statusButtonText,
+                      value.status === true && styles.statusButtonTextActive,
+                    ]}>
+                    OK
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => onChangeStatus(false)}
+                  style={({ pressed }) => [
+                    styles.statusButton,
+                    value.status === false && styles.statusButtonActiveObs,
+                    pressed && styles.pressed,
+                  ]}
+                  disabled={disabled}
+                  accessibilityRole="button">
+                  <Text
+                    style={[
+                      styles.statusButtonText,
+                      value.status === false && styles.statusButtonTextActive,
+                    ]}>
+                    OBS
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Text style={styles.notApplicableText}>No aplica</Text>
+            )}
+          </View>
+        ) : (
+          <View style={styles.statusWrap}>
+            <Text style={styles.statusText}>{statusLabel}</Text>
+            <Switch
+              value={value.status === true}
+              onValueChange={onChangeStatus}
+              disabled={disabled}
+              trackColor={{ false: '#E5E7EB', true: '#0EA5E9' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+        )}
       </View>
 
       {showObservationBlock && (
@@ -99,7 +171,7 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.photosRow}>
             {value.photoUris.map((uri, index) => (
-              <View key={`${uri}_${index}`} style={styles.photoWrap}>
+              <View key={uri} style={styles.photoWrap}>
                 <Image
                   source={{ uri }}
                   style={styles.photo}
@@ -191,6 +263,56 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#334155',
+  },
+  applyWrap: {
+    minWidth: 126,
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  applyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  applyText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  statusButtonsRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  statusButton: {
+    minWidth: 50,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  statusButtonActiveOk: {
+    borderColor: '#0284C7',
+    backgroundColor: '#E0F2FE',
+  },
+  statusButtonActiveObs: {
+    borderColor: '#DC2626',
+    backgroundColor: '#FEE2E2',
+  },
+  statusButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  statusButtonTextActive: {
+    color: '#0F172A',
+  },
+  notApplicableText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
   },
   detailsWrap: {
     marginTop: 12,
