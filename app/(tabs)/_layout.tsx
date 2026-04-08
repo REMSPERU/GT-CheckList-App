@@ -67,17 +67,16 @@ export default function TabLayout() {
           ),
         }}
       />
-      {isAdmin && (
-        <Tabs.Screen
-          name="admin"
-          options={{
-            title: 'Admin',
-            tabBarIcon: ({ color }) => (
-              <Feather name="settings" size={24} color={color} />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: 'Admin',
+          tabBarIcon: ({ color }) => (
+            <Feather name="settings" size={24} color={color} />
+          ),
+          href: isAdmin ? '/admin' : null,
+        }}
+      />
     </Tabs>
   );
 }

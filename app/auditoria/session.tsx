@@ -31,9 +31,28 @@ interface AuditQuestion {
   question_code: string;
   question_text: string;
   order_index: number;
+  section_id: string | null;
+  section_name: string | null;
+  section_order_index: number | null;
 }
 
 type AnswerErrors = Record<string, { observation?: string; photos?: string }>;
+
+function parseLegacyAuditQuestion(questionText: string) {
+  const match = questionText.match(/^\s*\[([^\]]+)\]\s*(.+)$/);
+
+  if (!match) {
+    return {
+      sectionName: null,
+      cleanQuestionText: questionText,
+    };
+  }
+
+  return {
+    sectionName: match[1].trim(),
+    cleanQuestionText: match[2].trim(),
+  };
+}
 
 export default function AuditoriaSessionScreen() {
   const router = useRouter();
@@ -77,7 +96,23 @@ export default function AuditoriaSessionScreen() {
         | AuditQuestion[]
         | null;
 
-      const safeQuestions = localQuestions ?? [];
+      const safeQuestions = (localQuestions ?? []).map(question => {
+        const parsed = parseLegacyAuditQuestion(question.question_text);
+        const sectionName =
+          question.section_name && question.section_name.trim().length > 0
+            ? question.section_name
+            : parsed.sectionName;
+
+        return {
+          ...question,
+          section_name: sectionName,
+          question_text:
+            sectionName !== null
+              ? parsed.cleanQuestionText
+              : question.question_text,
+        };
+      });
+
       setQuestions(safeQuestions);
 
       const initialAnswers: Record<string, AuditAnswer> = {};
@@ -371,50 +406,62 @@ export default function AuditoriaSessionScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
         renderItem={({ item, index }) => (
-          <QuestionChecklistItem
-            order={index + 1}
-            question={item.question_text}
-            value={{
-              status: answers[item.id]?.status ?? null,
-              observation: answers[item.id]?.observation ?? '',
-              photoUris: answers[item.id]?.photoUris ?? [],
-            }}
-            onChangeStatus={status => {
-              setAnswers(prev => ({
-                ...prev,
-                [item.id]: {
-                  ...prev[item.id],
-                  status,
-                  observation: status ? '' : (prev[item.id]?.observation ?? ''),
-                  photoUris: status ? [] : (prev[item.id]?.photoUris ?? []),
-                },
-              }));
-            }}
-            onChangeObservation={text => {
-              setAnswers(prev => ({
-                ...prev,
-                [item.id]: {
-                  ...prev[item.id],
-                  observation: text,
-                },
-              }));
-            }}
-            onAddPhoto={() => handleOpenCameraSheet(item.id)}
-            onRemovePhoto={photoIndex => {
-              setAnswers(prev => ({
-                ...prev,
-                [item.id]: {
-                  ...prev[item.id],
-                  photoUris:
-                    prev[item.id]?.photoUris.filter(
-                      (_, i) => i !== photoIndex,
-                    ) ?? [],
-                },
-              }));
-            }}
-            errors={errors[item.id]}
-            disabled={isSaving}
-          />
+          <View>
+            {item.section_name &&
+            item.section_name !==
+              (questions[index - 1]?.section_name ?? null) ? (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{item.section_name}</Text>
+              </View>
+            ) : null}
+
+            <QuestionChecklistItem
+              order={index + 1}
+              question={item.question_text}
+              value={{
+                status: answers[item.id]?.status ?? null,
+                observation: answers[item.id]?.observation ?? '',
+                photoUris: answers[item.id]?.photoUris ?? [],
+              }}
+              onChangeStatus={status => {
+                setAnswers(prev => ({
+                  ...prev,
+                  [item.id]: {
+                    ...prev[item.id],
+                    status,
+                    observation: status
+                      ? ''
+                      : (prev[item.id]?.observation ?? ''),
+                    photoUris: status ? [] : (prev[item.id]?.photoUris ?? []),
+                  },
+                }));
+              }}
+              onChangeObservation={text => {
+                setAnswers(prev => ({
+                  ...prev,
+                  [item.id]: {
+                    ...prev[item.id],
+                    observation: text,
+                  },
+                }));
+              }}
+              onAddPhoto={() => handleOpenCameraSheet(item.id)}
+              onRemovePhoto={photoIndex => {
+                setAnswers(prev => ({
+                  ...prev,
+                  [item.id]: {
+                    ...prev[item.id],
+                    photoUris:
+                      prev[item.id]?.photoUris.filter(
+                        (_, i) => i !== photoIndex,
+                      ) ?? [],
+                  },
+                }));
+              }}
+              errors={errors[item.id]}
+              disabled={isSaving}
+            />
+          </View>
         )}
         ListFooterComponent={
           <Pressable
@@ -510,6 +557,18 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     paddingBottom: 28,
+  },
+  sectionHeader: {
+    paddingHorizontal: 2,
+    paddingTop: 8,
+    paddingBottom: 6,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F766E',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   submitButton: {
     marginTop: 8,

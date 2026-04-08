@@ -5,6 +5,9 @@ export interface LocalAuditQuestion {
   question_code: string;
   question_text: string;
   order_index: number;
+  section_id: string | null;
+  section_name: string | null;
+  section_order_index: number | null;
   is_active: number;
 }
 
@@ -33,10 +36,10 @@ export async function getAuditQuestions() {
   return withLock(async () => {
     const db = await dbPromise;
     return db.getAllAsync(
-      `SELECT id, question_code, question_text, order_index, is_active
+      `SELECT id, question_code, question_text, order_index, section_id, section_name, section_order_index, is_active
        FROM local_audit_questions
-       WHERE is_active = 1
-       ORDER BY order_index ASC`,
+        WHERE is_active = 1
+        ORDER BY COALESCE(section_order_index, 999999) ASC, order_index ASC`,
     ) as Promise<LocalAuditQuestion[]>;
   });
 }

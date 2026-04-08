@@ -162,6 +162,9 @@ export async function initDatabase() {
           question_code TEXT,
           question_text TEXT,
           order_index INTEGER,
+          section_id TEXT,
+          section_name TEXT,
+          section_order_index INTEGER,
           is_active INTEGER,
           updated_at TEXT
         );
@@ -421,6 +424,44 @@ export async function initDatabase() {
       console.log('Migration: Added image_url column to local_properties');
     } catch {
       // Column already exists
+    }
+
+    // Migration v1.8: Add audit question section metadata
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_audit_questions ADD COLUMN section_id TEXT;`,
+      );
+      console.log('Migration: Added section_id to local_audit_questions');
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_audit_questions ADD COLUMN section_name TEXT;`,
+      );
+      console.log('Migration: Added section_name to local_audit_questions');
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_audit_questions ADD COLUMN section_order_index INTEGER;`,
+      );
+      console.log(
+        'Migration: Added section_order_index to local_audit_questions',
+      );
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(
+        'CREATE INDEX IF NOT EXISTS idx_local_audit_questions_section_order ON local_audit_questions(is_active, section_order_index, order_index);',
+      );
+    } catch {
+      // Index already exists
     }
 
     console.log('Database initialized');
