@@ -475,11 +475,6 @@ export async function cleanupOfflineQueue() {
         DELETE FROM offline_panel_configurations
         WHERE status = 'synced'
       `);
-
-      await db.runAsync(`
-        DELETE FROM offline_audit_sessions
-        WHERE sync_status = 'synced'
-      `);
     });
   });
 }

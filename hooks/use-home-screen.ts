@@ -210,12 +210,8 @@ export function useHomeScreen() {
       const assignedProperties =
         await DatabaseService.getAssignedPropertiesForAuditor(user.id);
       const selectedBuildingId = String(selectedBuilding.id);
-      const isAssigned = (assignedProperties || []).some(property => {
-        if (!property || typeof property !== 'object' || !('id' in property)) {
-          return false;
-        }
-
-        return String((property as { id: string }).id) === selectedBuildingId;
+      const isAssigned = assignedProperties.some(property => {
+        return String(property.id) === selectedBuildingId;
       });
 
       if (!isAssigned) {
@@ -225,7 +221,7 @@ export function useHomeScreen() {
     }
 
     router.push({
-      pathname: '/auditoria/session',
+      pathname: '/auditoria/history',
       params: {
         buildingId: String(selectedBuilding.id),
         buildingName: selectedBuilding.name,

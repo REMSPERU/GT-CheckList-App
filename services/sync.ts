@@ -88,6 +88,20 @@ interface AuditPayload {
   answers?: AuditAnswerPayload[];
 }
 
+interface RemoteAuditSession {
+  client_submission_id: string;
+  property_id: string;
+  auditor_id: string;
+  created_by: string | null;
+  scheduled_for: string;
+  status: string;
+  started_at: string | null;
+  submitted_at: string | null;
+  audit_payload: Record<string, unknown> | null;
+  summary: Record<string, unknown> | null;
+  created_at: string | null;
+}
+
 interface MaintenanceRouteContext {
   id: string;
   id_equipo: string | null;
@@ -784,6 +798,7 @@ class SyncService {
           sessionsResult,
           userSessionsResult,
           sessionPhotosResult,
+          auditSessionsResult,
         ] = await Promise.all([
           safeFetch(() =>
             supabase.from('equipos').select('*').limit(SYNC_ROW_LIMIT),
@@ -859,6 +874,21 @@ class SyncService {
               .select('*')
               .limit(SYNC_ROW_LIMIT),
           ),
+          safeFetch(() => {
+            let query = supabase
+              .from('audit_sessions')
+              .select(
+                'client_submission_id, property_id, auditor_id, created_by, scheduled_for, status, started_at, submitted_at, audit_payload, summary, created_at',
+              )
+              .order('created_at', { ascending: false })
+              .limit(SYNC_ROW_LIMIT);
+
+            if (currentUserId) {
+              query = query.eq('auditor_id', currentUserId);
+            }
+
+            return query;
+          }),
         ]);
 
         // Log any failures (but continue syncing successful tables)
@@ -880,6 +910,7 @@ class SyncService {
           failedTables.push('user_sesion_mantenimiento');
         if (sessionPhotosResult.failed)
           failedTables.push('sesion_mantenimiento_fotos');
+        if (auditSessionsResult.failed) failedTables.push('audit_sessions');
 
         if (failedTables.length > 0) {
           console.warn(
@@ -903,6 +934,12 @@ class SyncService {
           userSessionsResult.data,
           sessionPhotosResult.data,
         );
+
+        if (auditSessionsResult.data !== null) {
+          await DatabaseService.upsertSyncedAuditSessions(
+            auditSessionsResult.data as RemoteAuditSession[],
+          );
+        }
 
         this.lastPullTimestamp = Date.now();
         log('Down-Sync Completed.');

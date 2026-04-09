@@ -167,6 +167,8 @@ export default function AuditoriaHistoryScreen() {
 
     setIsLoading(true);
     try {
+      await syncService.pullData();
+
       const [localSessions, localQuestions] = await Promise.all([
         DatabaseService.getAuditSessionsByProperty(buildingId),
         DatabaseService.getAuditQuestions(),

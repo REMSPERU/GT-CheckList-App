@@ -37,6 +37,20 @@ export interface AuditorAssignedProperty {
   [key: string]: unknown;
 }
 
+export interface SyncedAuditSessionInput {
+  client_submission_id: string;
+  property_id: string;
+  auditor_id: string;
+  created_by?: string | null;
+  scheduled_for: string;
+  status: string;
+  started_at?: string | null;
+  submitted_at?: string | null;
+  audit_payload?: Record<string, unknown> | string | null;
+  summary?: Record<string, unknown> | string | null;
+  created_at?: string | null;
+}
+
 interface SaveOfflineAuditSessionInput {
   propertyId: string;
   auditorId: string;
@@ -54,6 +68,22 @@ function generateUuidV4() {
     const value = c === 'x' ? random : (random & 0x3) | 0x8;
     return value.toString(16);
   });
+}
+
+function toJsonText(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return null;
+  }
 }
 
 export async function getAuditQuestions() {
@@ -184,5 +214,70 @@ export async function updateOfflineAuditSessionStatus(
        WHERE local_id = ?`,
       [syncStatus, errorMessage, syncedAt, localId],
     );
+  });
+}
+
+export async function upsertSyncedAuditSessions(
+  sessions: SyncedAuditSessionInput[],
+) {
+  await ensureInitialized();
+
+  if (sessions.length === 0) {
+    return;
+  }
+
+  return withLock(async () => {
+    const db = await dbPromise;
+    const syncedAt = new Date().toISOString();
+
+    await db.withTransactionAsync(async () => {
+      for (const session of sessions) {
+        await db.runAsync(
+          `INSERT INTO offline_audit_sessions (
+            client_submission_id,
+            property_id,
+            auditor_id,
+            created_by,
+            scheduled_for,
+            status,
+            started_at,
+            submitted_at,
+            audit_payload,
+            summary,
+            sync_status,
+            error_message,
+            created_at,
+            synced_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', NULL, ?, ?)
+          ON CONFLICT(client_submission_id) DO UPDATE SET
+            property_id = excluded.property_id,
+            auditor_id = excluded.auditor_id,
+            created_by = excluded.created_by,
+            scheduled_for = excluded.scheduled_for,
+            status = excluded.status,
+            started_at = excluded.started_at,
+            submitted_at = excluded.submitted_at,
+            audit_payload = excluded.audit_payload,
+            summary = excluded.summary,
+            sync_status = 'synced',
+            error_message = NULL,
+            synced_at = excluded.synced_at`,
+          [
+            session.client_submission_id,
+            session.property_id,
+            session.auditor_id,
+            session.created_by || session.auditor_id,
+            session.scheduled_for,
+            session.status,
+            session.started_at || null,
+            session.submitted_at || null,
+            toJsonText(session.audit_payload),
+            toJsonText(session.summary),
+            session.created_at || session.submitted_at || syncedAt,
+            syncedAt,
+          ],
+        );
+      }
+    });
   });
 }
