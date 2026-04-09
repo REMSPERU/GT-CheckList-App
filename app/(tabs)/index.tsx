@@ -32,7 +32,7 @@ function HomeScreen() {
   const { height } = useWindowDimensions();
   const isTallScreen = height >= 820;
   const appVersion = Constants.expoConfig?.version ?? '1.0.36';
-  const { canScheduleMaintenance, canExecuteMaintenance, canAudit } =
+  const { canScheduleMaintenance, canExecuteMaintenance, isAuditor } =
     useUserRole();
 
   const {
@@ -97,7 +97,7 @@ function HomeScreen() {
       });
     }
 
-    if (canAudit) {
+    if (isAuditor) {
       cards.push({
         key: 'auditoria',
         title: 'Auditoria',
@@ -117,9 +117,9 @@ function HomeScreen() {
 
     return cards;
   }, [
-    canAudit,
     canExecuteMaintenance,
     canScheduleMaintenance,
+    isAuditor,
     handleChecklistPress,
     handleAuditPress,
     handleExecuteMaintenancePress,
