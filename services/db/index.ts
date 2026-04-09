@@ -62,6 +62,7 @@ import {
   getAuditQuestions,
   getAssignedPropertiesForAuditor,
   saveOfflineAuditSession,
+  getAuditSessionsByProperty,
   getPendingAuditSessions,
   updateOfflineAuditSessionStatus,
 } from './audit';
@@ -154,6 +155,7 @@ export const DatabaseService = {
   getAuditQuestions,
   getAssignedPropertiesForAuditor,
   saveOfflineAuditSession,
+  getAuditSessionsByProperty,
   getPendingAuditSessions,
   updateOfflineAuditSessionStatus,
 

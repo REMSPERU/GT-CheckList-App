@@ -11,6 +11,32 @@ export interface LocalAuditQuestion {
   is_active: number;
 }
 
+export interface OfflineAuditSessionRecord {
+  local_id: number;
+  client_submission_id: string;
+  property_id: string;
+  auditor_id: string;
+  created_by: string | null;
+  scheduled_for: string;
+  status: string;
+  started_at: string | null;
+  submitted_at: string | null;
+  audit_payload: string | null;
+  summary: string | null;
+  sync_status: 'pending' | 'syncing' | 'synced' | 'error';
+  error_message: string | null;
+  created_at: string;
+  synced_at: string | null;
+}
+
+export interface AuditorAssignedProperty {
+  id: string;
+  name: string;
+  address: string | null;
+  image_url: string | null;
+  [key: string]: unknown;
+}
+
 interface SaveOfflineAuditSessionInput {
   propertyId: string;
   auditorId: string;
@@ -60,7 +86,7 @@ export async function getAssignedPropertiesForAuditor(userId: string) {
          AND (up.expires_at IS NULL OR up.expires_at > ?)
        ORDER BY p.name ASC`,
       [userId, now],
-    );
+    ) as Promise<AuditorAssignedProperty[]>;
   });
 }
 
@@ -121,6 +147,21 @@ export async function getPendingAuditSessions() {
        WHERE sync_status IN ('pending', 'error')
        ORDER BY created_at ASC`,
     );
+  });
+}
+
+export async function getAuditSessionsByProperty(propertyId: string) {
+  await ensureInitialized();
+
+  return withLock(async () => {
+    const db = await dbPromise;
+    return db.getAllAsync(
+      `SELECT *
+       FROM offline_audit_sessions
+       WHERE property_id = ?
+       ORDER BY COALESCE(submitted_at, created_at) DESC`,
+      [propertyId],
+    ) as Promise<OfflineAuditSessionRecord[]>;
   });
 }
 

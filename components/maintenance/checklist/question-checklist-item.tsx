@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useState } from 'react';
 import { Image } from 'expo-image';
 import {
   View,
@@ -35,6 +35,9 @@ interface QuestionChecklistItemProps {
   errors?: QuestionChecklistItemErrors;
   disabled?: boolean;
   showApplicabilityToggle?: boolean;
+  questionMaxLines?: number;
+  allowQuestionExpand?: boolean;
+  statusLayout?: 'inline' | 'stacked';
 }
 
 export const QuestionChecklistItem = memo(function QuestionChecklistItem({
@@ -49,7 +52,11 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
   errors,
   disabled = false,
   showApplicabilityToggle = false,
+  questionMaxLines,
+  allowQuestionExpand = false,
+  statusLayout = 'inline',
 }: QuestionChecklistItemProps) {
+  const [isQuestionExpanded, setIsQuestionExpanded] = useState(false);
   const isApplicable = value.isApplicable !== false;
   const showObservationBlock = isApplicable && value.status === false;
   const statusLabel =
@@ -69,18 +76,96 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
     [disabled, onChangeApplicable],
   );
 
+  const isStackedLayout = showApplicabilityToggle && statusLayout === 'stacked';
+
+  const statusButtons = (
+    <View
+      style={[
+        styles.statusButtonsRow,
+        isStackedLayout && styles.statusButtonsRowStacked,
+      ]}>
+      <Pressable
+        onPress={() => onChangeStatus(true)}
+        style={({ pressed }) => [
+          styles.statusButton,
+          isStackedLayout && styles.statusButtonStacked,
+          value.status === true && styles.statusButtonActiveOk,
+          pressed && styles.pressed,
+        ]}
+        disabled={disabled}
+        accessibilityRole="button">
+        <Text
+          style={[
+            styles.statusButtonText,
+            value.status === true && styles.statusButtonTextActive,
+          ]}>
+          OK
+        </Text>
+      </Pressable>
+      <Pressable
+        onPress={() => onChangeStatus(false)}
+        style={({ pressed }) => [
+          styles.statusButton,
+          isStackedLayout && styles.statusButtonStacked,
+          value.status === false && styles.statusButtonActiveObs,
+          pressed && styles.pressed,
+        ]}
+        disabled={disabled}
+        accessibilityRole="button">
+        <Text
+          style={[
+            styles.statusButtonText,
+            value.status === false && styles.statusButtonTextActive,
+          ]}>
+          OBS
+        </Text>
+      </Pressable>
+    </View>
+  );
+
   return (
     <View style={styles.card}>
-      <View style={styles.headerRow}>
+      <View
+        style={[styles.headerRow, isStackedLayout && styles.headerRowStacked]}>
         <View style={styles.questionWrap}>
           <View style={styles.orderBadge}>
             <Text style={styles.orderText}>{order}</Text>
           </View>
-          <Text style={styles.questionText}>{question}</Text>
+          <View style={styles.questionTextWrap}>
+            <Text
+              style={styles.questionText}
+              numberOfLines={
+                isQuestionExpanded
+                  ? undefined
+                  : questionMaxLines && questionMaxLines > 0
+                    ? questionMaxLines
+                    : undefined
+              }>
+              {question}
+            </Text>
+            {allowQuestionExpand && questionMaxLines ? (
+              <Pressable
+                onPress={() => setIsQuestionExpanded(prev => !prev)}
+                style={({ pressed }) => [
+                  styles.expandQuestionBtn,
+                  pressed && styles.pressed,
+                ]}
+                disabled={disabled}
+                accessibilityRole="button">
+                <Text style={styles.expandQuestionText}>
+                  {isQuestionExpanded ? 'Ver menos' : 'Ver mas'}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
 
         {showApplicabilityToggle ? (
-          <View style={styles.applyWrap}>
+          <View
+            style={[
+              styles.applyWrap,
+              isStackedLayout && styles.applyWrapStacked,
+            ]}>
             <View style={styles.applyRow}>
               <Text style={styles.applyText}>Aplica</Text>
               <Switch
@@ -93,42 +178,7 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
             </View>
 
             {isApplicable ? (
-              <View style={styles.statusButtonsRow}>
-                <Pressable
-                  onPress={() => onChangeStatus(true)}
-                  style={({ pressed }) => [
-                    styles.statusButton,
-                    value.status === true && styles.statusButtonActiveOk,
-                    pressed && styles.pressed,
-                  ]}
-                  disabled={disabled}
-                  accessibilityRole="button">
-                  <Text
-                    style={[
-                      styles.statusButtonText,
-                      value.status === true && styles.statusButtonTextActive,
-                    ]}>
-                    OK
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => onChangeStatus(false)}
-                  style={({ pressed }) => [
-                    styles.statusButton,
-                    value.status === false && styles.statusButtonActiveObs,
-                    pressed && styles.pressed,
-                  ]}
-                  disabled={disabled}
-                  accessibilityRole="button">
-                  <Text
-                    style={[
-                      styles.statusButtonText,
-                      value.status === false && styles.statusButtonTextActive,
-                    ]}>
-                    OBS
-                  </Text>
-                </Pressable>
-              </View>
+              statusButtons
             ) : (
               <Text style={styles.notApplicableText}>No aplica</Text>
             )}
@@ -224,8 +274,12 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: 10,
+  },
+  headerRowStacked: {
+    flexDirection: 'column',
     gap: 10,
   },
   questionWrap: {
@@ -249,11 +303,23 @@ const styles = StyleSheet.create({
     color: '#0369A1',
   },
   questionText: {
-    flex: 1,
     fontSize: 15,
     color: '#111827',
     fontWeight: '600',
     lineHeight: 20,
+  },
+  questionTextWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  expandQuestionBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 2,
+  },
+  expandQuestionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0369A1',
   },
   statusWrap: {
     alignItems: 'center',
@@ -265,13 +331,19 @@ const styles = StyleSheet.create({
     color: '#334155',
   },
   applyWrap: {
-    minWidth: 126,
+    minWidth: 150,
     alignItems: 'flex-end',
-    gap: 6,
+    gap: 8,
+  },
+  applyWrapStacked: {
+    width: '100%',
+    minWidth: 0,
+    alignItems: 'stretch',
   },
   applyRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: 8,
   },
   applyText: {
@@ -281,17 +353,25 @@ const styles = StyleSheet.create({
   },
   statusButtonsRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 8,
+  },
+  statusButtonsRowStacked: {
+    width: '100%',
   },
   statusButton: {
-    minWidth: 50,
-    borderRadius: 8,
+    minWidth: 62,
+    minHeight: 38,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#FFFFFF',
+  },
+  statusButtonStacked: {
+    flex: 1,
   },
   statusButtonActiveOk: {
     borderColor: '#0284C7',
@@ -302,7 +382,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
   },
   statusButtonText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#64748B',
   },

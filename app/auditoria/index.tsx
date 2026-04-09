@@ -92,7 +92,7 @@ export default function AuditoriaIndexScreen() {
   const handleBuildingSelect = useCallback(
     (building: Property) => {
       router.push({
-        pathname: '/auditoria/session',
+        pathname: '/auditoria/history',
         params: {
           buildingId: String(building.id),
           buildingName: building.name,
@@ -102,6 +102,19 @@ export default function AuditoriaIndexScreen() {
       });
     },
     [router],
+  );
+
+  const renderBuildingItem = useCallback(
+    ({ item }: { item: Property }) => (
+      <View style={styles.cardMargin}>
+        <BuildingCard
+          initial={item.name.charAt(0).toUpperCase()}
+          name={item.name}
+          onPress={() => handleBuildingSelect(item)}
+        />
+      </View>
+    ),
+    [handleBuildingSelect],
   );
 
   if (!canAudit) {
@@ -140,15 +153,7 @@ export default function AuditoriaIndexScreen() {
       <FlatList
         data={filteredBuildings}
         keyExtractor={item => String(item.id)}
-        renderItem={({ item }) => (
-          <View style={styles.cardMargin}>
-            <BuildingCard
-              initial={item.name.charAt(0).toUpperCase()}
-              name={item.name}
-              onPress={() => handleBuildingSelect(item)}
-            />
-          </View>
-        )}
+        renderItem={renderBuildingItem}
         contentContainerStyle={styles.listWrapper}
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={

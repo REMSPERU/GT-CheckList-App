@@ -47,7 +47,7 @@ type ApplicableAnswerEntry = {
 function createEmptyAuditAnswer(): AuditAnswer {
   return {
     isApplicable: true,
-    status: null,
+    status: true,
     observation: '',
     photoUris: [],
   };
@@ -69,11 +69,137 @@ function parseLegacyAuditQuestion(questionText: string) {
   };
 }
 
+interface SessionHeaderProps {
+  buildingImageUrl?: string;
+  buildingName?: string;
+  scheduledFor: string;
+  onBack: () => void;
+}
+
+function SessionHeader({
+  buildingImageUrl,
+  buildingName,
+  scheduledFor,
+  onBack,
+}: SessionHeaderProps) {
+  return (
+    <View style={styles.headerContainer}>
+      <Pressable
+        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+        onPress={onBack}>
+        <Ionicons name="chevron-back" size={22} color="#fff" />
+      </Pressable>
+      <Image
+        source={
+          buildingImageUrl
+            ? { uri: buildingImageUrl }
+            : require('@/assets/images/icon.png')
+        }
+        style={styles.headerImage}
+        contentFit="cover"
+      />
+      <View style={styles.overlay} />
+      <View style={styles.headerContent}>
+        <Text style={styles.headerTitle} numberOfLines={2}>
+          {buildingName || 'Auditoria'}
+        </Text>
+        <Text style={styles.headerSubtitle}>
+          Fecha de auditoria: {scheduledFor}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+interface AuditQuestionRowProps {
+  question: AuditQuestion;
+  index: number;
+  previousSectionName: string | null;
+  answer: AuditAnswer | undefined;
+  error: AnswerErrors[string] | undefined;
+  isSaving: boolean;
+  onChangeApplicable: (questionId: string, isApplicable: boolean) => void;
+  onChangeStatus: (questionId: string, status: boolean) => void;
+  onChangeObservation: (questionId: string, text: string) => void;
+  onAddPhoto: (questionId: string) => void;
+  onRemovePhoto: (questionId: string, photoIndex: number) => void;
+}
+
+function AuditQuestionRow({
+  question,
+  index,
+  previousSectionName,
+  answer,
+  error,
+  isSaving,
+  onChangeApplicable,
+  onChangeStatus,
+  onChangeObservation,
+  onAddPhoto,
+  onRemovePhoto,
+}: AuditQuestionRowProps) {
+  return (
+    <View>
+      {question.section_name &&
+      question.section_name !== previousSectionName ? (
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{question.section_name}</Text>
+        </View>
+      ) : null}
+
+      <QuestionChecklistItem
+        order={index + 1}
+        question={question.question_text}
+        value={{
+          isApplicable: answer?.isApplicable ?? true,
+          status: answer?.status ?? true,
+          observation: answer?.observation ?? '',
+          photoUris: answer?.photoUris ?? [],
+        }}
+        onChangeApplicable={isApplicable =>
+          onChangeApplicable(question.id, isApplicable)
+        }
+        showApplicabilityToggle={true}
+        onChangeStatus={status => onChangeStatus(question.id, status)}
+        onChangeObservation={text => onChangeObservation(question.id, text)}
+        onAddPhoto={() => onAddPhoto(question.id)}
+        onRemovePhoto={photoIndex => onRemovePhoto(question.id, photoIndex)}
+        errors={error}
+        disabled={isSaving}
+        statusLayout="stacked"
+      />
+    </View>
+  );
+}
+
+interface SubmitAuditFooterProps {
+  isSaving: boolean;
+  onSubmit: () => void;
+}
+
+function SubmitAuditFooter({ isSaving, onSubmit }: SubmitAuditFooterProps) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.submitButton,
+        pressed && styles.pressed,
+        isSaving && styles.submitButtonDisabled,
+      ]}
+      onPress={onSubmit}
+      disabled={isSaving}>
+      <Text style={styles.submitText}>
+        {isSaving ? 'Guardando...' : 'Guardar auditoria'}
+      </Text>
+    </Pressable>
+  );
+}
+
 export default function AuditoriaSessionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     buildingId: string;
     buildingName: string;
+    buildingAddress?: string;
     buildingImageUrl?: string;
   }>();
   const { user } = useAuth();
@@ -191,7 +317,7 @@ export default function AuditoriaSessionScreen() {
           [questionId]: {
             ...current,
             isApplicable,
-            status: isApplicable ? current.status : null,
+            status: isApplicable ? (current.status ?? true) : null,
             observation: isApplicable ? current.observation : '',
             photoUris: isApplicable ? current.photoUris : [],
           },
@@ -363,19 +489,8 @@ export default function AuditoriaSessionScreen() {
       if (isAuditor) {
         const assignedProperties =
           await DatabaseService.getAssignedPropertiesForAuditor(user.id);
-        const isAssigned = (assignedProperties || []).some(property => {
-          if (
-            !property ||
-            typeof property !== 'object' ||
-            !('id' in property)
-          ) {
-            return false;
-          }
-
-          return (
-            String((property as { id: string }).id) ===
-            String(params.buildingId)
-          );
+        const isAssigned = assignedProperties.some(property => {
+          return String(property.id) === String(params.buildingId);
         });
 
         if (!isAssigned) {
@@ -400,6 +515,8 @@ export default function AuditoriaSessionScreen() {
           return {
             question_id: question.id,
             question_code: question.question_code,
+            question_text: question.question_text,
+            section_name: question.section_name,
             status,
             observation: status === 'OBS' ? answer.observation.trim() : null,
             comment: status === 'OBS' ? answer.observation.trim() : null,
@@ -448,7 +565,7 @@ export default function AuditoriaSessionScreen() {
 
       showAlert(
         'Guardado',
-        'Auditoria guardada localmente. Se sincronizara cuando haya internet.',
+        'Auditoria guardada localmente. Revise el historial para generar el informe cuando este subida.',
       );
     } catch (error) {
       console.error('Failed to save audit session:', error);
@@ -470,35 +587,19 @@ export default function AuditoriaSessionScreen() {
 
   const renderQuestionItem = useCallback(
     ({ item, index }: { item: AuditQuestion; index: number }) => (
-      <View>
-        {item.section_name &&
-        item.section_name !== (questions[index - 1]?.section_name ?? null) ? (
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{item.section_name}</Text>
-          </View>
-        ) : null}
-
-        <QuestionChecklistItem
-          order={index + 1}
-          question={item.question_text}
-          value={{
-            isApplicable: answers[item.id]?.isApplicable ?? true,
-            status: answers[item.id]?.status ?? null,
-            observation: answers[item.id]?.observation ?? '',
-            photoUris: answers[item.id]?.photoUris ?? [],
-          }}
-          onChangeApplicable={isApplicable =>
-            handleChangeApplicable(item.id, isApplicable)
-          }
-          showApplicabilityToggle={true}
-          onChangeStatus={status => handleChangeStatus(item.id, status)}
-          onChangeObservation={text => handleChangeObservation(item.id, text)}
-          onAddPhoto={() => handleOpenCameraSheet(item.id)}
-          onRemovePhoto={photoIndex => handleRemovePhoto(item.id, photoIndex)}
-          errors={errors[item.id]}
-          disabled={isSaving}
-        />
-      </View>
+      <AuditQuestionRow
+        question={item}
+        index={index}
+        previousSectionName={questions[index - 1]?.section_name ?? null}
+        answer={answers[item.id]}
+        error={errors[item.id]}
+        isSaving={isSaving}
+        onChangeApplicable={handleChangeApplicable}
+        onChangeStatus={handleChangeStatus}
+        onChangeObservation={handleChangeObservation}
+        onAddPhoto={handleOpenCameraSheet}
+        onRemovePhoto={handleRemovePhoto}
+      />
     ),
     [
       answers,
@@ -536,34 +637,12 @@ export default function AuditoriaSessionScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <View style={styles.headerContainer}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.backButton,
-            pressed && styles.pressed,
-          ]}
-          onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={22} color="#fff" />
-        </Pressable>
-        <Image
-          source={
-            params.buildingImageUrl
-              ? { uri: params.buildingImageUrl }
-              : require('@/assets/images/icon.png')
-          }
-          style={styles.headerImage}
-          contentFit="cover"
-        />
-        <View style={styles.overlay} />
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle} numberOfLines={2}>
-            {params.buildingName || 'Auditoria'}
-          </Text>
-          <Text style={styles.headerSubtitle}>
-            Fecha de auditoria: {scheduledFor}
-          </Text>
-        </View>
-      </View>
+      <SessionHeader
+        buildingImageUrl={params.buildingImageUrl}
+        buildingName={params.buildingName}
+        scheduledFor={scheduledFor}
+        onBack={router.back}
+      />
 
       <FlatList
         data={questions}
@@ -571,18 +650,7 @@ export default function AuditoriaSessionScreen() {
         contentContainerStyle={styles.listContent}
         renderItem={renderQuestionItem}
         ListFooterComponent={
-          <Pressable
-            style={({ pressed }) => [
-              styles.submitButton,
-              pressed && styles.pressed,
-              isSaving && styles.submitButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={isSaving}>
-            <Text style={styles.submitText}>
-              {isSaving ? 'Guardando...' : 'Guardar auditoria'}
-            </Text>
-          </Pressable>
+          <SubmitAuditFooter isSaving={isSaving} onSubmit={handleSubmit} />
         }
       />
 
