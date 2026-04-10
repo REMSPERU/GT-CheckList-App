@@ -634,6 +634,7 @@ class SyncService {
         const replaceUri = (uri: string) => photoUrlMap[uri] || uri;
 
         const directPhotoFieldMap: Record<string, string> = {
+          reprogramEvidence: 'reprogramPhoto',
           preMeasurement: 'preMeasurementPhoto',
           greaseApplication: 'greaseApplicationPhoto',
           thorGel: 'thorGelPhoto',
