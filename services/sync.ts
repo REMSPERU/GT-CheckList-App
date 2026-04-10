@@ -141,6 +141,38 @@ class SyncService {
   private initialized = false;
   private lastPullTimestamp = 0;
 
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    if (error && typeof error === 'object') {
+      const candidate = error as {
+        message?: string;
+        error_description?: string;
+        details?: string;
+        hint?: string;
+      };
+
+      if (candidate.message) return candidate.message;
+      if (candidate.error_description) return candidate.error_description;
+      if (candidate.details) return candidate.details;
+      if (candidate.hint) return candidate.hint;
+
+      try {
+        return JSON.stringify(error);
+      } catch {
+        return String(error);
+      }
+    }
+
+    return 'Error desconocido durante sincronizacion';
+  }
+
   constructor() {
     // Intentionally empty — do NOT start timers or network listeners here.
     // Call start() explicitly after DatabaseService.initDatabase() resolves.
@@ -468,7 +500,7 @@ class SyncService {
               photo.id,
               'error',
               null,
-              String(pError),
+              this.getErrorMessage(pError),
             );
             throw new Error('Photo upload failed'); // Stop this maintenance sync
           }
@@ -523,7 +555,7 @@ class SyncService {
         await DatabaseService.updateMaintenanceStatus(
           item.local_id,
           'error',
-          String(error),
+          this.getErrorMessage(error),
         );
       }
     }
@@ -567,7 +599,7 @@ class SyncService {
         await DatabaseService.updatePanelConfigurationStatus(
           config.id,
           'error',
-          String(error),
+          this.getErrorMessage(error),
         );
       }
     }
@@ -691,7 +723,7 @@ class SyncService {
         await DatabaseService.updateGroundingWellChecklistStatus(
           checklist.local_id,
           'error',
-          String(error),
+          this.getErrorMessage(error),
         );
       }
     }
@@ -750,7 +782,7 @@ class SyncService {
           photo.id,
           'error',
           null,
-          String(error),
+          this.getErrorMessage(error),
         );
       }
     }

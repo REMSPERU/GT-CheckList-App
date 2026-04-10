@@ -87,6 +87,12 @@ type SaveStatus =
   | 'sincronizado'
   | 'error-sync';
 
+interface GroundingWellLocalSyncState {
+  status?: string | null;
+  error_message?: string | null;
+  synced_at?: string | null;
+}
+
 type DirectPhotoKey =
   | 'reprogramEvidence'
   | 'lidStatus'
@@ -308,6 +314,9 @@ export default function GroundingWellChecklistScreen() {
   const [data, setData] = useState<GroundingWellSession>(defaultSession);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('sin-cambios');
   const [statusMessage, setStatusMessage] = useState('Sin cambios pendientes');
+  const [latestChecklistLocalId, setLatestChecklistLocalId] = useState<
+    number | null
+  >(null);
   const [wellTitle, setWellTitle] = useState('');
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [isLoadingInstruments, setIsLoadingInstruments] = useState(false);
@@ -647,6 +656,79 @@ export default function GroundingWellChecklistScreen() {
     [],
   );
 
+  const getReadableSyncError = useCallback((error: unknown) => {
+    if (error instanceof Error) return error.message;
+
+    if (typeof error === 'string') return error;
+
+    if (error && typeof error === 'object') {
+      const candidate = error as {
+        message?: string;
+        error_description?: string;
+        details?: string;
+        hint?: string;
+      };
+
+      if (candidate.message) return candidate.message;
+      if (candidate.error_description) return candidate.error_description;
+      if (candidate.details) return candidate.details;
+      if (candidate.hint) return candidate.hint;
+
+      try {
+        return JSON.stringify(error);
+      } catch {
+        return 'Error desconocido al sincronizar';
+      }
+    }
+
+    return 'Error desconocido al sincronizar';
+  }, []);
+
+  const refreshGroundingWellSyncStatus = useCallback(
+    async (localId: number, fallbackError?: string | null) => {
+      const localSyncState =
+        (await DatabaseService.getGroundingWellChecklistByLocalId(
+          localId,
+        )) as GroundingWellLocalSyncState | null;
+
+      if (!localSyncState) {
+        setSaveStatus('guardado-local');
+        setStatusMessage('Guardado local. Se reintentara automaticamente');
+        return;
+      }
+
+      if (localSyncState.status === 'synced') {
+        setSaveStatus('sincronizado');
+        setStatusMessage('Checklist sincronizado correctamente');
+        return;
+      }
+
+      if (localSyncState.status === 'syncing') {
+        setSaveStatus('sincronizando');
+        setStatusMessage('Sincronizacion en progreso en segundo plano');
+        return;
+      }
+
+      if (localSyncState.status === 'error') {
+        setSaveStatus('error-sync');
+        setStatusMessage(
+          `Error al sincronizar: ${localSyncState.error_message || 'sin detalle'}`,
+        );
+        return;
+      }
+
+      if (fallbackError) {
+        setSaveStatus('error-sync');
+        setStatusMessage(`Error al sincronizar: ${fallbackError}`);
+        return;
+      }
+
+      setSaveStatus('guardado-local');
+      setStatusMessage('Guardado local. Pendiente de sincronizar');
+    },
+    [],
+  );
+
   const navigateAfterSave = useCallback(() => {
     if (propertyId && sessionId) {
       router.replace({
@@ -664,20 +746,65 @@ export default function GroundingWellChecklistScreen() {
     router.back();
   }, [propertyId, propertyName, router, sessionId]);
 
-  const syncInBackground = useCallback(() => {
-    setSaveStatus('sincronizando');
-    setStatusMessage('Sincronizando con el servidor...');
-    void withTimeout(syncService.pushData(), SYNC_TIMEOUT_MS)
-      .then(() => {
-        setSaveStatus('sincronizado');
-        setStatusMessage('Checklist enviado. Sincronización en progreso');
-      })
-      .catch(syncError => {
+  const syncInBackground = useCallback(
+    async (localId: number) => {
+      setSaveStatus('sincronizando');
+      setStatusMessage('Sincronizando con el servidor...');
+      let fallbackErrorMessage: string | null = null;
+
+      try {
+        await withTimeout(syncService.pushData(), SYNC_TIMEOUT_MS);
+        await syncService.pullData(true);
+      } catch (syncError) {
         console.error('Grounding well background sync failed:', syncError);
-        setSaveStatus('guardado-local');
-        setStatusMessage('Guardado local. Se reintentará automáticamente');
-      });
-  }, [withTimeout]);
+        const readableError = getReadableSyncError(syncError);
+        fallbackErrorMessage = readableError;
+        setSaveStatus('error-sync');
+        setStatusMessage(`Error al sincronizar: ${readableError}`);
+      } finally {
+        try {
+          await refreshGroundingWellSyncStatus(localId, fallbackErrorMessage);
+        } catch (statusError) {
+          console.error(
+            'Failed to check local grounding sync status:',
+            statusError,
+          );
+        }
+      }
+    },
+    [getReadableSyncError, refreshGroundingWellSyncStatus, withTimeout],
+  );
+
+  useEffect(() => {
+    if (!maintenanceId) return;
+
+    let active = true;
+
+    const loadLatestOfflineSyncState = async () => {
+      try {
+        const latest =
+          (await DatabaseService.getLatestOfflineGroundingWellChecklistByMaintenanceId(
+            maintenanceId,
+          )) as { local_id?: number | string } | null;
+
+        if (!active || !latest?.local_id) return;
+
+        const parsedLocalId = Number(latest.local_id);
+        if (!Number.isFinite(parsedLocalId)) return;
+
+        setLatestChecklistLocalId(parsedLocalId);
+        await refreshGroundingWellSyncStatus(parsedLocalId);
+      } catch (error) {
+        console.error('Error loading latest grounding sync state:', error);
+      }
+    };
+
+    void loadLatestOfflineSyncState();
+
+    return () => {
+      active = false;
+    };
+  }, [maintenanceId, refreshGroundingWellSyncStatus]);
 
   const handleContinue = useCallback(async () => {
     if (!user) {
@@ -801,6 +928,8 @@ export default function GroundingWellChecklistScreen() {
         throw new Error('No se pudo obtener localId del checklist guardado');
       }
 
+      setLatestChecklistLocalId(localId);
+
       await AsyncStorage.removeItem(sessionKey);
       setSaveStatus('guardado-local');
       setStatusMessage(
@@ -825,7 +954,7 @@ export default function GroundingWellChecklistScreen() {
         return;
       }
 
-      syncInBackground();
+      void syncInBackground(localId);
       navigateAfterSave();
     } catch (error) {
       console.error('Error saving grounding well checklist:', error);
@@ -849,6 +978,22 @@ export default function GroundingWellChecklistScreen() {
     syncInBackground,
     user,
   ]);
+
+  const handleManualRetrySync = useCallback(() => {
+    if (saveStatus === 'sincronizando') {
+      return;
+    }
+
+    if (latestChecklistLocalId === null) {
+      Alert.alert(
+        'Sin registro local',
+        'Aun no hay un checklist local pendiente para reintentar sincronizacion.',
+      );
+      return;
+    }
+
+    void syncInBackground(latestChecklistLocalId);
+  }, [latestChecklistLocalId, saveStatus, syncInBackground]);
 
   // ─── Render Helpers ──────────────────────────────────────────────
 
@@ -1396,6 +1541,18 @@ export default function GroundingWellChecklistScreen() {
           ]}
         />
         <Text style={styles.syncStatusText}>{statusMessage}</Text>
+        {(saveStatus === 'error-sync' || saveStatus === 'guardado-local') && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.syncRetryButton,
+              pressed && styles.pressed,
+            ]}
+            onPress={handleManualRetrySync}
+            accessibilityRole="button">
+            <Ionicons name="sync-outline" size={14} color="#0E7490" />
+            <Text style={styles.syncRetryButtonText}>Reintentar ahora</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Footer */}
@@ -1785,6 +1942,24 @@ const styles = StyleSheet.create({
   syncStatusText: {
     fontSize: 12,
     color: COLORS.textSecondary,
+    flex: 1,
+  },
+  syncRetryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#67E8F9',
+    backgroundColor: '#ECFEFF',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    marginLeft: 8,
+  },
+  syncRetryButtonText: {
+    fontSize: 12,
+    color: '#0E7490',
+    fontWeight: '700',
   },
 
   // Footer

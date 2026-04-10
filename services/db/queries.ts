@@ -335,7 +335,25 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
               AND og_pending.status = 'pending'
           ) THEN 'pending'
           ELSE 'synced'
-        END as sync_status
+        END as sync_status,
+        COALESCE(
+          (
+            SELECT og_err.error_message
+            FROM offline_grounding_well_checklist og_err
+            WHERE og_err.maintenance_id = m.id
+              AND og_err.status = 'error'
+            ORDER BY og_err.created_at DESC
+            LIMIT 1
+          ),
+          (
+            SELECT om_err.error_message
+            FROM offline_maintenance_response om_err
+            WHERE om_err.id_mantenimiento = m.id
+              AND om_err.status = 'error'
+            ORDER BY om_err.created_at DESC
+            LIMIT 1
+          )
+        ) as sync_error_message
       FROM local_scheduled_maintenances m
       JOIN local_equipos e ON m.id_equipo = e.id
       LEFT JOIN local_equipamentos eq ON e.id_equipamento = eq.id
@@ -353,6 +371,10 @@ export async function getLocalMaintenancesByProperty(propertyId: string) {
       codigo: row.codigo,
       id_sesion: row.id_sesion || null,
       sync_status: row.sync_status || 'synced',
+      sync_error_message:
+        typeof row.sync_error_message === 'string'
+          ? row.sync_error_message
+          : null,
       equipos: {
         id: row.e_id,
         codigo: row.e_codigo,
