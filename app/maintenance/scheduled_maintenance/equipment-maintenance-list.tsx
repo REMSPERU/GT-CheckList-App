@@ -45,6 +45,7 @@ interface MaintenanceByPropertyItem {
   dia_programado: string;
   estatus: string | null;
   sync_status?: 'synced' | 'pending' | 'syncing' | 'error' | string;
+  sync_error_message?: string | null;
   tipo_mantenimiento: string;
   id_sesion?: string | null;
   equipos: EquipmentInfo;
@@ -73,6 +74,7 @@ interface MaintenanceCardProps {
   item: MaintenanceByPropertyItem;
   statusColor: string;
   syncBadge: SyncBadgeConfig;
+  syncErrorMessage?: string | null;
   onPressItem: (item: MaintenanceByPropertyItem) => void;
 }
 
@@ -126,6 +128,7 @@ const MaintenanceCard = React.memo(function MaintenanceCard({
   item,
   statusColor,
   syncBadge,
+  syncErrorMessage,
   onPressItem,
 }: MaintenanceCardProps) {
   const equipment = item.equipos || ({} as EquipmentInfo);
@@ -170,23 +173,33 @@ const MaintenanceCard = React.memo(function MaintenanceCard({
       </View>
 
       {item.estatus === MaintenanceStatusEnum.FINALIZADO && (
-        <View
-          style={[
-            styles.syncBadge,
-            {
-              backgroundColor: syncBadge.bgColor,
-            },
-          ]}>
-          <Text
+        <>
+          <View
             style={[
-              styles.syncBadgeText,
+              styles.syncBadge,
               {
-                color: syncBadge.color,
+                backgroundColor: syncBadge.bgColor,
               },
             ]}>
-            {syncBadge.label}
-          </Text>
-        </View>
+            <Text
+              style={[
+                styles.syncBadgeText,
+                {
+                  color: syncBadge.color,
+                },
+              ]}>
+              {syncBadge.label}
+            </Text>
+          </View>
+          {item.sync_status === 'error' && !!syncErrorMessage && (
+            <View style={styles.syncErrorBox}>
+              <Ionicons name="alert-circle-outline" size={14} color="#B91C1C" />
+              <Text style={styles.syncErrorText} numberOfLines={3}>
+                {syncErrorMessage}
+              </Text>
+            </View>
+          )}
+        </>
       )}
 
       <View style={styles.infoRow}>
@@ -233,6 +246,7 @@ export default function EquipmentMaintenanceListScreen() {
   const [pendingNavigation, setPendingNavigation] =
     useState<ExecutionRouteParams | null>(null);
   const [checkingPhotos, setCheckingPhotos] = useState(false);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
 
   // Fetch Data
   const {
@@ -410,6 +424,24 @@ export default function EquipmentMaintenanceListScreen() {
     ],
   );
 
+  const handleManualSync = useCallback(async () => {
+    setIsManualSyncing(true);
+
+    try {
+      await syncService.pushData();
+      await syncService.pullData(true);
+      await refetch();
+    } catch (error) {
+      console.error('Manual sync failed in equipment list:', error);
+      Alert.alert(
+        'Sincronizacion incompleta',
+        'No se pudo completar la sincronizacion. Revisa las tarjetas con ERROR SYNC para ver el motivo y vuelve a intentar.',
+      );
+    } finally {
+      setIsManualSyncing(false);
+    }
+  }, [refetch]);
+
   const handleTakeSessionPhoto = async () => {
     try {
       const result = await ImagePicker.launchCameraAsync({
@@ -489,6 +521,7 @@ export default function EquipmentMaintenanceListScreen() {
           item={item}
           statusColor={statusColor}
           syncBadge={syncBadge}
+          syncErrorMessage={item.sync_error_message}
           onPressItem={handlePressMaintenance}
         />
       );
@@ -550,6 +583,22 @@ export default function EquipmentMaintenanceListScreen() {
           </Pressable>
         </View>
 
+        <Pressable
+          style={[styles.manualSyncButton, isManualSyncing && styles.pressed]}
+          onPress={handleManualSync}
+          disabled={isManualSyncing}
+          accessibilityRole="button"
+          accessibilityLabel="Sincronizar ahora">
+          {isManualSyncing ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Ionicons name="sync-outline" size={16} color="#FFFFFF" />
+          )}
+          <Text style={styles.manualSyncButtonText}>
+            {isManualSyncing ? 'Sincronizando...' : 'Sincronizar ahora'}
+          </Text>
+        </Pressable>
+
         {/* Active Filters Display */}
         {selectedLocation && (
           <View
@@ -584,7 +633,10 @@ export default function EquipmentMaintenanceListScreen() {
             keyExtractor={item => item.id}
             renderItem={renderMaintenanceItem}
             refreshControl={
-              <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+              <RefreshControl
+                refreshing={isRefetching || isManualSyncing}
+                onRefresh={handleManualSync}
+              />
             }
             ListEmptyComponent={
               <View style={styles.emptyStateContainer}>
@@ -888,6 +940,25 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  syncErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: -4,
+    marginBottom: 10,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  syncErrorText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#B91C1C',
+    lineHeight: 16,
+  },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -917,6 +988,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 20,
     gap: 10,
+  },
+  manualSyncButton: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#0E7490',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  manualSyncButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   searchContainer: {
     flex: 1,
