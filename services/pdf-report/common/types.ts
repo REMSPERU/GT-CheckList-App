@@ -120,6 +120,13 @@ export interface MaintenanceSessionReport {
     model: string;
     serial: string;
   };
+  /** Measurement instruments info (when multiple are selected) */
+  measurementInstruments?: {
+    name: string;
+    brand?: string;
+    model: string;
+    serial: string;
+  }[];
   /** Session-level recommendations */
   recommendations?: string;
   /** Session-level conclusions */

@@ -49,6 +49,14 @@ interface PropertyReportContext {
   city: string;
 }
 
+interface ReportInstrument {
+  id: string;
+  instrumento: string;
+  marca: string;
+  modelo: string;
+  serie: string;
+}
+
 async function resolvePropertyReportContext(
   propertyId: string,
   fallbackName?: string,
@@ -344,6 +352,37 @@ export default function SessionHistoryScreen() {
         return undefined;
       };
 
+      const normalizeSelectedInstruments = (
+        source: unknown,
+      ): ReportInstrument[] => {
+        if (!Array.isArray(source)) return [];
+
+        return source
+          .map(item => {
+            const raw = item as Partial<ReportInstrument>;
+            const id = typeof raw.id === 'string' ? raw.id : '';
+            const instrumento =
+              typeof raw.instrumento === 'string' ? raw.instrumento.trim() : '';
+            const marca = typeof raw.marca === 'string' ? raw.marca.trim() : '';
+            const modelo =
+              typeof raw.modelo === 'string' ? raw.modelo.trim() : '';
+            const serie = typeof raw.serie === 'string' ? raw.serie.trim() : '';
+
+            if (!id || !instrumento) {
+              return null;
+            }
+
+            return {
+              id,
+              instrumento,
+              marca,
+              modelo,
+              serie,
+            };
+          })
+          .filter((item): item is ReportInstrument => item !== null);
+      };
+
       const maintenanceIds = selectedMaintenances
         .filter((m: any) => m.estatus === MaintenanceStatusEnum.FINALIZADO)
         .map((m: any) => m.id);
@@ -393,6 +432,7 @@ export default function SessionHistoryScreen() {
       );
 
       const equipments: any[] = [];
+      const patInstrumentsMap = new Map<string, ReportInstrument>();
       let totalOkItems = 0;
       let totalIssueItems = 0;
 
@@ -425,6 +465,17 @@ export default function SessionHistoryScreen() {
             key,
             item: detail[key] || { value: true, observation: '', photo: null },
           }));
+          const selectedInstruments = normalizeSelectedInstruments(
+            detail.selectedInstruments,
+          );
+
+          selectedInstruments.forEach(instrument => {
+            const dedupeKey =
+              instrument.id || `${instrument.instrumento}-${instrument.serie}`;
+            if (!patInstrumentsMap.has(dedupeKey)) {
+              patInstrumentsMap.set(dedupeKey, instrument);
+            }
+          });
 
           if (!isReprogrammed) {
             totalOkItems += checklistItems.filter(
@@ -442,6 +493,7 @@ export default function SessionHistoryScreen() {
           const preMeasurementPhoto = normalizePhotoUrl(
             detail.preMeasurementPhoto,
           );
+          const reprogramPhoto = normalizePhotoUrl(detail.reprogramPhoto);
           const greasePhoto = normalizePhotoUrl(detail.greaseApplicationPhoto);
           const thorGelPhoto = normalizePhotoUrl(detail.thorGelPhoto);
           const postMeasurementPhoto = normalizePhotoUrl(
@@ -534,6 +586,8 @@ export default function SessionHistoryScreen() {
             patData: {
               executionStatus,
               reprogramComment,
+              reprogramPhoto,
+              selectedInstruments,
               maintenanceType: detail.maintenanceType || null,
               preMeasurement: detail.preMeasurement || '',
               preMeasurementPhoto,
@@ -620,6 +674,22 @@ export default function SessionHistoryScreen() {
         ? `${propertyContext.code} - ${propertyContext.name}`
         : propertyContext.name;
 
+      const selectedPatInstruments = Array.from(patInstrumentsMap.values()).map(
+        item => ({
+          name: item.instrumento,
+          brand: item.marca || undefined,
+          model: item.modelo || 'N/A',
+          serial: item.serie || 'N/A',
+        }),
+      );
+
+      const defaultPATInstrument = {
+        name: 'TELURÓMETRO',
+        brand: 'HIOKI',
+        model: 'N/A',
+        serial: 'N/A',
+      };
+
       const reportData: MaintenanceSessionReport = {
         clientName: propertyContext.name,
         address: propertyContext.address,
@@ -635,18 +705,18 @@ export default function SessionHistoryScreen() {
         sessionCode: selectedSession.codigo,
         equipments,
         measurementInstrument: isPATReport
-          ? {
-              name: 'TELURÓMETRO',
-              brand: 'HIOKI',
-              model: 'N/A',
-              serial: 'N/A',
-            }
+          ? selectedPatInstruments[0] || defaultPATInstrument
           : {
               name: 'PINZA MULTIMÉTRICA',
               brand: 'FLUKE',
               model: '376FC',
               serial: 'VERIFICAR',
             },
+        measurementInstruments: isPATReport
+          ? selectedPatInstruments.length > 0
+            ? selectedPatInstruments
+            : [defaultPATInstrument]
+          : undefined,
       };
 
       setGenerationProgress('Generando archivo PDF...');

@@ -415,6 +415,14 @@ interface PATChecklistItem {
 interface PATEquipmentData {
   executionStatus?: 'completed' | 'reprogrammed' | null;
   reprogramComment?: string;
+  reprogramPhoto?: string | null;
+  selectedInstruments?: {
+    id: string;
+    instrumento: string;
+    marca: string;
+    modelo: string;
+    serie: string;
+  }[];
   maintenanceType?: 'conventional' | 'conductive-cement' | null;
   preMeasurement?: string;
   preMeasurementPhoto?: string | null;
@@ -608,6 +616,7 @@ function getPatData(eq: any): PATEquipmentData {
     executionStatus:
       pat.executionStatus === 'reprogrammed' ? 'reprogrammed' : 'completed',
     reprogramComment: pat.reprogramComment || '',
+    reprogramPhoto: pat.reprogramPhoto || null,
     maintenanceType: pat.maintenanceType || null,
     preMeasurement: pat.preMeasurement || eq.voltage || '',
     preMeasurementPhoto: pat.preMeasurementPhoto || null,
@@ -719,7 +728,8 @@ function estimateInspectionBlockWeight(eq: any): number {
 
   if (pat.executionStatus === 'reprogrammed') {
     const commentLength = pat.reprogramComment?.trim().length || 0;
-    return commentLength > 140 ? 1.6 : 1.35;
+    const photoWeight = pat.reprogramPhoto ? 0.7 : 0;
+    return (commentLength > 140 ? 1.6 : 1.35) + photoWeight;
   }
 
   const photoCount = [
@@ -812,7 +822,31 @@ function generateProcedurePage(data: MaintenanceSessionReport): string {
       ? data.procedureSteps
       : DEFAULT_PAT_PROCEDURE_STEPS;
 
-  const instrument = data.measurementInstrument;
+  const instruments =
+    data.measurementInstruments && data.measurementInstruments.length > 0
+      ? data.measurementInstruments
+      : data.measurementInstrument
+        ? [data.measurementInstrument]
+        : [
+            {
+              name: 'Telurómetro',
+              brand: 'HIOKI',
+              model: 'N/A',
+              serial: 'N/A',
+            },
+          ];
+
+  const instrumentsHtml = instruments
+    .map(
+      instrument => `
+        <li>
+          ${escapeHTML(instrument.name)}${instrument.brand ? ` - ${escapeHTML(instrument.brand)}` : ''}<br/>
+          Modelo: ${escapeHTML(instrument.model || 'N/A')}<br/>
+          Serie: ${escapeHTML(instrument.serial || 'N/A')}
+        </li>
+      `,
+    )
+    .join('');
 
   return `
     <div class="page">
@@ -842,12 +876,8 @@ function generateProcedurePage(data: MaintenanceSessionReport): string {
         tierra se utilizó el siguiente equipo de medición:
       </p>
       <ul class="arrow-list">
-        <li>${instrument ? `${instrument.name}${instrument.brand ? ` - ${instrument.brand}` : ''}` : 'Telurómetro - HIOKI'}</li>
+        ${instrumentsHtml}
       </ul>
-      <p style="margin-left: 20px;">
-        Modelo: ${instrument?.model || 'N/A'}<br/>
-        Serie: ${instrument?.serial || 'N/A'}
-      </p>
     </div>
   `;
 }
@@ -1248,6 +1278,16 @@ function generateInspectionChecklistPages(
                       <td>${normalizeMultilineComment(pat.reprogramComment, 'Sin comentario registrado por el técnico.', 180)}</td>
                     </tr>
                   </table>
+                  ${renderPhotoGrid(
+                    [
+                      {
+                        url: pat.reprogramPhoto,
+                        caption: `EVIDENCIA REPROGRAMACIÓN ${eq.label || ''}`,
+                      },
+                    ],
+                    true,
+                    'inspection-photo-grid',
+                  )}
                 </div>
               `;
             }

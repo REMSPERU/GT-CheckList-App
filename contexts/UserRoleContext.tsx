@@ -149,7 +149,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     isAdmin: role === 'SUPERADMIN',
 
     // Permission checks
-    canScheduleMaintenance: role === 'SUPERVISOR' || role === 'SUPERADMIN',
+    canScheduleMaintenance: role !== 'AUDITOR',
     canExecuteMaintenance: role !== 'AUDITOR',
     canAudit: role === 'AUDITOR' || role === 'SUPERADMIN',
     canViewAllMaintenances: role === 'SUPERVISOR' || role === 'SUPERADMIN',

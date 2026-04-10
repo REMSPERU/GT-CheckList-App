@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/use-user-role';
 import { useProperties } from '@/hooks/use-property-query';
 import { syncService } from '@/services/sync';
-import { DatabaseService } from '@/services/database';
 import type { PropertyResponse as Property } from '@/types/api';
 
 const LAST_BUILDING_STORAGE_KEY = '@home:last-selected-building-id';
@@ -20,7 +19,7 @@ function normalizeText(value: string) {
 
 export function useHomeScreen() {
   const { user, logout } = useAuth();
-  const { canAudit, isAuditor } = useUserRole();
+  const { canAudit } = useUserRole();
   const router = useRouter();
   const { data, isLoading, isError, refetch } = useProperties();
   const hasSynced = useRef(false);
@@ -198,27 +197,10 @@ export function useHomeScreen() {
     });
   }, [ensureBuildingIsSelected, router, selectedBuilding]);
 
-  const handleAuditPress = useCallback(async () => {
+  const handleAuditPress = useCallback(() => {
     if (!canAudit) return;
 
-    if (!selectedBuilding) {
-      router.push('/auditoria');
-      return;
-    }
-
-    if (isAuditor && user?.id) {
-      const assignedProperties =
-        await DatabaseService.getAssignedPropertiesForAuditor(user.id);
-      const selectedBuildingId = String(selectedBuilding.id);
-      const isAssigned = assignedProperties.some(property => {
-        return String(property.id) === selectedBuildingId;
-      });
-
-      if (!isAssigned) {
-        router.push('/auditoria');
-        return;
-      }
-    }
+    if (!ensureBuildingIsSelected() || !selectedBuilding) return;
 
     router.push({
       pathname: '/auditoria/history',
@@ -229,7 +211,7 @@ export function useHomeScreen() {
         buildingImageUrl: selectedBuilding.image_url ?? '',
       },
     });
-  }, [canAudit, isAuditor, router, selectedBuilding, user?.id]);
+  }, [canAudit, ensureBuildingIsSelected, router, selectedBuilding]);
 
   const handleReportsPress = useCallback(() => {
     if (!ensureBuildingIsSelected() || !selectedBuilding) return;

@@ -38,6 +38,14 @@ interface ChecklistItem {
   photo: string | null;
 }
 
+interface Instrument {
+  id: string;
+  instrumento: string;
+  marca: string;
+  modelo: string;
+  serie: string;
+}
+
 type InspectionItemKey =
   | 'wellMeasurement'
   | 'hasSignage'
@@ -51,6 +59,8 @@ type ExecutionStatus = 'completed' | 'reprogrammed';
 interface GroundingWellSession {
   executionStatus: ExecutionStatus;
   reprogramComment: string;
+  reprogramPhoto: string | null;
+  selectedInstruments: Instrument[];
   preMeasurement: string;
   preMeasurementPhoto: string | null;
   greaseApplicationPhoto: string | null;
@@ -78,6 +88,7 @@ type SaveStatus =
   | 'error-sync';
 
 type DirectPhotoKey =
+  | 'reprogramEvidence'
   | 'lidStatus'
   | 'preMeasurement'
   | 'greaseApplication'
@@ -111,6 +122,8 @@ const defaultItem: ChecklistItem = {
 const defaultSession: GroundingWellSession = {
   executionStatus: 'completed',
   reprogramComment: '',
+  reprogramPhoto: null,
+  selectedInstruments: [],
   preMeasurement: '',
   preMeasurementPhoto: null,
   greaseApplicationPhoto: null,
@@ -296,6 +309,8 @@ export default function GroundingWellChecklistScreen() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('sin-cambios');
   const [statusMessage, setStatusMessage] = useState('Sin cambios pendientes');
   const [wellTitle, setWellTitle] = useState('');
+  const [instruments, setInstruments] = useState<Instrument[]>([]);
+  const [isLoadingInstruments, setIsLoadingInstruments] = useState(false);
   const dataRef = useRef(data);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -486,6 +501,7 @@ export default function GroundingWellChecklistScreen() {
       try {
         const equipment = (await DatabaseService.getEquipmentById(panelId)) as {
           codigo?: string;
+          id_equipamento?: string;
           equipment_detail?: { rotulo?: string } | null;
         } | null;
 
@@ -494,10 +510,34 @@ export default function GroundingWellChecklistScreen() {
         const code = equipment?.codigo?.trim();
         const label = equipment?.equipment_detail?.rotulo?.trim();
         setWellTitle(code || label || panelId);
+
+        if (equipment?.id_equipamento) {
+          setIsLoadingInstruments(true);
+          try {
+            const loaded = await DatabaseService.getInstrumentsByEquipmentType(
+              equipment.id_equipamento,
+            );
+            if (!active) return;
+            setInstruments((loaded || []) as Instrument[]);
+          } catch (error) {
+            console.error('Error loading grounding well instruments:', error);
+            if (active) {
+              setInstruments([]);
+            }
+          } finally {
+            if (active) {
+              setIsLoadingInstruments(false);
+            }
+          }
+        } else if (active) {
+          setInstruments([]);
+        }
       } catch (error) {
         console.error('Error loading grounding well info:', error);
         if (active) {
           setWellTitle(panelId);
+          setInstruments([]);
+          setIsLoadingInstruments(false);
         }
       }
     };
@@ -507,6 +547,30 @@ export default function GroundingWellChecklistScreen() {
       active = false;
     };
   }, [panelId]);
+
+  const selectedInstrumentIds = useMemo(
+    () => new Set((data.selectedInstruments || []).map(item => item.id)),
+    [data.selectedInstruments],
+  );
+
+  const handleToggleInstrument = useCallback(
+    (instrument: Instrument) => {
+      const current = data.selectedInstruments || [];
+      const hasSelected = current.some(item => item.id === instrument.id);
+
+      const next = hasSelected
+        ? current.filter(item => item.id !== instrument.id)
+        : [
+            ...current.filter(
+              item => item.instrumento !== instrument.instrumento,
+            ),
+            instrument,
+          ];
+
+      updateData({ selectedInstruments: next }, { persistDraft: true });
+    },
+    [data.selectedInstruments, updateData],
+  );
 
   const takePhoto = useCallback(
     async (itemKey: keyof GroundingWellSession | DirectPhotoKey) => {
@@ -522,6 +586,7 @@ export default function GroundingWellChecklistScreen() {
 
       const uri = result.assets[0].uri;
       const directPhotoMap: Record<DirectPhotoKey, string> = {
+        reprogramEvidence: 'reprogramPhoto',
         lidStatus: 'lidStatusPhoto',
         preMeasurement: 'preMeasurementPhoto',
         greaseApplication: 'greaseApplicationPhoto',
@@ -629,6 +694,9 @@ export default function GroundingWellChecklistScreen() {
     }
 
     const isReprogrammed = data.executionStatus === 'reprogrammed';
+    const selectedInstrumentCount = Array.isArray(data.selectedInstruments)
+      ? data.selectedInstruments.length
+      : 0;
 
     if (isReprogrammed && !data.reprogramComment.trim()) {
       Alert.alert(
@@ -640,6 +708,10 @@ export default function GroundingWellChecklistScreen() {
 
     if (!isReprogrammed) {
       const requiredChecks: [boolean, string][] = [
+        [
+          instruments.length > 0 && selectedInstrumentCount === 0,
+          'Seleccione al menos un instrumento de medición.',
+        ],
         [
           !data.preMeasurement.trim(),
           'Ingrese la medición pre-mantenimiento (ohmios).',
@@ -694,6 +766,7 @@ export default function GroundingWellChecklistScreen() {
 
       // Recolectar fotos directas
       const directPhotos: [string, string][] = [
+        ['reprogramPhoto', 'reprogramEvidence'],
         ['preMeasurementPhoto', 'preMeasurement'],
         ['greaseApplicationPhoto', 'greaseApplication'],
         ['thorGelPhoto', 'thorGel'],
@@ -768,6 +841,7 @@ export default function GroundingWellChecklistScreen() {
   }, [
     checklistKeys,
     data,
+    instruments.length,
     maintenanceId,
     navigateAfterSave,
     panelId,
@@ -905,7 +979,11 @@ export default function GroundingWellChecklistScreen() {
               selected={data.executionStatus === 'completed'}
               onPress={() =>
                 updateData(
-                  { executionStatus: 'completed', reprogramComment: '' },
+                  {
+                    executionStatus: 'completed',
+                    reprogramComment: '',
+                    reprogramPhoto: null,
+                  },
                   { persistDraft: true },
                 )
               }
@@ -936,6 +1014,17 @@ export default function GroundingWellChecklistScreen() {
                 numberOfLines={3}
                 textAlignVertical="top"
               />
+              <PhotoButton
+                onPress={() => takePhoto('reprogramEvidence')}
+                hasPhoto={!!data.reprogramPhoto}
+                compact
+              />
+              <Text style={styles.optionalHint}>
+                Foto de sustento (opcional)
+              </Text>
+              {data.reprogramPhoto && (
+                <PhotoThumbnail uri={data.reprogramPhoto} />
+              )}
               <Text style={styles.reprogramHint}>
                 Se registrará como reprogramado en el informe y quedará
                 finalizado para continuar con el cierre de la sesión.
@@ -944,276 +1033,355 @@ export default function GroundingWellChecklistScreen() {
           )}
         </View>
 
-        {/* 1. Medición Pre */}
-        <View style={styles.card}>
-          <View style={styles.labelRow}>
-            <View style={styles.iconContainer}>
-              <MaterialCommunityIcons
-                name="gauge"
-                size={16}
-                color={COLORS.primary}
-              />
-            </View>
-            <Text style={styles.labelSmall}>
-              Medición con Telurómetro{' '}
-              <Text style={styles.labelMuted}>(Antes del Mantto)</Text>
-            </Text>
-          </View>
-          <View style={styles.measurementRow}>
-            <TextInput
-              style={styles.measurementInput}
-              placeholder="0.00"
-              placeholderTextColor={COLORS.textMuted}
-              value={data.preMeasurement}
-              onChangeText={text => updateData({ preMeasurement: text })}
-              onBlur={persistCurrentDraft}
-              keyboardType="numeric"
-            />
-            <View style={styles.unitBadge}>
-              <Text style={styles.unitBadgeText}>Ω</Text>
-            </View>
-          </View>
-          <PhotoButton
-            onPress={() => takePhoto('preMeasurement')}
-            hasPhoto={!!data.preMeasurementPhoto}
-          />
-          {data.preMeasurementPhoto && (
-            <PhotoThumbnail uri={data.preMeasurementPhoto} />
-          )}
-        </View>
-
-        {/* 2. Aplicación de Grasa */}
-        <View style={styles.card}>
-          <View style={styles.labelRow}>
-            <View style={styles.iconContainer}>
-              <MaterialCommunityIcons
-                name="oil"
-                size={16}
-                color={COLORS.primary}
-              />
-            </View>
-            <Text style={styles.labelSmall}>Aplicación de Grasa</Text>
-          </View>
-          <PhotoButton
-            onPress={() => takePhoto('greaseApplication')}
-            hasPhoto={!!data.greaseApplicationPhoto}
-          />
-          {data.greaseApplicationPhoto && (
-            <PhotoThumbnail uri={data.greaseApplicationPhoto} />
-          )}
-        </View>
-
-        {/* 3. Tipo de Mantenimiento */}
-        <View style={styles.card}>
-          <View style={styles.labelRow}>
-            <View style={styles.iconContainer}>
-              <MaterialCommunityIcons
-                name="wrench-outline"
-                size={16}
-                color={COLORS.primary}
-              />
-            </View>
-            <Text style={styles.labelSmall}>Tipo de Mantenimiento</Text>
-          </View>
-          <View style={styles.typeContainer}>
-            <TypeOption
-              label="Convencional"
-              selected={data.maintenanceType === 'conventional'}
-              onPress={() =>
-                updateData(
-                  { maintenanceType: 'conventional' },
-                  { persistDraft: true },
-                )
-              }
-            />
-            <TypeOption
-              label="Cemento Conductivo"
-              selected={data.maintenanceType === 'conductive-cement'}
-              onPress={() =>
-                updateData(
-                  {
-                    maintenanceType: 'conductive-cement',
-                    thorGelPhoto: null,
-                  },
-                  {
-                    persistDraft: true,
-                  },
-                )
-              }
-            />
-          </View>
-        </View>
-
-        {/* 3a. Thor Gel (solo convencional) */}
-        {data.maintenanceType === 'conventional' && (
-          <View style={styles.card}>
-            <View style={styles.labelRow}>
-              <View style={styles.iconContainer}>
-                <MaterialCommunityIcons
-                  name="flash-outline"
-                  size={16}
-                  color={COLORS.primary}
-                />
+        {data.executionStatus !== 'reprogrammed' && (
+          <>
+            <View style={styles.card}>
+              <View style={styles.labelRow}>
+                <View style={styles.iconContainer}>
+                  <MaterialCommunityIcons
+                    name="tools"
+                    size={16}
+                    color={COLORS.primary}
+                  />
+                </View>
+                <Text style={styles.labelSmall}>Instrumentos de Medición</Text>
               </View>
-              <Text style={styles.labelSmall}>Aplicación de Thor Gel</Text>
-            </View>
-            <PhotoButton
-              onPress={() => takePhoto('thorGel')}
-              hasPhoto={!!data.thorGelPhoto}
-            />
-            {data.thorGelPhoto && <PhotoThumbnail uri={data.thorGelPhoto} />}
-          </View>
-        )}
+              {isLoadingInstruments ? (
+                <View style={styles.instrumentLoadingWrap}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={styles.instrumentHelperText}>
+                    Cargando instrumentos...
+                  </Text>
+                </View>
+              ) : instruments.length === 0 ? (
+                <Text style={styles.instrumentHelperText}>
+                  No hay instrumentos asignados para este tipo de equipo.
+                </Text>
+              ) : (
+                <View style={styles.instrumentList}>
+                  {instruments.map(item => {
+                    const isSelected = selectedInstrumentIds.has(item.id);
 
-        {/* 4. Medición Post */}
-        <View style={styles.card}>
-          <View style={styles.labelRow}>
-            <View style={styles.iconContainer}>
-              <MaterialCommunityIcons
-                name="gauge"
-                size={16}
-                color={COLORS.primary}
-              />
-            </View>
-            <Text style={styles.labelSmall}>
-              Medición con Telurómetro{' '}
-              <Text style={styles.labelMuted}>(Después del Mantto)</Text>
-            </Text>
-          </View>
-          <View style={styles.measurementRow}>
-            <TextInput
-              style={styles.measurementInput}
-              placeholder="0.00"
-              placeholderTextColor={COLORS.textMuted}
-              value={data.postMeasurement}
-              onChangeText={text => updateData({ postMeasurement: text })}
-              onBlur={persistCurrentDraft}
-              keyboardType="numeric"
-            />
-            <View style={styles.unitBadge}>
-              <Text style={styles.unitBadgeText}>Ω</Text>
-            </View>
-          </View>
-          <PhotoButton
-            onPress={() => takePhoto('postMeasurement')}
-            hasPhoto={!!data.postMeasurementPhoto}
-          />
-          {data.postMeasurementPhoto && (
-            <PhotoThumbnail uri={data.postMeasurementPhoto} />
-          )}
-        </View>
-
-        {/* 5. Observación General */}
-        <View style={styles.card}>
-          <View style={styles.labelRow}>
-            <View style={styles.iconContainer}>
-              <MaterialCommunityIcons
-                name="text-box-outline"
-                size={16}
-                color={COLORS.primary}
-              />
-            </View>
-            <Text style={styles.labelSmall}>
-              Observación General{' '}
-              <Text style={styles.labelMuted}>(opcional)</Text>
-            </Text>
-          </View>
-          <TextInput
-            style={[styles.obsInput, { minHeight: 70 }]}
-            placeholder="Descripción u observación..."
-            placeholderTextColor={COLORS.textMuted}
-            value={data.generalObservation}
-            onChangeText={text => updateData({ generalObservation: text })}
-            onBlur={persistCurrentDraft}
-            maxLength={MAX_GENERAL_OBSERVATION_LENGTH}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-          />
-        </View>
-
-        {/* ═══ SECCIÓN: Inspección del Pozo ═══ */}
-        <Text style={styles.sectionTitle}>Inspección del Pozo</Text>
-
-        {/* Estado de la Tapa */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.labelRow}>
-              <View style={styles.iconContainer}>
-                <MaterialCommunityIcons
-                  name="layers-outline"
-                  size={16}
-                  color={COLORS.primary}
-                />
-              </View>
-              <Text style={styles.labelSmall}>Estado de la Tapa</Text>
-            </View>
-            <View style={styles.statusContainer}>
-              <Text
-                style={[
-                  styles.statusBadge,
-                  data.lidStatus === 'good'
-                    ? styles.statusBadgeOk
-                    : styles.statusBadgeBad,
-                ]}>
-                {data.lidStatus === 'good' ? 'OK' : 'OBS'}
-              </Text>
-              <Switch
-                value={data.lidStatus === 'good'}
-                onValueChange={value =>
-                  updateData(
-                    {
-                      lidStatus: value ? 'good' : 'bad',
-                      lidStatusObservation: value
-                        ? LID_STATUS_TEXT.good
-                        : LID_STATUS_TEXT.bad,
-                      lidStatusPhoto: value ? null : data.lidStatusPhoto,
-                    },
-                    { persistDraft: true },
-                  )
-                }
-                trackColor={{ false: '#E5E7EB', true: COLORS.primarySoft }}
-                thumbColor={
-                  data.lidStatus === 'good' ? COLORS.primary : '#D1D5DB'
-                }
-                style={styles.switchSmall}
-              />
-            </View>
-          </View>
-          {data.lidStatus === 'bad' && (
-            <View style={styles.statusDescriptionBox}>
-              <Text style={styles.statusDescriptionLabel}>Estado</Text>
-              <Text style={styles.statusDescription}>
-                {LID_STATUS_TEXT.bad}
-              </Text>
-            </View>
-          )}
-          {data.lidStatus === 'bad' && (
-            <>
-              <PhotoButton
-                onPress={() => takePhoto('lidStatus')}
-                hasPhoto={!!data.lidStatusPhoto}
-                compact
-              />
-              <Text style={styles.optionalHint}>Foto opcional</Text>
-              {data.lidStatusPhoto && (
-                <PhotoThumbnail uri={data.lidStatusPhoto} />
+                    return (
+                      <Pressable
+                        key={item.id}
+                        style={({ pressed }) => [
+                          styles.instrumentCard,
+                          isSelected && styles.instrumentCardSelected,
+                          pressed && styles.pressed,
+                        ]}
+                        onPress={() => handleToggleInstrument(item)}
+                        accessibilityRole="button">
+                        <View style={styles.instrumentCardHeader}>
+                          <Text
+                            style={[
+                              styles.instrumentTitle,
+                              isSelected && styles.instrumentTitleSelected,
+                            ]}>
+                            {item.instrumento}
+                          </Text>
+                          {isSelected && (
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={18}
+                              color={COLORS.primary}
+                            />
+                          )}
+                        </View>
+                        <Text style={styles.instrumentMeta}>
+                          Marca: {item.marca}
+                        </Text>
+                        <Text style={styles.instrumentMeta}>
+                          Modelo: {item.modelo}
+                        </Text>
+                        <Text style={styles.instrumentMeta}>
+                          Serie: {item.serie}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               )}
-            </>
-          )}
-        </View>
+            </View>
 
-        {renderToggleItem('Medición del Pozo', 'wellMeasurement', 'gauge')}
-        {renderToggleItem('Señalética en Pared', 'hasSignage', 'numeric')}
-        {renderToggleItem('Rotulado del Pozo', 'wellLabeling', 'tag-outline')}
-        {renderToggleItem(
-          'Estado del Conductor (Cable)',
-          'connectorsOk',
-          'power-plug',
+            {/* 1. Medición Pre */}
+            <View style={styles.card}>
+              <View style={styles.labelRow}>
+                <View style={styles.iconContainer}>
+                  <MaterialCommunityIcons
+                    name="gauge"
+                    size={16}
+                    color={COLORS.primary}
+                  />
+                </View>
+                <Text style={styles.labelSmall}>
+                  Medición con Telurómetro{' '}
+                  <Text style={styles.labelMuted}>(Antes del Mantto)</Text>
+                </Text>
+              </View>
+              <View style={styles.measurementRow}>
+                <TextInput
+                  style={styles.measurementInput}
+                  placeholder="0.00"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={data.preMeasurement}
+                  onChangeText={text => updateData({ preMeasurement: text })}
+                  onBlur={persistCurrentDraft}
+                  keyboardType="numeric"
+                />
+                <View style={styles.unitBadge}>
+                  <Text style={styles.unitBadgeText}>Ω</Text>
+                </View>
+              </View>
+              <PhotoButton
+                onPress={() => takePhoto('preMeasurement')}
+                hasPhoto={!!data.preMeasurementPhoto}
+              />
+              {data.preMeasurementPhoto && (
+                <PhotoThumbnail uri={data.preMeasurementPhoto} />
+              )}
+            </View>
+
+            {/* 2. Aplicación de Grasa */}
+            <View style={styles.card}>
+              <View style={styles.labelRow}>
+                <View style={styles.iconContainer}>
+                  <MaterialCommunityIcons
+                    name="oil"
+                    size={16}
+                    color={COLORS.primary}
+                  />
+                </View>
+                <Text style={styles.labelSmall}>Aplicación de Grasa</Text>
+              </View>
+              <PhotoButton
+                onPress={() => takePhoto('greaseApplication')}
+                hasPhoto={!!data.greaseApplicationPhoto}
+              />
+              {data.greaseApplicationPhoto && (
+                <PhotoThumbnail uri={data.greaseApplicationPhoto} />
+              )}
+            </View>
+
+            {/* 3. Tipo de Mantenimiento */}
+            <View style={styles.card}>
+              <View style={styles.labelRow}>
+                <View style={styles.iconContainer}>
+                  <MaterialCommunityIcons
+                    name="wrench-outline"
+                    size={16}
+                    color={COLORS.primary}
+                  />
+                </View>
+                <Text style={styles.labelSmall}>Tipo de Mantenimiento</Text>
+              </View>
+              <View style={styles.typeContainer}>
+                <TypeOption
+                  label="Convencional"
+                  selected={data.maintenanceType === 'conventional'}
+                  onPress={() =>
+                    updateData(
+                      { maintenanceType: 'conventional' },
+                      { persistDraft: true },
+                    )
+                  }
+                />
+                <TypeOption
+                  label="Cemento Conductivo"
+                  selected={data.maintenanceType === 'conductive-cement'}
+                  onPress={() =>
+                    updateData(
+                      {
+                        maintenanceType: 'conductive-cement',
+                        thorGelPhoto: null,
+                      },
+                      {
+                        persistDraft: true,
+                      },
+                    )
+                  }
+                />
+              </View>
+            </View>
+
+            {/* 3a. Thor Gel (solo convencional) */}
+            {data.maintenanceType === 'conventional' && (
+              <View style={styles.card}>
+                <View style={styles.labelRow}>
+                  <View style={styles.iconContainer}>
+                    <MaterialCommunityIcons
+                      name="flash-outline"
+                      size={16}
+                      color={COLORS.primary}
+                    />
+                  </View>
+                  <Text style={styles.labelSmall}>Aplicación de Thor Gel</Text>
+                </View>
+                <PhotoButton
+                  onPress={() => takePhoto('thorGel')}
+                  hasPhoto={!!data.thorGelPhoto}
+                />
+                {data.thorGelPhoto && (
+                  <PhotoThumbnail uri={data.thorGelPhoto} />
+                )}
+              </View>
+            )}
+
+            {/* 4. Medición Post */}
+            <View style={styles.card}>
+              <View style={styles.labelRow}>
+                <View style={styles.iconContainer}>
+                  <MaterialCommunityIcons
+                    name="gauge"
+                    size={16}
+                    color={COLORS.primary}
+                  />
+                </View>
+                <Text style={styles.labelSmall}>
+                  Medición con Telurómetro{' '}
+                  <Text style={styles.labelMuted}>(Después del Mantto)</Text>
+                </Text>
+              </View>
+              <View style={styles.measurementRow}>
+                <TextInput
+                  style={styles.measurementInput}
+                  placeholder="0.00"
+                  placeholderTextColor={COLORS.textMuted}
+                  value={data.postMeasurement}
+                  onChangeText={text => updateData({ postMeasurement: text })}
+                  onBlur={persistCurrentDraft}
+                  keyboardType="numeric"
+                />
+                <View style={styles.unitBadge}>
+                  <Text style={styles.unitBadgeText}>Ω</Text>
+                </View>
+              </View>
+              <PhotoButton
+                onPress={() => takePhoto('postMeasurement')}
+                hasPhoto={!!data.postMeasurementPhoto}
+              />
+              {data.postMeasurementPhoto && (
+                <PhotoThumbnail uri={data.postMeasurementPhoto} />
+              )}
+            </View>
+
+            {/* 5. Observación General */}
+            <View style={styles.card}>
+              <View style={styles.labelRow}>
+                <View style={styles.iconContainer}>
+                  <MaterialCommunityIcons
+                    name="text-box-outline"
+                    size={16}
+                    color={COLORS.primary}
+                  />
+                </View>
+                <Text style={styles.labelSmall}>
+                  Observación General{' '}
+                  <Text style={styles.labelMuted}>(opcional)</Text>
+                </Text>
+              </View>
+              <TextInput
+                style={[styles.obsInput, { minHeight: 70 }]}
+                placeholder="Descripción u observación..."
+                placeholderTextColor={COLORS.textMuted}
+                value={data.generalObservation}
+                onChangeText={text => updateData({ generalObservation: text })}
+                onBlur={persistCurrentDraft}
+                maxLength={MAX_GENERAL_OBSERVATION_LENGTH}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            </View>
+
+            {/* ═══ SECCIÓN: Inspección del Pozo ═══ */}
+            <Text style={styles.sectionTitle}>Inspección del Pozo</Text>
+
+            {/* Estado de la Tapa */}
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.labelRow}>
+                  <View style={styles.iconContainer}>
+                    <MaterialCommunityIcons
+                      name="layers-outline"
+                      size={16}
+                      color={COLORS.primary}
+                    />
+                  </View>
+                  <Text style={styles.labelSmall}>Estado de la Tapa</Text>
+                </View>
+                <View style={styles.statusContainer}>
+                  <Text
+                    style={[
+                      styles.statusBadge,
+                      data.lidStatus === 'good'
+                        ? styles.statusBadgeOk
+                        : styles.statusBadgeBad,
+                    ]}>
+                    {data.lidStatus === 'good' ? 'OK' : 'OBS'}
+                  </Text>
+                  <Switch
+                    value={data.lidStatus === 'good'}
+                    onValueChange={value =>
+                      updateData(
+                        {
+                          lidStatus: value ? 'good' : 'bad',
+                          lidStatusObservation: value
+                            ? LID_STATUS_TEXT.good
+                            : LID_STATUS_TEXT.bad,
+                          lidStatusPhoto: value ? null : data.lidStatusPhoto,
+                        },
+                        { persistDraft: true },
+                      )
+                    }
+                    trackColor={{ false: '#E5E7EB', true: COLORS.primarySoft }}
+                    thumbColor={
+                      data.lidStatus === 'good' ? COLORS.primary : '#D1D5DB'
+                    }
+                    style={styles.switchSmall}
+                  />
+                </View>
+              </View>
+              {data.lidStatus === 'bad' && (
+                <View style={styles.statusDescriptionBox}>
+                  <Text style={styles.statusDescriptionLabel}>Estado</Text>
+                  <Text style={styles.statusDescription}>
+                    {LID_STATUS_TEXT.bad}
+                  </Text>
+                </View>
+              )}
+              {data.lidStatus === 'bad' && (
+                <>
+                  <PhotoButton
+                    onPress={() => takePhoto('lidStatus')}
+                    hasPhoto={!!data.lidStatusPhoto}
+                    compact
+                  />
+                  <Text style={styles.optionalHint}>Foto opcional</Text>
+                  {data.lidStatusPhoto && (
+                    <PhotoThumbnail uri={data.lidStatusPhoto} />
+                  )}
+                </>
+              )}
+            </View>
+
+            {renderToggleItem('Medición del Pozo', 'wellMeasurement', 'gauge')}
+            {renderToggleItem('Señalética en Pared', 'hasSignage', 'numeric')}
+            {renderToggleItem(
+              'Rotulado del Pozo',
+              'wellLabeling',
+              'tag-outline',
+            )}
+            {renderToggleItem(
+              'Estado del Conductor (Cable)',
+              'connectorsOk',
+              'power-plug',
+            )}
+            {renderToggleItem('Cuenta con Acceso', 'hasAccess', 'door-open')}
+
+            <View style={styles.bottomSpacer} />
+          </>
         )}
-        {renderToggleItem('Cuenta con Acceso', 'hasAccess', 'door-open')}
-
-        <View style={styles.bottomSpacer} />
       </ScrollView>
 
       <View style={styles.syncStatusWrap}>
@@ -1449,6 +1617,55 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: COLORS.primary,
+  },
+
+  // Instrument selector
+  instrumentLoadingWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  instrumentHelperText: {
+    marginTop: 6,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
+  },
+  instrumentList: {
+    gap: 8,
+  },
+  instrumentCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.borderLight,
+    borderRadius: 8,
+    padding: 10,
+  },
+  instrumentCardSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+  },
+  instrumentCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+    gap: 8,
+  },
+  instrumentTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.text,
+    flex: 1,
+  },
+  instrumentTitleSelected: {
+    color: COLORS.primary,
+  },
+  instrumentMeta: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
 
   // Photo button (soft outline style)
