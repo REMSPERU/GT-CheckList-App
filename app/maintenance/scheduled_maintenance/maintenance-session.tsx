@@ -142,11 +142,9 @@ export default function MaintenanceSessionScreen() {
     [propertyId, propertyName, router],
   );
 
-  // Filter out fully completed sessions
-  const pendingSessions = useMemo(
-    () => sessions.filter((s: any) => s.total === 0 || s.completed < s.total),
-    [sessions],
-  );
+  // Keep completed sessions visible as well, so users can re-open them
+  // and trigger manual sync again if needed.
+  const sessionsForDisplay = useMemo(() => sessions, [sessions]);
 
   const renderSessionCard = useCallback<ListRenderItem<any>>(
     ({ item: session }) => {
@@ -275,17 +273,17 @@ export default function MaintenanceSessionScreen() {
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color="#06B6D4" />
           </View>
-        ) : pendingSessions.length === 0 ? (
+        ) : sessionsForDisplay.length === 0 ? (
           <View style={styles.centerContainer}>
             <MaterialIcons name="event-busy" size={64} color="#D1D5DB" />
             <Text style={styles.emptyText}>
-              No hay sesiones de mantenimiento pendientes
+              No hay sesiones de mantenimiento registradas
             </Text>
           </View>
         ) : (
           <FlatList
             style={styles.listContainer}
-            data={pendingSessions}
+            data={sessionsForDisplay}
             keyExtractor={item => String(item.id)}
             renderItem={renderSessionCard}
             showsVerticalScrollIndicator={false}

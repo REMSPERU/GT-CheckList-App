@@ -455,7 +455,7 @@ export async function getLocalSessionsByProperty(propertyId: string) {
       LEFT JOIN local_scheduled_maintenances m ON m.id_sesion = s.id
       WHERE s.id_property = ?
       GROUP BY s.id
-      ORDER BY s.fecha_programada ASC
+      ORDER BY s.fecha_programada DESC
       `,
       [propertyId],
     );
