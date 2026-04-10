@@ -32,8 +32,7 @@ function HomeScreen() {
   const { height } = useWindowDimensions();
   const isTallScreen = height >= 820;
   const appVersion = Constants.expoConfig?.version ?? '1.0.36';
-  const { canScheduleMaintenance, canExecuteMaintenance, isAuditor } =
-    useUserRole();
+  const { isAdmin, isSupervisor, isTechnician, canAudit } = useUserRole();
 
   const {
     userDisplayName,
@@ -63,7 +62,12 @@ function HomeScreen() {
   const actionCards = useMemo<HomeActionCard[]>(() => {
     const cards: HomeActionCard[] = [];
 
-    if (canExecuteMaintenance) {
+    const canSeeChecklist = isAdmin;
+    const canSeeSchedule = isTechnician || isSupervisor;
+    const canSeeExecute = isTechnician || isSupervisor;
+    const canSeeReports = isSupervisor;
+
+    if (canSeeChecklist) {
       cards.push({
         key: 'checklist',
         title: 'Checklist',
@@ -73,7 +77,7 @@ function HomeScreen() {
       });
     }
 
-    if (canScheduleMaintenance) {
+    if (canSeeSchedule) {
       cards.push({
         key: 'schedule-maintenance',
         title: 'Programar Mantenimiento',
@@ -85,7 +89,7 @@ function HomeScreen() {
       });
     }
 
-    if (canExecuteMaintenance) {
+    if (canSeeExecute) {
       cards.push({
         key: 'execute-maintenance',
         title: 'Ejecutar mantenimiento',
@@ -97,7 +101,7 @@ function HomeScreen() {
       });
     }
 
-    if (isAuditor) {
+    if (canAudit) {
       cards.push({
         key: 'auditoria',
         title: 'Auditoria',
@@ -107,19 +111,22 @@ function HomeScreen() {
       });
     }
 
-    cards.push({
-      key: 'reports',
-      title: 'Generar informes',
-      description: 'Genera informes de mantenimiento',
-      icon: <Feather name="file-text" size={24} color="#06B6D4" />,
-      onPress: handleReportsPress,
-    });
+    if (canSeeReports) {
+      cards.push({
+        key: 'reports',
+        title: 'Generar informes',
+        description: 'Genera informes de mantenimiento',
+        icon: <Feather name="file-text" size={24} color="#06B6D4" />,
+        onPress: handleReportsPress,
+      });
+    }
 
     return cards;
   }, [
-    canExecuteMaintenance,
-    canScheduleMaintenance,
-    isAuditor,
+    canAudit,
+    isAdmin,
+    isSupervisor,
+    isTechnician,
     handleChecklistPress,
     handleAuditPress,
     handleExecuteMaintenancePress,
