@@ -1,6 +1,7 @@
 import { AppAlertModal } from '@/components/app-alert-modal';
 import DefaultHeader from '@/components/default-header';
 import PDFReportModal from '@/components/pdf-report-modal';
+import { useAuth } from '@/contexts/AuthContext';
 import { auditReportService } from '@/services/audit-report.service';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
@@ -27,6 +28,7 @@ interface AuditQuestion {
 }
 
 interface StoredPhoto {
+  bucket?: string;
   url?: string;
   path?: string;
 }
@@ -67,6 +69,13 @@ interface OfflineAuditSession {
   sync_status: 'pending' | 'syncing' | 'synced' | 'error';
   error_message: string | null;
   created_at: string;
+}
+
+interface LocalUserRecord {
+  username?: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
 }
 
 function getSingleParam(value: string | string[] | undefined) {
@@ -121,8 +130,75 @@ function normalizeAuditStatus(value: string | undefined): 'OK' | 'OBS' | 'N/A' {
   return 'N/A';
 }
 
+function normalizePhotoUri(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('file://') ||
+    trimmed.startsWith('content://') ||
+    trimmed.startsWith('data:')
+  ) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith('/')) {
+    return `file://${trimmed}`;
+  }
+
+  return trimmed;
+}
+
+function extractPhotoUris(photos: StoredPhoto[] | undefined): string[] {
+  if (!photos?.length) {
+    return [];
+  }
+
+  const uris = photos
+    .flatMap(photo => [photo.url, photo.path])
+    .map(uri => normalizePhotoUri(uri))
+    .filter((uri): uri is string => Boolean(uri));
+
+  return Array.from(new Set(uris));
+}
+
+function getAuditorDisplayLabel(user: LocalUserRecord | null): string {
+  if (!user) {
+    return 'Auditor no identificado';
+  }
+
+  const firstName = user.first_name?.trim() || '';
+  const lastName = user.last_name?.trim() || '';
+  const fullName = `${firstName} ${lastName}`.trim();
+
+  if (fullName) {
+    return fullName;
+  }
+
+  const email = user.email?.trim();
+  if (email) {
+    return email;
+  }
+
+  const username = user.username?.trim();
+  if (username) {
+    return username;
+  }
+
+  return 'Auditor no identificado';
+}
+
 export default function AuditoriaHistoryScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const params = useLocalSearchParams<{
     buildingId?: string;
     buildingName?: string;
@@ -260,6 +336,22 @@ export default function AuditoriaHistoryScreen() {
       try {
         setGenerationProgress('Preparando datos del informe...');
 
+        const localAuditor = (await DatabaseService.getLocalUserById(
+          session.auditor_id,
+        )) as LocalUserRecord | null;
+
+        const currentUserLabel =
+          session.auditor_id === user?.id
+            ? getAuditorDisplayLabel({
+                first_name: user.user_metadata?.first_name,
+                last_name: user.user_metadata?.last_name,
+                email: user.email,
+              })
+            : null;
+
+        const auditorLabel =
+          currentUserLabel || getAuditorDisplayLabel(localAuditor);
+
         const questionsSorted = [...questions].sort((a, b) => {
           const sectionA = a.section_order_index ?? 999999;
           const sectionB = b.section_order_index ?? 999999;
@@ -277,6 +369,7 @@ export default function AuditoriaHistoryScreen() {
 
         const items = questionsSorted.map((question, index) => {
           const answer = answersByQuestionId.get(question.id);
+          const photos = extractPhotoUris(answer?.photos);
 
           return {
             order: index + 1,
@@ -285,7 +378,8 @@ export default function AuditoriaHistoryScreen() {
             sectionName: answer?.section_name ?? question.section_name,
             status: normalizeAuditStatus(answer?.status),
             observation: answer?.observation || answer?.comment || null,
-            photosCount: answer?.photos?.length || 0,
+            photosCount: photos.length,
+            photoUris: photos,
           };
         });
 
@@ -296,6 +390,8 @@ export default function AuditoriaHistoryScreen() {
         });
 
         additionalAnswers.forEach(answer => {
+          const photos = extractPhotoUris(answer.photos);
+
           items.push({
             order: items.length + 1,
             questionCode: answer.question_code,
@@ -303,8 +399,22 @@ export default function AuditoriaHistoryScreen() {
             sectionName: answer.section_name || null,
             status: normalizeAuditStatus(answer.status),
             observation: answer.observation || answer.comment || null,
-            photosCount: answer.photos?.length || 0,
+            photosCount: photos.length,
+            photoUris: photos,
           });
+        });
+
+        const evidencePhotos = items.flatMap(item => {
+          if (!item.photoUris.length) {
+            return [];
+          }
+
+          return item.photoUris.map(url => ({
+            questionCode: item.questionCode,
+            questionText: item.questionText,
+            observation: item.observation,
+            url,
+          }));
         });
 
         const parsedSummary = parseJsonSafely<StoredSummary>(session.summary);
@@ -329,7 +439,7 @@ export default function AuditoriaHistoryScreen() {
         const reportUri = await auditReportService.generatePDF({
           propertyName: buildingName,
           propertyAddress: buildingAddress || null,
-          auditorLabel: session.auditor_id,
+          auditorLabel,
           scheduledFor: session.scheduled_for,
           startedAt: formatDateTime(session.started_at),
           submittedAt: formatDateTime(session.submitted_at),
@@ -342,7 +452,16 @@ export default function AuditoriaHistoryScreen() {
             totalObs,
             totalPhotos,
           },
-          items,
+          items: items.map(item => ({
+            order: item.order,
+            questionCode: item.questionCode,
+            questionText: item.questionText,
+            sectionName: item.sectionName,
+            status: item.status,
+            observation: item.observation,
+            photosCount: item.photosCount,
+          })),
+          evidencePhotos,
         });
 
         setPdfUri(reportUri);
@@ -353,7 +472,16 @@ export default function AuditoriaHistoryScreen() {
         setIsGeneratingPdf(false);
       }
     },
-    [buildingAddress, buildingName, questions, showAlert],
+    [
+      buildingAddress,
+      buildingName,
+      questions,
+      showAlert,
+      user?.email,
+      user?.id,
+      user?.user_metadata?.first_name,
+      user?.user_metadata?.last_name,
+    ],
   );
 
   const handleClosePdfModal = useCallback(() => {

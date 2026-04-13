@@ -21,6 +21,13 @@ export interface AuditReportSummary {
   totalPhotos: number;
 }
 
+export interface AuditReportEvidencePhoto {
+  questionCode: string;
+  questionText: string;
+  observation: string | null;
+  url: string;
+}
+
 export interface AuditReportData {
   propertyName: string;
   propertyAddress: string | null;
@@ -31,6 +38,7 @@ export interface AuditReportData {
   generatedAt: string;
   summary: AuditReportSummary;
   items: AuditReportItem[];
+  evidencePhotos: AuditReportEvidencePhoto[];
 }
 
 function escapeHtml(value: string): string {
@@ -55,23 +63,60 @@ function statusClass(status: AuditReportItem['status']): string {
 
 class AuditReportService {
   private buildHtml(data: AuditReportData): string {
-    const rows = data.items
-      .map(item => {
-        const section = item.sectionName ? escapeHtml(item.sectionName) : '-';
-        const observation = item.observation
-          ? escapeHtml(item.observation)
-          : '-';
+    const groupedItems: Array<{
+      title: string;
+      rows: AuditReportItem[];
+    }> = [];
 
-        return `
+    for (const item of data.items) {
+      const sectionTitle = item.sectionName?.trim() || 'Sin seccion';
+      const current = groupedItems[groupedItems.length - 1];
+
+      if (!current || current.title !== sectionTitle) {
+        groupedItems.push({ title: sectionTitle, rows: [item] });
+      } else {
+        current.rows.push(item);
+      }
+    }
+
+    const detailsBySection = groupedItems
+      .map(group => {
+        const rows = group.rows
+          .map(item => {
+            const observation = item.observation
+              ? escapeHtml(item.observation)
+              : '-';
+
+            return `
           <tr>
             <td>${item.order}</td>
-            <td>${escapeHtml(item.questionCode)}</td>
-            <td>${section}</td>
             <td>${escapeHtml(item.questionText)}</td>
             <td class="${statusClass(item.status)}">${formatStatus(item.status)}</td>
             <td>${observation}</td>
             <td>${item.photosCount}</td>
           </tr>
+            `;
+          })
+          .join('');
+
+        return `
+  <div class="section-block">
+    <h3 class="section-subtitle">${escapeHtml(group.title)}</h3>
+    <table class="details">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Pregunta</th>
+          <th>Estado</th>
+          <th>Observacion</th>
+          <th>Fotos</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  </div>
         `;
       })
       .join('');
@@ -79,6 +124,32 @@ class AuditReportService {
     const address = data.propertyAddress
       ? escapeHtml(data.propertyAddress)
       : 'No disponible';
+
+    const photosSection = data.evidencePhotos.length
+      ? `
+  <h2 class="section-title">Evidencias fotograficas</h2>
+  <div class="photo-grid">
+    ${data.evidencePhotos
+      .map(photo => {
+        const observation = photo.observation
+          ? `<div class="photo-caption">OBS: ${escapeHtml(photo.observation)}</div>`
+          : '';
+
+        return `
+      <div class="photo-card">
+        <img class="photo-image" src="${escapeHtml(photo.url)}" alt="Evidencia ${escapeHtml(photo.questionCode)}" />
+        <div class="photo-title">${escapeHtml(photo.questionCode)} - ${escapeHtml(photo.questionText)}</div>
+        ${observation}
+      </div>
+        `;
+      })
+      .join('')}
+  </div>
+      `
+      : `
+  <h2 class="section-title">Evidencias fotograficas</h2>
+  <div class="empty-note">No se registraron fotos para esta auditoria.</div>
+      `;
 
     return `
 <!DOCTYPE html>
@@ -187,6 +258,21 @@ class AuditReportService {
       color: #1e293b;
     }
 
+    .section-block {
+      margin-top: 10px;
+      page-break-inside: avoid;
+    }
+
+    .section-subtitle {
+      margin: 0 0 6px;
+      font-size: 11px;
+      color: #155e75;
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+      border-left: 3px solid #0891b2;
+      padding-left: 7px;
+    }
+
     .status-ok {
       color: #047857;
       font-weight: 700;
@@ -202,9 +288,55 @@ class AuditReportService {
       font-weight: 600;
     }
 
-    .footer {
-      margin-top: 12px;
+    .section-title {
+      margin: 14px 0 8px;
+      font-size: 13px;
+      color: #0e7490;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .photo-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .photo-card {
+      width: calc(50% - 4px);
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 6px;
+      box-sizing: border-box;
+      page-break-inside: avoid;
+    }
+
+    .photo-image {
+      width: 100%;
+      height: 138px;
+      object-fit: cover;
+      border-radius: 6px;
+      background: #f8fafc;
+    }
+
+    .photo-title {
+      margin-top: 5px;
       font-size: 9px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .photo-caption {
+      margin-top: 3px;
+      font-size: 9px;
+      color: #475569;
+    }
+
+    .empty-note {
+      border: 1px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 10px;
       color: #64748b;
     }
   </style>
@@ -271,26 +403,9 @@ class AuditReportService {
     </tr>
   </table>
 
-  <table class="details">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Codigo</th>
-        <th>Seccion</th>
-        <th>Pregunta</th>
-        <th>Estado</th>
-        <th>Observacion</th>
-        <th>Fotos</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rows}
-    </tbody>
-  </table>
+  ${detailsBySection}
 
-  <div class="footer">
-    Documento generado por GT Checklist App.
-  </div>
+  ${photosSection}
 </body>
 </html>
     `;
