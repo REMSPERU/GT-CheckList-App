@@ -5,13 +5,13 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import type { PropertyResponse as Property } from '@/types/api';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface BuildingSelectorModalProps {
   visible: boolean;

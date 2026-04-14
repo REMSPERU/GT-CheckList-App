@@ -8,6 +8,7 @@ export default function AdminLayout() {
       <Stack.Screen name="add-property" />
       <Stack.Screen name="assign-roles" />
       <Stack.Screen name="assign-providers" />
+      <Stack.Screen name="assign-auditor-properties" />
     </Stack>
   );
 }

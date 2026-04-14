@@ -1,50 +1,72 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import React from 'react';
-import { Link, type LinkProps } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import DefaultHeader from '@/components/default-header';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppActionCard } from '@/components/app-action-card';
 
-const AdminOption = ({
-  href,
-  title,
-  icon,
-}: {
-  href: LinkProps['href'];
+interface AdminOptionItem {
+  href: Href;
   title: string;
+  description: string;
   icon: keyof typeof Feather.glyphMap;
-}) => (
-  <Link href={href} asChild>
-    <Pressable
-      style={({ pressed }) => [styles.option, pressed && styles.pressed]}>
-      <Feather name={icon} size={24} color="#0891B2" />
-      <Text style={styles.optionText}>{title}</Text>
-      <Feather name="chevron-right" size={24} color="#9CA3AF" />
-    </Pressable>
-  </Link>
-);
+}
 
 export default function AdminScreen() {
+  const router = useRouter();
+
+  const options: AdminOptionItem[] = [
+    {
+      href: '/admin/add-property',
+      title: 'Añadir Inmueble',
+      description: 'Registra nuevos inmuebles operativos',
+      icon: 'plus-circle',
+    },
+    {
+      href: '/admin/assign-roles',
+      title: 'Asignar Roles de Usuario',
+      description: 'Define permisos por tipo de usuario',
+      icon: 'users',
+    },
+    {
+      href: '/admin/assign-providers',
+      title: 'Asignar Proveedores',
+      description: 'Relaciona proveedores con inmuebles',
+      icon: 'briefcase',
+    },
+    {
+      href: '/admin/assign-auditor-properties',
+      title: 'Asignar Auditor a Inmueble',
+      description: 'Guarda asignaciones en user_properties',
+      icon: 'map-pin',
+    },
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
       <DefaultHeader title="Administración" />
-      <View style={styles.optionsContainer}>
-        <AdminOption
-          href="/admin/add-property"
-          title="Añadir Inmueble"
-          icon="plus-circle"
-        />
-        <AdminOption
-          href="/admin/assign-roles"
-          title="Asignar Roles de Usuario"
-          icon="users"
-        />
-        <AdminOption
-          href="/admin/assign-providers"
-          title="Asignar Proveedores"
-          icon="briefcase"
-        />
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.optionsContainer}
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.introCard}>
+          <Text style={styles.introTitle}>Panel de configuracion</Text>
+          <Text style={styles.introText}>
+            Gestione inmuebles, roles y asignaciones clave del sistema.
+          </Text>
+        </View>
+
+        {options.map(option => (
+          <AppActionCard
+            key={option.title}
+            title={option.title}
+            description={option.description}
+            icon={<Feather name={option.icon} size={20} color="#0891B2" />}
+            onPress={() => router.push(option.href)}
+            containerStyle={styles.optionCard}
+          />
+        ))}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -55,26 +77,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   optionsContainer: {
+    flexGrow: 1,
     padding: 16,
     gap: 12,
+    width: '100%',
   },
-  option: {
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
+  introCard: {
+    backgroundColor: '#ECFEFF',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
-    gap: 12,
+    borderColor: '#A5F3FC',
+    padding: 14,
   },
-  optionText: {
-    flex: 1,
+  introTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: '700',
+    color: '#0F172A',
   },
-  pressed: {
-    opacity: 0.84,
+  introText: {
+    marginTop: 4,
+    color: '#155E75',
+    fontSize: 13,
+  },
+  optionCard: {
+    width: '100%',
+    borderColor: '#E6EEF2',
   },
 });

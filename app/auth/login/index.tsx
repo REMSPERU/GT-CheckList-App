@@ -1,23 +1,23 @@
-import { Colors } from '@/constants/theme';
-import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
-  Pressable,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useNetworkState } from 'expo-network';
+import { Colors } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -28,12 +28,37 @@ export default function LoginScreen() {
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [focusedInput, setFocusedInput] = useState<'email' | 'password' | null>(
+    null,
+  );
+  const passwordInputRef = useRef<TextInput>(null);
+
+  const handleInputFocus = (field: 'email' | 'password') => {
+    setFocusedInput(field);
+  };
+
+  const handleInputBlur = () => {
+    setFocusedInput(null);
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(prev => !prev);
+
+    requestAnimationFrame(() => {
+      passwordInputRef.current?.focus();
+    });
+  };
 
   const handleLogin = async () => {
     clearError();
 
     if (!emailOrUsername.trim() || !password.trim()) {
       Alert.alert('Error', 'Por favor, completa todos los campos');
+      return;
+    }
+
+    if (/\s/.test(password)) {
+      Alert.alert('Error', 'La contraseña no debe contener espacios.');
       return;
     }
 
@@ -74,14 +99,25 @@ export default function LoginScreen() {
                 style={styles.icon}
               />
               <TextInput
-                style={styles.input}
-                placeholder="Correo electrónico"
+                style={[
+                  styles.input,
+                  focusedInput === 'email' && styles.inputFocused,
+                ]}
+                placeholder="Correo o usuario"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+                textContentType="emailAddress"
+                returnKeyType="next"
                 value={emailOrUsername}
                 onChangeText={setEmailOrUsername}
+                onFocus={() => handleInputFocus('email')}
+                onBlur={handleInputBlur}
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
                 editable={!isLoading}
+                accessibilityLabel="Correo o usuario"
               />
             </View>
 
@@ -93,23 +129,43 @@ export default function LoginScreen() {
                 style={styles.icon}
               />
               <TextInput
-                style={styles.input}
+                ref={passwordInputRef}
+                style={[
+                  styles.input,
+                  focusedInput === 'password' && styles.inputFocused,
+                ]}
                 placeholder="Contraseña"
                 placeholderTextColor="#9CA3AF"
                 secureTextEntry={!showPassword}
+                multiline={false}
+                blurOnSubmit
                 autoCapitalize="none"
+                autoCorrect={false}
+                spellCheck={false}
+                smartInsertDelete={false}
+                autoComplete="current-password"
+                textContentType="password"
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
                 value={password}
                 onChangeText={setPassword}
+                onFocus={() => handleInputFocus('password')}
+                onBlur={handleInputBlur}
                 editable={!isLoading}
+                accessibilityLabel="Contraseña"
               />
               <Pressable
                 style={({ pressed }) => [
                   styles.eyeIcon,
                   pressed && styles.pressed,
                 ]}
-                onPress={() => setShowPassword(!showPassword)}
+                onPress={togglePasswordVisibility}
                 disabled={isLoading}
-                accessibilityRole="button">
+                accessibilityRole="button"
+                accessibilityLabel={
+                  showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
+                }
+                hitSlop={8}>
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
@@ -202,29 +258,43 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 12,
     position: 'relative',
+    justifyContent: 'center',
   },
   input: {
-    height: 52,
+    minHeight: 52,
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
     paddingLeft: 44,
     paddingRight: 44,
+    paddingVertical: Platform.select({ ios: 14, android: 10 }),
     fontSize: 16,
-    lineHeight: 26,
+    lineHeight: 22,
     color: '#565D6D',
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: '#D1D5DB',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
+  inputFocused: {
+    borderColor: Colors.light.tint,
+    shadowColor: Colors.light.tint,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    elevation: 1,
   },
   icon: {
     position: 'absolute',
     left: 12,
-    top: 16,
+    top: '50%',
+    marginTop: -10,
     zIndex: 10,
   },
   eyeIcon: {
     position: 'absolute',
     right: 12,
-    top: 16,
+    top: '50%',
+    marginTop: -10,
     zIndex: 10,
   },
   forgotWrapper: {
