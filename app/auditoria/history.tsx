@@ -1,10 +1,28 @@
 import { AppAlertModal } from '@/components/app-alert-modal';
+import { historyScreenStyles as styles } from '@/components/auditoria/history-screen-styles';
+import { HistorySessionCard } from '@/components/auditoria/history-session-card';
 import DefaultHeader from '@/components/default-header';
 import PDFReportModal from '@/components/pdf-report-modal';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  extractPhotoUris,
+  formatDateTime,
+  getAuditorDisplayLabel,
+  getSingleParam,
+  normalizeAuditStatus,
+  parseJsonSafely,
+} from '@/lib/auditoria/history-utils';
 import { auditReportService } from '@/services/audit-report.service';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
+import type {
+  AuditQuestion,
+  LocalUserRecord,
+  OfflineAuditSession,
+  StoredAuditAnswer,
+  StoredAuditPayload,
+  StoredSummary,
+} from '@/types/auditoria';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -13,214 +31,10 @@ import {
   Platform,
   Pressable,
   RefreshControl,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-interface AuditQuestion {
-  id: string;
-  question_code: string;
-  question_text: string;
-  order_index: number;
-  section_name: string | null;
-  section_order_index: number | null;
-}
-
-interface StoredPhoto {
-  bucket?: string;
-  path?: string;
-  local_uri?: string;
-}
-
-interface StoredAuditAnswer {
-  question_id: string;
-  status: 'OK' | 'OBS';
-  comment?: string | null;
-  photos?: StoredPhoto[];
-}
-
-interface StoredAuditPayload {
-  version: number;
-  answers: StoredAuditAnswer[];
-}
-
-interface StoredSummary {
-  total_questions?: number;
-  total_applies?: number;
-  total_not_applicable?: number;
-  total_ok?: number;
-  total_obs?: number;
-  total_photos?: number;
-}
-
-interface OfflineAuditSession {
-  local_id: number;
-  auditor_id: string;
-  scheduled_for: string;
-  started_at: string | null;
-  submitted_at: string | null;
-  audit_payload: string | null;
-  summary: string | null;
-  sync_status: 'pending' | 'syncing' | 'synced' | 'error';
-  error_message: string | null;
-  created_at: string;
-}
-
-interface LocalUserRecord {
-  username?: string;
-  email?: string;
-  first_name?: string;
-  last_name?: string;
-}
-
-function getSingleParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function parseJsonSafely<T>(rawValue: string | null): T | null {
-  if (!rawValue) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(rawValue) as T;
-  } catch {
-    return null;
-  }
-}
-
-function formatDateTime(value: string | null) {
-  if (!value) {
-    return 'Sin fecha';
-  }
-
-  return new Date(value).toLocaleString('es-PE', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function getSyncStatusLabel(syncStatus: OfflineAuditSession['sync_status']) {
-  if (syncStatus === 'synced') return 'Subida';
-  if (syncStatus === 'syncing') return 'Subiendo';
-  if (syncStatus === 'error') return 'Error';
-  return 'Pendiente';
-}
-
-function getSyncStatusStyle(syncStatus: OfflineAuditSession['sync_status']) {
-  if (syncStatus === 'synced') return styles.badgeSynced;
-  if (syncStatus === 'syncing') return styles.badgeSyncing;
-  if (syncStatus === 'error') return styles.badgeError;
-  return styles.badgePending;
-}
-
-function normalizeAuditStatus(value: string | undefined): 'OK' | 'OBS' | 'N/A' {
-  if (value === 'OK' || value === 'OBS') {
-    return value;
-  }
-
-  return 'N/A';
-}
-
-function normalizePhotoUri(value: string | undefined): string | null {
-  if (!value) {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  if (
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('https://') ||
-    trimmed.startsWith('file://') ||
-    trimmed.startsWith('content://') ||
-    trimmed.startsWith('data:')
-  ) {
-    return trimmed;
-  }
-
-  if (trimmed.startsWith('/')) {
-    return `file://${trimmed}`;
-  }
-
-  return null;
-}
-
-function buildSupabasePublicPhotoUrl(
-  bucket: string | undefined,
-  path: string | undefined,
-): string | null {
-  const normalizedPath = path?.trim();
-  const normalizedBucket = bucket?.trim();
-  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
-
-  if (!normalizedPath || !normalizedBucket || !supabaseUrl) {
-    return null;
-  }
-
-  const baseUrl = supabaseUrl.replace(/\/+$/, '');
-  const safePath = normalizedPath.replace(/^\/+/, '');
-
-  return `${baseUrl}/storage/v1/object/public/${normalizedBucket}/${safePath}`;
-}
-
-function extractPhotoUris(photos: StoredPhoto[] | undefined): string[] {
-  if (!photos?.length) {
-    return [];
-  }
-
-  const uris = photos
-    .map(photo => {
-      const fromLocalUri = normalizePhotoUri(photo.local_uri);
-      if (fromLocalUri) {
-        return fromLocalUri;
-      }
-
-      const fromPath = normalizePhotoUri(photo.path);
-      if (fromPath) {
-        return fromPath;
-      }
-
-      return buildSupabasePublicPhotoUrl(photo.bucket, photo.path);
-    })
-    .filter((uri): uri is string => Boolean(uri));
-
-  return Array.from(new Set(uris));
-}
-
-function getAuditorDisplayLabel(user: LocalUserRecord | null): string {
-  if (!user) {
-    return 'Auditor no identificado';
-  }
-
-  const firstName = user.first_name?.trim() || '';
-  const lastName = user.last_name?.trim() || '';
-  const fullName = `${firstName} ${lastName}`.trim();
-
-  if (fullName) {
-    return fullName;
-  }
-
-  const email = user.email?.trim();
-  if (email) {
-    return email;
-  }
-
-  const username = user.username?.trim();
-  if (username) {
-    return username;
-  }
-
-  return 'Auditor no identificado';
-}
 
 export default function AuditoriaHistoryScreen() {
   const router = useRouter();
@@ -528,47 +342,12 @@ export default function AuditoriaHistoryScreen() {
 
   const renderSessionItem = useCallback(
     ({ item }: { item: OfflineAuditSession }) => {
-      const summary = parseJsonSafely<StoredSummary>(item.summary);
-      const totalQuestions = summary?.total_questions ?? 0;
-      const totalOk = summary?.total_ok ?? 0;
-      const totalObs = summary?.total_obs ?? 0;
-
       return (
-        <View style={styles.sessionCard}>
-          <View style={styles.sessionHeader}>
-            <Text style={styles.sessionDate}>
-              {formatDateTime(item.submitted_at || item.created_at)}
-            </Text>
-            <View
-              style={[
-                styles.statusBadge,
-                getSyncStatusStyle(item.sync_status),
-              ]}>
-              <Text style={styles.statusBadgeText}>
-                {getSyncStatusLabel(item.sync_status)}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={styles.sessionSummaryText}>
-            Preguntas: {totalQuestions} | OK: {totalOk} | OBS: {totalObs}
-          </Text>
-
-          {item.sync_status === 'error' && item.error_message ? (
-            <Text style={styles.errorMessage}>{item.error_message}</Text>
-          ) : null}
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.reportButton,
-              item.sync_status !== 'synced' && styles.reportButtonDisabled,
-              pressed && styles.pressed,
-            ]}
-            onPress={() => handleGenerateReport(item)}
-            disabled={item.sync_status !== 'synced' || isGeneratingPdf}>
-            <Text style={styles.reportButtonText}>Generar informe</Text>
-          </Pressable>
-        </View>
+        <HistorySessionCard
+          item={item}
+          isGeneratingPdf={isGeneratingPdf}
+          onGenerateReport={handleGenerateReport}
+        />
       );
     },
     [handleGenerateReport, isGeneratingPdf],
@@ -666,144 +445,3 @@ export default function AuditoriaHistoryScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-  },
-  headerWrapper: {
-    backgroundColor: '#fff',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-  },
-  buildingCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-  },
-  buildingName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  buildingAddress: {
-    marginTop: 4,
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  createButton: {
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: '#0891B2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  createButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  listContent: {
-    paddingBottom: 24,
-  },
-  sessionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-  },
-  sessionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  sessionDate: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  statusBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  badgePending: {
-    backgroundColor: '#FEF3C7',
-  },
-  badgeSyncing: {
-    backgroundColor: '#DBEAFE',
-  },
-  badgeSynced: {
-    backgroundColor: '#DCFCE7',
-  },
-  badgeError: {
-    backgroundColor: '#FEE2E2',
-  },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  sessionSummaryText: {
-    fontSize: 13,
-    color: '#4B5563',
-    marginBottom: 10,
-  },
-  reportButton: {
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#0891B2',
-    minHeight: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reportButtonDisabled: {
-    opacity: 0.45,
-  },
-  reportButtonText: {
-    color: '#0891B2',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statusText: {
-    marginTop: 8,
-    color: '#6B7280',
-  },
-  syncStatusText: {
-    marginBottom: 10,
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 36,
-  },
-  emptyText: {
-    color: '#6B7280',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  errorMessage: {
-    fontSize: 12,
-    color: '#B91C1C',
-    marginBottom: 10,
-  },
-  pressed: {
-    opacity: 0.82,
-  },
-});

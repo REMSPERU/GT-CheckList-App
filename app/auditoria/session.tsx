@@ -1,199 +1,34 @@
 import { AppAlertModal } from '@/components/app-alert-modal';
+import { AuditQuestionRow } from '@/components/auditoria/audit-question-row';
+import { SessionHeader } from '@/components/auditoria/session-header';
+import { sessionScreenStyles as styles } from '@/components/auditoria/session-screen-styles';
+import { SubmitAuditFooter } from '@/components/auditoria/submit-audit-footer';
 import { CameraSourceSheet } from '@/components/maintenance/camera-source-sheet';
-import { QuestionChecklistItem } from '@/components/maintenance/checklist/question-checklist-item';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/use-user-role';
+import {
+  createEmptyAuditAnswer,
+  parseLegacyAuditQuestion,
+} from '@/lib/auditoria/session-utils';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
-import { Image } from 'expo-image';
+import type {
+  AnswerErrors,
+  ApplicableAnswerEntry,
+  AuditAnswer,
+  AuditQuestion,
+} from '@/types/auditoria';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Platform,
-  Pressable,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-
-interface AuditAnswer {
-  isApplicable: boolean;
-  status: boolean | null;
-  observation: string;
-  photoUris: string[];
-}
-
-interface AuditQuestion {
-  id: string;
-  question_code: string;
-  question_text: string;
-  order_index: number;
-  section_id: string | null;
-  section_name: string | null;
-  section_order_index: number | null;
-}
-
-type AnswerErrors = Record<string, { observation?: string; photos?: string }>;
-
-type ApplicableAnswerEntry = {
-  question: AuditQuestion;
-  answer: AuditAnswer & { status: boolean };
-};
-
-function createEmptyAuditAnswer(): AuditAnswer {
-  return {
-    isApplicable: true,
-    status: true,
-    observation: '',
-    photoUris: [],
-  };
-}
-
-function parseLegacyAuditQuestion(questionText: string) {
-  const match = questionText.match(/^\s*\[([^\]]+)\]\s*(.+)$/);
-
-  if (!match) {
-    return {
-      sectionName: null,
-      cleanQuestionText: questionText,
-    };
-  }
-
-  return {
-    sectionName: match[1].trim(),
-    cleanQuestionText: match[2].trim(),
-  };
-}
-
-interface SessionHeaderProps {
-  buildingImageUrl?: string;
-  buildingName?: string;
-  scheduledFor: string;
-  onBack: () => void;
-}
-
-function SessionHeader({
-  buildingImageUrl,
-  buildingName,
-  scheduledFor,
-  onBack,
-}: SessionHeaderProps) {
-  return (
-    <View style={styles.headerContainer}>
-      <Pressable
-        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-        onPress={onBack}>
-        <Ionicons name="chevron-back" size={22} color="#fff" />
-      </Pressable>
-      <Image
-        source={
-          buildingImageUrl
-            ? { uri: buildingImageUrl }
-            : require('@/assets/images/icon.png')
-        }
-        style={styles.headerImage}
-        contentFit="cover"
-      />
-      <View style={styles.overlay} />
-      <View style={styles.headerContent}>
-        <Text style={styles.headerTitle} numberOfLines={2}>
-          {buildingName || 'Auditoria'}
-        </Text>
-        <Text style={styles.headerSubtitle}>
-          Fecha de auditoria: {scheduledFor}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-interface AuditQuestionRowProps {
-  question: AuditQuestion;
-  index: number;
-  previousSectionName: string | null;
-  answer: AuditAnswer | undefined;
-  error: AnswerErrors[string] | undefined;
-  isSaving: boolean;
-  onChangeApplicable: (questionId: string, isApplicable: boolean) => void;
-  onChangeStatus: (questionId: string, status: boolean) => void;
-  onChangeObservation: (questionId: string, text: string) => void;
-  onAddPhoto: (questionId: string) => void;
-  onRemovePhoto: (questionId: string, photoIndex: number) => void;
-}
-
-function AuditQuestionRow({
-  question,
-  index,
-  previousSectionName,
-  answer,
-  error,
-  isSaving,
-  onChangeApplicable,
-  onChangeStatus,
-  onChangeObservation,
-  onAddPhoto,
-  onRemovePhoto,
-}: AuditQuestionRowProps) {
-  return (
-    <View>
-      {question.section_name &&
-      question.section_name !== previousSectionName ? (
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{question.section_name}</Text>
-        </View>
-      ) : null}
-
-      <QuestionChecklistItem
-        order={index + 1}
-        question={question.question_text}
-        value={{
-          isApplicable: answer?.isApplicable ?? true,
-          status: answer?.status ?? true,
-          observation: answer?.observation ?? '',
-          photoUris: answer?.photoUris ?? [],
-        }}
-        onChangeApplicable={isApplicable =>
-          onChangeApplicable(question.id, isApplicable)
-        }
-        showApplicabilityToggle={true}
-        onChangeStatus={status => onChangeStatus(question.id, status)}
-        onChangeObservation={text => onChangeObservation(question.id, text)}
-        onAddPhoto={() => onAddPhoto(question.id)}
-        onRemovePhoto={photoIndex => onRemovePhoto(question.id, photoIndex)}
-        errors={error}
-        disabled={isSaving}
-        statusLayout="stacked"
-      />
-    </View>
-  );
-}
-
-interface SubmitAuditFooterProps {
-  isSaving: boolean;
-  onSubmit: () => void;
-}
-
-function SubmitAuditFooter({ isSaving, onSubmit }: SubmitAuditFooterProps) {
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.submitButton,
-        pressed && styles.pressed,
-        isSaving && styles.submitButtonDisabled,
-      ]}
-      onPress={onSubmit}
-      disabled={isSaving}>
-      <Text style={styles.submitText}>
-        {isSaving ? 'Guardando...' : 'Guardar auditoria'}
-      </Text>
-    </Pressable>
-  );
-}
 
 export default function AuditoriaSessionScreen() {
   const router = useRouter();
@@ -677,92 +512,3 @@ export default function AuditoriaSessionScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statusText: {
-    marginTop: 8,
-    color: '#6B7280',
-  },
-  headerContainer: {
-    minHeight: 170,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  headerImage: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  headerContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    paddingTop: 72,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 44,
-    left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  headerSubtitle: {
-    marginTop: 4,
-    color: 'rgba(255,255,255,0.92)',
-  },
-  listContent: {
-    padding: 16,
-    paddingBottom: 28,
-  },
-  sectionHeader: {
-    paddingHorizontal: 2,
-    paddingTop: 8,
-    paddingBottom: 6,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F766E',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  submitButton: {
-    marginTop: 8,
-    backgroundColor: '#0891B2',
-    borderRadius: 10,
-    height: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitButtonDisabled: {
-    opacity: 0.7,
-  },
-  submitText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  pressed: {
-    opacity: 0.84,
-  },
-});
