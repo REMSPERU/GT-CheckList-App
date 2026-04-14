@@ -10,6 +10,7 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -525,6 +526,54 @@ export default function AuditoriaHistoryScreen() {
     });
   }, [sessions]);
 
+  const renderSessionItem = useCallback(
+    ({ item }: { item: OfflineAuditSession }) => {
+      const summary = parseJsonSafely<StoredSummary>(item.summary);
+      const totalQuestions = summary?.total_questions ?? 0;
+      const totalOk = summary?.total_ok ?? 0;
+      const totalObs = summary?.total_obs ?? 0;
+
+      return (
+        <View style={styles.sessionCard}>
+          <View style={styles.sessionHeader}>
+            <Text style={styles.sessionDate}>
+              {formatDateTime(item.submitted_at || item.created_at)}
+            </Text>
+            <View
+              style={[
+                styles.statusBadge,
+                getSyncStatusStyle(item.sync_status),
+              ]}>
+              <Text style={styles.statusBadgeText}>
+                {getSyncStatusLabel(item.sync_status)}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.sessionSummaryText}>
+            Preguntas: {totalQuestions} | OK: {totalOk} | OBS: {totalObs}
+          </Text>
+
+          {item.sync_status === 'error' && item.error_message ? (
+            <Text style={styles.errorMessage}>{item.error_message}</Text>
+          ) : null}
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.reportButton,
+              item.sync_status !== 'synced' && styles.reportButtonDisabled,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => handleGenerateReport(item)}
+            disabled={item.sync_status !== 'synced' || isGeneratingPdf}>
+            <Text style={styles.reportButtonText}>Generar informe</Text>
+          </Pressable>
+        </View>
+      );
+    },
+    [handleGenerateReport, isGeneratingPdf],
+  );
+
   if (!buildingId) {
     return (
       <SafeAreaView style={styles.container}>
@@ -576,6 +625,7 @@ export default function AuditoriaHistoryScreen() {
           <FlatList
             data={sortedSessions}
             keyExtractor={item => String(item.local_id)}
+            renderItem={renderSessionItem}
             refreshControl={
               <RefreshControl
                 refreshing={isRefreshing}
@@ -583,6 +633,10 @@ export default function AuditoriaHistoryScreen() {
               />
             }
             contentContainerStyle={styles.listContent}
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            removeClippedSubviews={Platform.OS === 'android'}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>
@@ -590,54 +644,6 @@ export default function AuditoriaHistoryScreen() {
                 </Text>
               </View>
             }
-            renderItem={({ item }) => {
-              const summary = parseJsonSafely<StoredSummary>(item.summary);
-              const totalQuestions = summary?.total_questions ?? 0;
-              const totalOk = summary?.total_ok ?? 0;
-              const totalObs = summary?.total_obs ?? 0;
-
-              return (
-                <View style={styles.sessionCard}>
-                  <View style={styles.sessionHeader}>
-                    <Text style={styles.sessionDate}>
-                      {formatDateTime(item.submitted_at || item.created_at)}
-                    </Text>
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        getSyncStatusStyle(item.sync_status),
-                      ]}>
-                      <Text style={styles.statusBadgeText}>
-                        {getSyncStatusLabel(item.sync_status)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.sessionSummaryText}>
-                    Preguntas: {totalQuestions} | OK: {totalOk} | OBS:{' '}
-                    {totalObs}
-                  </Text>
-
-                  {item.sync_status === 'error' && item.error_message ? (
-                    <Text style={styles.errorMessage}>
-                      {item.error_message}
-                    </Text>
-                  ) : null}
-
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.reportButton,
-                      item.sync_status !== 'synced' &&
-                        styles.reportButtonDisabled,
-                      pressed && styles.pressed,
-                    ]}
-                    onPress={() => handleGenerateReport(item)}
-                    disabled={item.sync_status !== 'synced' || isGeneratingPdf}>
-                    <Text style={styles.reportButtonText}>Generar informe</Text>
-                  </Pressable>
-                </View>
-              );
-            }}
           />
         )}
       </View>

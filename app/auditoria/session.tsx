@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -282,7 +283,7 @@ export default function AuditoriaSessionScreen() {
   }, []);
 
   useEffect(() => {
-    loadQuestions();
+    void loadQuestions();
   }, [loadQuestions]);
 
   const handleOpenCameraSheet = useCallback(
@@ -645,6 +646,10 @@ export default function AuditoriaSessionScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
         renderItem={renderQuestionItem}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews={Platform.OS === 'android'}
         ListFooterComponent={
           <SubmitAuditFooter isSaving={isSaving} onSubmit={handleSubmit} />
         }
