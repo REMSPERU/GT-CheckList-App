@@ -25,7 +25,34 @@ export function formatDateTime(value: string | null) {
     return 'Sin fecha';
   }
 
-  return new Date(value).toLocaleString('es-PE', {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return 'Sin fecha';
+  }
+
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(trimmedValue);
+
+  let parsedDate: Date;
+  if (isDateOnly) {
+    const [year, month, day] = trimmedValue.split('-').map(Number);
+    parsedDate = new Date(year, month - 1, day);
+  } else {
+    parsedDate = new Date(trimmedValue);
+  }
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return 'Sin fecha';
+  }
+
+  if (isDateOnly) {
+    return parsedDate.toLocaleDateString('es-PE', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  }
+
+  return parsedDate.toLocaleString('es-PE', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -122,8 +149,16 @@ export function extractPhotoUris(photos: StoredPhoto[] | undefined): string[] {
   return Array.from(new Set(uris));
 }
 
-export function getAuditorDisplayLabel(user: LocalUserRecord | null): string {
+export function getAuditorDisplayLabel(
+  user: LocalUserRecord | null,
+  auditorId?: string,
+): string {
   if (!user) {
+    const normalizedAuditorId = auditorId?.trim();
+    if (normalizedAuditorId) {
+      return `ID: ${normalizedAuditorId}`;
+    }
+
     return 'Auditor no identificado';
   }
 
@@ -135,14 +170,14 @@ export function getAuditorDisplayLabel(user: LocalUserRecord | null): string {
     return fullName;
   }
 
-  const email = user.email?.trim();
-  if (email) {
-    return email;
-  }
-
   const username = user.username?.trim();
   if (username) {
     return username;
+  }
+
+  const normalizedAuditorId = auditorId?.trim();
+  if (normalizedAuditorId) {
+    return `ID: ${normalizedAuditorId}`;
   }
 
   return 'Auditor no identificado';

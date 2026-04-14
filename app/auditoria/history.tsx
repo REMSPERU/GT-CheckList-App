@@ -12,6 +12,7 @@ import {
   normalizeAuditStatus,
   parseJsonSafely,
 } from '@/lib/auditoria/history-utils';
+import { supabase } from '@/lib/supabase';
 import { auditReportService } from '@/services/audit-report.service';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
@@ -109,11 +110,22 @@ export default function AuditoriaHistoryScreen() {
   const loadHistory = useCallback(async () => {
     setIsLoading(true);
     try {
-      await loadLocalHistory();
+      await Promise.race([
+        loadLocalHistory(),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error('AUDIT_HISTORY_LOCAL_LOAD_TIMEOUT')),
+            4000,
+          ),
+        ),
+      ]);
       void syncHistoryInBackground();
     } catch (error) {
       console.error('Failed to load audit history:', error);
-      showAlert('Error', 'No se pudo cargar el historial de auditoria.');
+      showAlert(
+        'Error',
+        'La base local tardo demasiado en responder. Intente actualizar.',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -195,21 +207,67 @@ export default function AuditoriaHistoryScreen() {
       try {
         setGenerationProgress('Preparando datos del informe...');
 
-        const localAuditor = (await DatabaseService.getLocalUserById(
+        let localAuditor = (await DatabaseService.getLocalUserById(
           session.auditor_id,
         )) as LocalUserRecord | null;
 
-        const currentUserLabel =
-          session.auditor_id === user?.id
-            ? getAuditorDisplayLabel({
-                first_name: user.user_metadata?.first_name,
-                last_name: user.user_metadata?.last_name,
-                email: user.email,
-              })
-            : null;
+        const hasLocalFullName = Boolean(
+          `${localAuditor?.first_name?.trim() || ''} ${localAuditor?.last_name?.trim() || ''}`.trim(),
+        );
 
-        const auditorLabel =
-          currentUserLabel || getAuditorDisplayLabel(localAuditor);
+        if (!hasLocalFullName) {
+          try {
+            const { data: remoteAuditor, error } = await supabase
+              .from('users')
+              .select('id, email, username, first_name, last_name')
+              .eq('id', session.auditor_id)
+              .maybeSingle();
+
+            if (error) {
+              throw error;
+            }
+
+            if (remoteAuditor) {
+              localAuditor = {
+                ...localAuditor,
+                ...(remoteAuditor as LocalUserRecord),
+              };
+
+              if (remoteAuditor.email) {
+                await DatabaseService.saveCurrentUser({
+                  id: remoteAuditor.id,
+                  email: remoteAuditor.email,
+                  username: remoteAuditor.username ?? undefined,
+                  first_name: remoteAuditor.first_name ?? undefined,
+                  last_name: remoteAuditor.last_name ?? undefined,
+                });
+              }
+            }
+          } catch (error) {
+            console.error(
+              'Failed to resolve auditor profile for report:',
+              error,
+            );
+          }
+        }
+
+        const resolvedAuditor =
+          session.auditor_id === user?.id
+            ? {
+                ...localAuditor,
+                first_name:
+                  localAuditor?.first_name ?? user.user_metadata?.first_name,
+                last_name:
+                  localAuditor?.last_name ?? user.user_metadata?.last_name,
+                username: localAuditor?.username,
+                email: localAuditor?.email ?? user.email,
+              }
+            : localAuditor;
+
+        const auditorLabel = getAuditorDisplayLabel(
+          resolvedAuditor,
+          session.auditor_id,
+        );
 
         const questionsSorted = [...questions].sort((a, b) => {
           const sectionA = a.section_order_index ?? 999999;
@@ -278,7 +336,7 @@ export default function AuditoriaHistoryScreen() {
           propertyName: buildingName,
           propertyAddress: buildingAddress || null,
           auditorLabel,
-          scheduledFor: session.scheduled_for,
+          scheduledFor: formatDateTime(session.scheduled_for),
           startedAt: formatDateTime(session.started_at),
           submittedAt: formatDateTime(session.submitted_at),
           generatedAt: formatDateTime(new Date().toISOString()),

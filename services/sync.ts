@@ -785,25 +785,28 @@ class SyncService {
   // ----------------------------------------------------------------
   async pullData(force = false): Promise<boolean> {
     await DatabaseService.ensureInitialized();
-    if (this.currentPushPromise) {
-      await this.currentPushPromise;
-    }
     if (this.currentSyncPromise) return this.currentSyncPromise;
 
-    const state = await NetInfo.fetch();
-    this.isConnected = state.isConnected ?? false;
-    if (!this.isConnected || state.isInternetReachable === false) return false;
-
-    // Throttle: skip if last pull was less than MIN_PULL_INTERVAL_MS ago
-    const now = Date.now();
-    if (!force && now - this.lastPullTimestamp < MIN_PULL_INTERVAL_MS) {
-      log('[SYNC] Pull throttled — too soon since last pull');
-      return true;
-    }
-
-    this.isSyncing = true;
     this.currentSyncPromise = (async () => {
       try {
+        if (this.currentPushPromise) {
+          await this.currentPushPromise;
+        }
+
+        const state = await NetInfo.fetch();
+        this.isConnected = state.isConnected ?? false;
+        if (!this.isConnected || state.isInternetReachable === false) {
+          return false;
+        }
+
+        // Throttle: skip if last pull was less than MIN_PULL_INTERVAL_MS ago
+        const now = Date.now();
+        if (!force && now - this.lastPullTimestamp < MIN_PULL_INTERVAL_MS) {
+          log('[SYNC] Pull throttled — too soon since last pull');
+          return true;
+        }
+
+        this.isSyncing = true;
         log('Starting Down-Sync...');
 
         const localSession = await DatabaseService.getSession();
