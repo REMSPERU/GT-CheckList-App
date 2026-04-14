@@ -211,7 +211,11 @@ export default function AuditoriaHistoryScreen() {
           session.auditor_id,
         )) as LocalUserRecord | null;
 
-        if (!localAuditor && session.auditor_id !== user?.id) {
+        const hasLocalFullName = Boolean(
+          `${localAuditor?.first_name?.trim() || ''} ${localAuditor?.last_name?.trim() || ''}`.trim(),
+        );
+
+        if (!hasLocalFullName) {
           try {
             const { data: remoteAuditor, error } = await supabase
               .from('users')
@@ -224,7 +228,10 @@ export default function AuditoriaHistoryScreen() {
             }
 
             if (remoteAuditor) {
-              localAuditor = remoteAuditor as LocalUserRecord;
+              localAuditor = {
+                ...localAuditor,
+                ...(remoteAuditor as LocalUserRecord),
+              };
 
               if (remoteAuditor.email) {
                 await DatabaseService.saveCurrentUser({
@@ -244,21 +251,23 @@ export default function AuditoriaHistoryScreen() {
           }
         }
 
-        const currentUserLabel =
+        const resolvedAuditor =
           session.auditor_id === user?.id
-            ? getAuditorDisplayLabel(
-                {
-                  first_name: user.user_metadata?.first_name,
-                  last_name: user.user_metadata?.last_name,
-                  email: user.email,
-                },
-                user?.id,
-              )
-            : null;
+            ? {
+                ...localAuditor,
+                first_name:
+                  localAuditor?.first_name ?? user.user_metadata?.first_name,
+                last_name:
+                  localAuditor?.last_name ?? user.user_metadata?.last_name,
+                username: localAuditor?.username,
+                email: localAuditor?.email ?? user.email,
+              }
+            : localAuditor;
 
-        const auditorLabel =
-          currentUserLabel ||
-          getAuditorDisplayLabel(localAuditor, session.auditor_id);
+        const auditorLabel = getAuditorDisplayLabel(
+          resolvedAuditor,
+          session.auditor_id,
+        );
 
         const questionsSorted = [...questions].sort((a, b) => {
           const sectionA = a.section_order_index ?? 999999;
@@ -327,7 +336,7 @@ export default function AuditoriaHistoryScreen() {
           propertyName: buildingName,
           propertyAddress: buildingAddress || null,
           auditorLabel,
-          scheduledFor: session.scheduled_for,
+          scheduledFor: formatDateTime(session.scheduled_for),
           startedAt: formatDateTime(session.started_at),
           submittedAt: formatDateTime(session.submitted_at),
           generatedAt: formatDateTime(new Date().toISOString()),

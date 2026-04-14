@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/lib/auditoria/history-utils';
 import { Image } from 'expo-image';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,7 +42,7 @@ export function SessionHeader({
           {buildingName || 'Auditoria'}
         </Text>
         <Text style={sessionScreenStyles.headerSubtitle}>
-          Fecha de auditoria: {scheduledFor}
+          Fecha de auditoria: {formatDateTime(scheduledFor)}
         </Text>
       </View>
     </View>
