@@ -380,7 +380,7 @@ class SyncService {
             auditor_id: item.auditor_id,
             created_by: item.created_by || item.auditor_id,
             scheduled_for: item.scheduled_for,
-            status: item.status,
+            status: 'SINCRONIZADA',
             started_at: item.started_at,
             submitted_at: item.submitted_at,
             audit_payload: payload,
@@ -816,6 +816,19 @@ class SyncService {
 
         const localSession = await DatabaseService.getSession();
         const currentUserId = localSession?.user_id || null;
+        const currentLocalUser = currentUserId
+          ? await DatabaseService.getLocalUserById(currentUserId)
+          : null;
+        const currentRole =
+          currentLocalUser &&
+          typeof currentLocalUser === 'object' &&
+          'role' in currentLocalUser
+            ? String(
+                (currentLocalUser as { role?: string }).role || '',
+              ).toUpperCase()
+            : '';
+        const canSeeAllAuditSessions =
+          currentRole === 'SUPERADMIN' || currentRole === 'SUPERVISOR';
 
         // Fetch all tables in parallel WITH limits and error checking
         const [
@@ -916,7 +929,7 @@ class SyncService {
               .order('created_at', { ascending: false })
               .limit(SYNC_ROW_LIMIT);
 
-            if (currentUserId) {
+            if (currentUserId && !canSeeAllAuditSessions) {
               query = query.eq('auditor_id', currentUserId);
             }
 

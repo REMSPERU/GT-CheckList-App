@@ -215,6 +215,7 @@ export default function AuditoriaHistoryScreen() {
   const [questions, setQuestions] = useState<AuditQuestion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfModalVisible, setPdfModalVisible] = useState(false);
   const [pdfUri, setPdfUri] = useState<string | null>(null);
@@ -233,32 +234,50 @@ export default function AuditoriaHistoryScreen() {
     setAlert({ visible: false, title: '', message: '' });
   }, []);
 
-  const loadHistory = useCallback(async () => {
+  const loadLocalHistory = useCallback(async () => {
     if (!buildingId) {
       setSessions([]);
       setQuestions([]);
-      setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    const [localSessions, localQuestions] = await Promise.all([
+      DatabaseService.getAuditSessionsByProperty(buildingId),
+      DatabaseService.getAuditQuestions(),
+    ]);
+
+    setSessions((localSessions || []) as OfflineAuditSession[]);
+    setQuestions((localQuestions || []) as AuditQuestion[]);
+  }, [buildingId]);
+
+  const syncHistoryInBackground = useCallback(async () => {
+    if (!buildingId) {
+      return;
+    }
+
+    setIsBackgroundSyncing(true);
     try {
       await syncService.pullData();
+      await loadLocalHistory();
+    } catch (error) {
+      console.error('Failed to sync audit history in background:', error);
+    } finally {
+      setIsBackgroundSyncing(false);
+    }
+  }, [buildingId, loadLocalHistory]);
 
-      const [localSessions, localQuestions] = await Promise.all([
-        DatabaseService.getAuditSessionsByProperty(buildingId),
-        DatabaseService.getAuditQuestions(),
-      ]);
-
-      setSessions((localSessions || []) as OfflineAuditSession[]);
-      setQuestions((localQuestions || []) as AuditQuestion[]);
+  const loadHistory = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await loadLocalHistory();
+      void syncHistoryInBackground();
     } catch (error) {
       console.error('Failed to load audit history:', error);
       showAlert('Error', 'No se pudo cargar el historial de auditoria.');
     } finally {
       setIsLoading(false);
     }
-  }, [buildingId, showAlert]);
+  }, [loadLocalHistory, showAlert, syncHistoryInBackground]);
 
   useFocusEffect(
     useCallback(() => {
@@ -274,15 +293,15 @@ export default function AuditoriaHistoryScreen() {
     setIsRefreshing(true);
     try {
       await syncService.pushData();
-      await syncService.pullData();
-      await loadHistory();
+      await syncService.pullData(true);
+      await loadLocalHistory();
     } catch (error) {
       console.error('Failed to refresh audit history:', error);
       showAlert('Error', 'No se pudo actualizar el estado de sincronizacion.');
     } finally {
       setIsRefreshing(false);
     }
-  }, [buildingId, loadHistory, showAlert]);
+  }, [buildingId, loadLocalHistory, showAlert]);
 
   const handleCreateAudit = useCallback(() => {
     if (!buildingId) {
@@ -538,6 +557,12 @@ export default function AuditoriaHistoryScreen() {
           <Text style={styles.createButtonText}>Nueva auditoria</Text>
         </Pressable>
 
+        {isBackgroundSyncing && !isLoading ? (
+          <Text style={styles.syncStatusText}>
+            Sincronizando en segundo plano...
+          </Text>
+        ) : null}
+
         {isLoading ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" />
@@ -747,6 +772,11 @@ const styles = StyleSheet.create({
   },
   statusText: {
     marginTop: 8,
+    color: '#6B7280',
+  },
+  syncStatusText: {
+    marginBottom: 10,
+    fontSize: 12,
     color: '#6B7280',
   },
   emptyContainer: {
