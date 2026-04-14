@@ -12,6 +12,7 @@ import {
   normalizeAuditStatus,
   parseJsonSafely,
 } from '@/lib/auditoria/history-utils';
+import { supabase } from '@/lib/supabase';
 import { auditReportService } from '@/services/audit-report.service';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
@@ -109,11 +110,22 @@ export default function AuditoriaHistoryScreen() {
   const loadHistory = useCallback(async () => {
     setIsLoading(true);
     try {
-      await loadLocalHistory();
+      await Promise.race([
+        loadLocalHistory(),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error('AUDIT_HISTORY_LOCAL_LOAD_TIMEOUT')),
+            4000,
+          ),
+        ),
+      ]);
       void syncHistoryInBackground();
     } catch (error) {
       console.error('Failed to load audit history:', error);
-      showAlert('Error', 'No se pudo cargar el historial de auditoria.');
+      showAlert(
+        'Error',
+        'La base local tardo demasiado en responder. Intente actualizar.',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -195,21 +207,58 @@ export default function AuditoriaHistoryScreen() {
       try {
         setGenerationProgress('Preparando datos del informe...');
 
-        const localAuditor = (await DatabaseService.getLocalUserById(
+        let localAuditor = (await DatabaseService.getLocalUserById(
           session.auditor_id,
         )) as LocalUserRecord | null;
 
+        if (!localAuditor && session.auditor_id !== user?.id) {
+          try {
+            const { data: remoteAuditor, error } = await supabase
+              .from('users')
+              .select('id, email, username, first_name, last_name')
+              .eq('id', session.auditor_id)
+              .maybeSingle();
+
+            if (error) {
+              throw error;
+            }
+
+            if (remoteAuditor) {
+              localAuditor = remoteAuditor as LocalUserRecord;
+
+              if (remoteAuditor.email) {
+                await DatabaseService.saveCurrentUser({
+                  id: remoteAuditor.id,
+                  email: remoteAuditor.email,
+                  username: remoteAuditor.username ?? undefined,
+                  first_name: remoteAuditor.first_name ?? undefined,
+                  last_name: remoteAuditor.last_name ?? undefined,
+                });
+              }
+            }
+          } catch (error) {
+            console.error(
+              'Failed to resolve auditor profile for report:',
+              error,
+            );
+          }
+        }
+
         const currentUserLabel =
           session.auditor_id === user?.id
-            ? getAuditorDisplayLabel({
-                first_name: user.user_metadata?.first_name,
-                last_name: user.user_metadata?.last_name,
-                email: user.email,
-              })
+            ? getAuditorDisplayLabel(
+                {
+                  first_name: user.user_metadata?.first_name,
+                  last_name: user.user_metadata?.last_name,
+                  email: user.email,
+                },
+                user?.id,
+              )
             : null;
 
         const auditorLabel =
-          currentUserLabel || getAuditorDisplayLabel(localAuditor);
+          currentUserLabel ||
+          getAuditorDisplayLabel(localAuditor, session.auditor_id);
 
         const questionsSorted = [...questions].sort((a, b) => {
           const sectionA = a.section_order_index ?? 999999;

@@ -122,8 +122,16 @@ export function extractPhotoUris(photos: StoredPhoto[] | undefined): string[] {
   return Array.from(new Set(uris));
 }
 
-export function getAuditorDisplayLabel(user: LocalUserRecord | null): string {
+export function getAuditorDisplayLabel(
+  user: LocalUserRecord | null,
+  auditorId?: string,
+): string {
   if (!user) {
+    const normalizedAuditorId = auditorId?.trim();
+    if (normalizedAuditorId) {
+      return `ID: ${normalizedAuditorId}`;
+    }
+
     return 'Auditor no identificado';
   }
 
@@ -143,6 +151,11 @@ export function getAuditorDisplayLabel(user: LocalUserRecord | null): string {
   const username = user.username?.trim();
   if (username) {
     return username;
+  }
+
+  const normalizedAuditorId = auditorId?.trim();
+  if (normalizedAuditorId) {
+    return `ID: ${normalizedAuditorId}`;
   }
 
   return 'Auditor no identificado';

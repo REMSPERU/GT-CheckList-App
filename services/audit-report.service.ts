@@ -166,28 +166,29 @@ class AuditReportService {
 
     body {
       font-family: 'Helvetica Neue', Arial, sans-serif;
-      color: #0f172a;
+      color: #070707;
       margin: 0;
       line-height: 1.35;
       font-size: 11px;
+      background: #ffffff;
     }
 
     .header {
-      border-bottom: 2px solid #0891b2;
-      padding-bottom: 10px;
+      border-bottom: 2px solid #FF6640;
+      padding-bottom: 8px;
       margin-bottom: 14px;
     }
 
     .title {
       margin: 0;
       font-size: 20px;
-      color: #0e7490;
+      color: #070707;
       letter-spacing: 0.2px;
     }
 
     .subtitle {
       margin-top: 4px;
-      color: #334155;
+      color: #070707;
       font-size: 12px;
     }
 
@@ -203,7 +204,7 @@ class AuditReportService {
     }
 
     .meta-label {
-      color: #475569;
+      color: #070707;
       width: 160px;
       font-weight: 600;
     }
@@ -215,7 +216,7 @@ class AuditReportService {
     }
 
     .summary td {
-      border: 1px solid #cbd5e1;
+      border: 1px solid #070707;
       text-align: center;
       padding: 7px 6px;
     }
@@ -223,13 +224,13 @@ class AuditReportService {
     .summary-value {
       font-size: 14px;
       font-weight: 700;
-      color: #0f172a;
+      color: #070707;
     }
 
     .summary-label {
       margin-top: 2px;
       font-size: 10px;
-      color: #475569;
+      color: #070707;
       text-transform: uppercase;
       letter-spacing: 0.2px;
     }
@@ -241,21 +242,21 @@ class AuditReportService {
     }
 
     .details th {
-      background: #f1f5f9;
-      border: 1px solid #cbd5e1;
+      background: #fff7f4;
+      border: 1px solid #070707;
       padding: 7px 6px;
       text-align: left;
-      color: #0f172a;
+      color: #070707;
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
 
     .details td {
-      border: 1px solid #e2e8f0;
+      border: 1px solid #070707;
       padding: 6px;
       vertical-align: top;
-      color: #1e293b;
+      color: #070707;
     }
 
     .section-block {
@@ -266,34 +267,36 @@ class AuditReportService {
     .section-subtitle {
       margin: 0 0 6px;
       font-size: 11px;
-      color: #155e75;
+      color: #070707;
       text-transform: uppercase;
       letter-spacing: 0.2px;
-      border-left: 3px solid #0891b2;
+      border-left: 3px solid #FF6640;
       padding-left: 7px;
     }
 
     .status-ok {
-      color: #047857;
+      color: #070707;
       font-weight: 700;
     }
 
     .status-obs {
-      color: #b91c1c;
+      color: #FF6640;
       font-weight: 700;
     }
 
     .status-na {
-      color: #475569;
+      color: #070707;
       font-weight: 600;
     }
 
     .section-title {
       margin: 14px 0 8px;
       font-size: 13px;
-      color: #0e7490;
+      color: #070707;
       text-transform: uppercase;
       letter-spacing: 0.3px;
+      border-bottom: 1px solid #FF6640;
+      padding-bottom: 3px;
     }
 
     .photo-grid {
@@ -304,7 +307,7 @@ class AuditReportService {
 
     .photo-card {
       width: calc(50% - 4px);
-      border: 1px solid #e2e8f0;
+      border: 1px solid #070707;
       border-radius: 8px;
       padding: 6px;
       box-sizing: border-box;
@@ -318,28 +321,28 @@ class AuditReportService {
       object-position: center;
       display: block;
       border-radius: 6px;
-      background: #f8fafc;
+      background: #ffffff;
     }
 
     .photo-title {
       margin-top: 5px;
       font-size: 9px;
       font-weight: 700;
-      color: #0f172a;
+      color: #070707;
     }
 
     .photo-caption {
       margin-top: 3px;
       font-size: 9px;
-      color: #475569;
+      color: #070707;
     }
 
     .empty-note {
-      border: 1px dashed #cbd5e1;
+      border: 1px dashed #FF6640;
       border-radius: 8px;
       padding: 8px;
       font-size: 10px;
-      color: #64748b;
+      color: #070707;
     }
   </style>
 </head>

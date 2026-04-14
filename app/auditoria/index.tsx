@@ -6,7 +6,7 @@ import { syncService } from '@/services/sync';
 import { DatabaseService } from '@/services/database';
 import type { PropertyResponse as Property } from '@/types/api';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -29,7 +29,6 @@ export default function AuditoriaIndexScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { canAudit, isAuditor } = useUserRole();
-  const hasSynced = useRef(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
@@ -68,20 +67,12 @@ export default function AuditoriaIndexScreen() {
   }, [loadProperties]);
 
   useEffect(() => {
-    if (!canAudit || hasSynced.current) return;
-    hasSynced.current = true;
+    if (!canAudit) return;
 
-    const backgroundSync = async () => {
-      try {
-        await syncService.pullData();
-        await loadProperties();
-      } catch (error) {
-        console.error('Audit background sync failed:', error);
-      }
-    };
-
-    void backgroundSync();
-  }, [canAudit, loadProperties]);
+    syncService.pullData().catch(error => {
+      console.error('Audit background sync failed:', error);
+    });
+  }, [canAudit]);
 
   const filteredBuildings = useMemo(() => {
     if (!debouncedSearch.trim()) return properties;
