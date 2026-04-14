@@ -137,8 +137,8 @@ class AuditReportService {
 
         return `
       <div class="photo-card">
-        <img class="photo-image" src="${escapeHtml(photo.url)}" alt="Evidencia ${escapeHtml(photo.questionCode)}" />
-        <div class="photo-title">${escapeHtml(photo.questionCode)} - ${escapeHtml(photo.questionText)}</div>
+        <img class="photo-image" src="${escapeHtml(photo.url)}" alt="Evidencia: ${escapeHtml(photo.questionText)}" />
+        <div class="photo-title">${escapeHtml(photo.questionText)}</div>
         ${observation}
       </div>
         `;
@@ -314,7 +314,9 @@ class AuditReportService {
     .photo-image {
       width: 100%;
       height: 138px;
-      object-fit: cover;
+      object-fit: contain;
+      object-position: center;
+      display: block;
       border-radius: 6px;
       background: #f8fafc;
     }
