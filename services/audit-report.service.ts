@@ -63,10 +63,10 @@ function statusClass(status: AuditReportItem['status']): string {
 
 class AuditReportService {
   private buildHtml(data: AuditReportData): string {
-    const groupedItems: Array<{
+    const groupedItems: {
       title: string;
       rows: AuditReportItem[];
-    }> = [];
+    }[] = [];
 
     for (const item of data.items) {
       const sectionTitle = item.sectionName?.trim() || 'Sin seccion';
