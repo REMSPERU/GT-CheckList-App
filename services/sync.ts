@@ -72,14 +72,15 @@ interface OfflineAuditSession {
 }
 
 interface AuditPhotoPayload {
-  url?: string;
+  local_uri?: string;
   path?: string;
   bucket?: string;
 }
 
 interface AuditAnswerPayload {
-  question_id?: string;
-  status?: string;
+  question_id: string;
+  status: 'OK' | 'OBS';
+  comment?: string | null;
   photos?: AuditPhotoPayload[];
 }
 
@@ -343,16 +344,8 @@ class SyncService {
             const uploadedPhotos: AuditPhotoPayload[] = [];
 
             for (const photo of answer.photos) {
-              const sourceUri = photo.url || photo.path;
+              const sourceUri = photo.local_uri;
               if (!sourceUri) continue;
-
-              if (
-                sourceUri.startsWith('http://') ||
-                sourceUri.startsWith('https://')
-              ) {
-                uploadedPhotos.push(photo);
-                continue;
-              }
 
               const uploaded = await supabaseAuditStorageService.uploadPhoto({
                 uri: sourceUri,
@@ -365,7 +358,6 @@ class SyncService {
               uploadedPhotos.push({
                 bucket: uploaded.bucket,
                 path: uploaded.path,
-                url: uploaded.publicUrl,
               });
             }
 

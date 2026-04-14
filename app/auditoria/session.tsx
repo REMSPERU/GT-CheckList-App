@@ -514,15 +514,11 @@ export default function AuditoriaSessionScreen() {
 
           return {
             question_id: question.id,
-            question_code: question.question_code,
-            question_text: question.question_text,
-            section_name: question.section_name,
             status,
-            observation: status === 'OBS' ? answer.observation.trim() : null,
             comment: status === 'OBS' ? answer.observation.trim() : null,
             photos:
               status === 'OBS'
-                ? answer.photoUris.map(uri => ({ url: uri, path: uri }))
+                ? answer.photoUris.map(uri => ({ local_uri: uri }))
                 : [],
           };
         });
@@ -546,7 +542,7 @@ export default function AuditoriaSessionScreen() {
         startedAt: startedAtRef.current,
         submittedAt,
         auditPayload: {
-          version: 1,
+          version: 2,
           answers: payloadAnswers,
         },
         summary: {

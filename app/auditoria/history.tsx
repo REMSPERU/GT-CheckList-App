@@ -29,17 +29,13 @@ interface AuditQuestion {
 
 interface StoredPhoto {
   bucket?: string;
-  url?: string;
   path?: string;
+  local_uri?: string;
 }
 
 interface StoredAuditAnswer {
   question_id: string;
-  question_code: string;
-  question_text?: string;
-  section_name?: string | null;
   status: 'OK' | 'OBS';
-  observation?: string | null;
   comment?: string | null;
   photos?: StoredPhoto[];
 }
@@ -154,7 +150,25 @@ function normalizePhotoUri(value: string | undefined): string | null {
     return `file://${trimmed}`;
   }
 
-  return trimmed;
+  return null;
+}
+
+function buildSupabasePublicPhotoUrl(
+  bucket: string | undefined,
+  path: string | undefined,
+): string | null {
+  const normalizedPath = path?.trim();
+  const normalizedBucket = bucket?.trim();
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
+
+  if (!normalizedPath || !normalizedBucket || !supabaseUrl) {
+    return null;
+  }
+
+  const baseUrl = supabaseUrl.replace(/\/+$/, '');
+  const safePath = normalizedPath.replace(/^\/+/, '');
+
+  return `${baseUrl}/storage/v1/object/public/${normalizedBucket}/${safePath}`;
 }
 
 function extractPhotoUris(photos: StoredPhoto[] | undefined): string[] {
@@ -163,8 +177,19 @@ function extractPhotoUris(photos: StoredPhoto[] | undefined): string[] {
   }
 
   const uris = photos
-    .flatMap(photo => [photo.url, photo.path])
-    .map(uri => normalizePhotoUri(uri))
+    .map(photo => {
+      const fromLocalUri = normalizePhotoUri(photo.local_uri);
+      if (fromLocalUri) {
+        return fromLocalUri;
+      }
+
+      const fromPath = normalizePhotoUri(photo.path);
+      if (fromPath) {
+        return fromPath;
+      }
+
+      return buildSupabasePublicPhotoUrl(photo.bucket, photo.path);
+    })
     .filter((uri): uri is string => Boolean(uri));
 
   return Array.from(new Set(uris));
@@ -393,34 +418,13 @@ export default function AuditoriaHistoryScreen() {
           return {
             order: index + 1,
             questionCode: question.question_code,
-            questionText: answer?.question_text || question.question_text,
-            sectionName: answer?.section_name ?? question.section_name,
+            questionText: question.question_text,
+            sectionName: question.section_name,
             status: normalizeAuditStatus(answer?.status),
-            observation: answer?.observation || answer?.comment || null,
+            observation: answer?.comment || null,
             photosCount: photos.length,
             photoUris: photos,
           };
-        });
-
-        const additionalAnswers = payload.answers.filter(answer => {
-          return !questionsSorted.some(
-            question => question.id === answer.question_id,
-          );
-        });
-
-        additionalAnswers.forEach(answer => {
-          const photos = extractPhotoUris(answer.photos);
-
-          items.push({
-            order: items.length + 1,
-            questionCode: answer.question_code,
-            questionText: answer.question_text || answer.question_code,
-            sectionName: answer.section_name || null,
-            status: normalizeAuditStatus(answer.status),
-            observation: answer.observation || answer.comment || null,
-            photosCount: photos.length,
-            photoUris: photos,
-          });
         });
 
         const evidencePhotos = items.flatMap(item => {
