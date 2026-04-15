@@ -145,9 +145,13 @@ function generatePhotosHTML(
   thermoPhotos: { url: string; caption?: string }[],
   postPhotos: { url: string; caption?: string }[],
   itemObservations?: Record<string, { note: string; photoUrl?: string }>,
-  options: { isCompact?: boolean; isThirds?: boolean } = {},
+  options: {
+    isCompact?: boolean;
+    isThirds?: boolean;
+    isUltraCompact?: boolean;
+  } = {},
 ): string {
-  const { isCompact, isThirds } = options;
+  const { isCompact, isThirds, isUltraCompact } = options;
   const sections: string[] = [];
 
   // Pre (Antes) photos
@@ -172,12 +176,11 @@ function generatePhotosHTML(
     `);
   });
 
-  // Post (Después) photos - full width
+  // Post (Después) photos
   postPhotos.forEach((photo, idx) => {
-    // In compact mode, don't force full-width for post photos to save space
     const containerClass = isCompact
       ? 'photo-container small-image'
-      : 'photo-container full-width';
+      : 'photo-container';
 
     sections.push(`
       <div class="${containerClass}">
@@ -211,6 +214,7 @@ function generatePhotosHTML(
     'photo-grid',
     isCompact ? 'grid-compact' : '',
     isThirds ? 'thirds' : '',
+    isUltraCompact ? 'ultra-grid' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -234,12 +238,21 @@ export function generateEquipmentPhotoPageHTML(
     obsCount;
 
   // Layout logic:
-  // > 4 items: Use compact mode (smaller photos, tighter grid)
-  // > 6 items: Use thirds layout (3 items per row) for even more space efficiency
-  const isCompact = totalItems > 4;
-  const isThirds = totalItems > 6;
+  // > 3 items: compact mode
+  // > 5 items: thirds layout
+  // > 8 items: ultra-compact mode
+  const isCompact = totalItems > 3;
+  const isThirds = totalItems > 5;
+  const isUltraCompact = totalItems > 8;
 
-  const pageClasses = isCompact ? 'page compact' : 'page';
+  const pageClasses = [
+    'page',
+    'equipment-page',
+    isCompact ? 'compact' : '',
+    isUltraCompact ? 'ultra-compact' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return `
     <div class="${pageClasses}">
@@ -274,7 +287,7 @@ export function generateEquipmentPhotoPageHTML(
         equipment.thermoPhotos,
         equipment.postPhotos,
         equipment.itemObservations,
-        { isCompact, isThirds },
+        { isCompact, isThirds, isUltraCompact },
       )}
     </div>
   `;

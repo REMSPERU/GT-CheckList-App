@@ -46,15 +46,14 @@ class HttpClient {
       },
     );
 
-    // Response interceptor - Supabase handles token refresh automatically
+    // Response interceptor - auth/session handling is centralized in AuthContext
     this.axiosInstance.interceptors.response.use(
       response => response,
       async (error: AxiosError) => {
-        // If we get 401, user needs to re-authenticate
+        // Do not force sign out on first 401.
+        // Under slow networks this can be transient while refresh is in progress.
         if (error.response?.status === 401) {
-          // Supabase will handle session refresh automatically
-          // If we still get 401, the session is truly invalid
-          await supabaseAuthService.signOut();
+          console.warn('[HttpClient] 401 response received');
         }
         return Promise.reject(error);
       },

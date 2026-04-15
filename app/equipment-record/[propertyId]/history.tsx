@@ -20,6 +20,7 @@ import { useMaintenanceByProperty } from '@/hooks/use-maintenance';
 import { MaintenanceStatusEnum } from '@/types/api';
 import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '@/services/db';
+import { getSessionNotes } from '@/services/supabase-session-notes.service';
 import {
   pdfReportService as newPdfReportService,
   ReportType,
@@ -360,7 +361,7 @@ export default function SessionHistoryScreen() {
         return source
           .map(item => {
             const raw = item as Partial<ReportInstrument>;
-            const id = typeof raw.id === 'string' ? raw.id : '';
+            const id = typeof raw.id === 'string' ? raw.id.trim() : '';
             const instrumento =
               typeof raw.instrumento === 'string' ? raw.instrumento.trim() : '';
             const marca = typeof raw.marca === 'string' ? raw.marca.trim() : '';
@@ -368,12 +369,12 @@ export default function SessionHistoryScreen() {
               typeof raw.modelo === 'string' ? raw.modelo.trim() : '';
             const serie = typeof raw.serie === 'string' ? raw.serie.trim() : '';
 
-            if (!id || !instrumento) {
+            if (!instrumento) {
               return null;
             }
 
             return {
-              id,
+              id: id || `${instrumento}-${serie || modelo || 'sin-id'}`,
               instrumento,
               marca,
               modelo,
@@ -381,6 +382,56 @@ export default function SessionHistoryScreen() {
             };
           })
           .filter((item): item is ReportInstrument => item !== null);
+      };
+
+      const normalizeItemObservations = (
+        source: unknown,
+      ): Record<string, { note: string; photoUrl?: string }> | undefined => {
+        if (!source || typeof source !== 'object' || Array.isArray(source)) {
+          return undefined;
+        }
+
+        const entries = Object.entries(source as Record<string, any>)
+          .map(([key, value]) => {
+            if (!value || typeof value !== 'object') {
+              return null;
+            }
+
+            const note =
+              typeof value.note === 'string'
+                ? value.note.trim()
+                : typeof value.observation === 'string'
+                  ? value.observation.trim()
+                  : '';
+
+            const photoUrl = normalizePhotoUrl(
+              value.photoUrl || value.photoUri || value.photo,
+            );
+
+            if (!note && !photoUrl) {
+              return null;
+            }
+
+            return [
+              key,
+              {
+                note: note || 'Sin observación registrada',
+                ...(photoUrl ? { photoUrl } : {}),
+              },
+            ] as const;
+          })
+          .filter(
+            (
+              item,
+            ): item is readonly [string, { note: string; photoUrl?: string }] =>
+              item !== null,
+          );
+
+        if (entries.length === 0) {
+          return undefined;
+        }
+
+        return Object.fromEntries(entries);
       };
 
       const maintenanceIds = selectedMaintenances
@@ -430,11 +481,26 @@ export default function SessionHistoryScreen() {
         propertyId,
         typeof propertyName === 'string' ? propertyName : undefined,
       );
+      const sessionNotes = await getSessionNotes(
+        propertyId,
+        selectedSession.date,
+      )
+        .then(notes => notes)
+        .catch(error => {
+          console.log(
+            'No se pudieron cargar notas de sesión para el informe:',
+            error,
+          );
+          return null;
+        });
 
       const equipments: any[] = [];
       const patInstrumentsMap = new Map<string, ReportInstrument>();
+      const electricalInstrumentsMap = new Map<string, ReportInstrument>();
       let totalOkItems = 0;
       let totalIssueItems = 0;
+      let sessionRecommendations = '';
+      let sessionConclusions = '';
 
       for (const maint of selectedMaintenances.filter(
         (m: any) => m.estatus === MaintenanceStatusEnum.FINALIZADO,
@@ -628,9 +694,48 @@ export default function SessionHistoryScreen() {
           (v: any) => v === false,
         ).length;
 
+        if (
+          !sessionRecommendations &&
+          typeof detail.recommendations === 'string' &&
+          detail.recommendations.trim().length > 0
+        ) {
+          sessionRecommendations = detail.recommendations.trim();
+        }
+
+        if (
+          !sessionConclusions &&
+          typeof detail.conclusions === 'string' &&
+          detail.conclusions.trim().length > 0
+        ) {
+          sessionConclusions = detail.conclusions.trim();
+        }
+
+        const selectedInstruments = normalizeSelectedInstruments(
+          detail.selectedInstruments,
+        );
+        selectedInstruments.forEach(instrument => {
+          const dedupeKey =
+            instrument.id || `${instrument.instrumento}-${instrument.serie}`;
+          if (!electricalInstrumentsMap.has(dedupeKey)) {
+            electricalInstrumentsMap.set(dedupeKey, instrument);
+          }
+        });
+
         const firstMeasurement = detail.measurements
-          ? (Object.values(detail.measurements)[0] as any)
+          ? (Object.values(detail.measurements).find((measurement: any) => {
+              return (
+                measurement &&
+                typeof measurement === 'object' &&
+                (measurement.voltage ||
+                  measurement.amperage ||
+                  measurement.cableDiameter)
+              );
+            }) as any) || null
           : null;
+
+        const normalizedItemObservations = normalizeItemObservations(
+          detail.itemObservations,
+        );
 
         const panelType =
           maint.equipos?.equipment_detail?.detalle_tecnico?.tipo_tablero ||
@@ -660,7 +765,7 @@ export default function SessionHistoryScreen() {
             url: p.url || p.uri,
           })),
           observations: detail.observations,
-          itemObservations: detail.itemObservations,
+          itemObservations: normalizedItemObservations,
           protocol: response?.protocol || detail.protocol,
         });
       }
@@ -682,12 +787,26 @@ export default function SessionHistoryScreen() {
           serial: item.serie || 'N/A',
         }),
       );
+      const selectedElectricalInstruments = Array.from(
+        electricalInstrumentsMap.values(),
+      ).map(item => ({
+        name: item.instrumento,
+        brand: item.marca || undefined,
+        model: item.modelo || 'N/A',
+        serial: item.serie || 'N/A',
+      }));
 
       const defaultPATInstrument = {
         name: 'TELURÓMETRO',
         brand: 'HIOKI',
         model: 'N/A',
         serial: 'N/A',
+      };
+      const defaultElectricalInstrument = {
+        name: 'PINZA MULTIMÉTRICA',
+        brand: 'FLUKE',
+        model: '376FC',
+        serial: 'VERIFICAR',
       };
 
       const reportData: MaintenanceSessionReport = {
@@ -706,17 +825,18 @@ export default function SessionHistoryScreen() {
         equipments,
         measurementInstrument: isPATReport
           ? selectedPatInstruments[0] || defaultPATInstrument
-          : {
-              name: 'PINZA MULTIMÉTRICA',
-              brand: 'FLUKE',
-              model: '376FC',
-              serial: 'VERIFICAR',
-            },
+          : selectedElectricalInstruments[0] || defaultElectricalInstrument,
         measurementInstruments: isPATReport
           ? selectedPatInstruments.length > 0
             ? selectedPatInstruments
             : [defaultPATInstrument]
           : undefined,
+        recommendations:
+          sessionNotes?.recommendations?.trim() ||
+          sessionRecommendations ||
+          undefined,
+        conclusions:
+          sessionNotes?.conclusions?.trim() || sessionConclusions || undefined,
       };
 
       setGenerationProgress('Generando archivo PDF...');
