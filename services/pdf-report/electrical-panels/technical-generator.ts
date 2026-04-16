@@ -4,6 +4,325 @@ import {
 } from '../common/types';
 import { formatDate } from '../common/utils';
 
+function generateCompanyHeader(): string {
+  return `
+    <div class="report-company-header">
+      <div>
+        <div class="company-name">PROPIEDAD ELITE S.R.L.</div>
+        <div class="company-division">DIVISION ELECTRICA</div>
+      </div>
+      <div class="company-contact">
+        <div><strong>RUC:</strong> 20538436209</div>
+        <div><strong>Telefono:</strong> (511) 979351357</div>
+        <div><strong>Correo:</strong> Gianmarco.isique@rems.pe</div>
+      </div>
+    </div>
+  `;
+}
+
+export function getElectricalPanelTechnicalStyles(): string {
+  return `
+    @page {
+      size: A4;
+      margin: 10mm;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      color: #111;
+      font-size: 11px;
+      line-height: 1.35;
+      background: #fff;
+    }
+
+    .page {
+      page-break-after: always;
+      padding: 2mm 0;
+    }
+
+    .page:last-child {
+      page-break-after: auto;
+    }
+
+    .report-company-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 2px solid #fc5126;
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+
+    .company-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #000;
+      letter-spacing: 0.2px;
+    }
+
+    .company-division {
+      margin-top: 2px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fc5126;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    .company-contact {
+      text-align: right;
+      font-size: 9.5px;
+      color: #444;
+      line-height: 1.35;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 20px;
+      text-transform: uppercase;
+      color: #111;
+      letter-spacing: 0.8px;
+    }
+
+    h2 {
+      font-size: 12px;
+      margin: 10px 0 5px;
+      text-transform: uppercase;
+      color: #111;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 3px;
+    }
+
+    h3 {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #111;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .date-header {
+      margin-top: 3px;
+      text-align: right;
+      font-size: 10px;
+      color: #555;
+      font-weight: 700;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 8px;
+      font-size: 10.5px;
+    }
+
+    th,
+    td {
+      border: 1px solid #111;
+      padding: 4px 6px;
+      vertical-align: top;
+    }
+
+    th {
+      background-color: #fc5126;
+      color: #000;
+      text-transform: uppercase;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .info-table {
+      margin-top: 6px;
+      margin-bottom: 8px;
+    }
+
+    .info-table td {
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .info-label {
+      display: inline-block;
+      min-width: 88px;
+      color: #000;
+    }
+
+    .summary-table {
+      width: 65%;
+      margin: 0 auto 10px;
+    }
+
+    .equipment-table td,
+    .summary-table td {
+      text-align: center;
+    }
+
+    .equipment-table td:first-child,
+    .equipment-table td:nth-child(2),
+    .equipment-table td:nth-child(3) {
+      text-transform: uppercase;
+    }
+
+    .data-grid th {
+      width: 18%;
+      text-align: center;
+    }
+
+    .data-grid td {
+      width: 32%;
+    }
+
+    .section-text,
+    p {
+      margin-bottom: 6px;
+      text-align: justify;
+    }
+
+    ul {
+      list-style: none;
+      margin: 5px 0 6px;
+      padding-left: 0;
+    }
+
+    li {
+      margin-bottom: 3px;
+      padding-left: 12px;
+      position: relative;
+    }
+
+    li::before {
+      content: '-';
+      position: absolute;
+      left: 0;
+      color: #111;
+      font-weight: 700;
+    }
+
+    .normativa {
+      border: 1px solid #111;
+      background: #fff7ed;
+      padding: 8px;
+      margin-bottom: 6px;
+      font-size: 10.5px;
+      text-align: justify;
+    }
+
+    .photo-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .photo-container {
+      flex: 1 1 calc(50% - 4px);
+      min-width: 150px;
+      border: 1px solid #111;
+      padding: 4px;
+      background: #fff;
+      text-align: center;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .photo-header {
+      display: block;
+      background: #fc5126;
+      color: #000;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      padding: 3px 4px;
+    }
+
+    img {
+      width: 100%;
+      max-height: 150px;
+      object-fit: contain;
+      border: 1px solid #e5e7eb;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .photo-caption {
+      font-size: 9px;
+      color: #555;
+      margin-top: 2px;
+      text-align: center;
+    }
+
+    .recommendations-box {
+      border: 1px solid #111;
+      background: #fff;
+      padding: 8px;
+      min-height: 56px;
+      margin-bottom: 8px;
+    }
+
+    .recommendations-box p {
+      margin: 0;
+    }
+
+    .signatures-section {
+      margin-top: 20px;
+    }
+
+    .sig-grid {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .sig-block {
+      width: 48%;
+      text-align: center;
+    }
+
+    .sig-line {
+      border-top: 1px solid #111;
+      margin-top: 42px;
+      padding-top: 2px;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .compact .photo-header {
+      font-size: 8px;
+      padding: 2px 3px;
+    }
+
+    .compact img {
+      max-height: 120px;
+    }
+
+    .thirds .photo-container {
+      flex: 1 1 calc(33.33% - 4px);
+      min-width: 112px;
+    }
+
+    .ultra-compact img {
+      max-height: 92px;
+    }
+
+    .ultra-compact .photo-caption {
+      font-size: 8px;
+    }
+  `;
+}
+
 const DEFAULT_PROCEDURE_STEPS = [
   'Inspección visual inicial y despeje del área de trabajo, verificando condiciones de seguridad, accesibilidad y estado general del tablero.',
   'Registro fotográfico y termográfico previo al inicio de las actividades, mediante cámara termográfica, para identificar posibles puntos calientes, sobrecalentamientos o anomalías eléctricas existentes.',
@@ -32,6 +351,7 @@ export function generateHeaderPageHTML(data: MaintenanceSessionReport): string {
 
   return `
     <div class="page">
+      ${generateCompanyHeader()}
       <header>
         <h1>INFORME TÉCNICO</h1>
         <div class="date-header">FECHA: ${serviceDate}</div>
@@ -40,9 +360,6 @@ export function generateHeaderPageHTML(data: MaintenanceSessionReport): string {
       <table class="info-table">
         <tr><td><span class="info-label">CLIENTE:</span> ${data.clientName}</td></tr>
         <tr><td><span class="info-label">DIRECCIÓN:</span> ${data.address}</td></tr>
-        <tr><td><span class="info-label">UBICACIÓN:</span> ${data.locationName}</td></tr>
-        <tr><td><span class="info-label">MOTIVO:</span> ${data.serviceDescription}</td></tr>
-        ${data.sessionCode ? `<tr><td><span class="info-label">CÓDIGO:</span> ${data.sessionCode}</td></tr>` : ''}
       </table>
 
       <h2>1. PROCEDIMIENTO REALIZADO</h2>
@@ -82,6 +399,7 @@ export function generateEquipmentSummaryPageHTML(
 
   return `
     <div class="page">
+      ${generateCompanyHeader()}
       <header>
         <h1>RELACIÓN DE TABLEROS ELÉCTRICOS</h1>
       </header>
@@ -145,9 +463,13 @@ function generatePhotosHTML(
   thermoPhotos: { url: string; caption?: string }[],
   postPhotos: { url: string; caption?: string }[],
   itemObservations?: Record<string, { note: string; photoUrl?: string }>,
-  options: { isCompact?: boolean; isThirds?: boolean } = {},
+  options: {
+    isCompact?: boolean;
+    isThirds?: boolean;
+    isUltraCompact?: boolean;
+  } = {},
 ): string {
-  const { isCompact, isThirds } = options;
+  const { isCompact, isThirds, isUltraCompact } = options;
   const sections: string[] = [];
 
   // Pre (Antes) photos
@@ -172,12 +494,11 @@ function generatePhotosHTML(
     `);
   });
 
-  // Post (Después) photos - full width
+  // Post (Después) photos
   postPhotos.forEach((photo, idx) => {
-    // In compact mode, don't force full-width for post photos to save space
     const containerClass = isCompact
       ? 'photo-container small-image'
-      : 'photo-container full-width';
+      : 'photo-container';
 
     sections.push(`
       <div class="${containerClass}">
@@ -211,6 +532,7 @@ function generatePhotosHTML(
     'photo-grid',
     isCompact ? 'grid-compact' : '',
     isThirds ? 'thirds' : '',
+    isUltraCompact ? 'ultra-grid' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -234,15 +556,25 @@ export function generateEquipmentPhotoPageHTML(
     obsCount;
 
   // Layout logic:
-  // > 4 items: Use compact mode (smaller photos, tighter grid)
-  // > 6 items: Use thirds layout (3 items per row) for even more space efficiency
-  const isCompact = totalItems > 4;
-  const isThirds = totalItems > 6;
+  // > 3 items: compact mode
+  // > 5 items: thirds layout
+  // > 8 items: ultra-compact mode
+  const isCompact = totalItems > 3;
+  const isThirds = totalItems > 5;
+  const isUltraCompact = totalItems > 8;
 
-  const pageClasses = isCompact ? 'page compact' : 'page';
+  const pageClasses = [
+    'page',
+    'equipment-page',
+    isCompact ? 'compact' : '',
+    isUltraCompact ? 'ultra-compact' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return `
     <div class="${pageClasses}">
+      ${generateCompanyHeader()}
       <header>
         <h1>REPORTE FOTOGRÁFICO</h1>
         <h3>TABLERO: ${equipment.label} (${equipment.type.toUpperCase()})</h3>
@@ -274,7 +606,7 @@ export function generateEquipmentPhotoPageHTML(
         equipment.thermoPhotos,
         equipment.postPhotos,
         equipment.itemObservations,
-        { isCompact, isThirds },
+        { isCompact, isThirds, isUltraCompact },
       )}
     </div>
   `;
@@ -293,6 +625,7 @@ export function generateRecommendationsPageHTML(
 
   return `
     <div class="page">
+      ${generateCompanyHeader()}
       <header>
         <h1>CONCLUSIONES Y RECOMENDACIONES</h1>
       </header>

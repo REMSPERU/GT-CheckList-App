@@ -10,7 +10,7 @@ export function getReportStyles(
   const pageRule =
     orientation === 'landscape'
       ? `@page { size: landscape; margin: 5mm; }`
-      : `@page { size: A4; margin: 15mm; }`;
+      : `@page { size: A4; margin: 10mm; }`;
 
   return `
     ${pageRule}
@@ -25,27 +25,38 @@ export function getReportStyles(
     body {
       font-family: 'Arial', sans-serif;
       font-size: 12px;
-      line-height: 1.5;
+      line-height: 1.35;
       color: #333;
       background: #fff;
     }
 
     .page {
       width: 100%;
-      min-height: 100vh;
-      padding: 10mm 0;
-      page-break-after: always;
+      min-height: auto;
+      padding: 4mm 0;
+      page-break-after: auto;
+      break-after: auto;
     }
 
     .page:last-child {
       page-break-after: avoid;
     }
 
+    .page.keep-together {
+      page-break-inside: avoid;
+      break-inside: avoid-page;
+    }
+
+    .page.force-new-page {
+      page-break-before: always;
+      break-before: page;
+    }
+
     /* ENCABEZADOS */
     header {
       border-bottom: 2px solid #FC5126;
-      margin-bottom: 20px;
-      padding-bottom: 10px;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
     }
 
     h1 {
@@ -61,8 +72,8 @@ export function getReportStyles(
       color: #444;
       border-bottom: 1px solid #ccc;
       padding-bottom: 5px;
-      margin-top: 25px;
-      margin-bottom: 10px;
+      margin-top: 14px;
+      margin-bottom: 6px;
       text-transform: uppercase;
     }
 
@@ -77,13 +88,13 @@ export function getReportStyles(
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 15px;
+      margin-bottom: 8px;
       font-size: 12px;
     }
 
     th, td {
       border: 1px solid #ddd;
-      padding: 8px;
+      padding: 6px;
       text-align: left;
     }
 
@@ -94,7 +105,7 @@ export function getReportStyles(
     }
 
     .info-table {
-      margin-bottom: 20px;
+      margin-bottom: 10px;
     }
 
     .info-table td {
@@ -150,9 +161,9 @@ export function getReportStyles(
     /* LISTAS */
     ul {
       font-size: 12px;
-      line-height: 1.8;
-      padding-left: 25px;
-      margin-bottom: 15px;
+      line-height: 1.5;
+      padding-left: 18px;
+      margin-bottom: 8px;
     }
 
     li {
@@ -163,16 +174,16 @@ export function getReportStyles(
     .photo-grid {
       display: flex;
       flex-wrap: wrap;
-      gap: 15px;
-      margin-top: 15px;
+      gap: 8px;
+      margin-top: 8px;
     }
 
     .photo-container {
-      flex: 1 1 calc(50% - 10px);
-      min-width: 200px;
+      flex: 1 1 calc(50% - 6px);
+      min-width: 160px;
       text-align: center;
       border: 1px solid #ddd;
-      padding: 5px;
+      padding: 4px;
       background: #fafafa;
     }
 
@@ -197,7 +208,7 @@ export function getReportStyles(
     img {
       max-width: 100%;
       height: auto;
-      max-height: 200px;
+      max-height: 165px;
       display: block;
       margin: 0 auto;
       border: 1px solid #eee;
@@ -207,7 +218,7 @@ export function getReportStyles(
       font-size: 10px;
       font-style: italic;
       color: #666;
-      margin-top: 5px;
+      margin-top: 3px;
     }
 
     /* UTILIDADES */
@@ -237,7 +248,7 @@ export function getReportStyles(
 
     .section-text {
       font-size: 12px;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
       text-align: justify;
     }
 
@@ -254,7 +265,7 @@ export function getReportStyles(
       .page {
         margin: 0;
         box-shadow: none;
-        page-break-after: always;
+        page-break-after: auto;
       }
       .photo-container {
         page-break-inside: avoid;
@@ -262,8 +273,8 @@ export function getReportStyles(
     }
 
     /* ESTILOS COMPACTOS (Para ajustar más contenido en una página) */
-    .compact .page {
-      padding: 5mm 0;
+    .page.compact {
+      padding: 2mm 0;
     }
 
     .compact h1 { font-size: 20px; margin-bottom: 5px; }
@@ -276,8 +287,8 @@ export function getReportStyles(
     }
 
     .grid-compact {
-      gap: 8px;
-      margin-top: 10px;
+      gap: 6px;
+      margin-top: 6px;
     }
 
     .grid-compact .photo-container {
@@ -297,13 +308,31 @@ export function getReportStyles(
 
     /* Imágenes más pequeñas para modo compacto */
     .small-image img {
-      max-height: 140px;
+      max-height: 118px;
     }
 
     /* Layout de tercios para optimizar espacio horizontal */
     .thirds .photo-container {
-      flex: 1 1 calc(33.33% - 10px);
-      min-width: 150px;
+      flex: 1 1 calc(33.33% - 6px);
+      min-width: 115px;
+    }
+
+    .ultra-grid {
+      gap: 4px;
+    }
+
+    .ultra-compact .photo-header {
+      padding: 2px 4px;
+      font-size: 8px;
+      margin-bottom: 2px;
+    }
+
+    .ultra-compact img {
+      max-height: 92px;
+    }
+
+    .ultra-compact .photo-caption {
+      font-size: 8px;
     }
 
     /* ESTILOS PROTOCOLO (RESUMEN TABLEROS) */
@@ -498,8 +527,8 @@ export function getReportStyles(
     .recommendations-box {
       background: #f9f9f9;
       border-left: 4px solid #FC5126;
-      padding: 15px;
-      margin: 10px 0 20px 0;
+      padding: 10px;
+      margin: 6px 0 10px 0;
       font-size: 12px;
       text-align: justify;
     }
@@ -511,7 +540,7 @@ export function getReportStyles(
 
     /* SIGNATURES SECTION (Technical Report) */
     .signatures-section {
-      margin-top: 60px;
+      margin-top: 18px;
       page-break-inside: avoid;
     }
 
@@ -527,7 +556,7 @@ export function getReportStyles(
     }
 
     .sig-block p {
-      margin-bottom: 40px;
+      margin-bottom: 22px;
     }
 
     .sig-line {

@@ -234,13 +234,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         hasInitialFetch.current = true;
         await refetchUser(); // Fetch full user profile including updated metadata
       } else if (localSession) {
-        // Edge case: Local session exists but Supabase client says no (maybe token expired or cache cleared)
-        // We should probably try to refresh or trust Supabase and expire local session.
-        // For now, if Supabase explicitly says NULL, we trust it and clear local.
+        // Offline-first: if we still have a local session, do not force logout
+        // just because remote session check returned null.
+        // This can happen with poor connectivity / refresh race conditions.
+        // Real invalid refresh-token cases are handled in SupabaseAuthService,
+        // which clears local Supabase auth storage and triggers SIGNED_OUT.
         console.log(
-          '[AuthContext] Local session invalid by Supabase standards. Clearing.',
+          '[AuthContext] Using local session fallback while remote session is unavailable.',
         );
-        await handleAuthFailure();
       }
     } catch (error) {
       console.error('Error initializing auth:', error);

@@ -1,4 +1,5 @@
 import * as Print from 'expo-print';
+import { getAssetDataUri } from './pdf-report/common/asset-data-uri';
 
 const PDF_GENERATION_TIMEOUT_MS = 60000;
 
@@ -62,7 +63,50 @@ function statusClass(status: AuditReportItem['status']): string {
 }
 
 class AuditReportService {
-  private buildHtml(data: AuditReportData): string {
+  private coverTemplateImageCache: string | null = null;
+
+  private coverTemplateImageLoaded = false;
+
+  private formatDateOnly(value: string): string {
+    const parsed = new Date(value);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+
+    const day = String(parsed.getDate()).padStart(2, '0');
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const year = parsed.getFullYear();
+
+    return `${day}/${month}/${year}`;
+  }
+
+  private async getCoverTemplateImage(): Promise<string | null> {
+    if (this.coverTemplateImageLoaded) {
+      return this.coverTemplateImageCache;
+    }
+
+    try {
+      this.coverTemplateImageCache = await getAssetDataUri(
+        require('../assets/pdf/image.png'),
+        {
+          mimeType: 'image/png',
+          fileExtension: 'png',
+        },
+      );
+    } catch (error) {
+      console.error('Error loading audit cover template image:', error);
+      this.coverTemplateImageCache = null;
+    }
+
+    this.coverTemplateImageLoaded = true;
+    return this.coverTemplateImageCache;
+  }
+
+  private buildHtml(
+    data: AuditReportData,
+    coverTemplateImage: string | null,
+  ): string {
     const groupedItems: {
       title: string;
       rows: AuditReportItem[];
@@ -125,6 +169,11 @@ class AuditReportService {
       ? escapeHtml(data.propertyAddress)
       : 'No disponible';
 
+    const coverDate = this.formatDateOnly(data.generatedAt);
+    const coverBackgroundStyle = coverTemplateImage
+      ? `background-image: url('${escapeHtml(coverTemplateImage)}');`
+      : 'background: linear-gradient(160deg, #1f2937 0%, #111827 60%, #0b1320 100%);';
+
     const photosSection = data.evidencePhotos.length
       ? `
   <h2 class="section-title">Evidencias fotograficas</h2>
@@ -164,6 +213,11 @@ class AuditReportService {
       size: A4;
     }
 
+    @page cover {
+      margin: 0;
+      size: A4;
+    }
+
     body {
       font-family: 'Helvetica Neue', Arial, sans-serif;
       color: #070707;
@@ -171,6 +225,66 @@ class AuditReportService {
       line-height: 1.35;
       font-size: 11px;
       background: #ffffff;
+    }
+
+    .cover-page {
+      page: cover;
+      position: relative;
+      width: 210mm;
+      height: 297mm;
+      margin: 0;
+      overflow: hidden;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: 100% 100%;
+      break-after: page;
+      page-break-after: always;
+      ${coverBackgroundStyle}
+    }
+
+    .cover-footer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 8mm;
+    }
+
+    .cover-card {
+      width: calc(100% - 38mm);
+      min-height: 40mm;
+      margin-left: 0;
+      padding: 11px 22px 0 22px;
+      box-sizing: border-box;
+    }
+
+    .cover-label {
+      margin: 0 0 4px;
+      font-size: 24px;
+      line-height: 1.15;
+      color: #ffffff;
+      font-weight: 700;
+      text-transform: uppercase;
+      position: relative;
+      top: -60px;
+    }
+
+    .cover-property {
+      font-size: 22px;
+      line-height: 1.2;
+      color: #111111;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .cover-date {
+      margin-top: 2px;
+      font-size: 18px;
+      color: #111111;
+      font-weight: 700;
+    }
+
+    .report-page {
+      page: auto;
     }
 
     .header {
@@ -347,6 +461,17 @@ class AuditReportService {
   </style>
 </head>
 <body>
+  <div class="cover-page">
+    <div class="cover-footer">
+      <div class="cover-card">
+        <div class="cover-label">Informe</div>
+        <div class="cover-property">${escapeHtml(data.propertyName)}</div>
+        <div class="cover-date">${escapeHtml(coverDate)}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="report-page">
   <div class="header">
     <h1 class="title">Informe de Auditoria</h1>
     <div class="subtitle">Inmueble: ${escapeHtml(data.propertyName)}</div>
@@ -411,13 +536,15 @@ class AuditReportService {
   ${detailsBySection}
 
   ${photosSection}
+  </div>
 </body>
 </html>
     `;
   }
 
   async generatePDF(data: AuditReportData): Promise<string> {
-    const html = this.buildHtml(data);
+    const coverTemplateImage = await this.getCoverTemplateImage();
+    const html = this.buildHtml(data, coverTemplateImage);
 
     let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
     try {
