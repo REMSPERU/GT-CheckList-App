@@ -17,6 +17,7 @@ import {
   generateEquipmentSummaryPageHTML,
   generateEquipmentPhotoPageHTML,
   generateRecommendationsPageHTML,
+  getElectricalPanelTechnicalStyles,
 } from './electrical-panels/technical-generator';
 import { generateProtocolPageHTML } from './electrical-panels/protocol-generator';
 import {
@@ -118,7 +119,7 @@ class PDFReportService {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Informe Técnico - ${data.clientName}</title>
   <style>
-    ${getReportStyles('portrait')}
+    ${getElectricalPanelTechnicalStyles()}
   </style>
 </head>
 <body>
