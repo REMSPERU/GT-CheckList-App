@@ -2,6 +2,7 @@ import axios, {
   AxiosError,
   AxiosInstance,
   InternalAxiosRequestConfig,
+  isAxiosError,
 } from 'axios';
 import { API_CONFIG } from '../config/api';
 import { supabaseAuthService } from '../services/supabase-auth.service';
@@ -64,8 +65,8 @@ class HttpClient {
    * Handle API errors and format them
    */
   handleError(error: unknown): ErrorResponse {
-    // Using axios.isAxiosError for type guard
-    if (axios.isAxiosError(error)) {
+    // Using isAxiosError for type guard
+    if (isAxiosError(error)) {
       const axiosError = error as AxiosError<ErrorResponse>;
       if (axiosError.response?.data) {
         return axiosError.response.data;
