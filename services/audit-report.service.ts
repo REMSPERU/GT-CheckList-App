@@ -257,11 +257,20 @@ class AuditReportService {
       box-sizing: border-box;
     }
 
+    .cover-label {
+      margin: 0 0 4px;
+      font-size: 18px;
+      line-height: 1.15;
+      color: #111111;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
     .cover-property {
       font-size: 22px;
       line-height: 1.2;
       color: #111111;
-      font-weight: 400;
+      font-weight: 700;
       margin: 0;
     }
 
@@ -269,7 +278,7 @@ class AuditReportService {
       margin-top: 2px;
       font-size: 18px;
       color: #111111;
-      font-weight: 400;
+      font-weight: 700;
     }
 
     .report-page {
@@ -453,6 +462,7 @@ class AuditReportService {
   <div class="cover-page">
     <div class="cover-footer">
       <div class="cover-card">
+        <div class="cover-label">Informe</div>
         <div class="cover-property">${escapeHtml(data.propertyName)}</div>
         <div class="cover-date">${escapeHtml(coverDate)}</div>
       </div>
