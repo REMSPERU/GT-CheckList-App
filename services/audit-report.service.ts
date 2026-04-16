@@ -259,11 +259,13 @@ class AuditReportService {
 
     .cover-label {
       margin: 0 0 4px;
-      font-size: 18px;
+      font-size: 24px;
       line-height: 1.15;
-      color: #111111;
+      color: #ffffff;
       font-weight: 700;
       text-transform: uppercase;
+      position: relative;
+      top: -60px;
     }
 
     .cover-property {
