@@ -8,13 +8,10 @@ create table if not exists public.audit_questions (
   updated_at timestamptz not null default timezone('utc', now()),
   constraint audit_questions_order_positive check (order_index > 0)
 );
-
 create unique index if not exists idx_audit_questions_order_index_unique
   on public.audit_questions (order_index);
-
 create index if not exists idx_audit_questions_active_order
   on public.audit_questions (is_active, order_index);
-
 create table if not exists public.audit_sessions (
   id uuid primary key default gen_random_uuid(),
   client_submission_id uuid not null unique,
@@ -35,23 +32,17 @@ create table if not exists public.audit_sessions (
   constraint audit_sessions_summary_object_check
     check (jsonb_typeof(summary) = 'object')
 );
-
 create index if not exists idx_audit_sessions_property_scheduled
   on public.audit_sessions (property_id, scheduled_for desc);
-
 create index if not exists idx_audit_sessions_auditor_scheduled
   on public.audit_sessions (auditor_id, scheduled_for desc);
-
 create index if not exists idx_audit_sessions_status_scheduled
   on public.audit_sessions (status, scheduled_for desc);
-
 create index if not exists idx_audit_sessions_payload_gin
   on public.audit_sessions using gin (audit_payload);
-
 create unique index if not exists idx_audit_sessions_open_scope_unique
   on public.audit_sessions (property_id, auditor_id, scheduled_for)
   where status in ('PROGRAMADA', 'EN_PROGRESO', 'ENVIADA');
-
 create or replace function public.validate_audit_payload(p_payload jsonb)
 returns boolean
 language plpgsql
@@ -113,14 +104,11 @@ begin
   return true;
 end;
 $$;
-
 alter table public.audit_sessions
   drop constraint if exists audit_sessions_payload_valid_check;
-
 alter table public.audit_sessions
   add constraint audit_sessions_payload_valid_check
   check (public.validate_audit_payload(audit_payload));
-
 create or replace function public.is_supervisor_or_admin_user()
 returns boolean
 language sql
@@ -135,7 +123,6 @@ as $$
       and u.role in ('SUPERVISOR', 'SUPERADMIN')
   );
 $$;
-
 create or replace function public.is_auditor_user(p_user_id uuid default auth.uid())
 returns boolean
 language sql
@@ -150,7 +137,6 @@ as $$
       and u.role = 'AUDITOR'::public.roleenum
   );
 $$;
-
 create or replace function public.has_audit_property_assignment(
   p_property_id uuid,
   p_user_id uuid default auth.uid()
@@ -173,7 +159,6 @@ as $$
       )
   );
 $$;
-
 create or replace function public.can_access_audit_session(
   p_property_id uuid,
   p_auditor_id uuid
@@ -204,7 +189,6 @@ begin
   return public.has_audit_property_assignment(p_property_id, auth.uid());
 end;
 $$;
-
 create or replace function public.assign_auditor_to_property(
   p_auditor_id uuid,
   p_property_id uuid,
@@ -265,23 +249,19 @@ begin
   return assigned_row;
 end;
 $$;
-
 grant execute on function public.is_supervisor_or_admin_user() to authenticated;
 grant execute on function public.is_auditor_user(uuid) to authenticated;
 grant execute on function public.has_audit_property_assignment(uuid, uuid) to authenticated;
 grant execute on function public.can_access_audit_session(uuid, uuid) to authenticated;
 grant execute on function public.assign_auditor_to_property(uuid, uuid, text, timestamptz) to authenticated;
-
 alter table public.audit_questions enable row level security;
 alter table public.audit_sessions enable row level security;
-
 drop policy if exists audit_questions_select on public.audit_questions;
 create policy audit_questions_select
 on public.audit_questions
 for select
 to authenticated
 using (is_active = true);
-
 drop policy if exists audit_questions_admin_write on public.audit_questions;
 create policy audit_questions_admin_write
 on public.audit_questions
@@ -289,21 +269,18 @@ for all
 to authenticated
 using (public.is_supervisor_or_admin_user())
 with check (public.is_supervisor_or_admin_user());
-
 drop policy if exists audit_sessions_select on public.audit_sessions;
 create policy audit_sessions_select
 on public.audit_sessions
 for select
 to authenticated
 using (public.can_access_audit_session(property_id, auditor_id));
-
 drop policy if exists audit_sessions_insert on public.audit_sessions;
 create policy audit_sessions_insert
 on public.audit_sessions
 for insert
 to authenticated
 with check (public.can_access_audit_session(property_id, auditor_id));
-
 drop policy if exists audit_sessions_update on public.audit_sessions;
 create policy audit_sessions_update
 on public.audit_sessions
@@ -317,14 +294,12 @@ with check (
   public.can_access_audit_session(property_id, auditor_id)
   and status <> 'SINCRONIZADA'
 );
-
 drop policy if exists audit_sessions_delete on public.audit_sessions;
 create policy audit_sessions_delete
 on public.audit_sessions
 for delete
 to authenticated
 using (public.is_supervisor_or_admin_user());
-
 create or replace function public.touch_audit_updated_at()
 returns trigger
 language plpgsql
@@ -334,13 +309,11 @@ begin
   return new;
 end;
 $$;
-
 drop trigger if exists trg_touch_audit_questions_updated_at on public.audit_questions;
 create trigger trg_touch_audit_questions_updated_at
 before update on public.audit_questions
 for each row
 execute function public.touch_audit_updated_at();
-
 drop trigger if exists trg_touch_audit_sessions_updated_at on public.audit_sessions;
 create trigger trg_touch_audit_sessions_updated_at
 before update on public.audit_sessions

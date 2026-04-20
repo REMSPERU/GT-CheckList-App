@@ -7,7 +7,6 @@ begin
   return new;
 end;
 $$;
-
 do $$
 declare
   table_record record;

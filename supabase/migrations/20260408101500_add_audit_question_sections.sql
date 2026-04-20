@@ -7,16 +7,12 @@ create table if not exists public.audit_question_sections (
   updated_at timestamptz not null default timezone('utc', now()),
   constraint audit_question_sections_order_positive check (order_index > 0)
 );
-
 alter table public.audit_questions
   add column if not exists section_id uuid references public.audit_question_sections(id) on delete restrict;
-
 create index if not exists idx_audit_question_sections_active_order
   on public.audit_question_sections (is_active, order_index);
-
 create index if not exists idx_audit_questions_section_order
   on public.audit_questions (section_id, order_index);
-
 with section_groups as (
   select
     trim(regexp_replace(question_text, '^\s*\[([^\]]+)\].*$', '\1')) as section_name,
@@ -39,7 +35,6 @@ do update
 set
   order_index = excluded.order_index,
   updated_at = timezone('utc', now());
-
 update public.audit_questions aq
 set
   section_id = section_row.id,
@@ -47,7 +42,6 @@ set
 from public.audit_question_sections section_row
 where aq.question_text ~ '^\s*\[[^\]]+\]'
   and section_row.section_name = trim(regexp_replace(aq.question_text, '^\s*\[([^\]]+)\].*$', '\1'));
-
 do $$
 begin
   if exists (select 1 from public.audit_questions where section_id is null) then
@@ -55,19 +49,15 @@ begin
   end if;
 end
 $$;
-
 alter table public.audit_questions
   alter column section_id set not null;
-
 alter table public.audit_question_sections enable row level security;
-
 drop policy if exists audit_question_sections_select on public.audit_question_sections;
 create policy audit_question_sections_select
 on public.audit_question_sections
 for select
 to authenticated
 using (is_active = true);
-
 drop policy if exists audit_question_sections_admin_write on public.audit_question_sections;
 create policy audit_question_sections_admin_write
 on public.audit_question_sections
@@ -75,7 +65,6 @@ for all
 to authenticated
 using (public.is_supervisor_or_admin_user())
 with check (public.is_supervisor_or_admin_user());
-
 drop trigger if exists trg_touch_audit_question_sections_updated_at on public.audit_question_sections;
 create trigger trg_touch_audit_question_sections_updated_at
 before update on public.audit_question_sections
