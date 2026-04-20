@@ -179,13 +179,14 @@ export async function bulkInsertMirrorData(
           'local_users',
           users,
           'id',
-          'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name) VALUES (?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)',
           item => [
             item.id,
             item.username,
             item.email,
             item.first_name,
             item.last_name,
+            item.role || null,
           ],
         );
       }
