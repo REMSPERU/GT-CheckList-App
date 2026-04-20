@@ -142,3 +142,34 @@ export function useLogout(): UseMutationResult<void, Error, void> {
     },
   });
 }
+
+/**
+ * Hook to request password reset email
+ */
+export function useResetPasswordEmail(): UseMutationResult<
+  void,
+  Error,
+  string
+> {
+  return useMutation({
+    mutationFn: async (email: string) => {
+      await supabaseAuthService.resetPasswordEmail(email);
+    },
+  });
+}
+
+/**
+ * Hook to update password (after reset)
+ */
+export function useUpdatePassword(): UseMutationResult<void, Error, string> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (newPassword: string) => {
+      await supabaseAuthService.updatePassword(newPassword);
+    },
+    onSuccess: () => {
+      queryClient.clear();
+    },
+  });
+}

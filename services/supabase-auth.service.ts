@@ -109,6 +109,20 @@ export class SupabaseAuthService {
     const session = await this.getSession();
     return session?.access_token || null;
   }
+
+  // Recuperar contraseña - enviar email de reset
+  async resetPasswordEmail(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'gema://auth/reset-password',
+    });
+    if (error) throw error;
+  }
+
+  // Actualizar contraseña con token de reset
+  async updatePassword(newPassword: string) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  }
 }
 
 export const supabaseAuthService = new SupabaseAuthService();

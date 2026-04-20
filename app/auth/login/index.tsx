@@ -180,6 +180,7 @@ export default function LoginScreen() {
                 pressed && styles.pressed,
               ]}
               disabled={isLoading}
+              onPress={() => router.push('/auth/forgot-password')}
               accessibilityRole="button">
               <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
             </Pressable>
