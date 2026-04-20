@@ -12,7 +12,25 @@ export async function saveOfflineSessionPhotos(
   return withLock(async () => {
     const db = await dbPromise;
     await db.withTransactionAsync(async () => {
-      for (const uri of photoUris) {
+      const existingRows = await db.getAllAsync<{ count: number }>(
+        `SELECT COUNT(*) as count
+         FROM offline_sesion_fotos
+         WHERE id_sesion = ? AND status != 'error'`,
+        [sessionId],
+      );
+
+      const existingCount = Number(existingRows?.[0]?.count || 0);
+      if (existingCount >= 2) {
+        return;
+      }
+
+      const remainingSlots = 2 - existingCount;
+      const photosToInsert = photoUris
+        .map(uri => uri.trim())
+        .filter(uri => uri.length > 0)
+        .slice(0, remainingSlots);
+
+      for (const uri of photosToInsert) {
         await db.runAsync(
           `INSERT INTO offline_sesion_fotos (id_sesion, local_uri, tipo, created_by, status)
            VALUES (?, ?, 'inicio', ?, 'pending')`,
@@ -31,21 +49,23 @@ export async function sessionHasPhotos(sessionId: string): Promise<boolean> {
   return withLock(async () => {
     const db = await dbPromise;
 
-    // Check local mirror (already synced from server)
-    const mirrorRows = await db.getAllAsync(
-      'SELECT id FROM local_sesion_fotos WHERE id_sesion = ? LIMIT 1',
+    const mirrorCountRows = await db.getAllAsync<{ count: number }>(
+      `SELECT COUNT(*) as count
+       FROM local_sesion_fotos
+       WHERE id_sesion = ?`,
       [sessionId],
     );
-    if (mirrorRows && mirrorRows.length > 0) return true;
+    const mirrorCount = Number(mirrorCountRows?.[0]?.count || 0);
 
-    // Check offline queue (pending upload)
-    const offlineRows = await db.getAllAsync(
-      `SELECT id FROM offline_sesion_fotos WHERE id_sesion = ? AND status != 'error' LIMIT 1`,
+    const offlineCountRows = await db.getAllAsync<{ count: number }>(
+      `SELECT COUNT(*) as count
+       FROM offline_sesion_fotos
+       WHERE id_sesion = ? AND status != 'error'`,
       [sessionId],
     );
-    if (offlineRows && offlineRows.length > 0) return true;
+    const offlineCount = Number(offlineCountRows?.[0]?.count || 0);
 
-    return false;
+    return mirrorCount + offlineCount >= 2;
   });
 }
 
