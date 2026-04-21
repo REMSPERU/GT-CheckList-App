@@ -33,6 +33,7 @@ import { getPendingPhotos, updatePhotoStatus } from './photos';
 import {
   saveCurrentUser,
   getLocalUserById,
+  getLocalUsers,
   updateLocalUserRole,
 } from './users';
 import { saveSession, getSession, clearSession } from './session';
@@ -69,6 +70,7 @@ import {
 } from './audit';
 import {
   createEquipment,
+  updateEquipment,
   softDeleteEquipment,
   generateEquipmentCode,
 } from './equipment';
@@ -130,6 +132,7 @@ export const DatabaseService = {
   // Users
   saveCurrentUser,
   getLocalUserById,
+  getLocalUsers,
   updateLocalUserRole,
 
   // Session
@@ -163,6 +166,7 @@ export const DatabaseService = {
 
   // Equipment CRUD
   createEquipment,
+  updateEquipment,
   softDeleteEquipment,
   generateEquipmentCode,
 

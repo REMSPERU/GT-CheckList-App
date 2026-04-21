@@ -56,6 +56,7 @@ function HomeScreen() {
     handleExecuteMaintenancePress,
     handleAuditPress,
     handleReportsPress,
+    handleAccountPress,
     handleLogoutConfirm,
   } = useHomeScreen();
 
@@ -158,7 +159,11 @@ function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <HomeHeader username={userDisplayName} onLogoutPress={openLogoutModal} />
+      <HomeHeader
+        username={userDisplayName}
+        onAccountPress={handleAccountPress}
+        onLogoutPress={openLogoutModal}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}

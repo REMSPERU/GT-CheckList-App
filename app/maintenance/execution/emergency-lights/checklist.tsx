@@ -63,9 +63,13 @@ export default function EmergencyLightsChecklistScreen() {
     panelId: string;
     maintenanceId?: string;
     equipmentType?: string;
+    propertyId?: string;
+    propertyName?: string;
+    sessionId?: string;
   }>();
 
-  const { panelId, maintenanceId } = params;
+  const { panelId, maintenanceId, propertyId, propertyName, sessionId } =
+    params;
   const sessionKey = `${STORAGE_KEY_PREFIX}${panelId}_${maintenanceId || 'adhoc'}`;
 
   const [loading, setLoading] = useState(true);
@@ -174,7 +178,13 @@ export default function EmergencyLightsChecklistScreen() {
 
     router.push({
       pathname: '/maintenance/execution/emergency-lights/summary',
-      params: { panelId, maintenanceId },
+      params: {
+        panelId,
+        maintenanceId,
+        propertyId,
+        propertyName,
+        sessionId,
+      },
     });
   };
 

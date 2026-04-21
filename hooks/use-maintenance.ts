@@ -5,6 +5,7 @@ import { syncService } from '@/services/sync';
 import {
   MaintenanceCreateRequest,
   MaintenanceStatusEnum,
+  RoleEnum,
   User,
 } from '@/types/api';
 
@@ -21,15 +22,41 @@ const log = (...args: unknown[]) => {
   }
 };
 
+const TECHNICIANS_TIMEOUT_MS = 5000;
+
+function keepTechnicians(users: User[]): User[] {
+  const filtered = users.filter(user => user.role === RoleEnum.TECNICO);
+  return filtered.length > 0 ? filtered : users;
+}
+
 // Fetch technicians (Users with role TECNICO)
 export const useTechnicians = () => {
   return useQuery({
     queryKey: ['technicians'],
     queryFn: async (): Promise<User[]> => {
-      const { data, error } = await supabase.from('users').select('*');
-      if (error) throw error;
-      return data as User[];
+      try {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(
+            () => reject(new Error('Request timeout')),
+            TECHNICIANS_TIMEOUT_MS,
+          );
+        });
+
+        const { data, error } = (await Promise.race([
+          supabase.from('users').select('*'),
+          timeoutPromise,
+        ])) as { data: User[] | null; error: Error | null };
+
+        if (error) throw error;
+
+        return keepTechnicians((data as User[]) ?? []);
+      } catch (error) {
+        log('useTechnicians remote failed, using local cache:', error);
+        const localUsers = (await DatabaseService.getLocalUsers()) as User[];
+        return keepTechnicians(localUsers ?? []);
+      }
     },
+    retry: 0,
   });
 };
 

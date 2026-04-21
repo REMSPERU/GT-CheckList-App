@@ -7,7 +7,15 @@ export interface CreateEquipmentData {
   ubicacion: string;
   detalle_ubicacion?: string;
   estatus?: string;
-  equipment_detail?: Record<string, any>;
+  equipment_detail?: Record<string, unknown>;
+  config?: boolean;
+}
+
+export interface UpdateEquipmentData {
+  ubicacion?: string;
+  detalle_ubicacion?: string | null;
+  estatus?: string;
+  equipment_detail?: Record<string, unknown> | null;
   config?: boolean;
 }
 
@@ -27,6 +35,44 @@ export async function createEquipment(data: CreateEquipmentData) {
       equipment_detail: data.equipment_detail || {},
       config: data.config ?? false,
     })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return result;
+}
+
+/**
+ * Update an equipment entry in Supabase.
+ * History is persisted by DB trigger in equipos_historial.
+ */
+export async function updateEquipment(id: string, data: UpdateEquipmentData) {
+  const payload: Record<string, unknown> = {};
+
+  if (typeof data.ubicacion === 'string') {
+    payload.ubicacion = data.ubicacion;
+  }
+
+  if (data.detalle_ubicacion !== undefined) {
+    payload.detalle_ubicacion = data.detalle_ubicacion;
+  }
+
+  if (typeof data.estatus === 'string') {
+    payload.estatus = data.estatus;
+  }
+
+  if (data.equipment_detail !== undefined) {
+    payload.equipment_detail = data.equipment_detail;
+  }
+
+  if (typeof data.config === 'boolean') {
+    payload.config = data.config;
+  }
+
+  const { data: result, error } = await supabase
+    .from('equipos')
+    .update(payload)
+    .eq('id', id)
     .select()
     .single();
 

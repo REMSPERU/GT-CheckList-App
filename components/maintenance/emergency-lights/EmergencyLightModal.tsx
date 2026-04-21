@@ -8,7 +8,44 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
-import type { BaseEquipment } from '@/types/api';
+import type {
+  BaseEquipment,
+  EquipmentHistoryAction,
+  EquipmentHistoryEntry,
+} from '@/types/api';
+
+const HISTORY_ACTION_LABELS: Record<EquipmentHistoryAction, string> = {
+  INSERT: 'Creado',
+  UPDATE: 'Actualizado',
+  SOFT_DELETE: 'Desactivado',
+  RESTORE: 'Restaurado',
+};
+
+function formatHistoryDate(value: string) {
+  try {
+    return new Intl.DateTimeFormat('es-PE', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function toFieldLabel(field: string) {
+  const labels: Record<string, string> = {
+    codigo: 'Codigo',
+    ubicacion: 'Ubicacion',
+    detalle_ubicacion: 'Detalle ubicacion',
+    estatus: 'Estatus',
+    config: 'Configuracion',
+    equipment_detail: 'Marca/Modelo',
+    id_property: 'Propiedad',
+    id_equipamento: 'Tipo equipo',
+  };
+
+  return labels[field] || field;
+}
 
 export interface EmergencyLightFormData {
   codigo: string;
@@ -28,6 +65,8 @@ export interface EmergencyLightModalProps {
   /** Initial code for create mode */
   initialCode?: string;
   isLoading?: boolean;
+  historyItems?: EquipmentHistoryEntry[];
+  isHistoryLoading?: boolean;
 }
 
 export function EmergencyLightModal({
@@ -37,6 +76,8 @@ export function EmergencyLightModal({
   editItem,
   initialCode = '',
   isLoading = false,
+  historyItems = [],
+  isHistoryLoading = false,
 }: EmergencyLightModalProps) {
   const [codigo, setCodigo] = useState('');
   const [ubicacion, setUbicacion] = useState('');
@@ -167,6 +208,36 @@ export function EmergencyLightModal({
             )}
             {renderField('Marca', marca, setMarca, 'Ej: Philips')}
             {renderField('Modelo', modelo, setModelo, 'Ej: LED-2000')}
+
+            {!!editItem && (
+              <View style={styles.historySection}>
+                <Text style={styles.historyTitle}>Ultimos cambios</Text>
+
+                {isHistoryLoading ? (
+                  <Text style={styles.historyMeta}>Cargando historial...</Text>
+                ) : historyItems.length === 0 ? (
+                  <Text style={styles.historyMeta}>
+                    Aun no hay cambios registrados.
+                  </Text>
+                ) : (
+                  historyItems.map(item => (
+                    <View key={item.id} style={styles.historyItem}>
+                      <Text style={styles.historyItemTitle}>
+                        v{item.version} -{' '}
+                        {HISTORY_ACTION_LABELS[item.accion] || item.accion}
+                      </Text>
+                      <Text style={styles.historyMeta}>
+                        {formatHistoryDate(item.changed_at)}
+                      </Text>
+                      <Text style={styles.historyFields}>
+                        {item.changed_fields.map(toFieldLabel).join(' · ') ||
+                          'Sin detalle de campos'}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
           </ScrollView>
 
           <View style={styles.buttons}>
@@ -276,6 +347,40 @@ const styles = StyleSheet.create({
   viewValueText: {
     fontSize: 16,
     color: '#1F2937',
+  },
+  historySection: {
+    marginTop: 4,
+    marginBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingTop: 14,
+    gap: 10,
+  },
+  historyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  historyItem: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 10,
+    gap: 4,
+  },
+  historyItemTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  historyMeta: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  historyFields: {
+    fontSize: 12,
+    color: '#374151',
   },
   buttons: {
     flexDirection: 'row',

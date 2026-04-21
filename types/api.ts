@@ -223,6 +223,24 @@ export interface BaseEquipment {
   created?: string;
 }
 
+export type EquipmentHistoryAction =
+  | 'INSERT'
+  | 'UPDATE'
+  | 'SOFT_DELETE'
+  | 'RESTORE';
+
+export interface EquipmentHistoryEntry {
+  id: number;
+  equipo_id: string;
+  version: number;
+  accion: EquipmentHistoryAction;
+  changed_at: string;
+  changed_by: string | null;
+  old_data: Record<string, unknown> | null;
+  new_data: Record<string, unknown> | null;
+  changed_fields: string[];
+}
+
 // TableroElectrico types
 export interface TableroElectricoResponse extends BaseEquipment {
   tipo?: string;

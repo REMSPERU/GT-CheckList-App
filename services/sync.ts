@@ -138,6 +138,7 @@ class SyncService {
   private isPushing = false;
   private currentPushPromise: Promise<void> | null = null;
   private currentSyncPromise: Promise<boolean> | null = null;
+  private syncOperationLock: Promise<void> = Promise.resolve();
   private netInfoUnsubscribe: (() => void) | null = null;
   private initialized = false;
   private lastPullTimestamp = 0;
@@ -172,6 +173,25 @@ class SyncService {
     }
 
     return 'Error desconocido durante sincronizacion';
+  }
+
+  private async runSerializedSyncOperation<T>(
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const previousOperation = this.syncOperationLock;
+    let releaseLock!: () => void;
+
+    this.syncOperationLock = new Promise(resolve => {
+      releaseLock = resolve;
+    });
+
+    await previousOperation;
+
+    try {
+      return await operation();
+    } finally {
+      releaseLock();
+    }
   }
 
   constructor() {
@@ -269,7 +289,7 @@ class SyncService {
     await DatabaseService.ensureInitialized();
     if (this.currentPushPromise) return this.currentPushPromise;
 
-    this.currentPushPromise = (async () => {
+    this.currentPushPromise = this.runSerializedSyncOperation(async () => {
       if (this.isPushing) return;
       this.isPushing = true;
 
@@ -305,7 +325,7 @@ class SyncService {
       } finally {
         this.isPushing = false;
       }
-    })();
+    });
 
     try {
       await this.currentPushPromise;
@@ -787,12 +807,8 @@ class SyncService {
     await DatabaseService.ensureInitialized();
     if (this.currentSyncPromise) return this.currentSyncPromise;
 
-    this.currentSyncPromise = (async () => {
+    this.currentSyncPromise = this.runSerializedSyncOperation(async () => {
       try {
-        if (this.currentPushPromise) {
-          await this.currentPushPromise;
-        }
-
         const state = await NetInfo.fetch();
         this.isConnected = state.isConnected ?? false;
         if (!this.isConnected || state.isInternetReachable === false) {
@@ -990,11 +1006,14 @@ class SyncService {
         return false;
       } finally {
         this.isSyncing = false;
-        this.currentSyncPromise = null;
       }
-    })();
+    });
 
-    return this.currentSyncPromise;
+    try {
+      return await this.currentSyncPromise;
+    } finally {
+      this.currentSyncPromise = null;
+    }
   }
 }
 

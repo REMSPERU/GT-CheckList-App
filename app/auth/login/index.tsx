@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -32,6 +33,7 @@ export default function LoginScreen() {
     null,
   );
   const passwordInputRef = useRef<TextInput>(null);
+  const forgotPasswordHref = '/auth/forgot-password' as Href;
 
   const handleInputFocus = (field: 'email' | 'password') => {
     setFocusedInput(field);
@@ -180,6 +182,7 @@ export default function LoginScreen() {
                 pressed && styles.pressed,
               ]}
               disabled={isLoading}
+              onPress={() => router.push(forgotPasswordHref)}
               accessibilityRole="button">
               <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
             </Pressable>

@@ -20,6 +20,15 @@ export default function AuthLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="login/index" options={{ headerShown: false }} />
+        <Stack.Screen name="register/index" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="forgot-password/index"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="reset-password/index"
+          options={{ headerShown: false }}
+        />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

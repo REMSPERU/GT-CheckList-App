@@ -16,16 +16,21 @@ import {
   EmergencyLightModal,
   EmergencyLightFormData,
 } from '@/components/maintenance/emergency-lights/EmergencyLightModal';
-import type { BaseEquipment, EquipamentoResponse } from '@/types/api';
+import type {
+  BaseEquipment,
+  EquipamentoResponse,
+  EquipmentHistoryEntry,
+} from '@/types/api';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
 import { useUserRole } from '@/hooks/use-user-role';
 import {
   createEquipment,
+  updateEquipment,
   softDeleteEquipment,
   generateEquipmentCode,
 } from '@/services/db/equipment';
-import { supabase } from '@/lib/supabase';
+import { supabaseEquipmentHistoryService } from '@/services/supabase-equipment-history.service';
 
 interface BuildingParam {
   id: string;
@@ -79,6 +84,8 @@ export default function EmergencyLightsScreen() {
   const [editingLight, setEditingLight] = useState<BaseEquipment | null>(null);
   const [initialCode, setInitialCode] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [historyItems, setHistoryItems] = useState<EquipmentHistoryEntry[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   useEffect(() => {
     const buildingId = getSingleParam(params.buildingId);
@@ -260,6 +267,8 @@ export default function EmergencyLightsScreen() {
       const code = await generateEquipmentCode(building.id, 'LE');
       setInitialCode(code);
       setEditingLight(null);
+      setHistoryItems([]);
+      setIsHistoryLoading(false);
       setShowLightModal(true);
     } catch (err) {
       console.error('Error generating code:', err);
@@ -267,10 +276,31 @@ export default function EmergencyLightsScreen() {
     }
   };
 
-  const handleOpenEditModal = useCallback((item: BaseEquipment) => {
-    setEditingLight(item);
-    setShowLightModal(true);
+  const loadLightHistory = useCallback(async (equipmentId: string) => {
+    setIsHistoryLoading(true);
+    try {
+      const history = await supabaseEquipmentHistoryService.getByEquipmentId(
+        equipmentId,
+        15,
+      );
+      setHistoryItems(history);
+    } catch (err) {
+      console.error('Error loading light history:', err);
+      setHistoryItems([]);
+    } finally {
+      setIsHistoryLoading(false);
+    }
   }, []);
+
+  const handleOpenEditModal = useCallback(
+    (item: BaseEquipment) => {
+      setEditingLight(item);
+      setHistoryItems([]);
+      setShowLightModal(true);
+      loadLightHistory(item.id);
+    },
+    [loadLightHistory],
+  );
 
   const handleSaveLight = async (data: EmergencyLightFormData) => {
     if (!building?.id || !equipamento?.id) return;
@@ -289,15 +319,11 @@ export default function EmergencyLightsScreen() {
 
       if (editingLight) {
         // Update existing light
-        const { error } = await supabase
-          .from('equipos')
-          .update({
-            ubicacion: data.ubicacion.trim(),
-            detalle_ubicacion: data.detalle_ubicacion?.trim() || null,
-            equipment_detail: equipmentDetail,
-          })
-          .eq('id', editingLight.id);
-        if (error) throw error;
+        await updateEquipment(editingLight.id, {
+          ubicacion: data.ubicacion.trim(),
+          detalle_ubicacion: data.detalle_ubicacion?.trim() || null,
+          equipment_detail: equipmentDetail,
+        });
         Alert.alert('Éxito', 'Luz actualizada correctamente');
       } else {
         // Create new light
@@ -454,6 +480,8 @@ export default function EmergencyLightsScreen() {
         editItem={editingLight}
         initialCode={initialCode}
         isLoading={isSaving}
+        historyItems={historyItems}
+        isHistoryLoading={isHistoryLoading}
       />
 
       {/* Floating Add Button */}

@@ -43,6 +43,15 @@ export async function getLocalUserById(id: string) {
   });
 }
 
+export async function getLocalUsers() {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+    const result = await db.getAllAsync('SELECT * FROM local_users');
+    return result;
+  });
+}
+
 export async function updateLocalUserRole(userId: string, role: string) {
   await ensureInitialized();
   await withLock(async () => {

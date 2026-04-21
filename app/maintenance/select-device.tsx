@@ -52,6 +52,7 @@ export default function SelectDeviceScreen() {
   const params = useLocalSearchParams();
   const flowType = params.type as string | undefined;
   const [building, setBuilding] = useState<BuildingParam | null>(null);
+  const [paramsResolved, setParamsResolved] = useState(false);
 
   useEffect(() => {
     const buildingId = getSingleParam(params.buildingId);
@@ -68,6 +69,7 @@ export default function SelectDeviceScreen() {
       };
       setBuilding(parsedBuilding);
       log('SelectDevice: Building ID:', parsedBuilding.id);
+      setParamsResolved(true);
       return;
     }
 
@@ -75,7 +77,12 @@ export default function SelectDeviceScreen() {
     if (legacyBuilding) {
       setBuilding(legacyBuilding);
       log('SelectDevice: Parsed legacy building ID:', legacyBuilding.id);
+      setParamsResolved(true);
+      return;
     }
+
+    setBuilding(null);
+    setParamsResolved(true);
   }, [
     params.building,
     params.buildingAddress,
@@ -85,12 +92,15 @@ export default function SelectDeviceScreen() {
   ]);
 
   const [equipamentos, setEquipamentos] = useState<EquipamentoResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    if (!building?.id) return;
+    if (!building?.id) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
 
@@ -106,10 +116,17 @@ export default function SelectDeviceScreen() {
   }, [building?.id]);
 
   useEffect(() => {
+    if (!paramsResolved) return;
+
     if (building?.id) {
       loadData();
+      return;
     }
-  }, [building, loadData]);
+
+    setEquipamentos([]);
+    setError('No se pudo identificar el inmueble seleccionado.');
+    setIsLoading(false);
+  }, [building?.id, loadData, paramsResolved]);
 
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -345,7 +362,7 @@ export default function SelectDeviceScreen() {
         </SafeAreaView>
       </View>
 
-      {isLoading && !isRefreshing ? (
+      {!paramsResolved || (isLoading && !isRefreshing) ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Cargando localmente...</Text>

@@ -179,13 +179,14 @@ export async function bulkInsertMirrorData(
           'local_users',
           users,
           'id',
-          'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name) VALUES (?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)',
           item => [
             item.id,
             item.username,
             item.email,
             item.first_name,
             item.last_name,
+            item.role || null,
           ],
         );
       }
@@ -453,6 +454,8 @@ export async function upsertCreatedMaintenanceLocally(
 /**
  * Cleanup synced rows from offline queue tables to keep SQLite lean over time.
  * Keeps pending/error rows for retries and user visibility.
+ * Session photos are only cleaned after the local mirror already has >= 2 rows
+ * for that session, so we don't ask for photos again between push/pull cycles.
  */
 export async function cleanupOfflineQueue() {
   await ensureInitialized();
@@ -469,6 +472,12 @@ export async function cleanupOfflineQueue() {
       await db.runAsync(`
         DELETE FROM offline_sesion_fotos
         WHERE status = 'synced'
+          AND id_sesion IN (
+            SELECT id_sesion
+            FROM local_sesion_fotos
+            GROUP BY id_sesion
+            HAVING COUNT(*) >= 2
+          )
       `);
 
       await db.runAsync(`

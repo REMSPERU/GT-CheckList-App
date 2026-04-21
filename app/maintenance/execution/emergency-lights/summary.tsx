@@ -55,9 +55,13 @@ export default function EmergencyLightsSummaryScreen() {
   const params = useLocalSearchParams<{
     panelId: string;
     maintenanceId?: string;
+    propertyId?: string;
+    propertyName?: string;
+    sessionId?: string;
   }>();
 
-  const { panelId, maintenanceId } = params;
+  const { panelId, maintenanceId, propertyId, propertyName, sessionId } =
+    params;
   const sessionKey = `${STORAGE_KEY_PREFIX}${panelId}_${maintenanceId || 'adhoc'}`;
 
   const [loading, setLoading] = useState(true);
@@ -176,8 +180,20 @@ export default function EmergencyLightsSummaryScreen() {
           {
             text: 'OK',
             onPress: () => {
-              router.dismissAll();
-              router.push('/maintenance');
+              if (propertyId && sessionId) {
+                router.replace({
+                  pathname:
+                    '/maintenance/scheduled_maintenance/equipment-maintenance-list',
+                  params: {
+                    propertyId,
+                    sessionId,
+                    propertyName,
+                  },
+                });
+                return;
+              }
+
+              router.replace('/maintenance');
             },
           },
         ],

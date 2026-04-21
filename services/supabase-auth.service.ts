@@ -109,6 +109,36 @@ export class SupabaseAuthService {
     const session = await this.getSession();
     return session?.access_token || null;
   }
+
+  // Enviar correo de recuperacion de contrasena
+  async sendPasswordResetEmail(email: string, redirectTo: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+
+    if (error) throw error;
+  }
+
+  // Restaurar sesion temporal desde el enlace de recuperacion
+  async setRecoverySession(accessToken: string, refreshToken: string) {
+    const { error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+
+    if (error) throw error;
+  }
+
+  // Actualizar contrasena del usuario autenticado
+  async updatePassword(password: string) {
+    const { data, error } = await supabase.auth.updateUser({
+      password,
+    });
+
+    if (error) throw error;
+
+    return data;
+  }
 }
 
 export const supabaseAuthService = new SupabaseAuthService();
