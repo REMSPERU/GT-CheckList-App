@@ -129,6 +129,27 @@ export class SupabaseAuthService {
     if (error) throw error;
   }
 
+  // Verificar token hash de recuperacion y crear sesion temporal
+  async verifyRecoveryTokenHash(tokenHash: string) {
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: 'recovery',
+    });
+
+    if (error) throw error;
+
+    return data;
+  }
+
+  // Intercambiar codigo por sesion (flujo PKCE)
+  async exchangeCodeForSession(code: string) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (error) throw error;
+
+    return data;
+  }
+
   // Actualizar contrasena del usuario autenticado
   async updatePassword(password: string) {
     const { data, error } = await supabase.auth.updateUser({

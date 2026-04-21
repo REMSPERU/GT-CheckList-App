@@ -23,26 +23,66 @@ import { supabaseAuthService } from '@/services/supabase-auth.service';
 interface RecoveryParams {
   accessToken: string | null;
   refreshToken: string | null;
+  tokenHash: string | null;
+  code: string | null;
   type: string | null;
 }
 
-function extractRecoveryParams(url: string): RecoveryParams {
-  const hashPart = url.includes('#') ? url.split('#')[1] : '';
-  const queryPart = url.includes('?') ? url.split('?')[1].split('#')[0] : '';
+function extractRecoveryParams(rawUrl: string): RecoveryParams {
   const params = new URLSearchParams();
+  const visitedCandidates = new Set<string>();
+  const queue = [rawUrl];
 
-  for (const part of [queryPart, hashPart]) {
-    if (!part) continue;
+  while (queue.length > 0) {
+    const candidate = queue.shift();
+    if (!candidate || visitedCandidates.has(candidate)) {
+      continue;
+    }
 
-    const sourceParams = new URLSearchParams(part);
-    for (const [key, value] of sourceParams.entries()) {
-      params.set(key, value);
+    visitedCandidates.add(candidate);
+
+    const hashPart = candidate.includes('#') ? candidate.split('#')[1] : '';
+    const queryPart = candidate.includes('?')
+      ? candidate.split('?')[1].split('#')[0]
+      : '';
+
+    for (const part of [queryPart, hashPart]) {
+      if (!part) continue;
+
+      const sourceParams = new URLSearchParams(part);
+
+      for (const [key, value] of sourceParams.entries()) {
+        params.set(key, value);
+
+        const normalizedKey = key.toLowerCase();
+        if (
+          normalizedKey === 'link' ||
+          normalizedKey === 'redirect_to' ||
+          normalizedKey === 'url' ||
+          normalizedKey === 'deep_link_id'
+        ) {
+          let decodedValue = value;
+          try {
+            decodedValue = decodeURIComponent(value);
+          } catch {
+            decodedValue = value;
+          }
+          if (
+            decodedValue.includes('://') ||
+            decodedValue.includes('/auth/v1/')
+          ) {
+            queue.push(decodedValue);
+          }
+        }
+      }
     }
   }
 
   return {
     accessToken: params.get('access_token'),
     refreshToken: params.get('refresh_token'),
+    tokenHash: params.get('token_hash') || params.get('token'),
+    code: params.get('code'),
     type: params.get('type'),
   };
 }
@@ -129,19 +169,31 @@ export default function ResetPasswordScreen() {
 
     const resolveRecoveryLink = async () => {
       try {
-        const { accessToken, refreshToken, type } =
+        const { accessToken, refreshToken, tokenHash, code, type } =
           extractRecoveryParams(currentUrl);
 
-        if (
-          type?.toLowerCase() !== 'recovery' ||
-          !accessToken ||
-          !refreshToken
-        ) {
+        const normalizedType = type?.toLowerCase();
+
+        if (normalizedType === 'recovery' && accessToken && refreshToken) {
+          await supabaseAuthService.setRecoverySession(
+            accessToken,
+            refreshToken,
+          );
+          setIsRecoveryFlow(true);
           return;
         }
 
-        await supabaseAuthService.setRecoverySession(accessToken, refreshToken);
-        setIsRecoveryFlow(true);
+        if (normalizedType === 'recovery' && tokenHash) {
+          await supabaseAuthService.verifyRecoveryTokenHash(tokenHash);
+          setIsRecoveryFlow(true);
+          return;
+        }
+
+        if (code) {
+          await supabaseAuthService.exchangeCodeForSession(code);
+          setIsRecoveryFlow(true);
+          return;
+        }
       } catch (error) {
         console.error('[ResetPassword] Error al procesar enlace:', error);
         Alert.alert(
