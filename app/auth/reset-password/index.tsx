@@ -47,6 +47,37 @@ function isStrongPassword(password: string) {
   );
 }
 
+function getPasswordChecks(password: string) {
+  return {
+    minLength: password.length >= 8,
+    hasUppercase: /[A-Z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+  };
+}
+
+function mapResetErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return 'No se pudo actualizar la contrasena.';
+  }
+
+  const normalized = error.message.toLowerCase();
+
+  if (normalized.includes('same_password')) {
+    return 'La nueva contrasena debe ser diferente a la anterior.';
+  }
+
+  if (normalized.includes('session')) {
+    return 'Tu sesion de recuperacion expiro. Solicita un nuevo enlace.';
+  }
+
+  if (normalized.includes('network')) {
+    return 'Sin conexion a internet. Intenta nuevamente.';
+  }
+
+  return error.message;
+}
+
 export default function ResetPasswordScreen() {
   const router = useRouter();
   const loginHref = '/auth/login' as Href;
@@ -70,6 +101,8 @@ export default function ResetPasswordScreen() {
       password === confirmPassword
     );
   }, [password, confirmPassword]);
+
+  const passwordChecks = useMemo(() => getPasswordChecks(password), [password]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -125,7 +158,15 @@ export default function ResetPasswordScreen() {
       await supabaseAuthService.updatePassword(password);
 
       if (isRecoveryFlow) {
-        await supabaseAuthService.signOut();
+        try {
+          await supabaseAuthService.signOut();
+        } catch (error) {
+          console.warn(
+            '[ResetPassword] No se pudo cerrar sesion luego del recovery:',
+            error,
+          );
+        }
+
         Alert.alert(
           'Contrasena actualizada',
           'Tu contrasena fue cambiada. Inicia sesion con tu nueva contrasena.',
@@ -140,10 +181,7 @@ export default function ResetPasswordScreen() {
         [{ text: 'OK', onPress: () => router.replace(tabsHref) }],
       );
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'No se pudo actualizar la contrasena.';
+      const message = mapResetErrorMessage(error);
 
       Alert.alert('Error', message);
     } finally {
@@ -242,10 +280,45 @@ export default function ResetPasswordScreen() {
                 </Pressable>
               </View>
 
-              <Text style={styles.rulesText}>
-                Minimo 8 caracteres, una mayuscula, un numero y un caracter
-                especial.
-              </Text>
+              <View style={styles.rulesBox}>
+                <Text style={styles.rulesTitle}>
+                  Tu contrasena debe incluir:
+                </Text>
+                <Text
+                  style={[
+                    styles.rulesItem,
+                    passwordChecks.minLength && styles.rulesItemValid,
+                  ]}>
+                  - Minimo 8 caracteres
+                </Text>
+                <Text
+                  style={[
+                    styles.rulesItem,
+                    passwordChecks.hasUppercase && styles.rulesItemValid,
+                  ]}>
+                  - Una letra mayuscula
+                </Text>
+                <Text
+                  style={[
+                    styles.rulesItem,
+                    passwordChecks.hasNumber && styles.rulesItemValid,
+                  ]}>
+                  - Un numero
+                </Text>
+                <Text
+                  style={[
+                    styles.rulesItem,
+                    passwordChecks.hasSpecialChar && styles.rulesItemValid,
+                  ]}>
+                  - Un caracter especial
+                </Text>
+              </View>
+
+              {confirmPassword.length > 0 && password !== confirmPassword ? (
+                <Text style={styles.passwordMismatchText}>
+                  Las contrasenas no coinciden.
+                </Text>
+              ) : null}
 
               <Pressable
                 onPress={handleUpdatePassword}
@@ -282,6 +355,10 @@ export default function ResetPasswordScreen() {
                   Solicitar nuevo enlace
                 </Text>
               </Pressable>
+              <Text style={styles.helperText}>
+                Consejo: abre siempre el ultimo correo de recuperacion y en el
+                mismo celular donde tienes la app.
+              </Text>
             </View>
           )}
         </View>
@@ -356,10 +433,34 @@ const styles = StyleSheet.create({
     top: 14,
     padding: 4,
   },
-  rulesText: {
+  rulesBox: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  rulesTitle: {
+    color: '#374151',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  rulesItem: {
     color: '#6B7280',
     fontSize: 13,
-    marginBottom: 12,
+    marginBottom: 4,
+  },
+  rulesItemValid: {
+    color: '#047857',
+    fontWeight: '600',
+  },
+  passwordMismatchText: {
+    color: '#DC2626',
+    fontSize: 13,
+    marginBottom: 10,
   },
   button: {
     width: '100%',
@@ -391,6 +492,12 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontSize: 14,
     fontWeight: '600',
+  },
+  helperText: {
+    marginTop: 10,
+    color: '#6B7280',
+    fontSize: 13,
+    lineHeight: 18,
   },
   pressed: {
     opacity: 0.8,
