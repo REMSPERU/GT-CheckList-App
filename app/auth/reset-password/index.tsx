@@ -29,7 +29,16 @@ interface RecoveryParams {
 function extractRecoveryParams(url: string): RecoveryParams {
   const hashPart = url.includes('#') ? url.split('#')[1] : '';
   const queryPart = url.includes('?') ? url.split('?')[1].split('#')[0] : '';
-  const params = new URLSearchParams(hashPart || queryPart);
+  const params = new URLSearchParams();
+
+  for (const part of [queryPart, hashPart]) {
+    if (!part) continue;
+
+    const sourceParams = new URLSearchParams(part);
+    for (const [key, value] of sourceParams.entries()) {
+      params.set(key, value);
+    }
+  }
 
   return {
     accessToken: params.get('access_token'),
@@ -123,7 +132,11 @@ export default function ResetPasswordScreen() {
         const { accessToken, refreshToken, type } =
           extractRecoveryParams(currentUrl);
 
-        if (type !== 'recovery' || !accessToken || !refreshToken) {
+        if (
+          type?.toLowerCase() !== 'recovery' ||
+          !accessToken ||
+          !refreshToken
+        ) {
           return;
         }
 
