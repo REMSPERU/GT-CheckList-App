@@ -266,7 +266,7 @@ export function useHomeScreen() {
     });
   }, [ensureBuildingIsSelected, router, selectedBuilding]);
 
-  const handleChangePasswordPress = useCallback(() => {
+  const handleAccountPress = useCallback(() => {
     router.push(resetPasswordHref);
   }, [resetPasswordHref, router]);
 
@@ -295,7 +295,7 @@ export function useHomeScreen() {
     handleExecuteMaintenancePress,
     handleAuditPress,
     handleReportsPress,
-    handleChangePasswordPress,
+    handleAccountPress,
     handleLogoutConfirm,
   };
 }

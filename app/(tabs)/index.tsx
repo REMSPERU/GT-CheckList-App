@@ -56,7 +56,7 @@ function HomeScreen() {
     handleExecuteMaintenancePress,
     handleAuditPress,
     handleReportsPress,
-    handleChangePasswordPress,
+    handleAccountPress,
     handleLogoutConfirm,
   } = useHomeScreen();
 
@@ -161,7 +161,7 @@ function HomeScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <HomeHeader
         username={userDisplayName}
-        onChangePasswordPress={handleChangePasswordPress}
+        onAccountPress={handleAccountPress}
         onLogoutPress={openLogoutModal}
       />
 
