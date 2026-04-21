@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/use-user-role';
 import { useProperties } from '@/hooks/use-property-query';
@@ -22,6 +23,7 @@ export function useHomeScreen() {
   const { user, logout } = useAuth();
   const { canAudit } = useUserRole();
   const router = useRouter();
+  const resetPasswordHref = '/auth/reset-password' as Href;
   const { data, isLoading, isError, refetch } = useProperties();
   const hasSynced = useRef(false);
 
@@ -264,6 +266,10 @@ export function useHomeScreen() {
     });
   }, [ensureBuildingIsSelected, router, selectedBuilding]);
 
+  const handleChangePasswordPress = useCallback(() => {
+    router.push(resetPasswordHref);
+  }, [resetPasswordHref, router]);
+
   const userDisplayName =
     user?.user_metadata?.username || user?.email?.split('@')[0] || 'Usuario';
 
@@ -289,6 +295,7 @@ export function useHomeScreen() {
     handleExecuteMaintenancePress,
     handleAuditPress,
     handleReportsPress,
+    handleChangePasswordPress,
     handleLogoutConfirm,
   };
 }

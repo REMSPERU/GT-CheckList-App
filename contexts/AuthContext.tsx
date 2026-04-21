@@ -142,11 +142,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!isInitialized) return;
 
     const inAuthGroup = segments[0] === 'auth';
+    const currentAuthSegment = String(segments[1] || '');
+    const isResetPasswordRoute =
+      inAuthGroup && currentAuthSegment === 'reset-password';
 
     if (!isAuthenticated && !inAuthGroup) {
       // Redirect to login if not authenticated and trying to access protected routes
       setTimeout(() => router.replace('/auth/login'), 100);
-    } else if (isAuthenticated && inAuthGroup) {
+    } else if (isAuthenticated && inAuthGroup && !isResetPasswordRoute) {
       // Redirect to main app if authenticated and on auth pages
       setTimeout(() => router.replace('/(tabs)'), 100);
     }
