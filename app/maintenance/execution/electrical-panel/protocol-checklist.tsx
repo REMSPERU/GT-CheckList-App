@@ -14,44 +14,13 @@ import { Ionicons } from '@expo/vector-icons';
 import NetInfo from '@react-native-community/netinfo';
 
 import MaintenanceHeader from '@/components/maintenance-header';
+import {
+  DEFAULT_ELECTRICAL_PANEL_PROTOCOL_STATE,
+  ELECTRICAL_PANEL_PROTOCOL_ITEMS,
+  type ElectricalPanelProtocolState,
+} from '@/constants/maintenance/protocol-items';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
 import { supabaseMaintenanceService } from '@/services/supabase-maintenance.service';
-
-const PROTOCOL_ITEMS = [
-  {
-    key: 'tablero_sin_oxido',
-    label: '1. Tablero sin óxido y pintura buen estado',
-  },
-  { key: 'puerta_mandil_aterrados', label: '2. Puerta y mandil aterrados' },
-  { key: 'cables_libres_halogenos', label: '3. Cables libres de halógenos' },
-  {
-    key: 'identificacion_fases',
-    label: '4. Identificación de fases (L1 - L2 - L3 - N)',
-  },
-  {
-    key: 'interruptores_terminales',
-    label: '5. Interruptores con terminales (No cable directo)',
-  },
-  { key: 'linea_tierra_correcta', label: '6. Línea de tierra correcta' },
-  {
-    key: 'diagrama_unifilar_actualizado',
-    label: '7. Diagrama unifilar actualizado',
-  },
-  { key: 'luz_emergencia', label: '8. Luz de emergencia operativa' },
-  { key: 'rotulado_circuitos', label: '9. Rotulado de circuitos' },
-  {
-    key: 'interruptores_riel_din',
-    label: '10. Interruptores fijados en riel din',
-  },
-];
-
-const DEFAULT_PROTOCOL_STATE = PROTOCOL_ITEMS.reduce<Record<string, boolean>>(
-  (acc, item) => {
-    acc[item.key] = true;
-    return acc;
-  },
-  {},
-);
 
 export default function ProtocolChecklistScreen() {
   const router = useRouter();
@@ -65,8 +34,8 @@ export default function ProtocolChecklistScreen() {
     maintenanceId,
   );
 
-  const [protocol, setProtocol] = useState<Record<string, boolean>>(
-    DEFAULT_PROTOCOL_STATE,
+  const [protocol, setProtocol] = useState<ElectricalPanelProtocolState>(
+    DEFAULT_ELECTRICAL_PANEL_PROTOCOL_STATE,
   );
 
   const [isSaving, setIsSaving] = useState(false);
@@ -74,18 +43,18 @@ export default function ProtocolChecklistScreen() {
   // Initialize from session if already exists
   React.useEffect(() => {
     if (session?.protocol) {
-      setProtocol(session.protocol);
+      setProtocol(session.protocol as ElectricalPanelProtocolState);
     }
   }, [session?.protocol]);
 
-  const toggleItem = useCallback((key: string) => {
+  const toggleItem = useCallback((key: keyof ElectricalPanelProtocolState) => {
     setProtocol(prev => ({
       ...prev,
       [key]: !prev[key],
     }));
   }, []);
 
-  const protocolRows = useMemo(() => PROTOCOL_ITEMS, []);
+  const protocolRows = useMemo(() => ELECTRICAL_PANEL_PROTOCOL_ITEMS, []);
 
   const handleContinue = useCallback(async () => {
     if (!session) return;

@@ -186,6 +186,20 @@ const STORAGE_KEY_PREFIX = 'grounding_well_session_';
 const SYNC_TIMEOUT_MS = 15000;
 const MAX_REPROGRAM_COMMENT_LENGTH = 220;
 const MAX_GENERAL_OBSERVATION_LENGTH = 280;
+const PORTRAIT_EXIF_ORIENTATIONS = new Set([5, 6, 7, 8]);
+
+function getExifOrientation(
+  asset: ImagePicker.ImagePickerAsset,
+): number | null {
+  const exif = asset.exif as Record<string, unknown> | null | undefined;
+  const rawOrientation = exif?.Orientation;
+
+  if (typeof rawOrientation !== 'number') {
+    return null;
+  }
+
+  return rawOrientation;
+}
 
 // ─── Memoized Sub-Components ─────────────────────────────────────────
 
@@ -590,10 +604,26 @@ export default function GroundingWellChecklistScreen() {
         quality: 0.5,
         allowsEditing: false,
         aspect: [4, 3],
+        exif: true,
       });
       if (result.canceled) return;
 
-      const uri = result.assets[0].uri;
+      const asset = result.assets[0];
+      const exifOrientation = getExifOrientation(asset);
+      const isPortrait =
+        asset.height > asset.width ||
+        (exifOrientation !== null &&
+          PORTRAIT_EXIF_ORIENTATIONS.has(exifOrientation));
+
+      if (isPortrait) {
+        Alert.alert(
+          'Foto en vertical detectada',
+          'Para que salga bien en el informe, toma la foto en horizontal (celular de costado) y vuelve a intentarlo.',
+        );
+        return;
+      }
+
+      const uri = asset.uri;
       const directPhotoMap: Record<DirectPhotoKey, string> = {
         reprogramEvidence: 'reprogramPhoto',
         lidStatus: 'lidStatusPhoto',
@@ -1147,6 +1177,17 @@ export default function GroundingWellChecklistScreen() {
 
           {data.executionStatus === 'reprogrammed' && (
             <>
+              <View style={styles.photoOrientationHintBox}>
+                <Ionicons
+                  name="phone-landscape-outline"
+                  size={16}
+                  color={COLORS.primary}
+                />
+                <Text style={styles.photoOrientationHintText}>
+                  Toma la foto en horizontal para evitar que salga volteada en
+                  el informe.
+                </Text>
+              </View>
               <TextInput
                 style={styles.obsInput}
                 placeholder="Indique por qué no se pudo concretar..."
@@ -1180,6 +1221,18 @@ export default function GroundingWellChecklistScreen() {
 
         {data.executionStatus !== 'reprogrammed' && (
           <>
+            <View style={styles.photoOrientationHintBox}>
+              <Ionicons
+                name="phone-landscape-outline"
+                size={16}
+                color={COLORS.primary}
+              />
+              <Text style={styles.photoOrientationHintText}>
+                Guía de foto: toma siempre en horizontal para que el informe
+                mantenga la orientación correcta.
+              </Text>
+            </View>
+
             <View style={styles.card}>
               <View style={styles.labelRow}>
                 <View style={styles.iconContainer}>
@@ -1851,6 +1904,24 @@ const styles = StyleSheet.create({
   },
   photoButtonTextCompact: {
     fontSize: 12,
+  },
+  photoOrientationHintBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.primarySoft,
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  photoOrientationHintText: {
+    flex: 1,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
   },
 
   // Observation
