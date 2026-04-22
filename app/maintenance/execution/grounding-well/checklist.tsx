@@ -25,6 +25,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
+
+import { ensureImagePermission } from '@/lib/image-permissions';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { DatabaseService } from '../../../../services/db';
 import { syncService } from '../../../../services/sync';
@@ -344,18 +346,6 @@ export default function GroundingWellChecklistScreen() {
     }
   }, []);
 
-  const requestPermissions = useCallback(async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permiso denegado',
-        'Se necesita acceso a la cámara para tomar fotos.',
-      );
-      return false;
-    }
-    return true;
-  }, []);
-
   const persistDraft = useCallback(
     async (
       draft: GroundingWellSession,
@@ -597,8 +587,10 @@ export default function GroundingWellChecklistScreen() {
 
   const takePhoto = useCallback(
     async (itemKey: keyof GroundingWellSession | DirectPhotoKey) => {
-      const hasPermission = await requestPermissions();
-      if (!hasPermission) return;
+      const hasCameraPermission = await ensureImagePermission('camera', {
+        deniedMessage: 'Se necesita acceso a la camara para tomar fotos.',
+      });
+      if (!hasCameraPermission) return;
 
       const result = await ImagePicker.launchCameraAsync({
         quality: 0.5,
@@ -651,7 +643,7 @@ export default function GroundingWellChecklistScreen() {
         });
       }
     },
-    [persistDraft, requestPermissions, scheduleDraftSave, updateData],
+    [persistDraft, scheduleDraftSave, updateData],
   );
 
   const checklistKeys = useMemo<InspectionItemKey[]>(

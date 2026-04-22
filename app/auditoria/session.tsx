@@ -10,6 +10,7 @@ import {
   createEmptyAuditAnswer,
   parseLegacyAuditQuestion,
 } from '@/lib/auditoria/session-utils';
+import { ensureImagePermission } from '@/lib/image-permissions';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
 import type {
@@ -223,9 +224,10 @@ export default function AuditoriaSessionScreen() {
   );
 
   const takePhoto = useCallback(async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      showAlert('Permiso requerido', 'Debe habilitar acceso a la camara.');
+    const hasCameraPermission = await ensureImagePermission('camera', {
+      deniedMessage: 'Debe habilitar acceso a la camara.',
+    });
+    if (!hasCameraPermission) {
       return;
     }
 
@@ -242,12 +244,13 @@ export default function AuditoriaSessionScreen() {
     }
 
     setIsCameraSheetVisible(false);
-  }, [showAlert]);
+  }, []);
 
   const pickFromGallery = useCallback(async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      showAlert('Permiso requerido', 'Debe habilitar acceso a la galeria.');
+    const hasLibraryPermission = await ensureImagePermission('mediaLibrary', {
+      deniedMessage: 'Debe habilitar acceso a la galeria.',
+    });
+    if (!hasLibraryPermission) {
       return;
     }
 
@@ -265,7 +268,7 @@ export default function AuditoriaSessionScreen() {
     }
 
     setIsCameraSheetVisible(false);
-  }, [showAlert]);
+  }, []);
 
   const validateAnswers = useCallback(() => {
     const nextErrors: AnswerErrors = {};

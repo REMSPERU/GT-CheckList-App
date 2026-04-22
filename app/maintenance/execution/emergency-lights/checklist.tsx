@@ -21,6 +21,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 
+import { ensureImagePermission } from '@/lib/image-permissions';
+
 const STORAGE_KEY_PREFIX = 'emergency_light_session_';
 
 interface ChecklistItemData {
@@ -136,6 +138,11 @@ export default function EmergencyLightsChecklistScreen() {
   };
 
   const handleTakePhoto = async (itemKey: keyof EmergencyLightSession) => {
+    const hasCameraPermission = await ensureImagePermission('camera', {
+      deniedMessage: 'Debe habilitar acceso a la camara para tomar fotos.',
+    });
+    if (!hasCameraPermission) return;
+
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
