@@ -90,7 +90,7 @@ export default function ProtocolChecklistScreen() {
 
       // 3. Navigate to Summary
       router.push({
-        pathname: '/maintenance/execution/electrical-panel/summary' as any,
+        pathname: '/maintenance/execution/electrical-panel/summary',
         params: { panelId, maintenanceId },
       });
     } catch (error) {

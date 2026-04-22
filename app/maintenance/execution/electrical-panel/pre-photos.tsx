@@ -233,8 +233,7 @@ export default function PreMaintenancePhotosScreen() {
   const handleContinue = useCallback(() => {
     // Navigate to instrument selection
     router.push({
-      pathname:
-        '/maintenance/execution/electrical-panel/select-instrument' as any,
+      pathname: '/maintenance/execution/electrical-panel/select-instrument',
       params: {
         panelId: panelId,
         maintenanceId: maintenanceId,

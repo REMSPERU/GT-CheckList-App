@@ -540,7 +540,7 @@ export default function MaintenanceChecklistScreen() {
     }
 
     router.push({
-      pathname: '/maintenance/execution/electrical-panel/post-photos' as any,
+      pathname: '/maintenance/execution/electrical-panel/post-photos',
       params: { panelId, maintenanceId },
     });
   }, [itgs, maintenanceId, panelId, router, session]);

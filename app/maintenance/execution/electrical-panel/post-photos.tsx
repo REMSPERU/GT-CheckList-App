@@ -100,8 +100,7 @@ export default function PostMaintenancePhotosScreen() {
 
   const handleContinue = useCallback(() => {
     router.push({
-      pathname:
-        '/maintenance/execution/electrical-panel/protocol-checklist' as any,
+      pathname: '/maintenance/execution/electrical-panel/protocol-checklist',
       params: { panelId, maintenanceId },
     });
   }, [maintenanceId, panelId, router]);
