@@ -9,6 +9,7 @@ import { getSupabaseClient } from '@/lib/supabase-browser';
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -94,7 +95,7 @@ export default function ResetPasswordPage() {
         <label>
           Nueva contrasena (minimo 8)
           <input
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             autoComplete="new-password"
             required
             minLength={8}
@@ -106,7 +107,7 @@ export default function ResetPasswordPage() {
         <label>
           Confirmar contrasena
           <input
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             autoComplete="new-password"
             required
             minLength={8}
@@ -114,6 +115,23 @@ export default function ResetPasswordPage() {
             onChange={event => setConfirmPassword(event.target.value)}
           />
         </label>
+
+        <button
+          type="button"
+          onClick={() => setShowPassword(!showPassword)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'inherit',
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            padding: 0,
+            marginBottom: '1rem',
+            textAlign: 'left',
+            fontSize: '0.875rem',
+          }}>
+          {showPassword ? 'Ocultar contraseñas' : 'Mostrar contraseñas'}
+        </button>
 
         <button
           type="submit"
