@@ -129,10 +129,35 @@ export class SupabaseAuthService {
     if (error) throw error;
   }
 
+  // Verificar token/hash de recovery y crear sesion temporal
+  async verifyRecoveryToken(tokenHash: string) {
+    const { data, error } = await supabase.auth.verifyOtp({
+      type: 'recovery',
+      token_hash: tokenHash,
+    });
+
+    if (error) throw error;
+
+    return data;
+  }
+
   // Actualizar contrasena del usuario autenticado
-  async updatePassword(password: string) {
+  async updatePassword(
+    password: string,
+    options?: { clearTemporaryPasswordFlag?: boolean },
+  ) {
+    const clearTemporaryPasswordFlag =
+      options?.clearTemporaryPasswordFlag ?? false;
+
     const { data, error } = await supabase.auth.updateUser({
       password,
+      ...(clearTemporaryPasswordFlag
+        ? {
+            data: {
+              must_change_password: false,
+            },
+          }
+        : {}),
     });
 
     if (error) throw error;

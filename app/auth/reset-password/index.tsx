@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -21,9 +21,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabaseAuthService } from '@/services/supabase-auth.service';
 
 interface RecoveryParams {
+  type: string | null;
   accessToken: string | null;
   refreshToken: string | null;
-  type: string | null;
+  tokenHash: string | null;
+  token: string | null;
+}
+
+function pickParam(value: string | string[] | undefined): string | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] : value;
 }
 
 function extractRecoveryParams(url: string): RecoveryParams {
@@ -41,9 +48,11 @@ function extractRecoveryParams(url: string): RecoveryParams {
   }
 
   return {
+    type: params.get('type'),
     accessToken: params.get('access_token'),
     refreshToken: params.get('refresh_token'),
-    type: params.get('type'),
+    tokenHash: params.get('token_hash'),
+    token: params.get('token'),
   };
 }
 
@@ -76,8 +85,8 @@ function mapResetErrorMessage(error: unknown) {
     return 'La nueva contrasena debe ser diferente a la anterior.';
   }
 
-  if (normalized.includes('session')) {
-    return 'Tu sesion de recuperacion expiro. Solicita un nuevo enlace.';
+  if (normalized.includes('session') || normalized.includes('otp')) {
+    return 'El enlace de recuperacion es invalido o expiro. Solicita uno nuevo.';
   }
 
   if (normalized.includes('network')) {
@@ -93,6 +102,13 @@ export default function ResetPasswordScreen() {
   const tabsHref = '/(tabs)' as Href;
   const forgotPasswordHref = '/auth/forgot-password' as Href;
   const currentUrl = Linking.useURL();
+  const searchParams = useLocalSearchParams<{
+    type?: string | string[];
+    access_token?: string | string[];
+    refresh_token?: string | string[];
+    token_hash?: string | string[];
+    token?: string | string[];
+  }>();
   const { isAuthenticated } = useAuth();
 
   const [password, setPassword] = useState('');
@@ -102,6 +118,41 @@ export default function ResetPasswordScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isResolvingLink, setIsResolvingLink] = useState(!isAuthenticated);
   const [isRecoveryFlow, setIsRecoveryFlow] = useState(false);
+  const [receivedUrl, setReceivedUrl] = useState<string | null>(currentUrl);
+
+  const routeRecoveryParams = useMemo<RecoveryParams>(
+    () => ({
+      type: pickParam(searchParams.type),
+      accessToken: pickParam(searchParams.access_token),
+      refreshToken: pickParam(searchParams.refresh_token),
+      tokenHash: pickParam(searchParams.token_hash),
+      token: pickParam(searchParams.token),
+    }),
+    [searchParams],
+  );
+
+  const recoveryParams = useMemo(() => {
+    const hasRouteParams =
+      Boolean(routeRecoveryParams.type) ||
+      Boolean(routeRecoveryParams.accessToken) ||
+      Boolean(routeRecoveryParams.refreshToken) ||
+      Boolean(routeRecoveryParams.tokenHash) ||
+      Boolean(routeRecoveryParams.token);
+
+    if (!receivedUrl) {
+      return hasRouteParams ? routeRecoveryParams : null;
+    }
+
+    const parsed = extractRecoveryParams(receivedUrl);
+
+    return {
+      type: parsed.type ?? routeRecoveryParams.type,
+      accessToken: parsed.accessToken ?? routeRecoveryParams.accessToken,
+      refreshToken: parsed.refreshToken ?? routeRecoveryParams.refreshToken,
+      tokenHash: parsed.tokenHash ?? routeRecoveryParams.tokenHash,
+      token: parsed.token ?? routeRecoveryParams.token,
+    };
+  }, [receivedUrl, routeRecoveryParams]);
 
   const canSubmit = useMemo(() => {
     return (
@@ -114,13 +165,38 @@ export default function ResetPasswordScreen() {
   const passwordChecks = useMemo(() => getPasswordChecks(password), [password]);
 
   useEffect(() => {
+    if (currentUrl) {
+      setReceivedUrl(currentUrl);
+    }
+  }, [currentUrl]);
+
+  useEffect(() => {
     if (isAuthenticated) {
       setIsResolvingLink(false);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!currentUrl) {
+    let isMounted = true;
+
+    void Linking.getInitialURL().then(initialUrl => {
+      if (isMounted && initialUrl) {
+        setReceivedUrl(prev => prev ?? initialUrl);
+      }
+    });
+
+    const subscription = Linking.addEventListener('url', event => {
+      setReceivedUrl(event.url);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!recoveryParams) {
       if (!isAuthenticated) {
         setIsResolvingLink(false);
       }
@@ -129,32 +205,37 @@ export default function ResetPasswordScreen() {
 
     const resolveRecoveryLink = async () => {
       try {
-        const { accessToken, refreshToken, type } =
-          extractRecoveryParams(currentUrl);
+        const { type, accessToken, refreshToken, tokenHash, token } =
+          recoveryParams;
 
-        if (
-          type?.toLowerCase() !== 'recovery' ||
-          !accessToken ||
-          !refreshToken
-        ) {
+        if (type?.toLowerCase() !== 'recovery') {
           return;
         }
 
-        await supabaseAuthService.setRecoverySession(accessToken, refreshToken);
+        if (accessToken && refreshToken) {
+          await supabaseAuthService.setRecoverySession(
+            accessToken,
+            refreshToken,
+          );
+        } else {
+          const recoveryTokenHash = tokenHash ?? token;
+          if (!recoveryTokenHash) {
+            return;
+          }
+
+          await supabaseAuthService.verifyRecoveryToken(recoveryTokenHash);
+        }
+
         setIsRecoveryFlow(true);
       } catch (error) {
         console.error('[ResetPassword] Error al procesar enlace:', error);
-        Alert.alert(
-          'Enlace invalido',
-          'No se pudo validar el enlace de recuperacion. Solicita uno nuevo.',
-        );
       } finally {
         setIsResolvingLink(false);
       }
     };
 
     void resolveRecoveryLink();
-  }, [currentUrl, isAuthenticated]);
+  }, [isAuthenticated, recoveryParams]);
 
   const handleUpdatePassword = async () => {
     if (!canSubmit) {
@@ -168,16 +249,15 @@ export default function ResetPasswordScreen() {
     setIsLoading(true);
 
     try {
-      await supabaseAuthService.updatePassword(password);
+      await supabaseAuthService.updatePassword(password, {
+        clearTemporaryPasswordFlag: true,
+      });
 
       if (isRecoveryFlow) {
         try {
           await supabaseAuthService.signOut();
         } catch (error) {
-          console.warn(
-            '[ResetPassword] No se pudo cerrar sesion luego del recovery:',
-            error,
-          );
+          console.warn('[ResetPassword] No se pudo cerrar sesion:', error);
         }
 
         Alert.alert(
@@ -194,9 +274,7 @@ export default function ResetPasswordScreen() {
         [{ text: 'OK', onPress: () => router.replace(tabsHref) }],
       );
     } catch (error) {
-      const message = mapResetErrorMessage(error);
-
-      Alert.alert('Error', message);
+      Alert.alert('Error', mapResetErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -368,10 +446,6 @@ export default function ResetPasswordScreen() {
                   Solicitar nuevo enlace
                 </Text>
               </Pressable>
-              <Text style={styles.helperText}>
-                Consejo: abre siempre el ultimo correo de recuperacion y en el
-                mismo celular donde tienes la app.
-              </Text>
             </View>
           )}
         </View>
@@ -505,12 +579,6 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontSize: 14,
     fontWeight: '600',
-  },
-  helperText: {
-    marginTop: 10,
-    color: '#6B7280',
-    fontSize: 13,
-    lineHeight: 18,
   },
   pressed: {
     opacity: 0.8,

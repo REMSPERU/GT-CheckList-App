@@ -21,6 +21,16 @@ import { supabaseAuthService } from '@/services/supabase-auth.service';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_COOLDOWN_SECONDS = 45;
+const WEB_AUTH_URL = process.env.EXPO_PUBLIC_WEB_AUTH_URL?.trim() ?? '';
+
+function getPasswordRecoveryRedirectUrl() {
+  if (WEB_AUTH_URL) {
+    const normalizedBaseUrl = WEB_AUTH_URL.replace(/\/$/, '');
+    return `${normalizedBaseUrl}/reset-password`;
+  }
+
+  return Linking.createURL('/auth/reset-password');
+}
 
 function formatCountdown(seconds: number) {
   const mins = Math.floor(seconds / 60);
@@ -92,7 +102,7 @@ export default function ForgotPasswordScreen() {
     setIsLoading(true);
 
     try {
-      const redirectTo = Linking.createURL('/auth/reset-password');
+      const redirectTo = getPasswordRecoveryRedirectUrl();
       await supabaseAuthService.sendPasswordResetEmail(
         normalizedEmail,
         redirectTo,
@@ -102,13 +112,11 @@ export default function ForgotPasswordScreen() {
 
       Alert.alert(
         'Correo enviado',
-        'Te enviamos un enlace para restablecer tu contrasena. Revisa tu bandeja y spam.',
+        'Te enviamos un enlace de recuperacion. Si usas Gmail, abre el enlace en navegador externo para evitar perdida de parametros.',
         [{ text: 'OK' }],
       );
     } catch (error) {
-      const message = mapResetErrorMessage(error);
-
-      Alert.alert('Error', message);
+      Alert.alert('Error', mapResetErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -148,9 +156,8 @@ export default function ForgotPasswordScreen() {
 
           {lastSentEmail ? (
             <Text style={styles.infoText}>
-              Ultimo envio a: {lastSentEmail}. Si no tienes ese correo en este
-              celular, abre el enlace desde cualquier dispositivo y compartelo a
-              este equipo.
+              Ultimo envio a: {lastSentEmail}. Si no abre correctamente desde
+              Gmail, usa Abrir en navegador y luego continua en la app.
             </Text>
           ) : null}
 
