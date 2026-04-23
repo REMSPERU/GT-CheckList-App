@@ -751,7 +751,7 @@ export default function GroundingWellChecklistScreen() {
     [],
   );
 
-  const navigateAfterSave = useCallback(() => {
+  const navigateToParent = useCallback(() => {
     if (propertyId && sessionId) {
       router.replace({
         pathname:
@@ -765,8 +765,23 @@ export default function GroundingWellChecklistScreen() {
       return;
     }
 
-    router.back();
+    if (propertyId) {
+      router.replace({
+        pathname: '/maintenance/scheduled_maintenance/maintenance-session',
+        params: {
+          propertyId,
+          propertyName,
+        },
+      });
+      return;
+    }
+
+    router.replace('/maintenance');
   }, [propertyId, propertyName, router, sessionId]);
+
+  const navigateAfterSave = useCallback(() => {
+    navigateToParent();
+  }, [navigateToParent]);
 
   const syncInBackground = useCallback(
     async (localId: number) => {
@@ -1107,7 +1122,7 @@ export default function GroundingWellChecklistScreen() {
         <Pressable
           onPress={() => {
             void persistDraftSilently(dataRef.current);
-            router.back();
+            navigateToParent();
           }}
           style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
           accessibilityRole="button">

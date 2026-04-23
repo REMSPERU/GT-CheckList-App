@@ -230,10 +230,10 @@ export function useHomeScreen() {
     if (!ensureBuildingIsSelected() || !selectedBuilding) return;
 
     router.push({
-      pathname: '/maintenance/scheduled_maintenance/scheduled-maintenance',
+      pathname: '/maintenance/scheduled_maintenance/maintenance-session',
       params: {
-        autoOpenPropertyId: String(selectedBuilding.id),
-        autoOpenPropertyName: selectedBuilding.name,
+        propertyId: String(selectedBuilding.id),
+        propertyName: selectedBuilding.name,
       },
     });
   }, [ensureBuildingIsSelected, router, selectedBuilding]);

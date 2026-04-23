@@ -12,29 +12,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useScheduledMaintenances } from '@/hooks/use-maintenance';
 import { syncService } from '@/services/sync';
 
 export default function ScheduledMaintenanceScreen() {
   const router = useRouter();
-  const { autoOpenPropertyId, autoOpenPropertyName } = useLocalSearchParams<{
-    autoOpenPropertyId?: string;
-    autoOpenPropertyName?: string;
-  }>();
-
-  useEffect(() => {
-    if (autoOpenPropertyId) {
-      router.replace({
-        pathname: '/maintenance/scheduled_maintenance/maintenance-session',
-        params: {
-          propertyId: autoOpenPropertyId,
-          propertyName: autoOpenPropertyName,
-        },
-      });
-    }
-  }, [autoOpenPropertyId, autoOpenPropertyName, router]);
 
   const [activeTab, setActiveTab] = useState<'Hoy' | 'Esta Semana' | 'Todos'>(
     'Todos',
