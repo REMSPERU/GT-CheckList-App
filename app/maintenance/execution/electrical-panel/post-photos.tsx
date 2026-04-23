@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import {
   View,
@@ -18,6 +18,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
+import { ensureImagePermission } from '@/lib/image-permissions';
 import { PhotoItem } from '@/types/maintenance-session';
 
 export default function PostMaintenancePhotosScreen() {
@@ -35,13 +36,6 @@ export default function PostMaintenancePhotosScreen() {
 
   // Modal State
   const [modalVisible, setModalVisible] = useState(false);
-
-  // Request permissions on mount
-  useEffect(() => {
-    (async () => {
-      await ImagePicker.requestCameraPermissionsAsync();
-    })();
-  }, []);
 
   const handleImageResult = useCallback(
     async (result: ImagePicker.ImagePickerResult) => {
@@ -63,6 +57,12 @@ export default function PostMaintenancePhotosScreen() {
 
   const handleCamera = useCallback(async () => {
     setModalVisible(false);
+
+    const hasCameraPermission = await ensureImagePermission('camera', {
+      deniedMessage: 'Debe habilitar acceso a la camara para tomar fotos.',
+    });
+    if (!hasCameraPermission) return;
+
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
@@ -78,6 +78,13 @@ export default function PostMaintenancePhotosScreen() {
 
   const handleGallery = useCallback(async () => {
     setModalVisible(false);
+
+    const hasLibraryPermission = await ensureImagePermission('mediaLibrary', {
+      deniedMessage:
+        'Debe habilitar acceso a la galeria para seleccionar fotos.',
+    });
+    if (!hasLibraryPermission) return;
+
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
@@ -100,8 +107,7 @@ export default function PostMaintenancePhotosScreen() {
 
   const handleContinue = useCallback(() => {
     router.push({
-      pathname:
-        '/maintenance/execution/electrical-panel/protocol-checklist' as any,
+      pathname: '/maintenance/execution/electrical-panel/protocol-checklist',
       params: { panelId, maintenanceId },
     });
   }, [maintenanceId, panelId, router]);

@@ -10,9 +10,14 @@ export type EquipmentType =
   | 'Luces de Emergencia'
   | string;
 
+export type EquipmentExecutionRoute =
+  | '/maintenance/execution/electrical-panel/pre-photos'
+  | '/maintenance/execution/emergency-lights/checklist'
+  | '/maintenance/execution/grounding-well/checklist';
+
 export interface EquipmentRouteConfig {
   /** The route path for this equipment's execution flow */
-  route: string;
+  route: EquipmentExecutionRoute;
   /** Whether the equipment type has been fully implemented */
   implemented: boolean;
 }

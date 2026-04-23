@@ -24,6 +24,7 @@ import { useMaintenanceByProperty } from '@/hooks/use-maintenance';
 import { MaintenanceStatusEnum } from '@/types/api';
 import * as ImagePicker from 'expo-image-picker';
 import { DatabaseService } from '@/services/database';
+import { ensureImagePermission } from '@/lib/image-permissions';
 import { supabase } from '@/lib/supabase';
 import { syncService } from '@/services/sync';
 
@@ -443,6 +444,11 @@ export default function EquipmentMaintenanceListScreen() {
   }, [refetch]);
 
   const handleTakeSessionPhoto = async () => {
+    const hasCameraPermission = await ensureImagePermission('camera', {
+      deniedMessage: 'Debe habilitar acceso a la camara para tomar fotos.',
+    });
+    if (!hasCameraPermission) return;
+
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],

@@ -15,6 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
 import { useElectricalPanelDetail } from '@/hooks/use-electrical-panel-detail';
+import { ensureImagePermission } from '@/lib/image-permissions';
 import type { ItemMeasurement } from '@/types/maintenance-session';
 import type { Componente, ITG, ITM } from '@/types/api';
 
@@ -414,6 +415,11 @@ export default function MaintenanceChecklistScreen() {
 
   const takePhoto = useCallback(
     async (itemId: string) => {
+      const hasCameraPermission = await ensureImagePermission('camera', {
+        deniedMessage: 'Debe habilitar acceso a la camara para tomar fotos.',
+      });
+      if (!hasCameraPermission) return;
+
       try {
         const result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
@@ -540,7 +546,7 @@ export default function MaintenanceChecklistScreen() {
     }
 
     router.push({
-      pathname: '/maintenance/execution/electrical-panel/post-photos' as any,
+      pathname: '/maintenance/execution/electrical-panel/post-photos',
       params: { panelId, maintenanceId },
     });
   }, [itgs, maintenanceId, panelId, router, session]);

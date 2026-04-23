@@ -52,7 +52,7 @@ export default function ExecutionRouter() {
   useEffect(() => {
     // Navigate to the appropriate route with params
     router.replace({
-      pathname: routeConfig.route as any,
+      pathname: routeConfig.route,
       params: {
         panelId,
         maintenanceId,

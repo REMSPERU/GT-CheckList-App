@@ -18,6 +18,7 @@ import { Colors } from '@/constants/theme';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
 import { useElectricalPanelDetail } from '@/hooks/use-electrical-panel-detail';
 import { DatabaseService } from '@/services/db';
+import type { MaintenanceSession } from '@/types/maintenance-session';
 
 interface Instrument {
   id: string;
@@ -124,10 +125,12 @@ export default function SelectInstrumentScreen() {
         selectedInstruments: selectedInstrumentsData,
         lastUpdated: new Date().toISOString(),
       };
-      await saveSession(updatedSession as any, { immediate: true });
+      await saveSession(updatedSession as MaintenanceSession, {
+        immediate: true,
+      });
 
       router.push({
-        pathname: '/maintenance/execution/electrical-panel/checklist' as any,
+        pathname: '/maintenance/execution/electrical-panel/checklist',
         params: { panelId, maintenanceId },
       });
     }

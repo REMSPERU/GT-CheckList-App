@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import {
   View,
@@ -20,6 +20,8 @@ import {
 } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+
+import { ensureImagePermission } from '@/lib/image-permissions';
 
 const STORAGE_KEY_PREFIX = 'emergency_light_session_';
 
@@ -74,6 +76,7 @@ export default function EmergencyLightsChecklistScreen() {
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<EmergencyLightSession>(defaultSession);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load session
   useEffect(() => {
@@ -92,27 +95,54 @@ export default function EmergencyLightsChecklistScreen() {
     loadSession();
   }, [sessionKey]);
 
-  // Save session on change
-  const updateData = async (updates: Partial<EmergencyLightSession>) => {
-    const newData = { ...data, ...updates };
-    setData(newData);
-    try {
-      await AsyncStorage.setItem(sessionKey, JSON.stringify(newData));
-    } catch (e) {
-      console.error('Error saving emergency light session:', e);
+  useEffect(() => {
+    if (loading) return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      void AsyncStorage.setItem(sessionKey, JSON.stringify(data)).catch(e => {
+        console.error('Error saving emergency light session:', e);
+      });
+    }, 350);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [data, loading, sessionKey]);
+
+  const updateData = (
+    updates:
+      | Partial<EmergencyLightSession>
+      | ((prev: EmergencyLightSession) => Partial<EmergencyLightSession>),
+  ) => {
+    setData(prev => {
+      const patch = typeof updates === 'function' ? updates(prev) : updates;
+      return { ...prev, ...patch };
+    });
   };
 
-  const updateItem = async (
+  const updateItem = (
     itemKey: keyof EmergencyLightSession,
     updates: Partial<ChecklistItemData>,
   ) => {
-    const currentItem = data[itemKey] as ChecklistItemData;
-    const newItem = { ...currentItem, ...updates };
-    updateData({ [itemKey]: newItem } as Partial<EmergencyLightSession>);
+    updateData(prev => {
+      const currentItem = prev[itemKey] as ChecklistItemData;
+      const newItem = { ...currentItem, ...updates };
+      return { [itemKey]: newItem } as Partial<EmergencyLightSession>;
+    });
   };
 
   const handleTakePhoto = async (itemKey: keyof EmergencyLightSession) => {
+    const hasCameraPermission = await ensureImagePermission('camera', {
+      deniedMessage: 'Debe habilitar acceso a la camara para tomar fotos.',
+    });
+    if (!hasCameraPermission) return;
+
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],

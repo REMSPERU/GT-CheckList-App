@@ -20,10 +20,34 @@ import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceSessions } from '@/hooks/use-maintenance';
 import { syncService } from '@/services/sync';
 
+type SessionStatusFilter =
+  | 'TODOS'
+  | 'NO_INICIADO'
+  | 'EN_PROGRESO'
+  | 'COMPLETADO';
+
+type SessionSortOrder = 'RECIENTES' | 'ANTIGUOS';
+
+interface SessionListItem {
+  id: string | number;
+  nombre: string;
+  descripcion?: string | null;
+  fecha_programada?: string | null;
+  total: number;
+  completed: number;
+  inProgress: number;
+  equipmentTypes?: string[];
+}
+
+interface FilterOption {
+  key: SessionStatusFilter;
+  label: string;
+}
+
 export default function MaintenanceSessionScreen() {
   const router = useRouter();
   const { propertyId, propertyName } = useLocalSearchParams<{
-    propertyId: string;
+    propertyId?: string;
     propertyName?: string;
   }>();
 
@@ -32,8 +56,15 @@ export default function MaintenanceSessionScreen() {
     isLoading,
     refetch,
     isRefetching,
-  } = useMaintenanceSessions(propertyId);
+  } = useMaintenanceSessions(propertyId ?? '');
+  const typedSessions = useMemo(
+    () => sessions as SessionListItem[],
+    [sessions],
+  );
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+  const [selectedStatus, setSelectedStatus] =
+    useState<SessionStatusFilter>('TODOS');
+  const [sortOrder, setSortOrder] = useState<SessionSortOrder>('RECIENTES');
 
   const runRefresh = useCallback(
     async (forcePull = false) => {
@@ -63,7 +94,7 @@ export default function MaintenanceSessionScreen() {
     }, [runRefresh]),
   );
 
-  const getSessionStatus = useCallback((session: any) => {
+  const getSessionStatus = useCallback((session: SessionListItem) => {
     if (session.total > 0 && session.completed === session.total) {
       return { label: 'COMPLETADO', color: '#10B981', bgColor: '#D1FAE5' };
     }
@@ -73,7 +104,7 @@ export default function MaintenanceSessionScreen() {
     return { label: 'NO INICIADO', color: '#6B7280', bgColor: '#F3F4F6' };
   }, []);
 
-  const getProgressPercentage = useCallback((session: any) => {
+  const getProgressPercentage = useCallback((session: SessionListItem) => {
     if (!session.total || session.total === 0) return 0;
     return (session.completed / session.total) * 100;
   }, []);
@@ -127,7 +158,7 @@ export default function MaintenanceSessionScreen() {
   }, []);
 
   const handleSessionPress = useCallback(
-    (session: any) => {
+    (session: SessionListItem) => {
       router.push({
         pathname:
           '/maintenance/scheduled_maintenance/equipment-maintenance-list',
@@ -142,11 +173,81 @@ export default function MaintenanceSessionScreen() {
     [propertyId, propertyName, router],
   );
 
-  // Keep completed sessions visible as well, so users can re-open them
-  // and trigger manual sync again if needed.
-  const sessionsForDisplay = useMemo(() => sessions, [sessions]);
+  const filteredSessions = useMemo(() => {
+    return typedSessions.filter(session => {
+      if (selectedStatus === 'TODOS') return true;
 
-  const renderSessionCard = useCallback<ListRenderItem<any>>(
+      const isCompleted =
+        session.total > 0 && session.completed === session.total;
+      const isInProgress = session.completed > 0 || session.inProgress > 0;
+
+      if (selectedStatus === 'COMPLETADO') return isCompleted;
+      if (selectedStatus === 'EN_PROGRESO') return !isCompleted && isInProgress;
+      if (selectedStatus === 'NO_INICIADO')
+        return !isCompleted && !isInProgress;
+
+      return true;
+    });
+  }, [selectedStatus, typedSessions]);
+
+  const sortedSessions = useMemo(() => {
+    const getDateValue = (session: SessionListItem) => {
+      if (!session.fecha_programada) return 0;
+      const parsedDate = session.fecha_programada.includes('T')
+        ? new Date(session.fecha_programada)
+        : new Date(session.fecha_programada + 'T12:00:00');
+
+      return Number.isNaN(parsedDate.getTime()) ? 0 : parsedDate.getTime();
+    };
+
+    return [...filteredSessions].sort((a, b) => {
+      const dateA = getDateValue(a);
+      const dateB = getDateValue(b);
+      return sortOrder === 'RECIENTES' ? dateB - dateA : dateA - dateB;
+    });
+  }, [filteredSessions, sortOrder]);
+
+  const statusFilters = useMemo<FilterOption[]>(
+    () => [
+      { key: 'TODOS', label: 'Todos' },
+      { key: 'NO_INICIADO', label: 'No iniciado' },
+      { key: 'EN_PROGRESO', label: 'En progreso' },
+      { key: 'COMPLETADO', label: 'Completado' },
+    ],
+    [],
+  );
+
+  const sortLabel =
+    sortOrder === 'RECIENTES' ? 'Mas recientes' : 'Mas antiguos';
+
+  const toggleSortOrder = useCallback(() => {
+    setSortOrder(current =>
+      current === 'RECIENTES' ? 'ANTIGUOS' : 'RECIENTES',
+    );
+  }, []);
+
+  const renderStatusFilterItem = useCallback<ListRenderItem<FilterOption>>(
+    ({ item }) => {
+      const isSelected = selectedStatus === item.key;
+
+      return (
+        <Pressable
+          onPress={() => setSelectedStatus(item.key)}
+          style={[styles.filterChip, isSelected && styles.filterChipSelected]}>
+          <Text
+            style={[
+              styles.filterChipText,
+              isSelected && styles.filterChipTextSelected,
+            ]}>
+            {item.label}
+          </Text>
+        </Pressable>
+      );
+    },
+    [selectedStatus],
+  );
+
+  const renderSessionCard = useCallback<ListRenderItem<SessionListItem>>(
     ({ item: session }) => {
       const status = getSessionStatus(session);
       const progress = getProgressPercentage(session);
@@ -269,33 +370,77 @@ export default function MaintenanceSessionScreen() {
           </View>
         )}
 
-        {isLoading ? (
+        {!propertyId ? (
+          <View style={styles.centerContainer}>
+            <MaterialIcons name="business" size={64} color="#D1D5DB" />
+            <Text style={styles.emptyText}>
+              Selecciona un inmueble desde Inicio para continuar
+            </Text>
+          </View>
+        ) : isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color="#06B6D4" />
           </View>
-        ) : sessionsForDisplay.length === 0 ? (
-          <View style={styles.centerContainer}>
-            <MaterialIcons name="event-busy" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyText}>
-              No hay sesiones de mantenimiento registradas
-            </Text>
-          </View>
         ) : (
-          <FlatList
-            style={styles.listContainer}
-            data={sessionsForDisplay}
-            keyExtractor={item => String(item.id)}
-            renderItem={renderSessionCard}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefetching || isManualRefreshing}
-                onRefresh={handleRefresh}
+          <>
+            <View style={styles.filtersSection}>
+              <FlatList
+                horizontal
+                data={statusFilters}
+                keyExtractor={item => item.key}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterListContent}
+                renderItem={renderStatusFilterItem}
               />
-            }
-            contentContainerStyle={styles.listContent}
-            ListFooterComponent={<View style={styles.listFooterSpacing} />}
-          />
+
+              <View style={styles.sortRow}>
+                <Pressable
+                  onPress={toggleSortOrder}
+                  style={({ pressed }) => [
+                    styles.sortToggleButton,
+                    pressed && styles.cardPressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ordenar por ${sortLabel}`}>
+                  <Ionicons
+                    name={
+                      sortOrder === 'RECIENTES'
+                        ? 'arrow-down-circle-outline'
+                        : 'arrow-up-circle-outline'
+                    }
+                    size={16}
+                    color="#4B5563"
+                  />
+                  <Text style={styles.sortToggleText}>{sortLabel}</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {sortedSessions.length === 0 ? (
+              <View style={styles.centerContainer}>
+                <MaterialIcons name="event-busy" size={64} color="#D1D5DB" />
+                <Text style={styles.emptyText}>
+                  No hay sesiones para el filtro seleccionado
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                style={styles.listContainer}
+                data={sortedSessions}
+                keyExtractor={item => String(item.id)}
+                renderItem={renderSessionCard}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={isRefetching || isManualRefreshing}
+                    onRefresh={handleRefresh}
+                  />
+                }
+                contentContainerStyle={styles.listContent}
+                ListFooterComponent={<View style={styles.listFooterSpacing} />}
+              />
+            )}
+          </>
         )}
       </View>
     </SafeAreaView>
@@ -334,7 +479,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContainer: {
-    marginTop: 20,
+    marginTop: 16,
   },
   listContent: {
     paddingBottom: 40,
@@ -347,6 +492,54 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 16,
     textAlign: 'center',
+  },
+  filtersSection: {
+    marginTop: 16,
+    gap: 10,
+  },
+  filterListContent: {
+    paddingRight: 8,
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterChipSelected: {
+    backgroundColor: '#CFFAFE',
+    borderColor: '#06B6D4',
+  },
+  filterChipText: {
+    fontSize: 12,
+    color: '#4B5563',
+    fontWeight: '600',
+  },
+  filterChipTextSelected: {
+    color: '#0E7490',
+  },
+  sortRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  sortToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sortToggleText: {
+    fontSize: 12,
+    color: '#4B5563',
+    fontWeight: '600',
   },
   sessionCard: {
     backgroundColor: '#fff',

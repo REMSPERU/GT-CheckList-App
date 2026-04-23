@@ -18,6 +18,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
+import { ensureImagePermission } from '@/lib/image-permissions';
 import { DatabaseService } from '@/services/database';
 import { PhotoItem } from '@/types/maintenance-session';
 
@@ -117,18 +118,6 @@ export default function PreMaintenancePhotosScreen() {
     [tipoTablero],
   );
 
-  // Request permissions on mount
-  useEffect(() => {
-    (async () => {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      const libraryStatus =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted' || libraryStatus.status !== 'granted') {
-        // Permissions not granted
-      }
-    })();
-  }, []);
-
   const openSelectionModal = useCallback(
     (section: 'panel' | 'thermo') => {
       // Validate max photos before opening modal
@@ -193,6 +182,11 @@ export default function PreMaintenancePhotosScreen() {
     setModalVisible(false);
     if (!currentSection) return;
 
+    const hasCameraPermission = await ensureImagePermission('camera', {
+      deniedMessage: 'Debe habilitar acceso a la camara para tomar fotos.',
+    });
+    if (!hasCameraPermission) return;
+
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
@@ -209,6 +203,12 @@ export default function PreMaintenancePhotosScreen() {
   const handleGallery = useCallback(async () => {
     setModalVisible(false);
     if (!currentSection) return;
+
+    const hasLibraryPermission = await ensureImagePermission('mediaLibrary', {
+      deniedMessage:
+        'Debe habilitar acceso a la galeria para seleccionar fotos.',
+    });
+    if (!hasLibraryPermission) return;
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -233,8 +233,7 @@ export default function PreMaintenancePhotosScreen() {
   const handleContinue = useCallback(() => {
     // Navigate to instrument selection
     router.push({
-      pathname:
-        '/maintenance/execution/electrical-panel/select-instrument' as any,
+      pathname: '/maintenance/execution/electrical-panel/select-instrument',
       params: {
         panelId: panelId,
         maintenanceId: maintenanceId,

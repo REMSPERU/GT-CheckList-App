@@ -25,40 +25,13 @@ import {
   SaveFeedbackModal,
   SaveFeedbackStatus,
 } from '@/components/SaveFeedbackModal';
+import { ELECTRICAL_PANEL_PROTOCOL_ITEMS } from '@/constants/maintenance/protocol-items';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
 import { PhotoItem } from '@/types/maintenance-session';
 import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
 import { saveSessionNotes } from '@/services/supabase-session-notes.service';
-
-const PROTOCOL_ITEMS = [
-  {
-    key: 'tablero_sin_oxido',
-    label: '1. Tablero sin óxido y pintura buen estado',
-  },
-  { key: 'puerta_mandil_aterrados', label: '2. Puerta y mandil aterrados' },
-  { key: 'cables_libres_halogenos', label: '3. Cables libres de halógenos' },
-  {
-    key: 'identificacion_fases',
-    label: '4. Identificación de fases (L1 - L2 - L3 - N)',
-  },
-  {
-    key: 'interruptores_terminales',
-    label: '5. Interruptores con terminales (No cable directo)',
-  },
-  { key: 'linea_tierra_correcta', label: '6. Línea de tierra correcta' },
-  {
-    key: 'diagrama_unifilar_actualizado',
-    label: '7. Diagrama unifilar actualizado',
-  },
-  { key: 'luz_emergencia', label: '8. Luz de emergencia operativa' },
-  { key: 'rotulado_circuitos', label: '9. Rotulado de circuitos' },
-  {
-    key: 'interruptores_riel_din',
-    label: '10. Interruptores fijados en riel din',
-  },
-];
 
 const SYNC_TIMEOUT_MS = 15000;
 
@@ -706,7 +679,7 @@ export default function SummaryScreen() {
           <Text style={styles.cardTitle}>Protocolo de Tablero</Text>
           {session.protocol ? (
             <View style={styles.protocolList}>
-              {PROTOCOL_ITEMS.map(item => (
+              {ELECTRICAL_PANEL_PROTOCOL_ITEMS.map(item => (
                 <View key={item.key} style={styles.protocolItem}>
                   <Text style={styles.protocolLabel}>{item.label}</Text>
                   <View

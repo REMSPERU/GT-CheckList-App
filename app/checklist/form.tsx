@@ -29,6 +29,7 @@ import type {
   ChecklistQuestionAnswer,
   PreguntaEquipamento,
 } from '@/types/checklist';
+import { ensureImagePermission } from '@/lib/image-permissions';
 import { supabase } from '@/lib/supabase';
 import {
   checklistStorageService,
@@ -552,6 +553,14 @@ export default function ChecklistFormScreen() {
 
   const handleTakePhoto = useCallback(async () => {
     setIsCameraSheetVisible(false);
+
+    const hasCameraPermission = await ensureImagePermission('camera', {
+      deniedMessage: 'Debe habilitar acceso a la camara para tomar fotos.',
+    });
+    if (!hasCameraPermission) {
+      onPhotoSelectedRef.current = null;
+      return;
+    }
 
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
