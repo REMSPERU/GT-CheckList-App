@@ -4,6 +4,7 @@ import React, {
   ReactNode,
   useContext,
   useEffect,
+  useMemo,
   useState,
   useRef,
 } from 'react';
@@ -24,6 +25,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  mustChangePassword: boolean;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -62,6 +64,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Computed user: prefer remote user (fresh), fallback to local user (offline)
   const user = remoteUser || localUser;
+
+  const mustChangePassword = useMemo(() => {
+    const raw = user?.user_metadata?.must_change_password;
+
+    if (typeof raw === 'boolean') {
+      return raw;
+    }
+
+    if (typeof raw === 'string') {
+      const normalized = raw.toLowerCase().trim();
+      return normalized === 'true' || normalized === '1';
+    }
+
+    return false;
+  }, [user]);
 
   const isLoading =
     !isInitialized ||
@@ -149,11 +166,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!isAuthenticated && !inAuthGroup) {
       // Redirect to login if not authenticated and trying to access protected routes
       setTimeout(() => router.replace('/auth/login'), 100);
-    } else if (isAuthenticated && inAuthGroup && !isResetPasswordRoute) {
+    } else if (isAuthenticated && mustChangePassword && !isResetPasswordRoute) {
+      // Force password update when user logged in with temporary password
+      setTimeout(() => router.replace('/auth/reset-password'), 100);
+    } else if (
+      isAuthenticated &&
+      inAuthGroup &&
+      !isResetPasswordRoute &&
+      !mustChangePassword
+    ) {
       // Redirect to main app if authenticated and on auth pages
       setTimeout(() => router.replace('/(tabs)'), 100);
     }
-  }, [isAuthenticated, segments, isInitialized, router]);
+  }, [isAuthenticated, segments, isInitialized, mustChangePassword, router]);
 
   /**
    * Helper to save user to local DB
@@ -350,6 +375,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     user: user || null,
     isLoading,
     isAuthenticated,
+    mustChangePassword,
     login,
     logout,
     refreshUser,
