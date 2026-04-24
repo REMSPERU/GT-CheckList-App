@@ -3,7 +3,7 @@ import type { AuditAnswer } from '@/types/auditoria';
 export function createEmptyAuditAnswer(): AuditAnswer {
   return {
     isApplicable: true,
-    status: true,
+    status: null,
     observation: '',
     photoUris: [],
   };

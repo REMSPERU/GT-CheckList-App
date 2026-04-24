@@ -269,12 +269,10 @@ export async function bulkInsertMirrorData(
           'local_audit_questions',
           auditQuestions,
           'id',
-          'INSERT OR REPLACE INTO local_audit_questions (id, question_code, question_text, order_index, section_id, section_name, section_order_index, equipment_name, is_active, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO local_audit_questions (id, question_text, section_id, section_name, section_order_index, equipment_name, is_active, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           item => [
             item.id,
-            item.question_code,
             item.question_text,
-            item.order_index,
             item.section_id || null,
             item.section?.section_name || null,
             item.section?.order_index || null,

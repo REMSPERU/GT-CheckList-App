@@ -5,7 +5,6 @@ const PDF_GENERATION_TIMEOUT_MS = 60000;
 
 export interface AuditReportItem {
   order: number;
-  questionCode: string;
   questionText: string;
   sectionName: string | null;
   equipmentName: string | null;
@@ -24,7 +23,6 @@ export interface AuditReportSummary {
 }
 
 export interface AuditReportEvidencePhoto {
-  questionCode: string;
   questionText: string;
   observation: string | null;
   url: string;

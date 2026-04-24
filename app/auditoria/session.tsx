@@ -47,6 +47,12 @@ export default function AuditoriaSessionScreen() {
 
   const [questions, setQuestions] = useState<AuditQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, AuditAnswer>>({});
+  const [collapsedSystems, setCollapsedSystems] = useState<
+    Record<string, boolean>
+  >({});
+  const [collapsedEquipments, setCollapsedEquipments] = useState<
+    Record<string, boolean>
+  >({});
   const [errors, setErrors] = useState<AnswerErrors>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -98,6 +104,8 @@ export default function AuditoriaSessionScreen() {
         initialAnswers[question.id] = createEmptyAuditAnswer();
       });
       setAnswers(initialAnswers);
+      setCollapsedSystems({});
+      setCollapsedEquipments({});
     } catch (error) {
       console.error('Failed to load audit questions:', error);
       showAlert('Error', 'No se pudieron cargar las actividades de auditoria.');
@@ -154,7 +162,7 @@ export default function AuditoriaSessionScreen() {
           [questionId]: {
             ...current,
             isApplicable,
-            status: isApplicable ? (current.status ?? true) : null,
+            status: isApplicable ? current.status : null,
             observation: isApplicable ? current.observation : '',
             photoUris: isApplicable ? current.photoUris : [],
           },
@@ -421,24 +429,67 @@ export default function AuditoriaSessionScreen() {
   ]);
 
   const renderQuestionItem = useCallback(
-    ({ item, index }: { item: AuditQuestion; index: number }) => (
-      <AuditQuestionRow
-        question={item}
-        index={index}
-        previousSectionName={questions[index - 1]?.section_name ?? null}
-        previousEquipmentName={questions[index - 1]?.equipment_name ?? null}
-        answer={answers[item.id]}
-        error={errors[item.id]}
-        isSaving={isSaving}
-        onChangeApplicable={handleChangeApplicable}
-        onChangeStatus={handleChangeStatus}
-        onChangeObservation={handleChangeObservation}
-        onAddPhoto={handleOpenCameraSheet}
-        onRemovePhoto={handleRemovePhoto}
-      />
-    ),
+    ({ item, index }: { item: AuditQuestion; index: number }) => {
+      const previousItem = questions[index - 1];
+      const systemName = item.section_name?.trim() || 'Sin sistema';
+      const equipmentName = item.equipment_name?.trim() || 'Sin equipamiento';
+      const previousSystemName = previousItem?.section_name?.trim() || null;
+      const previousEquipmentName =
+        previousItem?.equipment_name?.trim() || null;
+
+      const isFirstInSystem = index === 0 || previousSystemName !== systemName;
+      const isFirstInEquipment =
+        isFirstInSystem ||
+        previousSystemName !== systemName ||
+        previousEquipmentName !== equipmentName;
+
+      const equipmentKey = `${systemName}::${equipmentName}`;
+      const isSystemCollapsed = collapsedSystems[systemName] ?? false;
+      const isEquipmentCollapsed = collapsedEquipments[equipmentKey] ?? false;
+
+      if (isSystemCollapsed && !isFirstInSystem) {
+        return null;
+      }
+
+      if (!isSystemCollapsed && isEquipmentCollapsed && !isFirstInEquipment) {
+        return null;
+      }
+
+      return (
+        <AuditQuestionRow
+          question={item}
+          index={index}
+          isFirstInSystem={isFirstInSystem}
+          isFirstInEquipment={isFirstInEquipment}
+          isSystemCollapsed={isSystemCollapsed}
+          isEquipmentCollapsed={isEquipmentCollapsed}
+          answer={answers[item.id]}
+          error={errors[item.id]}
+          isSaving={isSaving}
+          onToggleSystem={() => {
+            setCollapsedSystems(prev => ({
+              ...prev,
+              [systemName]: !prev[systemName],
+            }));
+          }}
+          onToggleEquipment={() => {
+            setCollapsedEquipments(prev => ({
+              ...prev,
+              [equipmentKey]: !prev[equipmentKey],
+            }));
+          }}
+          onChangeApplicable={handleChangeApplicable}
+          onChangeStatus={handleChangeStatus}
+          onChangeObservation={handleChangeObservation}
+          onAddPhoto={handleOpenCameraSheet}
+          onRemovePhoto={handleRemovePhoto}
+        />
+      );
+    },
     [
       answers,
+      collapsedEquipments,
+      collapsedSystems,
       errors,
       handleChangeApplicable,
       handleChangeObservation,
