@@ -8,6 +8,7 @@ export interface AuditReportItem {
   questionCode: string;
   questionText: string;
   sectionName: string | null;
+  equipmentName: string | null;
   status: 'OK' | 'OBS' | 'N/A';
   observation: string | null;
   photosCount: number;
@@ -113,7 +114,9 @@ class AuditReportService {
     }[] = [];
 
     for (const item of data.items) {
-      const sectionTitle = item.sectionName?.trim() || 'Sin seccion';
+      const systemTitle = item.sectionName?.trim() || 'Sin sistema';
+      const equipmentTitle = item.equipmentName?.trim() || 'Sin equipamiento';
+      const sectionTitle = `${systemTitle} - ${equipmentTitle}`;
       const current = groupedItems[groupedItems.length - 1];
 
       if (!current || current.title !== sectionTitle) {
@@ -149,7 +152,7 @@ class AuditReportService {
       <thead>
         <tr>
           <th>#</th>
-          <th>Pregunta</th>
+          <th>Actividad</th>
           <th>Estado</th>
           <th>Observacion</th>
         </tr>

@@ -48,7 +48,7 @@ export function HistorySessionCard({
       </View>
 
       <Text style={historyScreenStyles.sessionSummaryText}>
-        Preguntas: {totalQuestions} | OK: {totalOk} | OBS: {totalObs}
+        Actividades: {totalQuestions} | OK: {totalOk} | OBS: {totalObs}
       </Text>
 
       {item.sync_status === 'error' && item.error_message ? (

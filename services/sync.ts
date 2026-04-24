@@ -892,7 +892,7 @@ class SyncService {
             supabase
               .from('audit_questions')
               .select(
-                'id, question_code, question_text, order_index, is_active, updated_at, section_id, section:audit_question_sections(id, section_name, order_index)',
+                'id, question_code, question_text, order_index, equipment_name, is_active, updated_at, section_id, section:audit_question_sections(id, section_name, order_index)',
               )
               .eq('is_active', true)
               .order('order_index', { ascending: true })

@@ -100,7 +100,7 @@ export default function AuditoriaSessionScreen() {
       setAnswers(initialAnswers);
     } catch (error) {
       console.error('Failed to load audit questions:', error);
-      showAlert('Error', 'No se pudieron cargar las preguntas de auditoria.');
+      showAlert('Error', 'No se pudieron cargar las actividades de auditoria.');
     } finally {
       setIsLoading(false);
     }
@@ -318,7 +318,7 @@ export default function AuditoriaSessionScreen() {
     if (!validateAnswers()) {
       showAlert(
         'Validacion',
-        'Complete todas las preguntas y evidencias antes de enviar.',
+        'Complete todas las actividades y evidencias antes de enviar.',
       );
       return;
     }
@@ -426,6 +426,7 @@ export default function AuditoriaSessionScreen() {
         question={item}
         index={index}
         previousSectionName={questions[index - 1]?.section_name ?? null}
+        previousEquipmentName={questions[index - 1]?.equipment_name ?? null}
         answer={answers[item.id]}
         error={errors[item.id]}
         isSaving={isSaving}
@@ -464,7 +465,7 @@ export default function AuditoriaSessionScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" />
-          <Text style={styles.statusText}>Cargando preguntas...</Text>
+          <Text style={styles.statusText}>Cargando actividades...</Text>
         </View>
       </SafeAreaView>
     );

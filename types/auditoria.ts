@@ -13,6 +13,7 @@ export interface AuditQuestion {
   section_id: string | null;
   section_name: string | null;
   section_order_index: number | null;
+  equipment_name: string | null;
 }
 
 export type AnswerErrors = Record<

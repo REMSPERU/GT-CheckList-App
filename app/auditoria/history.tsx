@@ -276,6 +276,13 @@ export default function AuditoriaHistoryScreen() {
             return sectionA - sectionB;
           }
 
+          const equipmentA = a.equipment_name ?? '';
+          const equipmentB = b.equipment_name ?? '';
+          const equipmentCompare = equipmentA.localeCompare(equipmentB);
+          if (equipmentCompare !== 0) {
+            return equipmentCompare;
+          }
+
           return a.order_index - b.order_index;
         });
 
@@ -293,6 +300,7 @@ export default function AuditoriaHistoryScreen() {
             questionCode: question.question_code,
             questionText: question.question_text,
             sectionName: question.section_name,
+            equipmentName: question.equipment_name,
             status: normalizeAuditStatus(answer?.status),
             observation: answer?.comment || null,
             photosCount: photos.length,
@@ -353,6 +361,7 @@ export default function AuditoriaHistoryScreen() {
             questionCode: item.questionCode,
             questionText: item.questionText,
             sectionName: item.sectionName,
+            equipmentName: item.equipmentName,
             status: item.status,
             observation: item.observation,
             photosCount: item.photosCount,

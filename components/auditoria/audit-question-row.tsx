@@ -11,6 +11,7 @@ interface AuditQuestionRowProps {
   question: AuditQuestion;
   index: number;
   previousSectionName: string | null;
+  previousEquipmentName: string | null;
   answer: AuditAnswer | undefined;
   error: AnswerErrors[string] | undefined;
   isSaving: boolean;
@@ -25,6 +26,7 @@ export function AuditQuestionRow({
   question,
   index,
   previousSectionName,
+  previousEquipmentName,
   answer,
   error,
   isSaving,
@@ -34,13 +36,28 @@ export function AuditQuestionRow({
   onAddPhoto,
   onRemovePhoto,
 }: AuditQuestionRowProps) {
+  const shouldShowSystemHeader =
+    question.section_name && question.section_name !== previousSectionName;
+
+  const shouldShowEquipmentHeader =
+    question.equipment_name &&
+    (shouldShowSystemHeader ||
+      question.equipment_name !== previousEquipmentName);
+
   return (
     <View>
-      {question.section_name &&
-      question.section_name !== previousSectionName ? (
+      {shouldShowSystemHeader ? (
         <View style={sessionScreenStyles.sectionHeader}>
           <Text style={sessionScreenStyles.sectionTitle}>
-            {question.section_name}
+            Sistema: {question.section_name}
+          </Text>
+        </View>
+      ) : null}
+
+      {shouldShowEquipmentHeader ? (
+        <View style={sessionScreenStyles.equipmentHeader}>
+          <Text style={sessionScreenStyles.equipmentTitle}>
+            Equipamiento: {question.equipment_name}
           </Text>
         </View>
       ) : null}

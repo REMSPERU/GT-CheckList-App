@@ -165,6 +165,7 @@ export async function initDatabase() {
           section_id TEXT,
           section_name TEXT,
           section_order_index INTEGER,
+          equipment_name TEXT,
           is_active INTEGER,
           updated_at TEXT
         );
@@ -459,6 +460,24 @@ export async function initDatabase() {
     try {
       await db.execAsync(
         'CREATE INDEX IF NOT EXISTS idx_local_audit_questions_section_order ON local_audit_questions(is_active, section_order_index, order_index);',
+      );
+    } catch {
+      // Index already exists
+    }
+
+    // Migration v1.9: Add equipment_name to local_audit_questions
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_audit_questions ADD COLUMN equipment_name TEXT;`,
+      );
+      console.log('Migration: Added equipment_name to local_audit_questions');
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(
+        'CREATE INDEX IF NOT EXISTS idx_local_audit_questions_system_equipment_order ON local_audit_questions(is_active, section_order_index, section_name, equipment_name, order_index);',
       );
     } catch {
       // Index already exists

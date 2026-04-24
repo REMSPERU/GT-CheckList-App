@@ -68,6 +68,15 @@ export const sessionScreenStyles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
+  equipmentHeader: {
+    paddingHorizontal: 2,
+    paddingBottom: 6,
+  },
+  equipmentTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0E7490',
+  },
   submitButton: {
     marginTop: 8,
     backgroundColor: '#0891B2',
