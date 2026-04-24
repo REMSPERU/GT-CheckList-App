@@ -431,21 +431,35 @@ export default function AuditoriaSessionScreen() {
   const renderQuestionItem = useCallback(
     ({ item, index }: { item: AuditQuestion; index: number }) => {
       const previousItem = questions[index - 1];
-      const systemName = item.section_name?.trim() || 'Sin sistema';
-      const equipmentName = item.equipment_name?.trim() || 'Sin equipamiento';
-      const previousSystemName = previousItem?.section_name?.trim() || null;
-      const previousEquipmentName =
-        previousItem?.equipment_name?.trim() || null;
+      const normalizeLabel = (value: string | null | undefined) => {
+        const trimmed = value?.trim();
+        return trimmed && trimmed.length > 0 ? trimmed : null;
+      };
 
-      const isFirstInSystem = index === 0 || previousSystemName !== systemName;
+      const systemLabel = normalizeLabel(item.section_name) || 'General';
+      const equipmentLabel = normalizeLabel(item.equipment_name);
+      const previousSystemLabel = normalizeLabel(previousItem?.section_name);
+      const previousEquipmentLabel = normalizeLabel(
+        previousItem?.equipment_name,
+      );
+
+      const systemKey = normalizeLabel(item.section_name) || '__GENERAL__';
+      const equipmentKey =
+        normalizeLabel(item.equipment_name) || '__WITHOUT_EQUIPMENT__';
+      const previousSystemKey = previousSystemLabel || '__GENERAL__';
+      const previousEquipmentKey =
+        previousEquipmentLabel || '__WITHOUT_EQUIPMENT__';
+
+      const isFirstInSystem = index === 0 || previousSystemKey !== systemKey;
       const isFirstInEquipment =
         isFirstInSystem ||
-        previousSystemName !== systemName ||
-        previousEquipmentName !== equipmentName;
+        previousSystemKey !== systemKey ||
+        previousEquipmentKey !== equipmentKey;
 
-      const equipmentKey = `${systemName}::${equipmentName}`;
-      const isSystemCollapsed = collapsedSystems[systemName] ?? false;
-      const isEquipmentCollapsed = collapsedEquipments[equipmentKey] ?? false;
+      const equipmentCollapseKey = `${systemKey}::${equipmentKey}`;
+      const isSystemCollapsed = collapsedSystems[systemKey] ?? false;
+      const isEquipmentCollapsed =
+        collapsedEquipments[equipmentCollapseKey] ?? false;
 
       if (isSystemCollapsed && !isFirstInSystem) {
         return null;
@@ -459,6 +473,8 @@ export default function AuditoriaSessionScreen() {
         <AuditQuestionRow
           question={item}
           index={index}
+          systemLabel={systemLabel}
+          equipmentLabel={equipmentLabel}
           isFirstInSystem={isFirstInSystem}
           isFirstInEquipment={isFirstInEquipment}
           isSystemCollapsed={isSystemCollapsed}
@@ -469,13 +485,13 @@ export default function AuditoriaSessionScreen() {
           onToggleSystem={() => {
             setCollapsedSystems(prev => ({
               ...prev,
-              [systemName]: !prev[systemName],
+              [systemKey]: !prev[systemKey],
             }));
           }}
           onToggleEquipment={() => {
             setCollapsedEquipments(prev => ({
               ...prev,
-              [equipmentKey]: !prev[equipmentKey],
+              [equipmentCollapseKey]: !prev[equipmentCollapseKey],
             }));
           }}
           onChangeApplicable={handleChangeApplicable}

@@ -11,6 +11,8 @@ import { sessionScreenStyles } from './session-screen-styles';
 interface AuditQuestionRowProps {
   question: AuditQuestion;
   index: number;
+  systemLabel: string;
+  equipmentLabel: string | null;
   isFirstInSystem: boolean;
   isFirstInEquipment: boolean;
   isSystemCollapsed: boolean;
@@ -30,6 +32,8 @@ interface AuditQuestionRowProps {
 export function AuditQuestionRow({
   question,
   index,
+  systemLabel,
+  equipmentLabel,
   isFirstInSystem,
   isFirstInEquipment,
   isSystemCollapsed,
@@ -46,8 +50,7 @@ export function AuditQuestionRow({
   onRemovePhoto,
 }: AuditQuestionRowProps) {
   const shouldShowChecklist = !isSystemCollapsed && !isEquipmentCollapsed;
-  const systemLabel = question.section_name ?? 'Sin sistema';
-  const equipmentLabel = question.equipment_name ?? 'Sin equipamiento';
+  const shouldShowEquipmentHeader = Boolean(equipmentLabel);
 
   return (
     <View>
@@ -59,9 +62,7 @@ export function AuditQuestionRow({
           ]}
           onPress={onToggleSystem}
           accessibilityRole="button">
-          <Text style={sessionScreenStyles.sectionTitle}>
-            Sistema: {systemLabel}
-          </Text>
+          <Text style={sessionScreenStyles.sectionTitle}>{systemLabel}</Text>
           <Ionicons
             name={isSystemCollapsed ? 'chevron-down' : 'chevron-up'}
             size={18}
@@ -71,7 +72,7 @@ export function AuditQuestionRow({
         </Pressable>
       ) : null}
 
-      {!isSystemCollapsed && isFirstInEquipment ? (
+      {!isSystemCollapsed && shouldShowEquipmentHeader && isFirstInEquipment ? (
         <Pressable
           style={({ pressed }) => [
             sessionScreenStyles.equipmentHeader,
@@ -80,7 +81,7 @@ export function AuditQuestionRow({
           onPress={onToggleEquipment}
           accessibilityRole="button">
           <Text style={sessionScreenStyles.equipmentTitle}>
-            Equipamiento: {equipmentLabel}
+            {equipmentLabel}
           </Text>
           <Ionicons
             name={isEquipmentCollapsed ? 'chevron-down' : 'chevron-up'}

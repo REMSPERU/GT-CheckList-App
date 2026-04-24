@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 export const historyScreenStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#EEF2F6',
   },
   headerWrapper: {
     backgroundColor: '#fff',
@@ -13,12 +13,15 @@ export const historyScreenStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
+    gap: 2,
   },
   buildingCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 14,
+    padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5EAF1',
   },
   buildingName: {
     fontSize: 16,
@@ -31,9 +34,9 @@ export const historyScreenStyles = StyleSheet.create({
     color: '#6B7280',
   },
   createButton: {
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: '#0891B2',
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: '#0B7FA0',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -48,9 +51,11 @@ export const historyScreenStyles = StyleSheet.create({
   },
   sessionCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E5EAF1',
   },
   sessionHeader: {
     flexDirection: 'row',
