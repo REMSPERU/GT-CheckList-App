@@ -16,7 +16,7 @@ export interface AuditQuestion {
 
 export type AnswerErrors = Record<
   string,
-  { observation?: string; photos?: string }
+  { status?: string; observation?: string; photos?: string }
 >;
 
 export type ApplicableAnswerEntry = {
