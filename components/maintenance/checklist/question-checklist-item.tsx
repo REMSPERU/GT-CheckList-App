@@ -19,6 +19,7 @@ interface QuestionChecklistItemValue {
 }
 
 interface QuestionChecklistItemErrors {
+  status?: string;
   observation?: string;
   photos?: string;
 }
@@ -178,7 +179,12 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
             </View>
 
             {isApplicable ? (
-              statusButtons
+              <>
+                {statusButtons}
+                {errors?.status ? (
+                  <Text style={styles.errorText}>{errors.status}</Text>
+                ) : null}
+              </>
             ) : (
               <Text style={styles.notApplicableText}>No aplica</Text>
             )}

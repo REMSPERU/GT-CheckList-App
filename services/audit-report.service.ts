@@ -5,9 +5,9 @@ const PDF_GENERATION_TIMEOUT_MS = 60000;
 
 export interface AuditReportItem {
   order: number;
-  questionCode: string;
   questionText: string;
   sectionName: string | null;
+  equipmentName: string | null;
   status: 'OK' | 'OBS' | 'N/A';
   observation: string | null;
   photosCount: number;
@@ -23,7 +23,6 @@ export interface AuditReportSummary {
 }
 
 export interface AuditReportEvidencePhoto {
-  questionCode: string;
   questionText: string;
   observation: string | null;
   url: string;
@@ -113,7 +112,9 @@ class AuditReportService {
     }[] = [];
 
     for (const item of data.items) {
-      const sectionTitle = item.sectionName?.trim() || 'Sin seccion';
+      const systemTitle = item.sectionName?.trim() || 'Sin sistema';
+      const equipmentTitle = item.equipmentName?.trim() || 'Sin equipamiento';
+      const sectionTitle = `${systemTitle} - ${equipmentTitle}`;
       const current = groupedItems[groupedItems.length - 1];
 
       if (!current || current.title !== sectionTitle) {
@@ -137,7 +138,6 @@ class AuditReportService {
             <td>${escapeHtml(item.questionText)}</td>
             <td class="${statusClass(item.status)}">${formatStatus(item.status)}</td>
             <td>${observation}</td>
-            <td>${item.photosCount}</td>
           </tr>
             `;
           })
@@ -150,10 +150,9 @@ class AuditReportService {
       <thead>
         <tr>
           <th>#</th>
-          <th>Pregunta</th>
+          <th>Actividad</th>
           <th>Estado</th>
           <th>Observacion</th>
-          <th>Fotos</th>
         </tr>
       </thead>
       <tbody>
@@ -168,6 +167,15 @@ class AuditReportService {
     const address = data.propertyAddress
       ? escapeHtml(data.propertyAddress)
       : 'No disponible';
+    const okCount = data.summary.totalOk;
+    const obsCount = data.summary.totalObs;
+    const statusTotal = okCount + obsCount;
+    const okPercent =
+      statusTotal > 0 ? Math.round((okCount / statusTotal) * 100) : 0;
+    const donutStyle =
+      statusTotal > 0
+        ? `background: conic-gradient(#16a34a 0 ${okPercent}%, #FF6640 ${okPercent}% 100%);`
+        : 'background: conic-gradient(#d1d5db 0 100%);';
 
     const coverDate = this.formatDateOnly(data.generatedAt);
     const coverBackgroundStyle = coverTemplateImage
@@ -323,30 +331,89 @@ class AuditReportService {
       font-weight: 600;
     }
 
-    .summary {
-      width: 100%;
-      border-collapse: collapse;
+    .summary-layout {
+      width: 220px;
+      margin-left: auto;
+      margin-right: auto;
+      display: flex;
+      justify-content: center;
       margin-bottom: 14px;
     }
 
-    .summary td {
-      border: 1px solid #070707;
-      text-align: center;
-      padding: 7px 6px;
+    .status-chart-card {
+      width: 100%;
+      padding: 2px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
-    .summary-value {
-      font-size: 14px;
+    .status-chart-title {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .status-donut {
+      width: 94px;
+      height: 94px;
+      border-radius: 50%;
+      position: relative;
+      ${donutStyle}
+    }
+
+    .status-donut::after {
+      content: '';
+      position: absolute;
+      inset: 20px;
+      background: #ffffff;
+      border-radius: 50%;
+    }
+
+    .status-legend {
+      width: 100%;
+      margin-top: 0;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 9px;
+      margin-top: 3px;
+      gap: 6px;
+    }
+
+    .legend-key {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #070707;
+      font-weight: 600;
+    }
+
+    .legend-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .legend-ok {
+      background: #16a34a;
+    }
+
+    .legend-obs {
+      background: #FF6640;
+    }
+
+    .legend-total {
       font-weight: 700;
       color: #070707;
-    }
-
-    .summary-label {
-      margin-top: 2px;
-      font-size: 10px;
-      color: #070707;
-      text-transform: uppercase;
-      letter-spacing: 0.2px;
     }
 
     .details {
@@ -458,6 +525,13 @@ class AuditReportService {
       font-size: 10px;
       color: #070707;
     }
+
+    @media print {
+      .summary-layout {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
   </style>
 </head>
 <body>
@@ -487,53 +561,33 @@ class AuditReportService {
       <td>${escapeHtml(data.auditorLabel)}</td>
     </tr>
     <tr>
-      <td class="meta-label">Fecha programada</td>
+      <td class="meta-label">Fecha</td>
       <td>${escapeHtml(data.scheduledFor)}</td>
-    </tr>
-    <tr>
-      <td class="meta-label">Inicio</td>
-      <td>${escapeHtml(data.startedAt)}</td>
-    </tr>
-    <tr>
-      <td class="meta-label">Envio</td>
-      <td>${escapeHtml(data.submittedAt)}</td>
-    </tr>
-    <tr>
-      <td class="meta-label">Generado</td>
-      <td>${escapeHtml(data.generatedAt)}</td>
-    </tr>
-  </table>
-
-  <table class="summary">
-    <tr>
-      <td>
-        <div class="summary-value">${data.summary.totalQuestions}</div>
-        <div class="summary-label">Preguntas</div>
-      </td>
-      <td>
-        <div class="summary-value">${data.summary.totalApplicable}</div>
-        <div class="summary-label">Aplican</div>
-      </td>
-      <td>
-        <div class="summary-value">${data.summary.totalNotApplicable}</div>
-        <div class="summary-label">No aplican</div>
-      </td>
-      <td>
-        <div class="summary-value">${data.summary.totalOk}</div>
-        <div class="summary-label">OK</div>
-      </td>
-      <td>
-        <div class="summary-value">${data.summary.totalObs}</div>
-        <div class="summary-label">OBS</div>
-      </td>
-      <td>
-        <div class="summary-value">${data.summary.totalPhotos}</div>
-        <div class="summary-label">Fotos OBS</div>
-      </td>
     </tr>
   </table>
 
   ${detailsBySection}
+
+  <div class="summary-layout">
+    <div class="status-chart-card">
+      <div class="status-chart-title">OK vs OBS</div>
+      <div class="status-donut" aria-label="Grafico de estados"></div>
+      <div class="status-legend">
+        <div class="legend-row">
+          <span class="legend-key"><span class="legend-dot legend-ok"></span>OK</span>
+          <span>${okCount}</span>
+        </div>
+        <div class="legend-row">
+          <span class="legend-key"><span class="legend-dot legend-obs"></span>OBS</span>
+          <span>${obsCount}</span>
+        </div>
+        <div class="legend-row legend-total">
+          <span>Total</span>
+          <span>${statusTotal}</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   ${photosSection}
   </div>

@@ -7,17 +7,16 @@ export interface AuditAnswer {
 
 export interface AuditQuestion {
   id: string;
-  question_code: string;
   question_text: string;
-  order_index: number;
   section_id: string | null;
   section_name: string | null;
   section_order_index: number | null;
+  equipment_name: string | null;
 }
 
 export type AnswerErrors = Record<
   string,
-  { observation?: string; photos?: string }
+  { status?: string; observation?: string; photos?: string }
 >;
 
 export type ApplicableAnswerEntry = {

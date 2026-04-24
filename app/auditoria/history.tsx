@@ -276,7 +276,19 @@ export default function AuditoriaHistoryScreen() {
             return sectionA - sectionB;
           }
 
-          return a.order_index - b.order_index;
+          const equipmentA = a.equipment_name ?? '';
+          const equipmentB = b.equipment_name ?? '';
+          const equipmentCompare = equipmentA.localeCompare(equipmentB);
+          if (equipmentCompare !== 0) {
+            return equipmentCompare;
+          }
+
+          const textCompare = a.question_text.localeCompare(b.question_text);
+          if (textCompare !== 0) {
+            return textCompare;
+          }
+
+          return a.id.localeCompare(b.id);
         });
 
         const answersByQuestionId = new Map<string, StoredAuditAnswer>();
@@ -290,9 +302,9 @@ export default function AuditoriaHistoryScreen() {
 
           return {
             order: index + 1,
-            questionCode: question.question_code,
             questionText: question.question_text,
             sectionName: question.section_name,
+            equipmentName: question.equipment_name,
             status: normalizeAuditStatus(answer?.status),
             observation: answer?.comment || null,
             photosCount: photos.length,
@@ -306,7 +318,6 @@ export default function AuditoriaHistoryScreen() {
           }
 
           return item.photoUris.map(url => ({
-            questionCode: item.questionCode,
             questionText: item.questionText,
             observation: item.observation,
             url,
@@ -350,9 +361,9 @@ export default function AuditoriaHistoryScreen() {
           },
           items: items.map(item => ({
             order: item.order,
-            questionCode: item.questionCode,
             questionText: item.questionText,
             sectionName: item.sectionName,
+            equipmentName: item.equipmentName,
             status: item.status,
             observation: item.observation,
             photosCount: item.photosCount,

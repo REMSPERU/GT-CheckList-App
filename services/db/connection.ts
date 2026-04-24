@@ -159,12 +159,11 @@ export async function initDatabase() {
 
         CREATE TABLE IF NOT EXISTS local_audit_questions (
           id TEXT PRIMARY KEY,
-          question_code TEXT,
           question_text TEXT,
-          order_index INTEGER,
           section_id TEXT,
           section_name TEXT,
           section_order_index INTEGER,
+          equipment_name TEXT,
           is_active INTEGER,
           updated_at TEXT
         );
@@ -325,7 +324,6 @@ export async function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_activa ON local_preguntas_equipamento(activa);
         CREATE INDEX IF NOT EXISTS idx_local_user_properties_user ON local_user_properties(user_id);
         CREATE INDEX IF NOT EXISTS idx_local_user_properties_property ON local_user_properties(property_id);
-        CREATE INDEX IF NOT EXISTS idx_local_audit_questions_active_order ON local_audit_questions(is_active, order_index);
 
         CREATE INDEX IF NOT EXISTS idx_offline_maint_status ON offline_maintenance_response(status);
         CREATE INDEX IF NOT EXISTS idx_offline_maint_created ON offline_maintenance_response(created_at);
@@ -458,7 +456,25 @@ export async function initDatabase() {
 
     try {
       await db.execAsync(
-        'CREATE INDEX IF NOT EXISTS idx_local_audit_questions_section_order ON local_audit_questions(is_active, section_order_index, order_index);',
+        'CREATE INDEX IF NOT EXISTS idx_local_audit_questions_section_order ON local_audit_questions(is_active, section_order_index);',
+      );
+    } catch {
+      // Index already exists
+    }
+
+    // Migration v1.9: Add equipment_name to local_audit_questions
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_audit_questions ADD COLUMN equipment_name TEXT;`,
+      );
+      console.log('Migration: Added equipment_name to local_audit_questions');
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(
+        'CREATE INDEX IF NOT EXISTS idx_local_audit_questions_system_equipment_order ON local_audit_questions(is_active, section_order_index, section_name, equipment_name);',
       );
     } catch {
       // Index already exists

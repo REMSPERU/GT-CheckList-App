@@ -352,10 +352,23 @@ class SyncService {
           'syncing',
         );
 
-        const payload = item.audit_payload
-          ? (JSON.parse(item.audit_payload) as AuditPayload)
-          : null;
-        const summary = item.summary ? JSON.parse(item.summary) : {};
+        let payload: AuditPayload | null = null;
+        if (item.audit_payload) {
+          try {
+            payload = JSON.parse(item.audit_payload) as AuditPayload;
+          } catch {
+            throw new Error('AUDIT_LOCAL_PAYLOAD_INVALID');
+          }
+        }
+
+        let summary: Record<string, unknown> = {};
+        if (item.summary) {
+          try {
+            summary = JSON.parse(item.summary) as Record<string, unknown>;
+          } catch {
+            throw new Error('AUDIT_LOCAL_SUMMARY_INVALID');
+          }
+        }
 
         if (payload?.answers?.length) {
           for (const answer of payload.answers) {
@@ -398,7 +411,10 @@ class SyncService {
             audit_payload: payload,
             summary,
           },
-          { onConflict: 'client_submission_id' },
+          {
+            onConflict: 'client_submission_id',
+            ignoreDuplicates: true,
+          },
         );
 
         if (error) throw error;
@@ -445,6 +461,14 @@ class SyncService {
 
     if (normalized.includes('storage')) {
       return 'No se pudo subir evidencia fotografica a storage.';
+    }
+
+    if (normalized.includes('audit_local_payload_invalid')) {
+      return 'Datos locales de auditoria invalidos. Registre una nueva auditoria.';
+    }
+
+    if (normalized.includes('audit_local_summary_invalid')) {
+      return 'Resumen local de auditoria invalido. Registre una nueva auditoria.';
     }
 
     return rawMessage || 'Error desconocido al sincronizar auditoria.';
@@ -892,10 +916,10 @@ class SyncService {
             supabase
               .from('audit_questions')
               .select(
-                'id, question_code, question_text, order_index, is_active, updated_at, section_id, section:audit_question_sections(id, section_name, order_index)',
+                'id, question_text, equipment_name, is_active, updated_at, section_id, section:audit_question_sections(id, section_name, order_index)',
               )
               .eq('is_active', true)
-              .order('order_index', { ascending: true })
+              .order('question_text', { ascending: true })
               .limit(SYNC_ROW_LIMIT),
           ),
           safeFetch(() =>

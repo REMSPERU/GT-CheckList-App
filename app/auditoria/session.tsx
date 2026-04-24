@@ -31,6 +31,77 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 
+interface PreparedAuditQuestionRow {
+  question: AuditQuestion;
+  index: number;
+  systemLabel: string;
+  equipmentLabel: string | null;
+  systemKey: string;
+  equipmentCollapseKey: string;
+  isFirstInSystem: boolean;
+  isFirstInEquipment: boolean;
+}
+
+interface AuditValidationResult {
+  isValid: boolean;
+  missingStatusLocations: string[];
+  missingObservationLocations: string[];
+  missingPhotosLocations: string[];
+}
+
+function normalizeAuditLabel(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
+function buildValidationMessage(result: AuditValidationResult) {
+  const summarizeLocations = (locations: string[]) => {
+    const counter = new Map<string, number>();
+
+    locations.forEach(location => {
+      counter.set(location, (counter.get(location) ?? 0) + 1);
+    });
+
+    return [...counter.entries()]
+      .slice(0, 4)
+      .map(([location, count]) =>
+        count > 1 ? `${location} (${count})` : location,
+      )
+      .join(', ');
+  };
+
+  const lines: string[] = ['Revise los datos antes de guardar la auditoria:'];
+
+  if (result.missingStatusLocations.length > 0) {
+    lines.push(
+      `- Falta marcar OK/OBS en ${result.missingStatusLocations.length} actividad(es).`,
+    );
+    lines.push(
+      `  Revisar en: ${summarizeLocations(result.missingStatusLocations)}.`,
+    );
+  }
+
+  if (result.missingObservationLocations.length > 0) {
+    lines.push(
+      `- Hay ${result.missingObservationLocations.length} actividad(es) en OBS sin observacion.`,
+    );
+    lines.push(
+      `  Revisar en: ${summarizeLocations(result.missingObservationLocations)}.`,
+    );
+  }
+
+  if (result.missingPhotosLocations.length > 0) {
+    lines.push(
+      `- Hay ${result.missingPhotosLocations.length} actividad(es) en OBS sin evidencia fotografica.`,
+    );
+    lines.push(
+      `  Revisar en: ${summarizeLocations(result.missingPhotosLocations)}.`,
+    );
+  }
+
+  return lines.join('\n');
+}
+
 export default function AuditoriaSessionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -47,6 +118,12 @@ export default function AuditoriaSessionScreen() {
 
   const [questions, setQuestions] = useState<AuditQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, AuditAnswer>>({});
+  const [collapsedSystems, setCollapsedSystems] = useState<
+    Record<string, boolean>
+  >({});
+  const [collapsedEquipments, setCollapsedEquipments] = useState<
+    Record<string, boolean>
+  >({});
   const [errors, setErrors] = useState<AnswerErrors>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -98,9 +175,11 @@ export default function AuditoriaSessionScreen() {
         initialAnswers[question.id] = createEmptyAuditAnswer();
       });
       setAnswers(initialAnswers);
+      setCollapsedSystems({});
+      setCollapsedEquipments({});
     } catch (error) {
       console.error('Failed to load audit questions:', error);
-      showAlert('Error', 'No se pudieron cargar las preguntas de auditoria.');
+      showAlert('Error', 'No se pudieron cargar las actividades de auditoria.');
     } finally {
       setIsLoading(false);
     }
@@ -154,7 +233,7 @@ export default function AuditoriaSessionScreen() {
           [questionId]: {
             ...current,
             isApplicable,
-            status: isApplicable ? (current.status ?? true) : null,
+            status: isApplicable ? current.status : null,
             observation: isApplicable ? current.observation : '',
             photoUris: isApplicable ? current.photoUris : [],
           },
@@ -270,19 +349,29 @@ export default function AuditoriaSessionScreen() {
     setIsCameraSheetVisible(false);
   }, []);
 
-  const validateAnswers = useCallback(() => {
+  const validateAnswers = useCallback((): AuditValidationResult => {
     const nextErrors: AnswerErrors = {};
+    const missingStatusLocations: string[] = [];
+    const missingObservationLocations: string[] = [];
+    const missingPhotosLocations: string[] = [];
 
     for (const question of questions) {
       const answer = answers[question.id];
+      const systemLabel =
+        normalizeAuditLabel(question.section_name) || 'General';
+      const equipmentLabel = normalizeAuditLabel(question.equipment_name);
+      const locationLabel = equipmentLabel
+        ? `${systemLabel} - ${equipmentLabel}`
+        : systemLabel;
 
       if (!answer || !answer.isApplicable) {
         continue;
       }
 
       if (answer.status === null) {
+        missingStatusLocations.push(locationLabel);
         nextErrors[question.id] = {
-          observation: 'Seleccione OK u OBS para continuar.',
+          status: 'Seleccione OK u OBS para continuar.',
         };
         continue;
       }
@@ -290,6 +379,7 @@ export default function AuditoriaSessionScreen() {
       if (answer.status === false) {
         const obs = answer.observation.trim();
         if (!obs) {
+          missingObservationLocations.push(locationLabel);
           nextErrors[question.id] = {
             ...nextErrors[question.id],
             observation: 'Ingrese una observacion.',
@@ -297,6 +387,7 @@ export default function AuditoriaSessionScreen() {
         }
 
         if (answer.photoUris.length === 0) {
+          missingPhotosLocations.push(locationLabel);
           nextErrors[question.id] = {
             ...nextErrors[question.id],
             photos: 'Adjunte al menos una foto para OBS.',
@@ -306,7 +397,12 @@ export default function AuditoriaSessionScreen() {
     }
 
     setErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+    return {
+      isValid: Object.keys(nextErrors).length === 0,
+      missingStatusLocations,
+      missingObservationLocations,
+      missingPhotosLocations,
+    };
   }, [answers, questions]);
 
   const handleSubmit = useCallback(async () => {
@@ -315,10 +411,11 @@ export default function AuditoriaSessionScreen() {
       return;
     }
 
-    if (!validateAnswers()) {
+    const validationResult = validateAnswers();
+    if (!validationResult.isValid) {
       showAlert(
-        'Validacion',
-        'Complete todas las preguntas y evidencias antes de enviar.',
+        'Validacion incompleta',
+        buildValidationMessage(validationResult),
       );
       return;
     }
@@ -420,24 +517,105 @@ export default function AuditoriaSessionScreen() {
     validateAnswers,
   ]);
 
+  const preparedQuestions = useMemo<PreparedAuditQuestionRow[]>(() => {
+    return questions.map((question, index) => {
+      const previousQuestion = questions[index - 1];
+      const currentSystem = normalizeAuditLabel(question.section_name);
+      const currentEquipment = normalizeAuditLabel(question.equipment_name);
+      const previousSystem = normalizeAuditLabel(
+        previousQuestion?.section_name,
+      );
+      const previousEquipment = normalizeAuditLabel(
+        previousQuestion?.equipment_name,
+      );
+
+      const systemLabel = currentSystem || 'General';
+      const systemKey = currentSystem || '__GENERAL__';
+      const equipmentKey = currentEquipment || '__WITHOUT_EQUIPMENT__';
+      const previousSystemKey = previousSystem || '__GENERAL__';
+      const previousEquipmentKey = previousEquipment || '__WITHOUT_EQUIPMENT__';
+
+      const isFirstInSystem = index === 0 || previousSystemKey !== systemKey;
+      const isFirstInEquipment =
+        isFirstInSystem ||
+        previousSystemKey !== systemKey ||
+        previousEquipmentKey !== equipmentKey;
+
+      return {
+        question,
+        index,
+        systemLabel,
+        equipmentLabel: currentEquipment,
+        systemKey,
+        equipmentCollapseKey: `${systemKey}::${equipmentKey}`,
+        isFirstInSystem,
+        isFirstInEquipment,
+      };
+    });
+  }, [questions]);
+
+  const visibleQuestions = useMemo(() => {
+    return preparedQuestions.filter(item => {
+      const isSystemCollapsed = collapsedSystems[item.systemKey] ?? false;
+
+      if (isSystemCollapsed) {
+        return item.isFirstInSystem;
+      }
+
+      const isEquipmentCollapsed =
+        collapsedEquipments[item.equipmentCollapseKey] ?? false;
+
+      if (isEquipmentCollapsed) {
+        return item.isFirstInEquipment;
+      }
+
+      return true;
+    });
+  }, [collapsedEquipments, collapsedSystems, preparedQuestions]);
+
   const renderQuestionItem = useCallback(
-    ({ item, index }: { item: AuditQuestion; index: number }) => (
-      <AuditQuestionRow
-        question={item}
-        index={index}
-        previousSectionName={questions[index - 1]?.section_name ?? null}
-        answer={answers[item.id]}
-        error={errors[item.id]}
-        isSaving={isSaving}
-        onChangeApplicable={handleChangeApplicable}
-        onChangeStatus={handleChangeStatus}
-        onChangeObservation={handleChangeObservation}
-        onAddPhoto={handleOpenCameraSheet}
-        onRemovePhoto={handleRemovePhoto}
-      />
-    ),
+    ({ item }: { item: PreparedAuditQuestionRow }) => {
+      const isSystemCollapsed = collapsedSystems[item.systemKey] ?? false;
+      const isEquipmentCollapsed =
+        collapsedEquipments[item.equipmentCollapseKey] ?? false;
+
+      return (
+        <AuditQuestionRow
+          question={item.question}
+          index={item.index}
+          systemLabel={item.systemLabel}
+          equipmentLabel={item.equipmentLabel}
+          isFirstInSystem={item.isFirstInSystem}
+          isFirstInEquipment={item.isFirstInEquipment}
+          isSystemCollapsed={isSystemCollapsed}
+          isEquipmentCollapsed={isEquipmentCollapsed}
+          answer={answers[item.question.id]}
+          error={errors[item.question.id]}
+          isSaving={isSaving}
+          onToggleSystem={() => {
+            setCollapsedSystems(prev => ({
+              ...prev,
+              [item.systemKey]: !prev[item.systemKey],
+            }));
+          }}
+          onToggleEquipment={() => {
+            setCollapsedEquipments(prev => ({
+              ...prev,
+              [item.equipmentCollapseKey]: !prev[item.equipmentCollapseKey],
+            }));
+          }}
+          onChangeApplicable={handleChangeApplicable}
+          onChangeStatus={handleChangeStatus}
+          onChangeObservation={handleChangeObservation}
+          onAddPhoto={handleOpenCameraSheet}
+          onRemovePhoto={handleRemovePhoto}
+        />
+      );
+    },
     [
       answers,
+      collapsedEquipments,
+      collapsedSystems,
       errors,
       handleChangeApplicable,
       handleChangeObservation,
@@ -445,7 +623,6 @@ export default function AuditoriaSessionScreen() {
       handleOpenCameraSheet,
       handleRemovePhoto,
       isSaving,
-      questions,
     ],
   );
 
@@ -464,7 +641,7 @@ export default function AuditoriaSessionScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" />
-          <Text style={styles.statusText}>Cargando preguntas...</Text>
+          <Text style={styles.statusText}>Cargando actividades...</Text>
         </View>
       </SafeAreaView>
     );
@@ -480,8 +657,8 @@ export default function AuditoriaSessionScreen() {
       />
 
       <FlatList
-        data={questions}
-        keyExtractor={item => item.id}
+        data={visibleQuestions}
+        keyExtractor={item => item.question.id}
         contentContainerStyle={styles.listContent}
         renderItem={renderQuestionItem}
         initialNumToRender={8}
