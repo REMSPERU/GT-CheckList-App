@@ -25,6 +25,7 @@ import {
   ActivityIndicator,
   FlatList,
   Platform,
+  Pressable,
   Text,
   View,
 } from 'react-native';
@@ -49,9 +50,114 @@ interface AuditValidationResult {
   missingPhotosLocations: string[];
 }
 
+interface SystemEquipmentOption {
+  id: string;
+  label: string;
+  equipments: string[];
+}
+
+const AIR_CONDITIONING_SECTION_ALIASES = ['aire acondicionado'];
+const FIRE_SYSTEM_SECTION_ALIASES = [
+  'sistema contra incendio',
+  'sistema contra incendios',
+  'contra incendio',
+  'contra incendios',
+];
+
+const AIR_CONDITIONING_OPTIONS: SystemEquipmentOption[] = [
+  {
+    id: 'chiller-aire',
+    label: 'Chiller (aire)',
+    equipments: ['planta de agua helada aire', 'planta de agua helada chiller'],
+  },
+  {
+    id: 'chiller-agua',
+    label: 'Chiller (agua)',
+    equipments: [
+      'planta de agua helada agua helada',
+      'planta de ablandamiento y tratamiento quimico',
+    ],
+  },
+  {
+    id: 'vrv-agua',
+    label: 'VRV (agua)',
+    equipments: ['vrv', 'planta de ablandamiento y tratamiento quimico'],
+  },
+  {
+    id: 'vrv-aire',
+    label: 'VRV (aire)',
+    equipments: ['vrv'],
+  },
+];
+
+const FIRE_SYSTEM_OPTIONS: SystemEquipmentOption[] = [
+  {
+    id: 'motobomba',
+    label: 'Motobomba',
+    equipments: [
+      'motobomba',
+      'red humeda',
+      'rociadores',
+      'gabinete contra incendio',
+    ],
+  },
+  {
+    id: 'electrobomba',
+    label: 'Electrobomba',
+    equipments: [
+      'electrobomba',
+      'red humeda de rociadores',
+      'gabinetes contra incendio',
+    ],
+  },
+];
+
 function normalizeAuditLabel(value: string | null | undefined) {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeForMatch(value: string | null | undefined) {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function matchesSection(
+  sectionName: string | null | undefined,
+  expectedSections: string[],
+) {
+  const normalizedSection = normalizeForMatch(sectionName);
+
+  if (!normalizedSection) {
+    return false;
+  }
+
+  return expectedSections.some(sectionAlias => {
+    const normalizedAlias = normalizeForMatch(sectionAlias);
+    return (
+      normalizedSection === normalizedAlias ||
+      normalizedSection.includes(normalizedAlias)
+    );
+  });
+}
+
+function matchesEquipment(
+  equipmentName: string | null | undefined,
+  option: SystemEquipmentOption,
+) {
+  const normalizedEquipment = normalizeForMatch(equipmentName);
+  if (!normalizedEquipment) {
+    return false;
+  }
+
+  return option.equipments.some(equipment => {
+    const expected = normalizeForMatch(equipment);
+    return normalizedEquipment.includes(expected);
+  });
 }
 
 function buildValidationMessage(result: AuditValidationResult) {
@@ -127,6 +233,11 @@ export default function AuditoriaSessionScreen() {
   const [errors, setErrors] = useState<AnswerErrors>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedAirConditioningOption, setSelectedAirConditioningOption] =
+    useState<string | null>(null);
+  const [selectedFireSystemOption, setSelectedFireSystemOption] = useState<
+    string | null
+  >(null);
   const [isCameraSheetVisible, setIsCameraSheetVisible] = useState(false);
   const [alert, setAlert] = useState({
     visible: false,
@@ -177,6 +288,8 @@ export default function AuditoriaSessionScreen() {
       setAnswers(initialAnswers);
       setCollapsedSystems({});
       setCollapsedEquipments({});
+      setSelectedAirConditioningOption(null);
+      setSelectedFireSystemOption(null);
     } catch (error) {
       console.error('Failed to load audit questions:', error);
       showAlert('Error', 'No se pudieron cargar las actividades de auditoria.');
@@ -200,6 +313,89 @@ export default function AuditoriaSessionScreen() {
   useEffect(() => {
     void loadQuestions();
   }, [loadQuestions]);
+
+  const hasAirConditioningQuestions = useMemo(() => {
+    return questions.some(question =>
+      matchesSection(question.section_name, AIR_CONDITIONING_SECTION_ALIASES),
+    );
+  }, [questions]);
+
+  const hasFireSystemQuestions = useMemo(() => {
+    return questions.some(question =>
+      matchesSection(question.section_name, FIRE_SYSTEM_SECTION_ALIASES),
+    );
+  }, [questions]);
+
+  const filteredQuestions = useMemo(() => {
+    const selectedAirOption = AIR_CONDITIONING_OPTIONS.find(
+      option => option.id === selectedAirConditioningOption,
+    );
+    const selectedFireOption = FIRE_SYSTEM_OPTIONS.find(
+      option => option.id === selectedFireSystemOption,
+    );
+
+    return questions.filter(question => {
+      if (
+        matchesSection(question.section_name, AIR_CONDITIONING_SECTION_ALIASES)
+      ) {
+        return selectedAirOption
+          ? matchesEquipment(question.equipment_name, selectedAirOption)
+          : false;
+      }
+
+      if (matchesSection(question.section_name, FIRE_SYSTEM_SECTION_ALIASES)) {
+        return selectedFireOption
+          ? matchesEquipment(question.equipment_name, selectedFireOption)
+          : false;
+      }
+
+      return true;
+    });
+  }, [questions, selectedAirConditioningOption, selectedFireSystemOption]);
+
+  const displayQuestions = useMemo(() => {
+    const selectedAirOption = AIR_CONDITIONING_OPTIONS.find(
+      option => option.id === selectedAirConditioningOption,
+    );
+    const selectedFireOption = FIRE_SYSTEM_OPTIONS.find(
+      option => option.id === selectedFireSystemOption,
+    );
+
+    let shownAirPlaceholder = false;
+    let shownFirePlaceholder = false;
+
+    return questions.filter(question => {
+      if (
+        matchesSection(question.section_name, AIR_CONDITIONING_SECTION_ALIASES)
+      ) {
+        if (selectedAirOption) {
+          return matchesEquipment(question.equipment_name, selectedAirOption);
+        }
+
+        if (shownAirPlaceholder) {
+          return false;
+        }
+
+        shownAirPlaceholder = true;
+        return true;
+      }
+
+      if (matchesSection(question.section_name, FIRE_SYSTEM_SECTION_ALIASES)) {
+        if (selectedFireOption) {
+          return matchesEquipment(question.equipment_name, selectedFireOption);
+        }
+
+        if (shownFirePlaceholder) {
+          return false;
+        }
+
+        shownFirePlaceholder = true;
+        return true;
+      }
+
+      return true;
+    });
+  }, [questions, selectedAirConditioningOption, selectedFireSystemOption]);
 
   const handleOpenCameraSheet = useCallback(
     (questionId: string) => {
@@ -355,7 +551,7 @@ export default function AuditoriaSessionScreen() {
     const missingObservationLocations: string[] = [];
     const missingPhotosLocations: string[] = [];
 
-    for (const question of questions) {
+    for (const question of filteredQuestions) {
       const answer = answers[question.id];
       const systemLabel =
         normalizeAuditLabel(question.section_name) || 'General';
@@ -403,11 +599,35 @@ export default function AuditoriaSessionScreen() {
       missingObservationLocations,
       missingPhotosLocations,
     };
-  }, [answers, questions]);
+  }, [answers, filteredQuestions]);
 
   const handleSubmit = useCallback(async () => {
     if (!canAudit || !user?.id || !params.buildingId) {
       showAlert('Error', 'No tiene permisos para registrar auditorias.');
+      return;
+    }
+
+    const missingSelections: string[] = [];
+    if (hasAirConditioningQuestions && !selectedAirConditioningOption) {
+      missingSelections.push('Aire acondicionado');
+    }
+    if (hasFireSystemQuestions && !selectedFireSystemOption) {
+      missingSelections.push('Sistema contra incendios');
+    }
+
+    if (missingSelections.length > 0) {
+      showAlert(
+        'Seleccion requerida',
+        `Debe elegir una opcion en: ${missingSelections.join(', ')}.`,
+      );
+      return;
+    }
+
+    if (filteredQuestions.length === 0) {
+      showAlert(
+        'Sin actividades',
+        'No hay actividades disponibles para guardar.',
+      );
       return;
     }
 
@@ -438,7 +658,7 @@ export default function AuditoriaSessionScreen() {
         }
       }
 
-      const payloadAnswers = questions
+      const payloadAnswers = filteredQuestions
         .map(question => ({ question, answer: answers[question.id] }))
         .filter((entry): entry is ApplicableAnswerEntry => {
           return (
@@ -463,7 +683,8 @@ export default function AuditoriaSessionScreen() {
         item => item.status === 'OBS',
       ).length;
       const totalOk = payloadAnswers.length - totalObs;
-      const totalNotApplicable = questions.length - payloadAnswers.length;
+      const totalNotApplicable =
+        filteredQuestions.length - payloadAnswers.length;
       const totalPhotos = payloadAnswers.reduce(
         (acc, item) => acc + item.photos.length,
         0,
@@ -482,7 +703,7 @@ export default function AuditoriaSessionScreen() {
           answers: payloadAnswers,
         },
         summary: {
-          total_questions: questions.length,
+          total_questions: filteredQuestions.length,
           total_applies: payloadAnswers.length,
           total_not_applicable: totalNotApplicable,
           total_ok: totalOk,
@@ -510,16 +731,20 @@ export default function AuditoriaSessionScreen() {
     canAudit,
     isAuditor,
     params.buildingId,
-    questions,
+    filteredQuestions,
+    hasAirConditioningQuestions,
+    hasFireSystemQuestions,
     scheduledFor,
+    selectedAirConditioningOption,
+    selectedFireSystemOption,
     showAlert,
     user?.id,
     validateAnswers,
   ]);
 
   const preparedQuestions = useMemo<PreparedAuditQuestionRow[]>(() => {
-    return questions.map((question, index) => {
-      const previousQuestion = questions[index - 1];
+    return displayQuestions.map((question, index) => {
+      const previousQuestion = displayQuestions[index - 1];
       const currentSystem = normalizeAuditLabel(question.section_name);
       const currentEquipment = normalizeAuditLabel(question.equipment_name);
       const previousSystem = normalizeAuditLabel(
@@ -552,7 +777,7 @@ export default function AuditoriaSessionScreen() {
         isFirstInEquipment,
       };
     });
-  }, [questions]);
+  }, [displayQuestions]);
 
   const visibleQuestions = useMemo(() => {
     return preparedQuestions.filter(item => {
@@ -578,6 +803,93 @@ export default function AuditoriaSessionScreen() {
       const isSystemCollapsed = collapsedSystems[item.systemKey] ?? false;
       const isEquipmentCollapsed =
         collapsedEquipments[item.equipmentCollapseKey] ?? false;
+      const isAirConditioningSystem = matchesSection(
+        item.question.section_name,
+        AIR_CONDITIONING_SECTION_ALIASES,
+      );
+      const isFireSystem = matchesSection(
+        item.question.section_name,
+        FIRE_SYSTEM_SECTION_ALIASES,
+      );
+      const hideChecklist =
+        (isAirConditioningSystem && !selectedAirConditioningOption) ||
+        (isFireSystem && !selectedFireSystemOption);
+
+      const selectionHint = hideChecklist
+        ? 'Seleccione una opcion para habilitar las actividades de este sistema.'
+        : null;
+
+      const systemSelector = item.isFirstInSystem ? (
+        isAirConditioningSystem ? (
+          <View style={styles.selectorCard}>
+            <Text style={styles.selectorTitle}>
+              Sistema de aire acondicionado
+            </Text>
+            <Text style={styles.selectorSubtitle}>
+              Elija una opcion para mostrar actividades.
+            </Text>
+            <View style={styles.selectorOptionsRow}>
+              {AIR_CONDITIONING_OPTIONS.map(option => {
+                const isSelected = selectedAirConditioningOption === option.id;
+
+                return (
+                  <Pressable
+                    key={option.id}
+                    style={({ pressed }) => [
+                      styles.selectorChip,
+                      isSelected && styles.selectorChipSelected,
+                      pressed && styles.pressed,
+                    ]}
+                    onPress={() => setSelectedAirConditioningOption(option.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}>
+                    <Text
+                      style={[
+                        styles.selectorChipText,
+                        isSelected && styles.selectorChipTextSelected,
+                      ]}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : isFireSystem ? (
+          <View style={styles.selectorCard}>
+            <Text style={styles.selectorTitle}>Sistema contra incendios</Text>
+            <Text style={styles.selectorSubtitle}>
+              Elija una opcion para mostrar actividades.
+            </Text>
+            <View style={styles.selectorOptionsRow}>
+              {FIRE_SYSTEM_OPTIONS.map(option => {
+                const isSelected = selectedFireSystemOption === option.id;
+
+                return (
+                  <Pressable
+                    key={option.id}
+                    style={({ pressed }) => [
+                      styles.selectorChip,
+                      isSelected && styles.selectorChipSelected,
+                      pressed && styles.pressed,
+                    ]}
+                    onPress={() => setSelectedFireSystemOption(option.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}>
+                    <Text
+                      style={[
+                        styles.selectorChipText,
+                        isSelected && styles.selectorChipTextSelected,
+                      ]}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : null
+      ) : null;
 
       return (
         <AuditQuestionRow
@@ -589,6 +901,9 @@ export default function AuditoriaSessionScreen() {
           isFirstInEquipment={item.isFirstInEquipment}
           isSystemCollapsed={isSystemCollapsed}
           isEquipmentCollapsed={isEquipmentCollapsed}
+          hideChecklist={hideChecklist}
+          selectionHint={selectionHint}
+          systemSelector={systemSelector}
           answer={answers[item.question.id]}
           error={errors[item.question.id]}
           isSaving={isSaving}
@@ -623,6 +938,8 @@ export default function AuditoriaSessionScreen() {
       handleOpenCameraSheet,
       handleRemovePhoto,
       isSaving,
+      selectedAirConditioningOption,
+      selectedFireSystemOption,
     ],
   );
 
@@ -661,6 +978,11 @@ export default function AuditoriaSessionScreen() {
         keyExtractor={item => item.question.id}
         contentContainerStyle={styles.listContent}
         renderItem={renderQuestionItem}
+        ListEmptyComponent={
+          <Text style={styles.emptyStateText}>
+            No hay actividades para esta auditoria.
+          </Text>
+        }
         initialNumToRender={8}
         maxToRenderPerBatch={8}
         windowSize={7}
