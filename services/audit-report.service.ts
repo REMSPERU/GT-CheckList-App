@@ -52,6 +52,8 @@ function escapeHtml(value: string): string {
 
 function formatStatus(status: AuditReportItem['status']): string {
   if (status === 'N/A') return 'NO APLICA';
+  if (status === 'OK') return 'CONFORME';
+  if (status === 'OBS') return 'NO CONFORME';
   return status;
 }
 
@@ -570,15 +572,15 @@ class AuditReportService {
 
   <div class="summary-layout">
     <div class="status-chart-card">
-      <div class="status-chart-title">OK vs OBS</div>
+      <div class="status-chart-title">Conforme vs No conforme</div>
       <div class="status-donut" aria-label="Grafico de estados"></div>
       <div class="status-legend">
         <div class="legend-row">
-          <span class="legend-key"><span class="legend-dot legend-ok"></span>OK</span>
+          <span class="legend-key"><span class="legend-dot legend-ok"></span>Conforme</span>
           <span>${okCount}</span>
         </div>
         <div class="legend-row">
-          <span class="legend-key"><span class="legend-dot legend-obs"></span>OBS</span>
+          <span class="legend-key"><span class="legend-dot legend-obs"></span>No conforme</span>
           <span>${obsCount}</span>
         </div>
         <div class="legend-row legend-total">
