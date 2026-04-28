@@ -296,7 +296,7 @@ export default function AuditoriaHistoryScreen() {
           answersByQuestionId.set(answer.question_id, answer);
         });
 
-        const items = questionsSorted.map((question, index) => {
+        const allItems = questionsSorted.map((question, index) => {
           const answer = answersByQuestionId.get(question.id);
           const photos = extractPhotoUris(answer?.photos);
 
@@ -312,6 +312,13 @@ export default function AuditoriaHistoryScreen() {
           };
         });
 
+        const items = allItems
+          .filter(item => item.status !== 'N/A')
+          .map((item, index) => ({
+            ...item,
+            order: index + 1,
+          }));
+
         const evidencePhotos = items.flatMap(item => {
           if (!item.photoUris.length) {
             return [];
@@ -325,19 +332,20 @@ export default function AuditoriaHistoryScreen() {
         });
 
         const parsedSummary = parseJsonSafely<StoredSummary>(session.summary);
-        const totalQuestions = parsedSummary?.total_questions ?? items.length;
+        const totalQuestions =
+          parsedSummary?.total_questions ?? allItems.length;
         const totalNotApplicable =
           parsedSummary?.total_not_applicable ??
-          items.filter(item => item.status === 'N/A').length;
+          allItems.filter(item => item.status === 'N/A').length;
         const totalOk =
           parsedSummary?.total_ok ??
-          items.filter(item => item.status === 'OK').length;
+          allItems.filter(item => item.status === 'OK').length;
         const totalObs =
           parsedSummary?.total_obs ??
-          items.filter(item => item.status === 'OBS').length;
+          allItems.filter(item => item.status === 'OBS').length;
         const totalPhotos =
           parsedSummary?.total_photos ??
-          items.reduce((acc, item) => acc + item.photosCount, 0);
+          allItems.reduce((acc, item) => acc + item.photosCount, 0);
         const totalApplicable =
           parsedSummary?.total_applies ?? totalQuestions - totalNotApplicable;
 
