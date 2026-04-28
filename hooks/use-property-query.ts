@@ -13,6 +13,12 @@ import type {
 } from '../types/api';
 import { getLocalProperties } from '../services/db/queries';
 
+const logPropertiesFlow = (...args: unknown[]) => {
+  if (__DEV__) {
+    console.log('[useProperties]', ...args);
+  }
+};
+
 // Query Keys
 export const propertyKeys = {
   all: ['properties'] as const,
@@ -94,29 +100,44 @@ export function useProperties(
   >,
 ) {
   const queryClient = useQueryClient();
+  const normalizedFilters = filters ?? null;
+  const queryKey = propertyKeys.list(normalizedFilters);
 
   return useQuery({
-    queryKey: propertyKeys.list(filters),
+    queryKey,
     queryFn: async () => {
+      logPropertiesFlow('query start', {
+        queryKey,
+        filters: normalizedFilters,
+      });
+
       // OFFLINE-FIRST: Start with local data immediately
       const localProps = await getLocalProperties();
       const localData = transformLocalToPropertyList(localProps);
+      logPropertiesFlow('local read complete', {
+        localCount: localData.items.length,
+      });
 
       // If we have local data, return it immediately and fetch remote in background
       if (localData.items.length > 0) {
+        logPropertiesFlow(
+          'using local data and starting background remote fetch',
+        );
+
         // Fetch from Supabase in background (non-blocking)
         supabasePropertyService
-          .list(filters)
+          .list(normalizedFilters ?? undefined)
           .then(remoteData => {
             // Update the cache with fresh data from server
-            queryClient.setQueryData(propertyKeys.list(filters), remoteData);
-            console.log('Properties updated from server in background');
+            queryClient.setQueryData(queryKey, remoteData);
+            logPropertiesFlow('background remote fetch success', {
+              remoteCount: remoteData.items.length,
+            });
           })
           .catch(error => {
-            console.log(
-              'Background fetch from Supabase failed, using local data:',
+            logPropertiesFlow('background remote fetch failed, keeping local', {
               error,
-            );
+            });
           });
 
         // Return local data immediately
@@ -130,16 +151,17 @@ export function useProperties(
         );
 
         const remoteData = await Promise.race([
-          supabasePropertyService.list(filters),
+          supabasePropertyService.list(normalizedFilters ?? undefined),
           timeoutPromise,
         ]);
 
+        logPropertiesFlow('remote fetch success (no local data)', {
+          remoteCount: remoteData.items.length,
+        });
+
         return remoteData;
       } catch (error) {
-        console.log(
-          'Network request failed and no local data available:',
-          error,
-        );
+        logPropertiesFlow('remote fetch failed and local is empty', { error });
         // Return empty list as ultimate fallback
         return {
           items: [],

@@ -11,6 +11,12 @@ import type { PropertyResponse as Property } from '@/types/api';
 const LAST_BUILDING_STORAGE_KEY = '@home:last-selected-building-id';
 const CACHED_BUILDINGS_STORAGE_KEY = '@home:cached-buildings';
 
+const logHomeFlow = (...args: unknown[]) => {
+  if (__DEV__) {
+    console.log('[useHomeScreen]', ...args);
+  }
+};
+
 function normalizeText(value: string) {
   return value
     .normalize('NFD')
@@ -55,8 +61,10 @@ export function useHomeScreen() {
 
     const backgroundSync = async () => {
       try {
+        logHomeFlow('initial sync start');
         await syncService.pushData();
         await syncService.pullData();
+        logHomeFlow('initial sync done, triggering properties refetch');
         refetch();
       } catch (error) {
         console.error('Background sync failed:', error);
@@ -76,12 +84,18 @@ export function useHomeScreen() {
 
         if (savedBuildingId) {
           setLastSelectedBuildingId(savedBuildingId);
+          logHomeFlow('restored last selected building', {
+            buildingId: savedBuildingId,
+          });
         }
 
         if (savedBuildings) {
           const parsed = JSON.parse(savedBuildings) as Property[];
           if (Array.isArray(parsed) && parsed.length > 0) {
             setCachedBuildings(parsed);
+            logHomeFlow('restored cached buildings from AsyncStorage', {
+              cachedCount: parsed.length,
+            });
           }
         }
       } catch (error) {
@@ -95,6 +109,10 @@ export function useHomeScreen() {
   useEffect(() => {
     const liveBuildings = data?.items ?? [];
     if (liveBuildings.length === 0) return;
+
+    logHomeFlow('persisting live buildings to cache', {
+      liveCount: liveBuildings.length,
+    });
 
     const persistBuildings = async () => {
       try {
@@ -115,6 +133,16 @@ export function useHomeScreen() {
     const liveBuildings = data?.items ?? [];
     return liveBuildings.length > 0 ? liveBuildings : cachedBuildings;
   }, [cachedBuildings, data?.items]);
+
+  useEffect(() => {
+    const liveCount = data?.items?.length ?? 0;
+    logHomeFlow('source buildings updated', {
+      liveCount,
+      cachedCount: cachedBuildings.length,
+      sourceCount: sourceBuildings.length,
+      source: liveCount > 0 ? 'react-query/live' : 'async-storage/cached',
+    });
+  }, [cachedBuildings.length, data?.items?.length, sourceBuildings.length]);
 
   useEffect(() => {
     if (

@@ -306,7 +306,16 @@ export const useMaintenanceSessions = (propertyId: string) => {
     queryKey: ['maintenance-sessions', propertyId],
     queryFn: async () => {
       if (!propertyId) return [];
-      return await DatabaseService.getLocalSessionsByProperty(propertyId);
+      log('[useMaintenanceSessions] query start', {
+        queryKey: ['maintenance-sessions', propertyId],
+        propertyId,
+      });
+      const localSessions =
+        await DatabaseService.getLocalSessionsByProperty(propertyId);
+      log('[useMaintenanceSessions] local query result', {
+        count: localSessions.length,
+      });
+      return localSessions;
     },
     enabled: !!propertyId,
     staleTime: 1000,
