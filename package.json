@@ -1,7 +1,7 @@
 {
   "name": "gema",
   "main": "expo-router/entry",
-  "version": "1.0.60",
+  "version": "1.0.61",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
