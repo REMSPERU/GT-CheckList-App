@@ -18,14 +18,18 @@ as $$
     else true
   end;
 $$;
+
 grant execute on function public.can_read_property(uuid, uuid) to authenticated;
+
 alter table public.properties enable row level security;
+
 drop policy if exists properties_select on public.properties;
 create policy properties_select
 on public.properties
 for select
 to authenticated
 using (public.can_read_property(id, (select auth.uid())));
+
 create or replace view public.v_user_property_assignments
 with (security_invoker = true)
 as
@@ -52,4 +56,5 @@ left join public.properties p
 where
   public.is_supervisor_or_admin_user()
   or u.id = auth.uid();
+
 grant select on public.v_user_property_assignments to authenticated;

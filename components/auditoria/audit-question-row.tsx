@@ -1,4 +1,5 @@
 import { QuestionChecklistItem } from '@/components/maintenance/checklist/question-checklist-item';
+import type { ReactNode } from 'react';
 import type {
   AnswerErrors,
   AuditAnswer,
@@ -17,6 +18,9 @@ interface AuditQuestionRowProps {
   isFirstInEquipment: boolean;
   isSystemCollapsed: boolean;
   isEquipmentCollapsed: boolean;
+  hideChecklist?: boolean;
+  selectionHint?: string | null;
+  systemSelector?: ReactNode;
   answer: AuditAnswer | undefined;
   error: AnswerErrors[string] | undefined;
   isSaving: boolean;
@@ -38,6 +42,9 @@ export function AuditQuestionRow({
   isFirstInEquipment,
   isSystemCollapsed,
   isEquipmentCollapsed,
+  hideChecklist = false,
+  selectionHint = null,
+  systemSelector,
   answer,
   error,
   isSaving,
@@ -49,7 +56,8 @@ export function AuditQuestionRow({
   onAddPhoto,
   onRemovePhoto,
 }: AuditQuestionRowProps) {
-  const shouldShowChecklist = !isSystemCollapsed && !isEquipmentCollapsed;
+  const shouldShowChecklist =
+    !isSystemCollapsed && !isEquipmentCollapsed && !hideChecklist;
   const shouldShowEquipmentHeader = Boolean(equipmentLabel);
 
   return (
@@ -70,6 +78,14 @@ export function AuditQuestionRow({
             style={sessionScreenStyles.hierarchyChevron}
           />
         </Pressable>
+      ) : null}
+
+      {!isSystemCollapsed && isFirstInSystem ? systemSelector : null}
+
+      {!isSystemCollapsed && selectionHint ? (
+        <Text style={sessionScreenStyles.selectionHintText}>
+          {selectionHint}
+        </Text>
       ) : null}
 
       {!isSystemCollapsed && shouldShowEquipmentHeader && isFirstInEquipment ? (

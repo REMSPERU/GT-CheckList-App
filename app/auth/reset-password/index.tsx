@@ -33,17 +33,53 @@ function pickParam(value: string | string[] | undefined): string | null {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function extractRecoveryParams(url: string): RecoveryParams {
-  const hashPart = url.includes('#') ? url.split('#')[1] : '';
-  const queryPart = url.includes('?') ? url.split('?')[1].split('#')[0] : '';
+function extractRecoveryParams(rawUrl: string): RecoveryParams {
   const params = new URLSearchParams();
+  const visitedCandidates = new Set<string>();
+  const queue = [rawUrl];
 
-  for (const part of [queryPart, hashPart]) {
-    if (!part) continue;
+  while (queue.length > 0) {
+    const candidate = queue.shift();
+    if (!candidate || visitedCandidates.has(candidate)) {
+      continue;
+    }
 
-    const sourceParams = new URLSearchParams(part);
-    for (const [key, value] of sourceParams.entries()) {
-      params.set(key, value);
+    visitedCandidates.add(candidate);
+
+    const hashPart = candidate.includes('#') ? candidate.split('#')[1] : '';
+    const queryPart = candidate.includes('?')
+      ? candidate.split('?')[1].split('#')[0]
+      : '';
+
+    for (const part of [queryPart, hashPart]) {
+      if (!part) continue;
+
+      const sourceParams = new URLSearchParams(part);
+
+      for (const [key, value] of sourceParams.entries()) {
+        params.set(key, value);
+
+        const normalizedKey = key.toLowerCase();
+        if (
+          normalizedKey === 'link' ||
+          normalizedKey === 'redirect_to' ||
+          normalizedKey === 'url' ||
+          normalizedKey === 'deep_link_id'
+        ) {
+          let decodedValue = value;
+          try {
+            decodedValue = decodeURIComponent(value);
+          } catch {
+            decodedValue = value;
+          }
+          if (
+            decodedValue.includes('://') ||
+            decodedValue.includes('/auth/v1/')
+          ) {
+            queue.push(decodedValue);
+          }
+        }
+      }
     }
   }
 
