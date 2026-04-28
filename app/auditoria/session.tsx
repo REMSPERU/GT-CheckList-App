@@ -56,6 +56,11 @@ interface SystemEquipmentOption {
   equipments: string[];
 }
 
+interface InitialCollapsedState {
+  systems: Record<string, boolean>;
+  equipments: Record<string, boolean>;
+}
+
 const AIR_CONDITIONING_SECTION_ALIASES = ['aire acondicionado'];
 const FIRE_SYSTEM_SECTION_ALIASES = [
   'sistema contra incendio',
@@ -74,19 +79,19 @@ const AIR_CONDITIONING_OPTIONS: SystemEquipmentOption[] = [
     id: 'chiller-agua',
     label: 'Chiller (agua)',
     equipments: [
-      'planta de agua helada agua helada',
+      'planta de agua helada agua ',
       'planta de ablandamiento y tratamiento quimico',
     ],
   },
   {
     id: 'vrv-agua',
     label: 'VRV (agua)',
-    equipments: ['vrv', 'planta de ablandamiento y tratamiento quimico'],
+    equipments: ['vrv agua', 'planta de ablandamiento y tratamiento quimico'],
   },
   {
     id: 'vrv-aire',
     label: 'VRV (aire)',
-    equipments: ['vrv'],
+    equipments: ['vrv aire'],
   },
 ];
 
@@ -115,6 +120,29 @@ const FIRE_SYSTEM_OPTIONS: SystemEquipmentOption[] = [
 function normalizeAuditLabel(value: string | null | undefined) {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
+function buildInitialCollapsedState(
+  questions: AuditQuestion[],
+): InitialCollapsedState {
+  return questions.reduce<InitialCollapsedState>(
+    (acc, question) => {
+      const systemKey =
+        normalizeAuditLabel(question.section_name) || '__GENERAL__';
+      const equipmentKey =
+        normalizeAuditLabel(question.equipment_name) || '__WITHOUT_EQUIPMENT__';
+      const equipmentCollapseKey = `${systemKey}::${equipmentKey}`;
+
+      acc.systems[systemKey] = true;
+      acc.equipments[equipmentCollapseKey] = true;
+
+      return acc;
+    },
+    {
+      systems: {},
+      equipments: {},
+    },
+  );
 }
 
 function normalizeForMatch(value: string | null | undefined) {
@@ -285,9 +313,11 @@ export default function AuditoriaSessionScreen() {
       safeQuestions.forEach(question => {
         initialAnswers[question.id] = createEmptyAuditAnswer();
       });
+      const initialCollapsedState = buildInitialCollapsedState(safeQuestions);
+
       setAnswers(initialAnswers);
-      setCollapsedSystems({});
-      setCollapsedEquipments({});
+      setCollapsedSystems(initialCollapsedState.systems);
+      setCollapsedEquipments(initialCollapsedState.equipments);
       setSelectedAirConditioningOption(null);
       setSelectedFireSystemOption(null);
     } catch (error) {
