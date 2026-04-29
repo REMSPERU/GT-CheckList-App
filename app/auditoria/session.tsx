@@ -1,4 +1,5 @@
 import { AppAlertModal } from '@/components/app-alert-modal';
+import { EquipmentFeedbackCard } from '@/components/auditoria/equipment-feedback-card';
 import { AuditQuestionRow } from '@/components/auditoria/audit-question-row';
 import { SessionHeader } from '@/components/auditoria/session-header';
 import { sessionScreenStyles as styles } from '@/components/auditoria/session-screen-styles';
@@ -17,6 +18,7 @@ import type {
   AnswerErrors,
   ApplicableAnswerEntry,
   AuditAnswer,
+  StoredEquipmentFeedback,
   AuditQuestion,
 } from '@/types/auditoria';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -41,6 +43,7 @@ interface PreparedAuditQuestionRow {
   equipmentCollapseKey: string;
   isFirstInSystem: boolean;
   isFirstInEquipment: boolean;
+  isLastInEquipment: boolean;
 }
 
 interface AuditValidationResult {
@@ -59,6 +62,14 @@ interface SystemEquipmentOption {
 interface InitialCollapsedState {
   systems: Record<string, boolean>;
   equipments: Record<string, boolean>;
+}
+
+interface EquipmentFeedback {
+  equipmentLabel: string;
+  goodPracticesComment: string;
+  goodPracticesPhotos: string[];
+  improvementOpportunityComment: string;
+  improvementOpportunityPhotos: string[];
 }
 
 const AIR_CONDITIONING_SECTION_ALIASES = ['aire acondicionado'];
@@ -152,6 +163,13 @@ function normalizeForMatch(value: string | null | undefined) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
+}
+
+function buildEquipmentFeedbackKey(
+  systemLabel: string,
+  equipmentLabel: string | null,
+) {
+  return equipmentLabel ? `${systemLabel}::${equipmentLabel}` : systemLabel;
 }
 
 function matchesSection(
@@ -261,6 +279,9 @@ export default function AuditoriaSessionScreen() {
   const [errors, setErrors] = useState<AnswerErrors>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [equipmentFeedbacks, setEquipmentFeedbacks] = useState<
+    Record<string, EquipmentFeedback>
+  >({});
   const [selectedAirConditioningOption, setSelectedAirConditioningOption] =
     useState<string | null>(null);
   const [selectedFireSystemOption, setSelectedFireSystemOption] = useState<
@@ -318,6 +339,7 @@ export default function AuditoriaSessionScreen() {
       setAnswers(initialAnswers);
       setCollapsedSystems(initialCollapsedState.systems);
       setCollapsedEquipments(initialCollapsedState.equipments);
+      setEquipmentFeedbacks({});
       setSelectedAirConditioningOption(null);
       setSelectedFireSystemOption(null);
     } catch (error) {
@@ -382,6 +404,36 @@ export default function AuditoriaSessionScreen() {
       return true;
     });
   }, [questions, selectedAirConditioningOption, selectedFireSystemOption]);
+
+  const equipmentFeedbackTargets = useMemo(() => {
+    const dedup = new Map<
+      string,
+      {
+        key: string;
+        systemLabel: string;
+        equipmentLabel: string | null;
+        displayLabel: string;
+      }
+    >();
+
+    filteredQuestions.forEach(question => {
+      const systemLabel =
+        normalizeAuditLabel(question.section_name) || 'General';
+      const equipmentLabel = normalizeAuditLabel(question.equipment_name);
+      const key = buildEquipmentFeedbackKey(systemLabel, equipmentLabel);
+
+      if (!dedup.has(key)) {
+        dedup.set(key, {
+          key,
+          systemLabel,
+          equipmentLabel,
+          displayLabel: equipmentLabel || systemLabel,
+        });
+      }
+    });
+
+    return [...dedup.values()];
+  }, [filteredQuestions]);
 
   const displayQuestions = useMemo(() => {
     const selectedAirOption = AIR_CONDITIONING_OPTIONS.find(
@@ -526,6 +578,110 @@ export default function AuditoriaSessionScreen() {
       clearQuestionErrors(questionId);
     },
     [clearQuestionErrors],
+  );
+
+  const ensureEquipmentFeedback = useCallback(
+    (systemLabel: string, equipmentLabel: string | null) => {
+      const key = buildEquipmentFeedbackKey(systemLabel, equipmentLabel);
+      const resolvedLabel = equipmentLabel || systemLabel;
+
+      return {
+        key,
+        buildDefault: (): EquipmentFeedback => ({
+          equipmentLabel: resolvedLabel,
+          goodPracticesComment: '',
+          goodPracticesPhotos: [],
+          improvementOpportunityComment: '',
+          improvementOpportunityPhotos: [],
+        }),
+      };
+    },
+    [],
+  );
+
+  const handleEquipmentFeedbackCommentChange = useCallback(
+    (
+      systemLabel: string,
+      equipmentLabel: string | null,
+      field: 'goodPracticesComment' | 'improvementOpportunityComment',
+      text: string,
+    ) => {
+      const feedbackEntry = ensureEquipmentFeedback(
+        systemLabel,
+        equipmentLabel,
+      );
+
+      setEquipmentFeedbacks(prev => {
+        const current = prev[feedbackEntry.key] ?? feedbackEntry.buildDefault();
+
+        return {
+          ...prev,
+          [feedbackEntry.key]: {
+            ...current,
+            [field]: text,
+          },
+        };
+      });
+    },
+    [ensureEquipmentFeedback],
+  );
+
+  const handleOpenEquipmentFeedbackPhotoSheet = useCallback(
+    (
+      systemLabel: string,
+      equipmentLabel: string | null,
+      field: 'goodPracticesPhotos' | 'improvementOpportunityPhotos',
+    ) => {
+      const feedbackEntry = ensureEquipmentFeedback(
+        systemLabel,
+        equipmentLabel,
+      );
+
+      onPhotoSelectedRef.current = (uri: string) => {
+        setEquipmentFeedbacks(prev => {
+          const current =
+            prev[feedbackEntry.key] ?? feedbackEntry.buildDefault();
+
+          return {
+            ...prev,
+            [feedbackEntry.key]: {
+              ...current,
+              [field]: [...current[field], uri],
+            },
+          };
+        });
+      };
+
+      setIsCameraSheetVisible(true);
+    },
+    [ensureEquipmentFeedback],
+  );
+
+  const handleRemoveEquipmentFeedbackPhoto = useCallback(
+    (
+      systemLabel: string,
+      equipmentLabel: string | null,
+      field: 'goodPracticesPhotos' | 'improvementOpportunityPhotos',
+      photoIndex: number,
+    ) => {
+      const feedbackEntry = ensureEquipmentFeedback(
+        systemLabel,
+        equipmentLabel,
+      );
+
+      setEquipmentFeedbacks(prev => {
+        const current = prev[feedbackEntry.key] ?? feedbackEntry.buildDefault();
+
+        return {
+          ...prev,
+          [feedbackEntry.key]: {
+            ...current,
+            [field]: current[field].filter((_, index) => index !== photoIndex),
+          },
+        };
+      });
+    },
+    [ensureEquipmentFeedback],
   );
 
   const takePhoto = useCallback(async () => {
@@ -709,6 +865,44 @@ export default function AuditoriaSessionScreen() {
           };
         });
 
+      const payloadEquipmentFeedback: StoredEquipmentFeedback[] =
+        equipmentFeedbackTargets
+          .map(target => {
+            const feedback = equipmentFeedbacks[target.key];
+
+            const goodPracticesComment =
+              feedback?.goodPracticesComment.trim() || null;
+            const improvementOpportunityComment =
+              feedback?.improvementOpportunityComment.trim() || null;
+            const goodPracticesPhotos =
+              feedback?.goodPracticesPhotos.map(uri => ({ local_uri: uri })) ||
+              [];
+            const improvementOpportunityPhotos =
+              feedback?.improvementOpportunityPhotos.map(uri => ({
+                local_uri: uri,
+              })) || [];
+
+            const hasContent =
+              Boolean(goodPracticesComment) ||
+              Boolean(improvementOpportunityComment) ||
+              goodPracticesPhotos.length > 0 ||
+              improvementOpportunityPhotos.length > 0;
+
+            if (!hasContent) {
+              return null;
+            }
+
+            return {
+              equipment_key: target.key,
+              equipment_label: target.displayLabel,
+              good_practices_comment: goodPracticesComment,
+              good_practices_photos: goodPracticesPhotos,
+              improvement_opportunity_comment: improvementOpportunityComment,
+              improvement_opportunity_photos: improvementOpportunityPhotos,
+            };
+          })
+          .filter(item => item !== null);
+
       const totalObs = payloadAnswers.filter(
         item => item.status === 'OBS',
       ).length;
@@ -731,6 +925,7 @@ export default function AuditoriaSessionScreen() {
         auditPayload: {
           version: 2,
           answers: payloadAnswers,
+          equipment_feedback: payloadEquipmentFeedback,
         },
         summary: {
           total_questions: filteredQuestions.length,
@@ -759,6 +954,8 @@ export default function AuditoriaSessionScreen() {
   }, [
     answers,
     canAudit,
+    equipmentFeedbackTargets,
+    equipmentFeedbacks,
     isAuditor,
     params.buildingId,
     filteredQuestions,
@@ -775,6 +972,7 @@ export default function AuditoriaSessionScreen() {
   const preparedQuestions = useMemo<PreparedAuditQuestionRow[]>(() => {
     return displayQuestions.map((question, index) => {
       const previousQuestion = displayQuestions[index - 1];
+      const nextQuestion = displayQuestions[index + 1];
       const currentSystem = normalizeAuditLabel(question.section_name);
       const currentEquipment = normalizeAuditLabel(question.equipment_name);
       const previousSystem = normalizeAuditLabel(
@@ -783,18 +981,26 @@ export default function AuditoriaSessionScreen() {
       const previousEquipment = normalizeAuditLabel(
         previousQuestion?.equipment_name,
       );
+      const nextSystem = normalizeAuditLabel(nextQuestion?.section_name);
+      const nextEquipment = normalizeAuditLabel(nextQuestion?.equipment_name);
 
       const systemLabel = currentSystem || 'General';
       const systemKey = currentSystem || '__GENERAL__';
       const equipmentKey = currentEquipment || '__WITHOUT_EQUIPMENT__';
       const previousSystemKey = previousSystem || '__GENERAL__';
       const previousEquipmentKey = previousEquipment || '__WITHOUT_EQUIPMENT__';
+      const nextSystemKey = nextSystem || '__GENERAL__';
+      const nextEquipmentKey = nextEquipment || '__WITHOUT_EQUIPMENT__';
 
       const isFirstInSystem = index === 0 || previousSystemKey !== systemKey;
       const isFirstInEquipment =
         isFirstInSystem ||
         previousSystemKey !== systemKey ||
         previousEquipmentKey !== equipmentKey;
+      const isLastInEquipment =
+        index === displayQuestions.length - 1 ||
+        nextSystemKey !== systemKey ||
+        nextEquipmentKey !== equipmentKey;
 
       return {
         question,
@@ -805,6 +1011,7 @@ export default function AuditoriaSessionScreen() {
         equipmentCollapseKey: `${systemKey}::${equipmentKey}`,
         isFirstInSystem,
         isFirstInEquipment,
+        isLastInEquipment,
       };
     });
   }, [displayQuestions]);
@@ -921,6 +1128,70 @@ export default function AuditoriaSessionScreen() {
         ) : null
       ) : null;
 
+      const equipmentFeedbackContent = item.isLastInEquipment ? (
+        <EquipmentFeedbackCard
+          equipmentLabel={item.equipmentLabel || item.systemLabel}
+          value={
+            equipmentFeedbacks[
+              buildEquipmentFeedbackKey(item.systemLabel, item.equipmentLabel)
+            ] ?? {
+              equipmentLabel: item.equipmentLabel || item.systemLabel,
+              goodPracticesComment: '',
+              goodPracticesPhotos: [],
+              improvementOpportunityComment: '',
+              improvementOpportunityPhotos: [],
+            }
+          }
+          disabled={isSaving}
+          onChangeGoodPracticesComment={text =>
+            handleEquipmentFeedbackCommentChange(
+              item.systemLabel,
+              item.equipmentLabel,
+              'goodPracticesComment',
+              text,
+            )
+          }
+          onAddGoodPracticesPhoto={() =>
+            handleOpenEquipmentFeedbackPhotoSheet(
+              item.systemLabel,
+              item.equipmentLabel,
+              'goodPracticesPhotos',
+            )
+          }
+          onRemoveGoodPracticesPhoto={photoIndex =>
+            handleRemoveEquipmentFeedbackPhoto(
+              item.systemLabel,
+              item.equipmentLabel,
+              'goodPracticesPhotos',
+              photoIndex,
+            )
+          }
+          onChangeImprovementOpportunityComment={text =>
+            handleEquipmentFeedbackCommentChange(
+              item.systemLabel,
+              item.equipmentLabel,
+              'improvementOpportunityComment',
+              text,
+            )
+          }
+          onAddImprovementOpportunityPhoto={() =>
+            handleOpenEquipmentFeedbackPhotoSheet(
+              item.systemLabel,
+              item.equipmentLabel,
+              'improvementOpportunityPhotos',
+            )
+          }
+          onRemoveImprovementOpportunityPhoto={photoIndex =>
+            handleRemoveEquipmentFeedbackPhoto(
+              item.systemLabel,
+              item.equipmentLabel,
+              'improvementOpportunityPhotos',
+              photoIndex,
+            )
+          }
+        />
+      ) : null;
+
       return (
         <AuditQuestionRow
           question={item.question}
@@ -929,11 +1200,13 @@ export default function AuditoriaSessionScreen() {
           equipmentLabel={item.equipmentLabel}
           isFirstInSystem={item.isFirstInSystem}
           isFirstInEquipment={item.isFirstInEquipment}
+          isLastInEquipment={item.isLastInEquipment}
           isSystemCollapsed={isSystemCollapsed}
           isEquipmentCollapsed={isEquipmentCollapsed}
           hideChecklist={hideChecklist}
           selectionHint={selectionHint}
           systemSelector={systemSelector}
+          equipmentFeedbackContent={equipmentFeedbackContent}
           answer={answers[item.question.id]}
           error={errors[item.question.id]}
           isSaving={isSaving}
@@ -965,9 +1238,13 @@ export default function AuditoriaSessionScreen() {
       handleChangeApplicable,
       handleChangeObservation,
       handleChangeStatus,
+      handleEquipmentFeedbackCommentChange,
       handleOpenCameraSheet,
+      handleOpenEquipmentFeedbackPhotoSheet,
       handleRemovePhoto,
+      handleRemoveEquipmentFeedbackPhoto,
       isSaving,
+      equipmentFeedbacks,
       selectedAirConditioningOption,
       selectedFireSystemOption,
     ],
@@ -1018,7 +1295,9 @@ export default function AuditoriaSessionScreen() {
         windowSize={7}
         removeClippedSubviews={Platform.OS === 'android'}
         ListFooterComponent={
-          <SubmitAuditFooter isSaving={isSaving} onSubmit={handleSubmit} />
+          <View>
+            <SubmitAuditFooter isSaving={isSaving} onSubmit={handleSubmit} />
+          </View>
         }
       />
 
