@@ -1128,22 +1128,20 @@ export default function AuditoriaSessionScreen() {
         ) : null
       ) : null;
 
-      const feedbackKey = buildEquipmentFeedbackKey(
-        item.systemLabel,
-        item.equipmentLabel,
-      );
-      const feedback = equipmentFeedbacks[feedbackKey] ?? {
-        equipmentLabel: item.equipmentLabel || item.systemLabel,
-        goodPracticesComment: '',
-        goodPracticesPhotos: [],
-        improvementOpportunityComment: '',
-        improvementOpportunityPhotos: [],
-      };
-
-      const equipmentFeedbackContent = (
+      const equipmentFeedbackContent = item.isLastInEquipment ? (
         <EquipmentFeedbackCard
-          equipmentLabel={feedback.equipmentLabel}
-          value={feedback}
+          equipmentLabel={item.equipmentLabel || item.systemLabel}
+          value={
+            equipmentFeedbacks[
+              buildEquipmentFeedbackKey(item.systemLabel, item.equipmentLabel)
+            ] ?? {
+              equipmentLabel: item.equipmentLabel || item.systemLabel,
+              goodPracticesComment: '',
+              goodPracticesPhotos: [],
+              improvementOpportunityComment: '',
+              improvementOpportunityPhotos: [],
+            }
+          }
           disabled={isSaving}
           onChangeGoodPracticesComment={text =>
             handleEquipmentFeedbackCommentChange(
@@ -1192,7 +1190,7 @@ export default function AuditoriaSessionScreen() {
             )
           }
         />
-      );
+      ) : null;
 
       return (
         <AuditQuestionRow

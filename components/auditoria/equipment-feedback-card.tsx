@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { memo } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -28,7 +29,7 @@ interface EquipmentFeedbackCardProps {
   onRemoveImprovementOpportunityPhoto: (photoIndex: number) => void;
 }
 
-export function EquipmentFeedbackCard({
+export const EquipmentFeedbackCard = memo(function EquipmentFeedbackCard({
   equipmentLabel,
   value,
   disabled = false,
@@ -84,7 +85,7 @@ export function EquipmentFeedbackCard({
       </View>
     </View>
   );
-}
+});
 
 interface PhotoRowProps {
   uris: string[];
