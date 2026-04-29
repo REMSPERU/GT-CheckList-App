@@ -43,6 +43,7 @@ interface PreparedAuditQuestionRow {
   equipmentCollapseKey: string;
   isFirstInSystem: boolean;
   isFirstInEquipment: boolean;
+  isLastInEquipment: boolean;
 }
 
 interface AuditValidationResult {
@@ -971,6 +972,7 @@ export default function AuditoriaSessionScreen() {
   const preparedQuestions = useMemo<PreparedAuditQuestionRow[]>(() => {
     return displayQuestions.map((question, index) => {
       const previousQuestion = displayQuestions[index - 1];
+      const nextQuestion = displayQuestions[index + 1];
       const currentSystem = normalizeAuditLabel(question.section_name);
       const currentEquipment = normalizeAuditLabel(question.equipment_name);
       const previousSystem = normalizeAuditLabel(
@@ -979,18 +981,26 @@ export default function AuditoriaSessionScreen() {
       const previousEquipment = normalizeAuditLabel(
         previousQuestion?.equipment_name,
       );
+      const nextSystem = normalizeAuditLabel(nextQuestion?.section_name);
+      const nextEquipment = normalizeAuditLabel(nextQuestion?.equipment_name);
 
       const systemLabel = currentSystem || 'General';
       const systemKey = currentSystem || '__GENERAL__';
       const equipmentKey = currentEquipment || '__WITHOUT_EQUIPMENT__';
       const previousSystemKey = previousSystem || '__GENERAL__';
       const previousEquipmentKey = previousEquipment || '__WITHOUT_EQUIPMENT__';
+      const nextSystemKey = nextSystem || '__GENERAL__';
+      const nextEquipmentKey = nextEquipment || '__WITHOUT_EQUIPMENT__';
 
       const isFirstInSystem = index === 0 || previousSystemKey !== systemKey;
       const isFirstInEquipment =
         isFirstInSystem ||
         previousSystemKey !== systemKey ||
         previousEquipmentKey !== equipmentKey;
+      const isLastInEquipment =
+        index === displayQuestions.length - 1 ||
+        nextSystemKey !== systemKey ||
+        nextEquipmentKey !== equipmentKey;
 
       return {
         question,
@@ -1001,6 +1011,7 @@ export default function AuditoriaSessionScreen() {
         equipmentCollapseKey: `${systemKey}::${equipmentKey}`,
         isFirstInSystem,
         isFirstInEquipment,
+        isLastInEquipment,
       };
     });
   }, [displayQuestions]);
@@ -1191,6 +1202,7 @@ export default function AuditoriaSessionScreen() {
           equipmentLabel={item.equipmentLabel}
           isFirstInSystem={item.isFirstInSystem}
           isFirstInEquipment={item.isFirstInEquipment}
+          isLastInEquipment={item.isLastInEquipment}
           isSystemCollapsed={isSystemCollapsed}
           isEquipmentCollapsed={isEquipmentCollapsed}
           hideChecklist={hideChecklist}

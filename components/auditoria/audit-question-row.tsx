@@ -6,7 +6,7 @@ import type {
   AuditQuestion,
 } from '@/types/auditoria';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { sessionScreenStyles } from './session-screen-styles';
 
 interface AuditQuestionRowProps {
@@ -16,6 +16,7 @@ interface AuditQuestionRowProps {
   equipmentLabel: string | null;
   isFirstInSystem: boolean;
   isFirstInEquipment: boolean;
+  isLastInEquipment: boolean;
   isSystemCollapsed: boolean;
   isEquipmentCollapsed: boolean;
   hideChecklist?: boolean;
@@ -41,6 +42,7 @@ export function AuditQuestionRow({
   equipmentLabel,
   isFirstInSystem,
   isFirstInEquipment,
+  isLastInEquipment,
   isSystemCollapsed,
   isEquipmentCollapsed,
   hideChecklist = false,
@@ -110,33 +112,40 @@ export function AuditQuestionRow({
         </Pressable>
       ) : null}
 
-      {!isSystemCollapsed && !isEquipmentCollapsed && isFirstInEquipment
-        ? equipmentFeedbackContent
-        : null}
-
       {shouldShowChecklist ? (
-        <QuestionChecklistItem
-          order={index + 1}
-          question={question.question_text}
-          value={{
-            isApplicable: answer?.isApplicable ?? true,
-            status: answer?.status ?? null,
-            observation: answer?.observation ?? '',
-            photoUris: answer?.photoUris ?? [],
-          }}
-          onChangeApplicable={isApplicable =>
-            onChangeApplicable(question.id, isApplicable)
-          }
-          showApplicabilityToggle={true}
-          onChangeStatus={status => onChangeStatus(question.id, status)}
-          onChangeObservation={text => onChangeObservation(question.id, text)}
-          onAddPhoto={() => onAddPhoto(question.id)}
-          onRemovePhoto={photoIndex => onRemovePhoto(question.id, photoIndex)}
-          errors={error}
-          disabled={isSaving}
-          statusLayout="stacked"
-        />
+        <View
+          style={shouldShowEquipmentHeader ? styles.equipmentContent : null}>
+          <QuestionChecklistItem
+            order={index + 1}
+            question={question.question_text}
+            value={{
+              isApplicable: answer?.isApplicable ?? true,
+              status: answer?.status ?? null,
+              observation: answer?.observation ?? '',
+              photoUris: answer?.photoUris ?? [],
+            }}
+            onChangeApplicable={isApplicable =>
+              onChangeApplicable(question.id, isApplicable)
+            }
+            showApplicabilityToggle={true}
+            onChangeStatus={status => onChangeStatus(question.id, status)}
+            onChangeObservation={text => onChangeObservation(question.id, text)}
+            onAddPhoto={() => onAddPhoto(question.id)}
+            onRemovePhoto={photoIndex => onRemovePhoto(question.id, photoIndex)}
+            errors={error}
+            disabled={isSaving}
+            statusLayout="stacked"
+          />
+
+          {isLastInEquipment ? equipmentFeedbackContent : null}
+        </View>
       ) : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  equipmentContent: {
+    marginLeft: 8,
+  },
+});
