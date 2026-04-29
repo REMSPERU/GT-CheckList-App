@@ -21,6 +21,7 @@ interface AuditQuestionRowProps {
   hideChecklist?: boolean;
   selectionHint?: string | null;
   systemSelector?: ReactNode;
+  equipmentFeedbackContent?: ReactNode;
   answer: AuditAnswer | undefined;
   error: AnswerErrors[string] | undefined;
   isSaving: boolean;
@@ -45,6 +46,7 @@ export function AuditQuestionRow({
   hideChecklist = false,
   selectionHint = null,
   systemSelector,
+  equipmentFeedbackContent,
   answer,
   error,
   isSaving,
@@ -107,6 +109,10 @@ export function AuditQuestionRow({
           />
         </Pressable>
       ) : null}
+
+      {!isSystemCollapsed && !isEquipmentCollapsed && isFirstInEquipment
+        ? equipmentFeedbackContent
+        : null}
 
       {shouldShowChecklist ? (
         <QuestionChecklistItem

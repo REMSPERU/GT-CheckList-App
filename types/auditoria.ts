@@ -40,6 +40,16 @@ export interface StoredAuditAnswer {
 export interface StoredAuditPayload {
   version: number;
   answers: StoredAuditAnswer[];
+  equipment_feedback?: StoredEquipmentFeedback[];
+}
+
+export interface StoredEquipmentFeedback {
+  equipment_key: string;
+  equipment_label: string;
+  good_practices_comment?: string | null;
+  good_practices_photos?: StoredPhoto[];
+  improvement_opportunity_comment?: string | null;
+  improvement_opportunity_photos?: StoredPhoto[];
 }
 
 export interface StoredSummary {
