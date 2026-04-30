@@ -23,7 +23,10 @@ export interface AuditReportSummary {
 }
 
 export interface AuditReportEvidencePhoto {
+  order: number;
   questionText: string;
+  sectionName: string | null;
+  equipmentName: string | null;
   observation: string | null;
   url: string;
 }
@@ -190,6 +193,14 @@ class AuditReportService {
   <div class="photo-grid">
     ${data.evidencePhotos
       .map(photo => {
+        const systemLabel = [photo.sectionName, photo.equipmentName]
+          .filter(Boolean)
+          .join(' - ');
+        const metaParts = [`Pregunta ${photo.order}`];
+        if (systemLabel) {
+          metaParts.push(systemLabel);
+        }
+        const photoMeta = `<div class="photo-meta">${escapeHtml(metaParts.join(' | '))}</div>`;
         const observation = photo.observation
           ? `<div class="photo-caption">OBS: ${escapeHtml(photo.observation)}</div>`
           : '';
@@ -197,6 +208,7 @@ class AuditReportService {
         return `
       <div class="photo-card">
         <img class="photo-image" src="${escapeHtml(photo.url)}" alt="Evidencia: ${escapeHtml(photo.questionText)}" />
+        ${photoMeta}
         <div class="photo-title">${escapeHtml(photo.questionText)}</div>
         ${observation}
       </div>
@@ -421,7 +433,23 @@ class AuditReportService {
     .details {
       width: 100%;
       border-collapse: collapse;
+      table-layout: fixed;
       font-size: 10px;
+    }
+
+    .details th:nth-child(1),
+    .details td:nth-child(1) {
+      width: 7%;
+    }
+
+    .details th:nth-child(3),
+    .details td:nth-child(3) {
+      width: 16%;
+    }
+
+    .details th:nth-child(4),
+    .details td:nth-child(4) {
+      width: 22%;
     }
 
     .details th {
@@ -439,6 +467,7 @@ class AuditReportService {
       border: 1px solid #070707;
       padding: 6px;
       vertical-align: top;
+      word-break: break-word;
       color: #070707;
     }
 
@@ -512,6 +541,16 @@ class AuditReportService {
       font-size: 9px;
       font-weight: 700;
       color: #070707;
+    }
+
+    .photo-meta {
+      margin-top: 5px;
+      font-size: 8.5px;
+      font-weight: 700;
+      color: #FF6640;
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+      line-height: 1.3;
     }
 
     .photo-caption {
