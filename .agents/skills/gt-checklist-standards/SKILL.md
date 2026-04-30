@@ -1,200 +1,110 @@
 ---
 name: gt-checklist-standards
-description: Project operating standard for GT-CheckList-App. Use this skill for any coding task in this repository (features, fixes, refactors, docs, DB, sync, forms, routing) so outputs stay consistent with the offline-first architecture, TypeScript conventions, and delivery checklist.
+description: Base operating standard for GT-CheckList-App. Keep changes aligned with offline-first architecture, strict TypeScript, and stable sync behavior.
 license: MIT
 metadata:
   author: GT-CheckList team
-  version: '1.1.0'
+  version: '1.2.1'
   project: GT-CheckList-App
   stack: Expo Router v6, React Native 0.81, React 19, Supabase, expo-sqlite
 ---
 
 # GT CheckList Project Standard
 
-Apply this skill by default for any task inside this repository.
+Use this skill by default for any task in this repo.
 
-## Goal
+## Must keep
 
-Keep all changes aligned with one consistent standard:
+- Offline-first behavior
+- Existing project structure and naming
+- Strict TypeScript conventions
+- Reuse existing components and patterns
 
-- Preserve offline-first behavior
-- Match project structure and naming conventions
-- Keep TypeScript strict and predictable
-- Follow existing UI and data patterns
-- Deliver changes with clear validation steps
-- Enforce one modern, minimalist design line across the app
-- Reuse components before creating new ones
+## Required workflow
 
-## How this skill is used
+1. Understand scope and impacted layers
+2. Reuse existing patterns before creating new ones
+3. Implement with local-first + safe sync
+4. Validate with available commands
+5. Report what changed and why
 
-Use this as the default base skill for every task in this repository.
+## Offline-first rules (critical)
 
-- Feature work: apply this skill first, then add domain skills if needed
-- Bug fixes/refactors: keep the same architecture and visual line
-- DB requests: keep this skill active and layer Supabase-specific guidance
+- Reads: local SQLite mirror first
+- Writes: queue offline, sync later
+- Sync compatibility: `services/sync.ts` and `services/sync-queue.ts`
+- No network-only path for core flows unless explicitly requested
 
-If the user asks for a change that breaks the shared line, explain the impact and
-propose the closest compliant alternative.
+## Sync controller rules (critical)
 
-## Mandatory workflow
+- Single-flight sync (no concurrent full sync)
+- Every trigger needs explicit `reason`
+- Dedup close triggers with a time window
+- Keep pull throttling
+- If sync is running, queue one pending run
+- Drain offline queue on reconnect
 
-Follow this sequence on every implementation task.
+When adding a new trigger, justify why existing triggers are not enough.
 
-1. Understand scope and affected layers
-2. Locate existing domain patterns before writing code
-3. Implement with offline-first and type-safe defaults
-4. Verify with lint/build checks that are available
-5. Report what changed, why, and how it was validated
+## Screen loading contract
 
-If a request conflicts with this standard, explain the tradeoff and use the safest default.
+- Hydrate local data before empty state
+- Use clear states: `hydrating-local`, `ready`, `syncing-remote`
+- Run remote sync/fetch in background
+- Show empty only after local hydration finishes
 
-## Architecture guardrails (critical)
+## Navigation contract
 
-This app is offline-first. Protect these rules:
+- Use Expo Router dynamic path style (e.g. `/equipment-record/[propertyId]/history`)
+- Do not duplicate params in path interpolation + params object
+- Keep params minimal and typed
 
-- Reads: prefer local SQLite mirror tables for immediate data
-- Writes: queue offline writes and sync later instead of requiring network
-- Sync: keep compatibility with `services/sync.ts` and `services/sync-queue.ts`
-- Auth/session: preserve local persistence behavior
-- Failures: network errors should degrade gracefully to local data when possible
+## Logging contract
 
-Do not introduce a network-only path for core user flows unless explicitly required.
+- Operational logs: concise and structured (`reason`, counts, elapsed ms)
+- Debug logs behind `__DEV__`
+- Avoid repeated identical logs from re-renders/effects
+- Fix warnings; do not ignore as normal noise
 
-## Project structure rules
+## Structure and naming
 
-Respect directory boundaries:
-
-- `app/`: routes/screens only
+- `app/`: screens/routes
 - `components/`: reusable UI
-- `hooks/`: one hook per file, React Query wrappers
-- `services/`: business logic and data access
-- `services/db/`: SQLite access and migrations
-- `schemas/`: Zod schemas
-- `types/`: interfaces/enums shared across layers
+- `hooks/`: one hook per file (React Query wrappers)
+- `services/`: business/data logic
+- `services/db/`: SQLite/migrations
+- `schemas/`: Zod
+- `types/`: shared interfaces/enums
 
-When adding files, prefer existing folder conventions over creating new top-level patterns.
+Naming:
 
-## Naming and TypeScript rules
-
-- New files: kebab-case
-- Shared components: named exports
-- Screen files in `app/`: default export
-- Use `type` imports for type-only imports
+- New files in kebab-case
+- `app/` screens export default
+- Shared components use named exports
+- Use `type` imports for type-only
 - Prefer `unknown` over `any`
-- Use `T | null` (not `undefined`) for nullable API/Supabase fields
-- Keep query key factories close to hooks and follow existing key style
+- Nullable API fields as `T | null`
 
-Preserve Spanish domain naming in API/data fields (`tipo_mantenimiento`,
-`dia_programado`, etc.).
-
-## Data and form rules
-
-- Use React Query for server state and caching
-- Keep service methods throwing on error (do not silently swallow critical errors)
-- For complex forms, use `react-hook-form` + Zod schemas
-- Persist multistep drafts in AsyncStorage where the flow already expects it
-
-## UI and UX consistency
-
-When editing existing screens/components:
-
-- Preserve established visual language and navigation behavior
-- Avoid introducing a new design system style in isolated screens
-- Keep mobile-first behavior for Android/iOS
-- Use existing component patterns before adding a new abstraction
-
-## Design line: modern and minimalist (required)
-
-All UI changes must follow one coherent style:
-
-- Minimal visual noise: clean layouts, clear hierarchy, no decorative overload
-- Consistent spacing scale and typography rhythm across screens
-- Neutral, intentional palette with strong readability and accessible contrast
-- Repeated patterns for cards, inputs, buttons, headers, and feedback states
-- Consistent interaction behavior (loading, empty, error, success states)
-
-Do not introduce one-off visual styles that break the global design line.
-
-## Reuse-first component policy
-
-Before creating a new component:
-
-1. Search for existing reusable components in `components/`
-2. Extend existing variants/props when the pattern is equivalent
-3. Create a new component only when reuse is not practical
-
-When creating new shared UI, keep it generic, typed, and composable so other
-screens can reuse it.
-
-Avoid copy-pasting JSX blocks across screens if a reusable component can cover it.
-
-## Database workflow: Supabase CLI sync and verification (required)
-
-When the user asks for database work, assume the model can and should use
-Supabase CLI to connect, inspect, modify, and verify database state.
-
-Primary objective:
-
-- Ensure project DB artifacts (migrations, SQL, types, assumptions in code)
-  match Supabase state
-- Detect and resolve schema drift between repository and Supabase
-
-Required approach:
-
-1. Inspect current DB context (local + Supabase project context)
-2. Use Supabase CLI as the default path for DB operations
-3. Apply changes through reproducible migrations/SQL in the repository
-4. Verify that repository state and Supabase state match after changes
-5. Report what was checked, changed, and verified
-
-Prefer CLI-based verification and synchronization over ad-hoc/manual edits.
-
-If an operation is potentially destructive (reset/drop/data loss), warn clearly
-before executing and propose a safe alternative first.
-
-## Imports and formatting
-
-Use import order already used in the codebase:
-
-1. React / React Native
-2. Expo modules
-3. Third-party libs
-4. Internal modules (`@/` preferred for cross-directory imports)
-
-Formatting must match project tooling:
-
-- single quotes
-- semicolons
-- trailing commas
-- 2 spaces
-
-## Validation checklist
-
-After code changes, run what is available and relevant:
+## Validation
 
 - `npm run lint`
-- If formatting drift appears: `npm run format` or `npm run format:check`
+- If needed: `npm run format` or `npm run format:check`
 
-Testing note: this repo currently has no configured test runner. Do not claim tests were run unless a test setup was added.
+Note: there is no configured test runner unless explicitly added.
 
-## Delivery format for responses
+## Response format
 
-When reporting work, include:
+Always report:
 
 - What changed
-- Why this approach
-- Offline-first impact (if data flow changed)
-- Validation executed (commands + result)
-- Remaining risks or follow-ups
+- Why
+- Offline-first impact (if any)
+- Validation run
+- Remaining risks/follow-ups
 
-Keep responses concise and implementation-focused.
+## Add-on skills
 
-## Skill composition guidance
+Load additionally when needed:
 
-When task scope matches these domains, also load:
-
-- `supabase-postgres-best-practices` for SQL/schema/query tuning
-- `vercel-react-native-skills` for RN/Expo performance and UI behavior
-- `documentation` for READMEs/runbooks/guides
-
-This skill is the base standard; domain skills are additive.
+- `supabase-postgres-best-practices` (DB/SQL)
+- `vercel-react-native-skills` (RN/Expo performance)
