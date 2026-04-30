@@ -37,6 +37,8 @@ class SyncQueueService {
   private netInfoUnsubscribe: (() => void) | null = null;
   private listeners: Set<() => void> = new Set();
   private initialized = false;
+  /** Track previous network state to detect real reconnect transitions */
+  private wasConnected = false;
 
   /**
    * Start the sync queue service. Must be called after DatabaseService.initDatabase().
@@ -51,10 +53,15 @@ class SyncQueueService {
     // Listen for network changes to trigger sync on reconnect
     this.netInfoUnsubscribe = NetInfo.addEventListener(
       (state: NetworkState) => {
-        if (state.isConnected) {
-          console.log('[SYNC-QUEUE] Network connected, processing queue...');
+        const isNowConnected = state.isConnected ?? false;
+        // Only process queue on actual reconnect (was disconnected → now connected)
+        if (isNowConnected && !this.wasConnected) {
+          console.log(
+            '[SYNC-QUEUE] Network reconnected, processing queue...',
+          );
           this.processQueue();
         }
+        this.wasConnected = isNowConnected;
       },
     );
   }
@@ -303,6 +310,7 @@ class SyncQueueService {
     this.listeners.clear();
     this.initialized = false;
     this.isProcessing = false;
+    this.wasConnected = false;
   }
 }
 

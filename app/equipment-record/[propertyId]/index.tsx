@@ -46,7 +46,7 @@ export default function EquipmentSelectionScreen() {
 
   const handleSelectType = (type: string) => {
     router.push({
-      pathname: `/equipment-record/${propertyId}/history` as any,
+      pathname: '/equipment-record/[propertyId]/history',
       params: {
         propertyId,
         propertyName,
@@ -61,6 +61,7 @@ export default function EquipmentSelectionScreen() {
         <MaintenanceHeader
           title="Historial de Equipos"
           iconName="file-tray-full-outline"
+          iconFamily="Ionicons"
         />
 
         {propertyName && (

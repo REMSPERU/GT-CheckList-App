@@ -77,8 +77,7 @@ export default function EquipmentRecordSelectionScreen() {
 
     const backgroundSync = async () => {
       try {
-        await syncService.pushData();
-        await syncService.pullData();
+        await syncService.triggerSync('equipment-record-mount');
         refetch();
       } catch (error) {
         console.error('Background sync failed:', error);

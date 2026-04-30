@@ -263,7 +263,7 @@ export default function EquipmentMaintenanceListScreen() {
 
       const refreshOnFocus = async () => {
         try {
-          void syncService.pushData().catch(error => {
+          void syncService.triggerSync('equipment-maintenance-list-focus', { pushOnly: true }).catch(error => {
             console.error('Focus push failed in equipment list:', error);
           });
         } catch (error) {
@@ -429,8 +429,7 @@ export default function EquipmentMaintenanceListScreen() {
     setIsManualSyncing(true);
 
     try {
-      await syncService.pushData();
-      await syncService.pullData(true);
+      await syncService.triggerSync('equipment-maintenance-list-manual-sync', { force: true });
       await refetch();
     } catch (error) {
       console.error('Manual sync failed in equipment list:', error);
@@ -493,7 +492,7 @@ export default function EquipmentMaintenanceListScreen() {
 
       // Trigger background sync
       syncService
-        .pushData()
+        .triggerSync('equipment-maintenance-list-post-photos', { pushOnly: true })
         .catch(err => console.error('Background sync failed:', err));
 
       // Close modal and navigate

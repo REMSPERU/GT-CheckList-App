@@ -167,7 +167,7 @@ export default function EmergencyLightsSummaryScreen() {
 
       // Trigger background sync
       syncService
-        .pushData()
+        .triggerSync('emergency-lights-summary-submit', { pushOnly: true })
         .catch(err => console.error('Background sync failed:', err));
 
       // Clear session

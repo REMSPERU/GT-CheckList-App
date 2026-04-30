@@ -159,7 +159,7 @@ export default function GroundingWellsScreen() {
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await syncService.pullData();
+      await syncService.triggerSync('grounding-wells-refresh', { force: true });
       await loadData();
     } catch (err) {
       console.error('Refresh failed:', err);

@@ -93,8 +93,7 @@ export default function MaintenanceScreen() {
     const backgroundSync = async () => {
       try {
         log('Background sync starting...');
-        await syncService.pushData();
-        await syncService.pullData();
+        await syncService.triggerSync('maintenance-screen-mount');
         refetch();
         log('Background sync completed.');
       } catch (error) {

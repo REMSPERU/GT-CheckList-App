@@ -62,8 +62,7 @@ export function useHomeScreen() {
     const backgroundSync = async () => {
       try {
         logHomeFlow('initial sync start');
-        await syncService.pushData();
-        await syncService.pullData();
+        await syncService.triggerSync('home-screen-mount');
         logHomeFlow('initial sync done, triggering properties refetch');
         refetch();
       } catch (error) {
@@ -106,15 +105,27 @@ export function useHomeScreen() {
     void loadCachedHomeData();
   }, []);
 
+  // Ref to track the last hash we persisted, avoiding redundant writes
+  const lastPersistedHashRef = useRef('');
+
   useEffect(() => {
     const liveBuildings = data?.items ?? [];
     if (liveBuildings.length === 0) return;
+
+    // Simple hash: length + first/last IDs. Skip write if unchanged.
+    const hash = `${liveBuildings.length}:${liveBuildings[0]?.id}:${liveBuildings[liveBuildings.length - 1]?.id}`;
+    if (hash === lastPersistedHashRef.current) return;
+    lastPersistedHashRef.current = hash;
 
     logHomeFlow('persisting live buildings to cache', {
       liveCount: liveBuildings.length,
     });
 
-    const persistBuildings = async () => {
+    setCachedBuildings(liveBuildings);
+
+    // Debounced write (500ms) — coalesces rapid updates from
+    // local-return → background-remote-return → post-sync-refetch
+    const timeoutId = setTimeout(async () => {
       try {
         await AsyncStorage.setItem(
           CACHED_BUILDINGS_STORAGE_KEY,
@@ -123,10 +134,9 @@ export function useHomeScreen() {
       } catch (error) {
         console.error('Failed to cache buildings:', error);
       }
-    };
+    }, 500);
 
-    setCachedBuildings(liveBuildings);
-    void persistBuildings();
+    return () => clearTimeout(timeoutId);
   }, [data?.items]);
 
   const sourceBuildings = useMemo(() => {
