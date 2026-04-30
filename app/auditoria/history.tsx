@@ -325,7 +325,10 @@ export default function AuditoriaHistoryScreen() {
           }
 
           return item.photoUris.map(url => ({
+            order: item.order,
             questionText: item.questionText,
+            sectionName: item.sectionName,
+            equipmentName: item.equipmentName,
             observation: item.observation,
             url,
           }));

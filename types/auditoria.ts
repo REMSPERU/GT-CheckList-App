@@ -74,6 +74,26 @@ export interface OfflineAuditSession {
   created_at: string;
 }
 
+/** Runtime shape used by the audit session UI for per-equipment feedback. */
+export interface EquipmentFeedback {
+  equipmentLabel: string;
+  goodPracticesComment: string;
+  goodPracticesPhotos: string[];
+  improvementOpportunityComment: string;
+  improvementOpportunityPhotos: string[];
+}
+
+/** Shape persisted to AsyncStorage while an audit session is in-progress. */
+export interface AuditSessionDraft {
+  buildingId: string;
+  startedAt: string;
+  answers: Record<string, AuditAnswer>;
+  equipmentFeedbacks: Record<string, EquipmentFeedback>;
+  selectedAirConditioningOption: string | null;
+  selectedFireSystemOption: string | null;
+  lastUpdatedAt: string;
+}
+
 export interface LocalUserRecord {
   username?: string;
   email?: string;
