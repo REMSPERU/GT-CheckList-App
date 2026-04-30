@@ -212,7 +212,7 @@ export default function ElectricalPanelsScreen() {
         }, REFRESH_TIMEOUT_MS);
 
         try {
-          await syncService.pullData();
+          await syncService.triggerSync('electrical-panels-refresh', { force: true });
           clearTimeout(timeoutId);
           resolve();
         } catch (err) {

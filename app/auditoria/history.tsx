@@ -98,7 +98,7 @@ export default function AuditoriaHistoryScreen() {
 
     setIsBackgroundSyncing(true);
     try {
-      await syncService.pullData();
+      await syncService.triggerSync('audit-history-focus');
       await loadLocalHistory();
     } catch (error) {
       console.error('Failed to sync audit history in background:', error);
@@ -144,8 +144,7 @@ export default function AuditoriaHistoryScreen() {
 
     setIsRefreshing(true);
     try {
-      await syncService.pushData();
-      await syncService.pullData(true);
+      await syncService.triggerSync('audit-history-refresh', { force: true });
       await loadLocalHistory();
     } catch (error) {
       console.error('Failed to refresh audit history:', error);

@@ -988,9 +988,11 @@ export default function AuditoriaSessionScreen() {
         },
       });
 
-      syncService.pushData().catch(error => {
-        console.error('Audit push failed, will retry later:', error);
-      });
+      syncService
+        .triggerSync('audit-session-submit', { pushOnly: true })
+        .catch(error => {
+          console.error('Audit push failed, will retry later:', error);
+        });
 
       // Draft is no longer needed after successful submit
       await clearDraft();

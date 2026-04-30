@@ -336,7 +336,7 @@ export default function EquipmentChecklistListScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await syncService.pullData();
+      await syncService.triggerSync('checklist-index-refresh', { force: true });
       await loadData();
     } catch (error) {
       console.error('Checklist list refresh failed:', error);

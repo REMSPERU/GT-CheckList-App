@@ -132,7 +132,7 @@ export default function SelectDeviceScreen() {
     setIsRefreshing(true);
     try {
       // 1. Trigger Sync
-      await syncService.pullData();
+      await syncService.triggerSync('select-device-refresh', { force: true });
       // 2. Reload local data
       await loadData();
     } catch (e) {

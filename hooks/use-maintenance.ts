@@ -254,7 +254,7 @@ export const useCreateMaintenance = () => {
         });
       }
 
-      void syncService.pullData();
+      void syncService.triggerSync('post-maintenance-create');
     },
     retry: 0,
   });

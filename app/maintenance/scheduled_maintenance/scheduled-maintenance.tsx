@@ -36,8 +36,7 @@ export default function ScheduledMaintenanceScreen() {
   useEffect(() => {
     const syncInBackground = async () => {
       try {
-        await syncService.pushData();
-        await syncService.pullData();
+        await syncService.triggerSync('scheduled-maintenance-mount');
         await refetch();
       } catch (error) {
         console.error(
@@ -53,8 +52,9 @@ export default function ScheduledMaintenanceScreen() {
   const handleRefresh = useCallback(async () => {
     setIsManualRefreshing(true);
     try {
-      await syncService.pushData();
-      await syncService.pullData(true);
+      await syncService.triggerSync('scheduled-maintenance-refresh', {
+        force: true,
+      });
       await refetch();
     } catch (error) {
       console.error('Manual refresh failed in scheduled-maintenance:', error);

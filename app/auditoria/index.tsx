@@ -69,7 +69,7 @@ export default function AuditoriaIndexScreen() {
   useEffect(() => {
     if (!canAudit) return;
 
-    syncService.pullData().catch(error => {
+    syncService.triggerSync('auditoria-index-mount').catch(error => {
       console.error('Audit background sync failed:', error);
     });
   }, [canAudit]);

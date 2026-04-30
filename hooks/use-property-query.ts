@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   useMutation,
   useQuery,
@@ -6,6 +7,7 @@ import {
   type UseQueryOptions,
 } from '@tanstack/react-query';
 import { supabasePropertyService } from '../services/supabase-property.service';
+import { syncService } from '../services/sync';
 import type {
   PropertyCreateRequest,
   PropertyListResponse,
@@ -100,11 +102,25 @@ export function useProperties(
   >,
 ) {
   const queryClient = useQueryClient();
+  const [isSyncReady, setIsSyncReady] = useState(syncService.isInitialSyncDone);
+  const { enabled: optionsEnabled, ...restOptions } = options ?? {};
   const normalizedFilters = filters ?? null;
   const queryKey = propertyKeys.list(normalizedFilters);
 
+  useEffect(() => {
+    if (syncService.isInitialSyncDone) {
+      setIsSyncReady(true);
+      return;
+    }
+
+    return syncService.onReady(() => {
+      setIsSyncReady(true);
+    });
+  }, []);
+
   return useQuery({
     queryKey,
+    enabled: isSyncReady && (optionsEnabled ?? true),
     queryFn: async () => {
       logPropertiesFlow('query start', {
         queryKey,
@@ -171,8 +187,9 @@ export function useProperties(
         };
       }
     },
-    staleTime: 2 * 60 * 1000, // 2 minutos
-    ...options,
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnMount: false,
+    ...restOptions,
   });
 }
 

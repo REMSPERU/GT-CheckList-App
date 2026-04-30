@@ -790,8 +790,10 @@ export default function GroundingWellChecklistScreen() {
       let fallbackErrorMessage: string | null = null;
 
       try {
-        await withTimeout(syncService.pushData(), SYNC_TIMEOUT_MS);
-        await syncService.pullData(true);
+        await withTimeout(
+          syncService.triggerSync('grounding-well-checklist-sync', { force: true }),
+          SYNC_TIMEOUT_MS,
+        );
       } catch (syncError) {
         console.error('Grounding well background sync failed:', syncError);
         const readableError = getReadableSyncError(syncError);

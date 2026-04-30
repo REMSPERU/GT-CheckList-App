@@ -68,8 +68,10 @@ export default function MaintenanceSessionScreen() {
 
   const runRefresh = useCallback(
     async (forcePull = false) => {
-      await syncService.pushData();
-      await syncService.pullData(forcePull);
+      await syncService.triggerSync(
+        forcePull ? 'maintenance-session-refresh' : 'maintenance-session-focus',
+        { force: forcePull },
+      );
       await refetch();
     },
     [refetch],

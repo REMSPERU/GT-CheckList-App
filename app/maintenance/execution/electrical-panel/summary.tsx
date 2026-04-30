@@ -279,7 +279,13 @@ export default function SummaryScreen() {
         // Try to sync immediately
         setModalMessage('Sincronizando con el servidor...');
         try {
-          await withTimeout(syncService.pushData(), SYNC_TIMEOUT_MS);
+          await withTimeout(
+            syncService.triggerSync('electrical-panel-summary-finalize', {
+              force: true,
+              pushOnly: true,
+            }),
+            SYNC_TIMEOUT_MS,
+          );
 
           if (localMaintenanceId == null) {
             throw new Error('No se pudo identificar el mantenimiento local.');
@@ -295,7 +301,7 @@ export default function SummaryScreen() {
 
           if (!syncResult || syncResult.status !== 'synced') {
             console.warn(
-              `[SYNC] Maintenance ${localMaintenanceId} not synced after pushData. status=${syncResult?.status || 'unknown'}`,
+              `[SYNC] Maintenance ${localMaintenanceId} not synced after triggerSync. status=${syncResult?.status || 'unknown'}`,
             );
 
             setModalStatus('offline');

@@ -131,6 +131,14 @@ async function safeFetch<T = any>(
 }
 
 // --- Class Definition ---
+/** Options for triggerSync calls */
+export interface TriggerSyncOptions {
+  /** Force pull even if within dedup window */
+  force?: boolean;
+  /** Only push (upload), skip pull (download) */
+  pushOnly?: boolean;
+}
+
 class SyncService {
   private isConnected = false;
   private pollIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -142,6 +150,46 @@ class SyncService {
   private netInfoUnsubscribe: (() => void) | null = null;
   private initialized = false;
   private lastPullTimestamp = 0;
+
+  // --- Centralized sync orchestrator state ---
+  /** Monotonic counter for correlating sync operations in logs */
+  private syncCounter = 0;
+  /** Timestamp of last completed full sync (push + pull) */
+  private lastFullSyncTimestamp = 0;
+  /** If a sync is requested while one is running, store ONE pending reason */
+  private pendingSyncRequest: {
+    reason: string;
+    options?: TriggerSyncOptions;
+  } | null = null;
+  /** Whether a full sync cycle is currently executing */
+  private isFullSyncing = false;
+  /** Minimum ms between full syncs — prevents boot duplicates */
+  private static readonly FULL_SYNC_DEDUP_MS = 15_000;
+  /** Initial mirror readiness state after first successful full sync */
+  private _isInitialSyncDone = false;
+  /** One-time listeners fired when initial sync becomes ready */
+  private readyListeners: Set<() => void> = new Set();
+
+  get isInitialSyncDone(): boolean {
+    return this._isInitialSyncDone;
+  }
+
+  onReady(listener: () => void): () => void {
+    if (this._isInitialSyncDone) {
+      listener();
+      return () => {};
+    }
+
+    this.readyListeners.add(listener);
+    return () => this.readyListeners.delete(listener);
+  }
+
+  private markReady() {
+    if (this._isInitialSyncDone) return;
+    this._isInitialSyncDone = true;
+    this.readyListeners.forEach(listener => listener());
+    this.readyListeners.clear();
+  }
 
   private getErrorMessage(error: unknown): string {
     if (error instanceof Error) {
@@ -244,6 +292,12 @@ class SyncService {
 
     this.initialized = false;
     this.isConnected = false;
+    this.isFullSyncing = false;
+    this.pendingSyncRequest = null;
+    this.lastFullSyncTimestamp = 0;
+    this.syncCounter = 0;
+    this._isInitialSyncDone = false;
+    this.readyListeners.clear();
   }
 
   private registerSyncHandlers() {
@@ -270,14 +324,100 @@ class SyncService {
   }
 
   private async syncOnReconnect() {
-    if (this.isSyncing) return;
-    log('Auto-sync triggered on reconnect...');
+    await this.triggerSync('reconnect');
+  }
+
+  // ----------------------------------------------------------------
+  // CENTRALIZED SYNC ORCHESTRATOR
+  // All sync triggers should go through this method.
+  // Provides: dedup by time window, lock (only one running), and
+  // a queue of ONE pending re-run so no request is silently lost.
+  // ----------------------------------------------------------------
+
+  /**
+   * Central entry point for all sync operations across the app.
+   *
+   * @param reason - Human-readable tag for logs (e.g. 'reconnect', 'home-mount', 'pull-to-refresh')
+   * @param options - Optional overrides: { force: skip dedup, pushOnly: skip pull }
+   *
+   * Guarantees:
+   * - Only ONE full sync runs at a time.
+   * - Rapid successive calls within FULL_SYNC_DEDUP_MS are skipped (unless force).
+   * - If called while syncing, ONE pending re-run is queued (latest wins).
+   */
+  async triggerSync(
+    reason: string,
+    options?: TriggerSyncOptions,
+  ): Promise<void> {
+    const force = options?.force ?? false;
+    const now = Date.now();
+    const elapsed = now - this.lastFullSyncTimestamp;
+
+    // Dedup: skip if last full sync completed recently
+    if (!force && elapsed < SyncService.FULL_SYNC_DEDUP_MS) {
+      log(
+        `[SYNC] Skipped (dedup) — reason: ${reason}, last sync ${elapsed}ms ago`,
+      );
+      return;
+    }
+
+    // If already running, queue ONE pending re-run (latest request wins)
+    if (this.isFullSyncing) {
+      this.pendingSyncRequest = { reason, options };
+      log(`[SYNC] Queued pending — reason: ${reason}`);
+      return;
+    }
+
+    await this._executeFullSync(reason, options);
+  }
+
+  /**
+   * Internal: execute push + pull cycle with structured logging.
+   * After completion, drains ONE pending request if queued.
+   */
+  private async _executeFullSync(
+    reason: string,
+    options?: TriggerSyncOptions,
+  ): Promise<void> {
+    this.isFullSyncing = true;
+    const syncId = ++this.syncCounter;
+    const startTime = Date.now();
+
+    log(`[SYNC#${syncId}] Start — reason: ${reason}`);
+
     try {
-      await this.pushData(); // Upload local changes
-      await this.pullData(); // Download new data
-      log('Auto-sync completed');
+      await this.pushData();
+      const pushDuration = Date.now() - startTime;
+
+      if (!options?.pushOnly) {
+        await this.pullData(options?.force);
+      }
+
+      const totalDuration = Date.now() - startTime;
+      this.lastFullSyncTimestamp = Date.now();
+      if (!options?.pushOnly) {
+        this.markReady();
+      }
+
+      log(
+        `[SYNC#${syncId}] Done — push: ${pushDuration}ms, total: ${totalDuration}ms, reason: ${reason}`,
+      );
     } catch (error) {
-      console.error('Auto-sync failed:', error);
+      const duration = Date.now() - startTime;
+      console.error(
+        `[SYNC#${syncId}] Failed after ${duration}ms — reason: ${reason}`,
+        error,
+      );
+    } finally {
+      this.isFullSyncing = false;
+    }
+
+    // Drain ONE queued request (latest wins)
+    if (this.pendingSyncRequest) {
+      const pending = this.pendingSyncRequest;
+      this.pendingSyncRequest = null;
+      log(`[SYNC] Draining pending request — reason: ${pending.reason}`);
+      await this._executeFullSync(pending.reason, pending.options);
     }
   }
 

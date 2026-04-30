@@ -184,7 +184,7 @@ export default function EmergencyLightsScreen() {
         }, 10000); // 10s timeout
 
         try {
-          await syncService.pullData();
+          await syncService.triggerSync('emergency-lights-refresh', { force: true });
           clearTimeout(timeoutId);
           resolve();
         } catch (err) {
@@ -341,7 +341,7 @@ export default function EmergencyLightsScreen() {
       }
 
       setShowLightModal(false);
-      await syncService.pullData();
+      await syncService.triggerSync('emergency-lights-post-save');
       await loadData();
     } catch (err) {
       console.error('Error saving light:', err);
@@ -364,7 +364,7 @@ export default function EmergencyLightsScreen() {
             onPress: async () => {
               try {
                 await softDeleteEquipment(item.id);
-                await syncService.pullData();
+                await syncService.triggerSync('emergency-lights-post-delete');
                 await loadData();
                 Alert.alert('Éxito', 'Luz desactivada correctamente');
               } catch (err) {
