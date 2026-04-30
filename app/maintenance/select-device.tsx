@@ -10,7 +10,7 @@ import {
   type ListRenderItem,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import MaintenanceCard from '@/components/maintenance-card';
@@ -53,6 +53,7 @@ export default function SelectDeviceScreen() {
   const flowType = params.type as string | undefined;
   const [building, setBuilding] = useState<BuildingParam | null>(null);
   const [paramsResolved, setParamsResolved] = useState(false);
+  const lastLoggedBuildingIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const buildingId = getSingleParam(params.buildingId);
@@ -68,7 +69,10 @@ export default function SelectDeviceScreen() {
         image_url: buildingImageUrl,
       };
       setBuilding(parsedBuilding);
-      log('SelectDevice: Building ID:', parsedBuilding.id);
+      if (lastLoggedBuildingIdRef.current !== parsedBuilding.id) {
+        log('SelectDevice: Building ID:', parsedBuilding.id);
+        lastLoggedBuildingIdRef.current = parsedBuilding.id;
+      }
       setParamsResolved(true);
       return;
     }
@@ -76,12 +80,16 @@ export default function SelectDeviceScreen() {
     const legacyBuilding = parseJsonParam<BuildingParam>(params.building);
     if (legacyBuilding) {
       setBuilding(legacyBuilding);
-      log('SelectDevice: Parsed legacy building ID:', legacyBuilding.id);
+      if (lastLoggedBuildingIdRef.current !== legacyBuilding.id) {
+        log('SelectDevice: Parsed legacy building ID:', legacyBuilding.id);
+        lastLoggedBuildingIdRef.current = legacyBuilding.id;
+      }
       setParamsResolved(true);
       return;
     }
 
     setBuilding(null);
+    lastLoggedBuildingIdRef.current = null;
     setParamsResolved(true);
   }, [
     params.building,
