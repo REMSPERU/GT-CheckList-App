@@ -1,4 +1,5 @@
 import { AppAlertModal } from '@/components/app-alert-modal';
+import { ExitConfirmModal } from '@/components/auditoria/exit-confirm-modal';
 import { EquipmentFeedbackCard } from '@/components/auditoria/equipment-feedback-card';
 import { AuditQuestionRow } from '@/components/auditoria/audit-question-row';
 import { SessionHeader } from '@/components/auditoria/session-header';
@@ -6,6 +7,7 @@ import { sessionScreenStyles as styles } from '@/components/auditoria/session-sc
 import { SubmitAuditFooter } from '@/components/auditoria/submit-audit-footer';
 import { CameraSourceSheet } from '@/components/maintenance/camera-source-sheet';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuditSessionDraft } from '@/hooks/use-audit-session-draft';
 import { useUserRole } from '@/hooks/use-user-role';
 import {
   createEmptyAuditAnswer,
@@ -18,6 +20,7 @@ import type {
   AnswerErrors,
   ApplicableAnswerEntry,
   AuditAnswer,
+  EquipmentFeedback,
   StoredEquipmentFeedback,
   AuditQuestion,
 } from '@/types/auditoria';
@@ -25,6 +28,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   FlatList,
   Platform,
   Pressable,
@@ -64,13 +68,7 @@ interface InitialCollapsedState {
   equipments: Record<string, boolean>;
 }
 
-interface EquipmentFeedback {
-  equipmentLabel: string;
-  goodPracticesComment: string;
-  goodPracticesPhotos: string[];
-  improvementOpportunityComment: string;
-  improvementOpportunityPhotos: string[];
-}
+// EquipmentFeedback is now imported from '@/types/auditoria'
 
 const AIR_CONDITIONING_SECTION_ALIASES = ['aire acondicionado'];
 const FIRE_SYSTEM_SECTION_ALIASES = [
@@ -264,9 +262,17 @@ export default function AuditoriaSessionScreen() {
   }>();
   const { user } = useAuth();
   const { canAudit, isAuditor } = useUserRole();
+  const { loadDraft, schedulePersist, flushDraft, clearDraft } =
+    useAuditSessionDraft(params.buildingId);
 
   const startedAtRef = useRef(new Date().toISOString());
   const onPhotoSelectedRef = useRef<((uri: string) => void) | null>(null);
+
+  // Ref mirrors so schedulePersist always reads the latest state
+  const answersRef = useRef<Record<string, AuditAnswer>>({});
+  const feedbacksRef = useRef<Record<string, EquipmentFeedback>>({});
+  const airOptionRef = useRef<string | null>(null);
+  const fireOptionRef = useRef<string | null>(null);
 
   const [questions, setQuestions] = useState<AuditQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, AuditAnswer>>({});
@@ -288,6 +294,7 @@ export default function AuditoriaSessionScreen() {
     string | null
   >(null);
   const [isCameraSheetVisible, setIsCameraSheetVisible] = useState(false);
+  const [isExitModalVisible, setIsExitModalVisible] = useState(false);
   const [alert, setAlert] = useState({
     visible: false,
     title: '',
@@ -295,6 +302,25 @@ export default function AuditoriaSessionScreen() {
   });
 
   const scheduledFor = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  // Keep refs in sync with state so schedulePersist reads fresh values
+  answersRef.current = answers;
+  feedbacksRef.current = equipmentFeedbacks;
+  airOptionRef.current = selectedAirConditioningOption;
+  fireOptionRef.current = selectedFireSystemOption;
+
+  /** Queue a debounced draft write using current ref snapshots. */
+  const persistCurrentDraft = useCallback(() => {
+    schedulePersist({
+      buildingId: params.buildingId,
+      startedAt: startedAtRef.current,
+      answers: answersRef.current,
+      equipmentFeedbacks: feedbacksRef.current,
+      selectedAirConditioningOption: airOptionRef.current,
+      selectedFireSystemOption: fireOptionRef.current,
+      lastUpdatedAt: new Date().toISOString(),
+    });
+  }, [params.buildingId, schedulePersist]);
 
   const showAlert = useCallback((title: string, message: string) => {
     setAlert({ visible: true, title, message });
@@ -336,19 +362,36 @@ export default function AuditoriaSessionScreen() {
       });
       const initialCollapsedState = buildInitialCollapsedState(safeQuestions);
 
-      setAnswers(initialAnswers);
+      // Attempt to restore an existing draft for this building
+      const draft = await loadDraft();
+      if (draft) {
+        // Merge: only restore answers for questions that still exist
+        for (const [questionId, answer] of Object.entries(draft.answers)) {
+          if (initialAnswers[questionId]) {
+            initialAnswers[questionId] = answer;
+          }
+        }
+        startedAtRef.current = draft.startedAt;
+        setAnswers(initialAnswers);
+        setEquipmentFeedbacks(draft.equipmentFeedbacks);
+        setSelectedAirConditioningOption(draft.selectedAirConditioningOption);
+        setSelectedFireSystemOption(draft.selectedFireSystemOption);
+      } else {
+        setAnswers(initialAnswers);
+        setEquipmentFeedbacks({});
+        setSelectedAirConditioningOption(null);
+        setSelectedFireSystemOption(null);
+      }
+
       setCollapsedSystems(initialCollapsedState.systems);
       setCollapsedEquipments(initialCollapsedState.equipments);
-      setEquipmentFeedbacks({});
-      setSelectedAirConditioningOption(null);
-      setSelectedFireSystemOption(null);
     } catch (error) {
       console.error('Failed to load audit questions:', error);
       showAlert('Error', 'No se pudieron cargar las actividades de auditoria.');
     } finally {
       setIsLoading(false);
     }
-  }, [showAlert]);
+  }, [showAlert, loadDraft]);
 
   const clearQuestionErrors = useCallback((questionId: string) => {
     setErrors(prev => {
@@ -495,10 +538,11 @@ export default function AuditoriaSessionScreen() {
           };
         });
         clearQuestionErrors(questionId);
+        persistCurrentDraft();
       };
       setIsCameraSheetVisible(true);
     },
-    [clearQuestionErrors],
+    [clearQuestionErrors, persistCurrentDraft],
   );
 
   const handleChangeApplicable = useCallback(
@@ -518,8 +562,9 @@ export default function AuditoriaSessionScreen() {
         };
       });
       clearQuestionErrors(questionId);
+      persistCurrentDraft();
     },
-    [clearQuestionErrors],
+    [clearQuestionErrors, persistCurrentDraft],
   );
 
   const handleChangeStatus = useCallback(
@@ -538,8 +583,9 @@ export default function AuditoriaSessionScreen() {
         };
       });
       clearQuestionErrors(questionId);
+      persistCurrentDraft();
     },
-    [clearQuestionErrors],
+    [clearQuestionErrors, persistCurrentDraft],
   );
 
   const handleChangeObservation = useCallback(
@@ -556,8 +602,9 @@ export default function AuditoriaSessionScreen() {
         };
       });
       clearQuestionErrors(questionId);
+      persistCurrentDraft();
     },
-    [clearQuestionErrors],
+    [clearQuestionErrors, persistCurrentDraft],
   );
 
   const handleRemovePhoto = useCallback(
@@ -576,8 +623,9 @@ export default function AuditoriaSessionScreen() {
         };
       });
       clearQuestionErrors(questionId);
+      persistCurrentDraft();
     },
-    [clearQuestionErrors],
+    [clearQuestionErrors, persistCurrentDraft],
   );
 
   const ensureEquipmentFeedback = useCallback(
@@ -622,8 +670,9 @@ export default function AuditoriaSessionScreen() {
           },
         };
       });
+      persistCurrentDraft();
     },
-    [ensureEquipmentFeedback],
+    [ensureEquipmentFeedback, persistCurrentDraft],
   );
 
   const handleOpenEquipmentFeedbackPhotoSheet = useCallback(
@@ -650,11 +699,12 @@ export default function AuditoriaSessionScreen() {
             },
           };
         });
+        persistCurrentDraft();
       };
 
       setIsCameraSheetVisible(true);
     },
-    [ensureEquipmentFeedback],
+    [ensureEquipmentFeedback, persistCurrentDraft],
   );
 
   const handleRemoveEquipmentFeedbackPhoto = useCallback(
@@ -680,8 +730,9 @@ export default function AuditoriaSessionScreen() {
           },
         };
       });
+      persistCurrentDraft();
     },
-    [ensureEquipmentFeedback],
+    [ensureEquipmentFeedback, persistCurrentDraft],
   );
 
   const takePhoto = useCallback(async () => {
@@ -941,6 +992,9 @@ export default function AuditoriaSessionScreen() {
         console.error('Audit push failed, will retry later:', error);
       });
 
+      // Draft is no longer needed after successful submit
+      await clearDraft();
+
       showAlert(
         'Guardado',
         'Auditoria guardada localmente. Revise el historial para generar el informe cuando este subida.',
@@ -967,7 +1021,58 @@ export default function AuditoriaSessionScreen() {
     showAlert,
     user?.id,
     validateAnswers,
+    clearDraft,
   ]);
+
+  /** Derived flag: has the user made any progress worth saving? */
+  const hasProgress = useMemo(() => {
+    const hasAnswerProgress = Object.values(answers).some(
+      a => a.status !== null || !a.isApplicable,
+    );
+    const hasFeedbackProgress = Object.values(equipmentFeedbacks).some(
+      f =>
+        f.goodPracticesComment.trim() !== '' ||
+        f.improvementOpportunityComment.trim() !== '' ||
+        f.goodPracticesPhotos.length > 0 ||
+        f.improvementOpportunityPhotos.length > 0,
+    );
+    return hasAnswerProgress || hasFeedbackProgress;
+  }, [answers, equipmentFeedbacks]);
+
+  const handleBack = useCallback(() => {
+    if (hasProgress) {
+      setIsExitModalVisible(true);
+    } else {
+      router.back();
+    }
+  }, [hasProgress, router]);
+
+  const handleExitDiscard = useCallback(async () => {
+    setIsExitModalVisible(false);
+    await clearDraft();
+    router.back();
+  }, [clearDraft, router]);
+
+  const handleExitSaveDraft = useCallback(async () => {
+    setIsExitModalVisible(false);
+    await flushDraft();
+    router.back();
+  }, [flushDraft, router]);
+
+  // Intercept Android hardware back button
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (hasProgress) {
+          setIsExitModalVisible(true);
+          return true;
+        }
+        return false;
+      },
+    );
+    return () => subscription.remove();
+  }, [hasProgress]);
 
   const preparedQuestions = useMemo<PreparedAuditQuestionRow[]>(() => {
     return displayQuestions.map((question, index) => {
@@ -1277,7 +1382,7 @@ export default function AuditoriaSessionScreen() {
         buildingImageUrl={params.buildingImageUrl}
         buildingName={params.buildingName}
         scheduledFor={scheduledFor}
-        onBack={router.back}
+        onBack={handleBack}
       />
 
       <FlatList
@@ -1319,6 +1424,13 @@ export default function AuditoriaSessionScreen() {
             router.back();
           }
         }}
+      />
+
+      <ExitConfirmModal
+        visible={isExitModalVisible}
+        onCancel={() => setIsExitModalVisible(false)}
+        onDiscard={handleExitDiscard}
+        onSaveDraft={handleExitSaveDraft}
       />
     </SafeAreaView>
   );
