@@ -55,10 +55,14 @@ export class SupabasePropertyService {
       query = query.eq('maintenance_priority', filters.maintenance_priority);
     }
 
-    // Paginación
+    // Paginacion opcional:
+    // - Si no se envia `limit`, traer todos los inmuebles que cumplan filtros.
+    // - Si se envia `limit`, mantener comportamiento paginado.
     const skip = filters?.skip || 0;
-    const limit = filters?.limit || 50;
-    query = query.range(skip, skip + limit - 1);
+    const limit = filters?.limit;
+    if (typeof limit === 'number' && limit > 0) {
+      query = query.range(skip, skip + limit - 1);
+    }
 
     // Ordenar por nombre ascendente (Server-side)
     query = query.order('name', { ascending: true });
@@ -71,7 +75,7 @@ export class SupabasePropertyService {
       items: data || [],
       total: count || 0,
       skip,
-      limit,
+      limit: limit ?? (data?.length || 0),
     };
   }
 
