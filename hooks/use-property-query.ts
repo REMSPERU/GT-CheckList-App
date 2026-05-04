@@ -77,8 +77,6 @@ function transformLocalToPropertyList(localProps: any[]): PropertyListResponse {
   return {
     items: items,
     total: items.length,
-    limit: items.length,
-    skip: 0,
   };
 }
 
@@ -93,8 +91,6 @@ export function useProperties(
     property_type?: string;
     is_active?: boolean;
     maintenance_priority?: string;
-    skip?: number;
-    limit?: number;
   },
   options?: Omit<
     UseQueryOptions<PropertyListResponse, Error>,
@@ -182,8 +178,6 @@ export function useProperties(
         return {
           items: [],
           total: 0,
-          limit: 0,
-          skip: 0,
         };
       }
     },

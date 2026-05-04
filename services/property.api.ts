@@ -47,8 +47,6 @@ export const propertyApi = {
     property_type?: string;
     is_active?: boolean;
     maintenance_priority?: string;
-    skip?: number;
-    limit?: number;
   }): Promise<PropertyListResponse> => {
     try {
       const queryParams = new URLSearchParams();
@@ -61,10 +59,6 @@ export const propertyApi = {
         queryParams.append('is_active', params.is_active.toString());
       if (params?.maintenance_priority)
         queryParams.append('maintenance_priority', params.maintenance_priority);
-      if (params?.skip !== undefined)
-        queryParams.append('skip', params.skip.toString());
-      if (params?.limit !== undefined)
-        queryParams.append('limit', params.limit.toString());
 
       const queryString = queryParams.toString();
       const url = queryString

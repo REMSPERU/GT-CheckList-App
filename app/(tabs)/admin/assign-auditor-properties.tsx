@@ -57,7 +57,7 @@ export default function AssignAuditorPropertiesScreen() {
       setLoading(true);
       const [auditorList, propertyListResponse] = await Promise.all([
         supabaseUserPropertyService.listAuditors(),
-        supabasePropertyService.list({ is_active: true, limit: 200 }),
+        supabasePropertyService.list({ is_active: true }),
       ]);
 
       setAuditors(auditorList);

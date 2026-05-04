@@ -130,8 +130,6 @@ export interface PropertyCreateRequest {
 export interface PropertyListResponse {
   items: PropertyResponse[];
   total: number;
-  skip: number;
-  limit: number;
 }
 
 // Equipamento types

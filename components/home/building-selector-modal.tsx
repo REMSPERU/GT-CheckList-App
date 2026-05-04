@@ -1,3 +1,4 @@
+import { memo, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -9,6 +10,7 @@ import {
   Text,
   TextInput,
   View,
+  type ListRenderItem,
 } from 'react-native';
 import type { PropertyResponse as Property } from '@/types/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +26,59 @@ interface BuildingSelectorModalProps {
   onSelectBuilding: (building: Property) => void;
 }
 
+interface BuildingSelectorRowProps {
+  building: Property;
+  isSelected: boolean;
+  onSelectBuilding: (building: Property) => void;
+}
+
+const BuildingSelectorRow = memo(function BuildingSelectorRow({
+  building,
+  isSelected,
+  onSelectBuilding,
+}: BuildingSelectorRowProps) {
+  const handlePress = useCallback(() => {
+    onSelectBuilding(building);
+  }, [building, onSelectBuilding]);
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.buildingRow,
+        isSelected && styles.buildingRowSelected,
+        pressed && styles.pressed,
+      ]}
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`Seleccionar ${building.name}`}>
+      <View style={styles.buildingRowLeft}>
+        <View style={styles.buildingRowAvatar}>
+          <Text style={styles.buildingRowAvatarText}>
+            {building.name.charAt(0).toUpperCase()}
+          </Text>
+        </View>
+
+        <View style={styles.buildingRowTextWrap}>
+          <Text style={styles.buildingRowName} numberOfLines={1}>
+            {building.name}
+          </Text>
+          {building.address ? (
+            <Text style={styles.buildingRowAddress} numberOfLines={1}>
+              {building.address}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+
+      <Ionicons
+        name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
+        size={22}
+        color={isSelected ? '#06B6D4' : '#9CA3AF'}
+      />
+    </Pressable>
+  );
+});
+
 export function BuildingSelectorModal({
   visible,
   isLoading,
@@ -34,6 +89,19 @@ export function BuildingSelectorModal({
   onSearchChange,
   onSelectBuilding,
 }: BuildingSelectorModalProps) {
+  const keyExtractor = useCallback((item: Property) => String(item.id), []);
+
+  const renderItem = useCallback<ListRenderItem<Property>>(
+    ({ item }) => (
+      <BuildingSelectorRow
+        building={item}
+        isSelected={String(item.id) === selectedBuildingId}
+        onSelectBuilding={onSelectBuilding}
+      />
+    ),
+    [onSelectBuilding, selectedBuildingId],
+  );
+
   return (
     <Modal
       visible={visible}
@@ -74,7 +142,7 @@ export function BuildingSelectorModal({
           ) : (
             <FlatList
               data={buildings}
-              keyExtractor={item => String(item.id)}
+              keyExtractor={keyExtractor}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.modalListContent}
@@ -82,48 +150,7 @@ export function BuildingSelectorModal({
               maxToRenderPerBatch={8}
               windowSize={7}
               removeClippedSubviews={Platform.OS === 'android'}
-              renderItem={({ item }) => {
-                const isSelected = String(item.id) === selectedBuildingId;
-
-                return (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.buildingRow,
-                      isSelected && styles.buildingRowSelected,
-                      pressed && styles.pressed,
-                    ]}
-                    onPress={() => onSelectBuilding(item)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Seleccionar ${item.name}`}>
-                    <View style={styles.buildingRowLeft}>
-                      <View style={styles.buildingRowAvatar}>
-                        <Text style={styles.buildingRowAvatarText}>
-                          {item.name.charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-
-                      <View style={styles.buildingRowTextWrap}>
-                        <Text style={styles.buildingRowName} numberOfLines={1}>
-                          {item.name}
-                        </Text>
-                        {item.address ? (
-                          <Text
-                            style={styles.buildingRowAddress}
-                            numberOfLines={1}>
-                            {item.address}
-                          </Text>
-                        ) : null}
-                      </View>
-                    </View>
-
-                    <Ionicons
-                      name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={22}
-                      color={isSelected ? '#06B6D4' : '#9CA3AF'}
-                    />
-                  </Pressable>
-                );
-              }}
+              renderItem={renderItem}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>
