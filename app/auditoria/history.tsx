@@ -318,7 +318,7 @@ export default function AuditoriaHistoryScreen() {
             order: index + 1,
           }));
 
-        const evidencePhotos = items.flatMap(item => {
+        const answerEvidencePhotos = items.flatMap(item => {
           if (!item.photoUris.length) {
             return [];
           }
@@ -333,23 +333,118 @@ export default function AuditoriaHistoryScreen() {
           }));
         });
 
+        const feedbackItems = (payload.equipment_feedback ?? []).flatMap(
+          feedback => {
+            const [systemFromKey, equipmentFromKey] =
+              feedback.equipment_key.split('::');
+            const sectionName = equipmentFromKey
+              ? systemFromKey
+              : feedback.equipment_label;
+            const equipmentName = equipmentFromKey || null;
+            const goodPracticesComment =
+              feedback.good_practices_comment?.trim() || null;
+            const improvementOpportunityComment =
+              feedback.improvement_opportunity_comment?.trim() || null;
+            const goodPracticesPhotoUris = extractPhotoUris(
+              feedback.good_practices_photos,
+            );
+            const improvementOpportunityPhotoUris = extractPhotoUris(
+              feedback.improvement_opportunity_photos,
+            );
+            const rows: (typeof items)[number][] = [];
+
+            if (goodPracticesComment || goodPracticesPhotoUris.length > 0) {
+              rows.push({
+                order: 0,
+                questionText: 'Buenas practicas',
+                sectionName,
+                equipmentName,
+                status: 'OK',
+                observation: goodPracticesComment,
+                photosCount: goodPracticesPhotoUris.length,
+                photoUris: goodPracticesPhotoUris,
+              });
+            }
+
+            if (
+              improvementOpportunityComment ||
+              improvementOpportunityPhotoUris.length > 0
+            ) {
+              rows.push({
+                order: 0,
+                questionText: 'Oportunidad de mejora',
+                sectionName,
+                equipmentName,
+                status: 'OBS',
+                observation: improvementOpportunityComment,
+                photosCount: improvementOpportunityPhotoUris.length,
+                photoUris: improvementOpportunityPhotoUris,
+              });
+            }
+
+            return rows;
+          },
+        );
+
+        const reportItems = [...items, ...feedbackItems].map((item, index) => ({
+          ...item,
+          order: index + 1,
+        }));
+
+        const feedbackEvidencePhotos = reportItems.flatMap(item => {
+          if (
+            item.questionText !== 'Buenas practicas' &&
+            item.questionText !== 'Oportunidad de mejora'
+          ) {
+            return [];
+          }
+
+          return item.photoUris.map(url => ({
+            order: item.order,
+            questionText: item.questionText,
+            sectionName: item.sectionName,
+            equipmentName: item.equipmentName,
+            observation: item.observation,
+            captionLabel: 'Descripcion',
+            url,
+          }));
+        });
+
+        const evidencePhotos = [
+          ...answerEvidencePhotos,
+          ...feedbackEvidencePhotos,
+        ];
+
         const parsedSummary = parseJsonSafely<StoredSummary>(session.summary);
+        const feedbackOk = feedbackItems.filter(
+          item => item.status === 'OK',
+        ).length;
+        const feedbackObs = feedbackItems.filter(
+          item => item.status === 'OBS',
+        ).length;
+        const feedbackPhotos = feedbackItems.reduce(
+          (acc, item) => acc + item.photosCount,
+          0,
+        );
         const totalQuestions =
           parsedSummary?.total_questions ?? allItems.length;
         const totalNotApplicable =
           parsedSummary?.total_not_applicable ??
           allItems.filter(item => item.status === 'N/A').length;
         const totalOk =
-          parsedSummary?.total_ok ??
-          allItems.filter(item => item.status === 'OK').length;
+          (parsedSummary?.total_ok ??
+            allItems.filter(item => item.status === 'OK').length) + feedbackOk;
         const totalObs =
-          parsedSummary?.total_obs ??
-          allItems.filter(item => item.status === 'OBS').length;
+          (parsedSummary?.total_obs ??
+            allItems.filter(item => item.status === 'OBS').length) +
+          feedbackObs;
         const totalPhotos =
-          parsedSummary?.total_photos ??
-          allItems.reduce((acc, item) => acc + item.photosCount, 0);
+          (parsedSummary?.total_photos ??
+            allItems.reduce((acc, item) => acc + item.photosCount, 0)) +
+          feedbackPhotos;
         const totalApplicable =
-          parsedSummary?.total_applies ?? totalQuestions - totalNotApplicable;
+          (parsedSummary?.total_applies ??
+            totalQuestions - totalNotApplicable) + feedbackItems.length;
 
         setGenerationProgress('Generando archivo PDF...');
 
@@ -362,14 +457,14 @@ export default function AuditoriaHistoryScreen() {
           submittedAt: formatDateTime(session.submitted_at),
           generatedAt: formatDateTime(new Date().toISOString()),
           summary: {
-            totalQuestions,
+            totalQuestions: totalQuestions + feedbackItems.length,
             totalApplicable,
             totalNotApplicable,
             totalOk,
             totalObs,
             totalPhotos,
           },
-          items: items.map(item => ({
+          items: reportItems.map(item => ({
             order: item.order,
             questionText: item.questionText,
             sectionName: item.sectionName,

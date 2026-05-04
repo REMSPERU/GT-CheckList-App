@@ -117,6 +117,44 @@ export const sessionScreenStyles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
   },
+  systemApplicabilityRow: {
+    marginTop: -1,
+    marginBottom: 6,
+    marginLeft: 8,
+    paddingHorizontal: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  systemApplicabilityText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  systemApplicabilityButton: {
+    borderWidth: 1,
+    borderColor: '#BEE3DB',
+    borderRadius: 999,
+    backgroundColor: '#EAF7F4',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  systemApplicabilityButtonSecondary: {
+    borderColor: '#D9E1EC',
+    backgroundColor: '#F7FAFC',
+  },
+  systemApplicabilityButtonDisabled: {
+    opacity: 0.6,
+  },
+  systemApplicabilityButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0C5F59',
+  },
+  systemApplicabilityButtonTextSecondary: {
+    color: '#0A647C',
+  },
   sectionHeader: {
     marginTop: 4,
     marginBottom: 4,

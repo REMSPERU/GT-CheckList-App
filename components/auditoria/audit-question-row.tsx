@@ -22,6 +22,7 @@ interface AuditQuestionRowProps {
   hideChecklist?: boolean;
   selectionHint?: string | null;
   systemSelector?: ReactNode;
+  systemApplicabilityControl?: ReactNode;
   equipmentFeedbackContent?: ReactNode;
   answer: AuditAnswer | undefined;
   error: AnswerErrors[string] | undefined;
@@ -48,6 +49,7 @@ export function AuditQuestionRow({
   hideChecklist = false,
   selectionHint = null,
   systemSelector,
+  systemApplicabilityControl,
   equipmentFeedbackContent,
   answer,
   error,
@@ -85,6 +87,10 @@ export function AuditQuestionRow({
       ) : null}
 
       {!isSystemCollapsed && isFirstInSystem ? systemSelector : null}
+
+      {!isSystemCollapsed && !hideChecklist && isFirstInSystem
+        ? systemApplicabilityControl
+        : null}
 
       {!isSystemCollapsed && selectionHint ? (
         <Text style={sessionScreenStyles.selectionHintText}>

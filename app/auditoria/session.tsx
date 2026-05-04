@@ -68,6 +68,12 @@ interface InitialCollapsedState {
   equipments: Record<string, boolean>;
 }
 
+interface SystemApplicabilitySummary {
+  total: number;
+  notApplicable: number;
+  allNotApplicable: boolean;
+}
+
 // EquipmentFeedback is now imported from '@/types/auditoria'
 
 const AIR_CONDITIONING_SECTION_ALIASES = ['aire acondicionado'];
@@ -522,6 +528,32 @@ export default function AuditoriaSessionScreen() {
     });
   }, [questions, selectedAirConditioningOption, selectedFireSystemOption]);
 
+  const systemApplicabilitySummary = useMemo(() => {
+    return displayQuestions.reduce<Record<string, SystemApplicabilitySummary>>(
+      (acc, question) => {
+        const systemKey =
+          normalizeAuditLabel(question.section_name) || '__GENERAL__';
+        const current = acc[systemKey] ?? {
+          total: 0,
+          notApplicable: 0,
+          allNotApplicable: false,
+        };
+        const answer = answers[question.id];
+
+        current.total += 1;
+        if (answer?.isApplicable === false) {
+          current.notApplicable += 1;
+        }
+        current.allNotApplicable =
+          current.total > 0 && current.notApplicable === current.total;
+        acc[systemKey] = current;
+
+        return acc;
+      },
+      {},
+    );
+  }, [answers, displayQuestions]);
+
   const handleOpenCameraSheet = useCallback(
     (questionId: string) => {
       onPhotoSelectedRef.current = (uri: string) => {
@@ -565,6 +597,56 @@ export default function AuditoriaSessionScreen() {
       persistCurrentDraft();
     },
     [clearQuestionErrors, persistCurrentDraft],
+  );
+
+  const handleChangeSystemApplicable = useCallback(
+    (systemKey: string, isApplicable: boolean) => {
+      const targetQuestions = displayQuestions.filter(question => {
+        const questionSystemKey =
+          normalizeAuditLabel(question.section_name) || '__GENERAL__';
+        return questionSystemKey === systemKey;
+      });
+
+      if (targetQuestions.length === 0) {
+        return;
+      }
+
+      const nextAnswers = { ...answers };
+      const targetIds = new Set<string>();
+
+      targetQuestions.forEach(question => {
+        const current = nextAnswers[question.id] ?? createEmptyAuditAnswer();
+        targetIds.add(question.id);
+        nextAnswers[question.id] = {
+          ...current,
+          isApplicable,
+          status: isApplicable ? current.status : null,
+          observation: isApplicable ? current.observation : '',
+          photoUris: isApplicable ? current.photoUris : [],
+        };
+      });
+
+      answersRef.current = nextAnswers;
+      setAnswers(nextAnswers);
+      setErrors(prev => {
+        const next = { ...prev };
+        targetIds.forEach(questionId => {
+          delete next[questionId];
+        });
+        return next;
+      });
+
+      schedulePersist({
+        buildingId: params.buildingId,
+        startedAt: startedAtRef.current,
+        answers: nextAnswers,
+        equipmentFeedbacks: feedbacksRef.current,
+        selectedAirConditioningOption: airOptionRef.current,
+        selectedFireSystemOption: fireOptionRef.current,
+        lastUpdatedAt: new Date().toISOString(),
+      });
+    },
+    [answers, displayQuestions, params.buildingId, schedulePersist],
   );
 
   const handleChangeStatus = useCallback(
@@ -1163,6 +1245,43 @@ export default function AuditoriaSessionScreen() {
         ? 'Seleccione una opcion para habilitar las actividades de este sistema.'
         : null;
 
+      const applicabilitySummary = systemApplicabilitySummary[item.systemKey];
+      const systemApplicabilityControl = applicabilitySummary ? (
+        <View style={styles.systemApplicabilityRow}>
+          <Text style={styles.systemApplicabilityText}>
+            {applicabilitySummary.notApplicable}/{applicabilitySummary.total} en
+            No aplica
+          </Text>
+          <Pressable
+            disabled={isSaving}
+            onPress={() =>
+              handleChangeSystemApplicable(
+                item.systemKey,
+                applicabilitySummary.allNotApplicable,
+              )
+            }
+            style={({ pressed }) => [
+              styles.systemApplicabilityButton,
+              applicabilitySummary.allNotApplicable &&
+                styles.systemApplicabilityButtonSecondary,
+              isSaving && styles.systemApplicabilityButtonDisabled,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button">
+            <Text
+              style={[
+                styles.systemApplicabilityButtonText,
+                applicabilitySummary.allNotApplicable &&
+                  styles.systemApplicabilityButtonTextSecondary,
+              ]}>
+              {applicabilitySummary.allNotApplicable
+                ? 'Restaurar sistema'
+                : 'Marcar sistema N/A'}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null;
+
       const systemSelector = item.isFirstInSystem ? (
         isAirConditioningSystem ? (
           <View style={styles.selectorCard}>
@@ -1313,6 +1432,7 @@ export default function AuditoriaSessionScreen() {
           hideChecklist={hideChecklist}
           selectionHint={selectionHint}
           systemSelector={systemSelector}
+          systemApplicabilityControl={systemApplicabilityControl}
           equipmentFeedbackContent={equipmentFeedbackContent}
           answer={answers[item.question.id]}
           error={errors[item.question.id]}
@@ -1343,6 +1463,7 @@ export default function AuditoriaSessionScreen() {
       collapsedSystems,
       errors,
       handleChangeApplicable,
+      handleChangeSystemApplicable,
       handleChangeObservation,
       handleChangeStatus,
       handleEquipmentFeedbackCommentChange,
@@ -1354,6 +1475,7 @@ export default function AuditoriaSessionScreen() {
       equipmentFeedbacks,
       selectedAirConditioningOption,
       selectedFireSystemOption,
+      systemApplicabilitySummary,
     ],
   );
 

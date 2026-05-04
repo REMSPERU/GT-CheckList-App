@@ -84,9 +84,19 @@ interface AuditAnswerPayload {
   photos?: AuditPhotoPayload[];
 }
 
+interface AuditEquipmentFeedbackPayload {
+  equipment_key: string;
+  equipment_label: string;
+  good_practices_comment?: string | null;
+  good_practices_photos?: AuditPhotoPayload[];
+  improvement_opportunity_comment?: string | null;
+  improvement_opportunity_photos?: AuditPhotoPayload[];
+}
+
 interface AuditPayload {
   version?: number;
   answers?: AuditAnswerPayload[];
+  equipment_feedback?: AuditEquipmentFeedbackPayload[];
 }
 
 interface RemoteAuditSession {
@@ -535,6 +545,53 @@ class SyncService {
             }
 
             answer.photos = uploadedPhotos;
+          }
+        }
+
+        if (payload?.equipment_feedback?.length) {
+          for (const feedback of payload.equipment_feedback) {
+            const uploadFeedbackPhotos = async (
+              photos: AuditPhotoPayload[] | undefined,
+              suffix: string,
+            ) => {
+              if (!photos?.length) return [];
+
+              const uploadedPhotos: AuditPhotoPayload[] = [];
+              for (const photo of photos) {
+                const sourceUri = photo.local_uri;
+                if (!sourceUri) {
+                  if (photo.bucket || photo.path) {
+                    uploadedPhotos.push(photo);
+                  }
+                  continue;
+                }
+
+                const uploaded = await supabaseAuditStorageService.uploadPhoto({
+                  uri: sourceUri,
+                  clientSubmissionId: item.client_submission_id,
+                  propertyId: item.property_id,
+                  auditorId: item.auditor_id,
+                  questionId: `${feedback.equipment_key}-${suffix}`,
+                });
+
+                uploadedPhotos.push({
+                  bucket: uploaded.bucket,
+                  path: uploaded.path,
+                });
+              }
+
+              return uploadedPhotos;
+            };
+
+            feedback.good_practices_photos = await uploadFeedbackPhotos(
+              feedback.good_practices_photos,
+              'buenas-practicas',
+            );
+            feedback.improvement_opportunity_photos =
+              await uploadFeedbackPhotos(
+                feedback.improvement_opportunity_photos,
+                'oportunidad-mejora',
+              );
           }
         }
 

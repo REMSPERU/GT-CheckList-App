@@ -28,6 +28,7 @@ export interface AuditReportEvidencePhoto {
   sectionName: string | null;
   equipmentName: string | null;
   observation: string | null;
+  captionLabel?: string;
   url: string;
 }
 
@@ -120,9 +121,9 @@ class AuditReportService {
       const systemTitle = item.sectionName?.trim() || 'Sin sistema';
       const equipmentTitle = item.equipmentName?.trim() || 'Sin equipamiento';
       const sectionTitle = `${systemTitle} - ${equipmentTitle}`;
-      const current = groupedItems[groupedItems.length - 1];
+      const current = groupedItems.find(group => group.title === sectionTitle);
 
-      if (!current || current.title !== sectionTitle) {
+      if (!current) {
         groupedItems.push({ title: sectionTitle, rows: [item] });
       } else {
         current.rows.push(item);
@@ -202,7 +203,7 @@ class AuditReportService {
         }
         const photoMeta = `<div class="photo-meta">${escapeHtml(metaParts.join(' | '))}</div>`;
         const observation = photo.observation
-          ? `<div class="photo-caption">OBS: ${escapeHtml(photo.observation)}</div>`
+          ? `<div class="photo-caption">${escapeHtml(photo.captionLabel ?? 'OBS')}: ${escapeHtml(photo.observation)}</div>`
           : '';
 
         return `
