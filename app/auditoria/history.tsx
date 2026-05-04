@@ -318,20 +318,12 @@ export default function AuditoriaHistoryScreen() {
             order: index + 1,
           }));
 
-        const answerEvidencePhotos = items.flatMap(item => {
-          if (!item.photoUris.length) {
-            return [];
-          }
-
-          return item.photoUris.map(url => ({
-            order: item.order,
-            questionText: item.questionText,
-            sectionName: item.sectionName,
-            equipmentName: item.equipmentName,
-            observation: item.observation,
-            url,
-          }));
-        });
+        const buildReportGroupKey = (
+          sectionName: string | null,
+          equipmentName: string | null,
+        ) => {
+          return `${sectionName?.trim() || 'Sin sistema'}::${equipmentName?.trim() || 'Sin equipamiento'}`;
+        };
 
         const feedbackItems = (payload.equipment_feedback ?? []).flatMap(
           feedback => {
@@ -386,18 +378,60 @@ export default function AuditoriaHistoryScreen() {
           },
         );
 
-        const reportItems = [...items, ...feedbackItems].map((item, index) => ({
+        const feedbackItemsByGroup = new Map<
+          string,
+          (typeof feedbackItems)[number][]
+        >();
+        feedbackItems.forEach(item => {
+          const key = buildReportGroupKey(item.sectionName, item.equipmentName);
+          const groupItems = feedbackItemsByGroup.get(key) ?? [];
+          groupItems.push(item);
+          feedbackItemsByGroup.set(key, groupItems);
+        });
+
+        const insertedFeedbackGroups = new Set<string>();
+        const orderedReportItems: typeof items = [];
+        items.forEach((item, index) => {
+          orderedReportItems.push(item);
+
+          const currentKey = buildReportGroupKey(
+            item.sectionName,
+            item.equipmentName,
+          );
+          const nextItem = items[index + 1];
+          const nextKey = nextItem
+            ? buildReportGroupKey(nextItem.sectionName, nextItem.equipmentName)
+            : null;
+
+          if (currentKey !== nextKey) {
+            const groupFeedbackItems = feedbackItemsByGroup.get(currentKey);
+            if (groupFeedbackItems) {
+              orderedReportItems.push(...groupFeedbackItems);
+              insertedFeedbackGroups.add(currentKey);
+            }
+          }
+        });
+        feedbackItemsByGroup.forEach((groupFeedbackItems, key) => {
+          if (!insertedFeedbackGroups.has(key)) {
+            orderedReportItems.push(...groupFeedbackItems);
+          }
+        });
+
+        const reportItems = orderedReportItems.map((item, index) => ({
           ...item,
           order: index + 1,
         }));
 
-        const feedbackEvidencePhotos = reportItems.flatMap(item => {
-          if (
-            item.questionText !== 'Buenas practicas' &&
-            item.questionText !== 'Oportunidad de mejora'
-          ) {
+        const evidencePhotos = reportItems.flatMap(item => {
+          if (!item.photoUris.length) {
             return [];
           }
+
+          const isFeedbackItem =
+            item.questionText !== 'Buenas practicas' &&
+            item.questionText !== 'Oportunidad de mejora'
+              ? false
+              : true;
 
           return item.photoUris.map(url => ({
             order: item.order,
@@ -405,15 +439,10 @@ export default function AuditoriaHistoryScreen() {
             sectionName: item.sectionName,
             equipmentName: item.equipmentName,
             observation: item.observation,
-            captionLabel: 'Descripcion',
+            captionLabel: isFeedbackItem ? 'Descripcion' : undefined,
             url,
           }));
         });
-
-        const evidencePhotos = [
-          ...answerEvidencePhotos,
-          ...feedbackEvidencePhotos,
-        ];
 
         const parsedSummary = parseJsonSafely<StoredSummary>(session.summary);
         const feedbackOk = feedbackItems.filter(

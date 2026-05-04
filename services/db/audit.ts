@@ -219,6 +219,23 @@ export async function updateOfflineAuditSessionStatus(
   });
 }
 
+export async function updateOfflineAuditSessionPayload(
+  localId: number,
+  auditPayload: unknown,
+) {
+  await ensureInitialized();
+
+  return withLock(async () => {
+    const db = await dbPromise;
+    await db.runAsync(
+      `UPDATE offline_audit_sessions
+       SET audit_payload = ?
+       WHERE local_id = ?`,
+      [toJsonText(auditPayload), localId],
+    );
+  });
+}
+
 export async function upsertSyncedAuditSessions(
   sessions: SyncedAuditSessionInput[],
 ) {

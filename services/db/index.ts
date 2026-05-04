@@ -66,6 +66,7 @@ import {
   getAuditSessionsByProperty,
   getPendingAuditSessions,
   updateOfflineAuditSessionStatus,
+  updateOfflineAuditSessionPayload,
   upsertSyncedAuditSessions,
 } from './audit';
 import {
@@ -162,6 +163,7 @@ export const DatabaseService = {
   getAuditSessionsByProperty,
   getPendingAuditSessions,
   updateOfflineAuditSessionStatus,
+  updateOfflineAuditSessionPayload,
   upsertSyncedAuditSessions,
 
   // Equipment CRUD

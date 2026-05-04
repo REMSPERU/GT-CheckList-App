@@ -610,11 +610,16 @@ class SyncService {
           },
           {
             onConflict: 'client_submission_id',
-            ignoreDuplicates: true,
+            ignoreDuplicates: false,
           },
         );
 
         if (error) throw error;
+
+        await DatabaseService.updateOfflineAuditSessionPayload(
+          item.local_id,
+          payload,
+        );
 
         await DatabaseService.updateOfflineAuditSessionStatus(
           item.local_id,
