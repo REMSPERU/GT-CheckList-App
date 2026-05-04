@@ -493,25 +493,70 @@ export async function getLocalSessionsByProperty(propertyId: string) {
 
     const rows = await db.getAllAsync(
       `
-      SELECT
-        s.*,
-        COUNT(m.id) as total_count,
-        SUM(CASE WHEN m.estatus = 'FINALIZADO' THEN 1 ELSE 0 END) as completed_count,
-        SUM(CASE WHEN m.estatus IN ('EN_PROGRESO', 'EN PROGRESO') THEN 1 ELSE 0 END) as in_progress_count,
-        (
-          SELECT GROUP_CONCAT(DISTINCT eq.nombre)
-          FROM local_scheduled_maintenances m2
-          JOIN local_equipos e ON m2.id_equipo = e.id
-          JOIN local_equipamentos eq ON e.id_equipamento = eq.id
-          WHERE m2.id_sesion = s.id
-        ) as equipment_types
-      FROM local_sesion_mantenimiento s
-      LEFT JOIN local_scheduled_maintenances m ON m.id_sesion = s.id
-      WHERE s.id_property = ?
-      GROUP BY s.id
-      ORDER BY s.fecha_programada DESC
+      SELECT *
+      FROM (
+        SELECT
+          s.id,
+          s.nombre,
+          s.descripcion,
+          s.fecha_programada,
+          s.estatus,
+          s.id_property,
+          s.created_by,
+          s.created_at,
+          COUNT(m.id) as total_count,
+          SUM(CASE WHEN m.estatus = 'FINALIZADO' THEN 1 ELSE 0 END) as completed_count,
+          SUM(CASE WHEN m.estatus IN ('EN_PROGRESO', 'EN PROGRESO') THEN 1 ELSE 0 END) as in_progress_count,
+          (
+            SELECT GROUP_CONCAT(DISTINCT eq.nombre)
+            FROM local_scheduled_maintenances m2
+            JOIN local_equipos e ON m2.id_equipo = e.id
+            JOIN local_equipamentos eq ON e.id_equipamento = eq.id
+            WHERE m2.id_sesion = s.id
+          ) as equipment_types
+        FROM local_sesion_mantenimiento s
+        LEFT JOIN local_scheduled_maintenances m ON m.id_sesion = s.id
+        WHERE s.id_property = ?
+        GROUP BY s.id
+
+        UNION ALL
+
+        SELECT
+          m.id_sesion as id,
+          COALESCE(
+            MAX(s.nombre),
+            MAX(p.name) || ' - ' || COALESCE(MAX(m.tipo_mantenimiento), 'Mantenimiento') || ' - ' || MIN(m.dia_programado),
+            'Sesion offline'
+          ) as nombre,
+          MAX(s.descripcion) as descripcion,
+          COALESCE(MAX(s.fecha_programada), MIN(m.dia_programado)) as fecha_programada,
+          COALESCE(MAX(s.estatus), 'NO_INICIADO') as estatus,
+          e.id_property,
+          MAX(s.created_by) as created_by,
+          MAX(s.created_at) as created_at,
+          COUNT(m.id) as total_count,
+          SUM(CASE WHEN m.estatus = 'FINALIZADO' THEN 1 ELSE 0 END) as completed_count,
+          SUM(CASE WHEN m.estatus IN ('EN_PROGRESO', 'EN PROGRESO') THEN 1 ELSE 0 END) as in_progress_count,
+          GROUP_CONCAT(DISTINCT eq.nombre) as equipment_types
+        FROM local_scheduled_maintenances m
+        JOIN local_equipos e ON m.id_equipo = e.id
+        LEFT JOIN local_sesion_mantenimiento s ON s.id = m.id_sesion
+        LEFT JOIN local_properties p ON p.id = e.id_property
+        LEFT JOIN local_equipamentos eq ON e.id_equipamento = eq.id
+        WHERE e.id_property = ?
+          AND m.id_sesion IS NOT NULL
+          AND m.id_sesion != ''
+          AND NOT EXISTS (
+            SELECT 1
+            FROM local_sesion_mantenimiento existing_session
+            WHERE existing_session.id = m.id_sesion
+              AND existing_session.id_property = ?
+          )
+        GROUP BY m.id_sesion, e.id_property
+      ) sessions
+      ORDER BY fecha_programada DESC
       `,
-      [propertyId],
+      [propertyId, propertyId, propertyId],
     );
 
     return rows.map((row: any) => ({
