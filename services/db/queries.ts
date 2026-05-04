@@ -2,6 +2,12 @@ import { dbPromise, ensureInitialized, withLock } from './connection';
 
 // --- READ METHODS FOR UI ---
 
+const log = (...args: unknown[]) => {
+  if (__DEV__) {
+    console.log(...args);
+  }
+};
+
 function normalizeMaintenanceStatus(status: unknown): string | null {
   if (!status || typeof status !== 'string') return null;
 
@@ -436,6 +442,54 @@ export async function getLocalSessionsByProperty(propertyId: string) {
   await ensureInitialized();
   return withLock(async () => {
     const db = await dbPromise;
+
+    if (__DEV__) {
+      const [directStats, maintenanceStats, nullPropertyStats] =
+        await Promise.all([
+          db.getFirstAsync(
+            `
+            SELECT COUNT(*) as count
+            FROM local_sesion_mantenimiento
+            WHERE id_property = ?
+            `,
+            [propertyId],
+          ),
+          db.getFirstAsync(
+            `
+            SELECT
+              COUNT(*) as maintenance_count,
+              COUNT(DISTINCT m.id_sesion) as distinct_session_count
+            FROM local_scheduled_maintenances m
+            JOIN local_equipos e ON m.id_equipo = e.id
+            WHERE e.id_property = ?
+              AND m.id_sesion IS NOT NULL
+              AND m.id_sesion != ''
+            `,
+            [propertyId],
+          ),
+          db.getFirstAsync(
+            `
+            SELECT COUNT(*) as count
+            FROM local_sesion_mantenimiento
+            WHERE id_property IS NULL OR id_property = ''
+            `,
+          ),
+        ]);
+
+      log('[DB] getLocalSessionsByProperty diagnostics', {
+        propertyId,
+        directSessionCount:
+          (directStats as { count?: number } | null)?.count ?? 0,
+        maintenanceCountForProperty:
+          (maintenanceStats as { maintenance_count?: number } | null)
+            ?.maintenance_count ?? 0,
+        distinctSessionIdsFromMaintenances:
+          (maintenanceStats as { distinct_session_count?: number } | null)
+            ?.distinct_session_count ?? 0,
+        sessionsWithMissingProperty:
+          (nullPropertyStats as { count?: number } | null)?.count ?? 0,
+      });
+    }
 
     const rows = await db.getAllAsync(
       `

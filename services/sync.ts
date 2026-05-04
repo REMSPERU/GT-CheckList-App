@@ -1112,6 +1112,13 @@ class SyncService {
           }),
         ]);
 
+        log('[SYNC] Pull table counts', {
+          mantenimientos: scheduledMaintenancesResult.data?.length ?? null,
+          sesion_mantenimiento: sessionsResult.data?.length ?? null,
+          user_sesion_mantenimiento: userSessionsResult.data?.length ?? null,
+          sesion_mantenimiento_fotos: sessionPhotosResult.data?.length ?? null,
+        });
+
         // Log any failures (but continue syncing successful tables)
         const failedTables: string[] = [];
         if (equiposResult.failed) failedTables.push('equipos');

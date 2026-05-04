@@ -329,24 +329,42 @@ export async function bulkInsertMirrorData(
 
       // --- Smart Sync for Sesion Mantenimiento ---
       if (sessions !== null) {
-        await smartSyncTable(
-          db,
-          'local_sesion_mantenimiento',
-          sessions,
-          'id',
-          'INSERT OR REPLACE INTO local_sesion_mantenimiento (id, nombre, descripcion, fecha_programada, estatus, id_property, created_by, created_at, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          item => [
-            item.id,
-            item.nombre,
-            item.descripcion || null,
-            item.fecha_programada || null,
-            item.estatus || 'NO_INICIADO',
-            item.id_property || null,
-            item.created_by || null,
-            item.created_at || null,
-            new Date().toISOString(),
-          ],
-        );
+        const hasLocalSessionReferences =
+          sessions.length === 0
+            ? await db.getFirstAsync(`
+                SELECT COUNT(*) as count
+                FROM local_scheduled_maintenances
+                WHERE id_sesion IS NOT NULL AND id_sesion != ''
+              `)
+            : null;
+        const localSessionReferenceCount =
+          (hasLocalSessionReferences as { count?: number } | null)?.count ?? 0;
+
+        if (sessions.length === 0 && localSessionReferenceCount > 0) {
+          console.warn(
+            '[SmartSync] Skipped clearing local_sesion_mantenimiento: remote returned 0 sessions but local maintenances still reference sessions.',
+            { localSessionReferenceCount },
+          );
+        } else {
+          await smartSyncTable(
+            db,
+            'local_sesion_mantenimiento',
+            sessions,
+            'id',
+            'INSERT OR REPLACE INTO local_sesion_mantenimiento (id, nombre, descripcion, fecha_programada, estatus, id_property, created_by, created_at, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            item => [
+              item.id,
+              item.nombre,
+              item.descripcion || null,
+              item.fecha_programada || null,
+              item.estatus || 'NO_INICIADO',
+              item.id_property || null,
+              item.created_by || null,
+              item.created_at || null,
+              new Date().toISOString(),
+            ],
+          );
+        }
       }
 
       // --- User Sesion Mantenimiento (Composite Key - Full Replace) ---
