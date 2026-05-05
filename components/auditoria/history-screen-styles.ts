@@ -113,6 +113,19 @@ export const historyScreenStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  retryButton: {
+    borderRadius: 8,
+    backgroundColor: '#0891B2',
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   centered: {
     flex: 1,
     justifyContent: 'center',
@@ -139,6 +152,11 @@ export const historyScreenStyles = StyleSheet.create({
   errorMessage: {
     fontSize: 12,
     color: '#B91C1C',
+    marginBottom: 10,
+  },
+  warningMessage: {
+    fontSize: 12,
+    color: '#92400E',
     marginBottom: 10,
   },
   pressed: {

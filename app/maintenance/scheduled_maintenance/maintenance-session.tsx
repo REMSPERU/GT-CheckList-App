@@ -44,19 +44,26 @@ interface FilterOption {
   label: string;
 }
 
+function normalizeParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] ?? '';
+  return value ?? '';
+}
+
 export default function MaintenanceSessionScreen() {
   const router = useRouter();
-  const { propertyId, propertyName } = useLocalSearchParams<{
-    propertyId?: string;
-    propertyName?: string;
+  const params = useLocalSearchParams<{
+    propertyId?: string | string[];
+    propertyName?: string | string[];
   }>();
+  const propertyId = normalizeParam(params.propertyId);
+  const propertyName = normalizeParam(params.propertyName);
 
   const {
     data: sessions = [],
     isLoading,
     refetch,
     isRefetching,
-  } = useMaintenanceSessions(propertyId ?? '');
+  } = useMaintenanceSessions(propertyId);
   const typedSessions = useMemo(
     () => sessions as SessionListItem[],
     [sessions],
