@@ -17,18 +17,23 @@ function getSyncStatusStyle(syncStatus: OfflineAuditSession['sync_status']) {
 interface HistorySessionCardProps {
   item: OfflineAuditSession;
   isGeneratingPdf: boolean;
+  isRetryingUpload: boolean;
   onGenerateReport: (session: OfflineAuditSession) => void;
+  onRetryUpload: (session: OfflineAuditSession) => void;
 }
 
 export function HistorySessionCard({
   item,
   isGeneratingPdf,
+  isRetryingUpload,
   onGenerateReport,
+  onRetryUpload,
 }: HistorySessionCardProps) {
   const summary = parseJsonSafely<StoredSummary>(item.summary);
   const totalQuestions = summary?.total_questions ?? 0;
   const totalOk = summary?.total_ok ?? 0;
   const totalObs = summary?.total_obs ?? 0;
+  const canRetryUpload = item.sync_status !== 'synced';
 
   return (
     <View style={historyScreenStyles.sessionCard}>
@@ -57,6 +62,13 @@ export function HistorySessionCard({
         </Text>
       ) : null}
 
+      {item.sync_status === 'syncing' ? (
+        <Text style={historyScreenStyles.warningMessage}>
+          Si permanece en Subiendo, use Reintentar subida. La auditoria sigue
+          guardada localmente.
+        </Text>
+      ) : null}
+
       <Pressable
         style={({ pressed }) => [
           historyScreenStyles.reportButton,
@@ -70,6 +82,21 @@ export function HistorySessionCard({
           Generar informe
         </Text>
       </Pressable>
+
+      {canRetryUpload ? (
+        <Pressable
+          style={({ pressed }) => [
+            historyScreenStyles.retryButton,
+            isRetryingUpload && historyScreenStyles.reportButtonDisabled,
+            pressed && historyScreenStyles.pressed,
+          ]}
+          onPress={() => onRetryUpload(item)}
+          disabled={isRetryingUpload}>
+          <Text style={historyScreenStyles.retryButtonText}>
+            {isRetryingUpload ? 'Reintentando...' : 'Reintentar subida'}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

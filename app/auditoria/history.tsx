@@ -58,6 +58,9 @@ export default function AuditoriaHistoryScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [retryingUploadLocalId, setRetryingUploadLocalId] = useState<
+    number | null
+  >(null);
   const [pdfModalVisible, setPdfModalVisible] = useState(false);
   const [pdfUri, setPdfUri] = useState<string | null>(null);
   const [generationProgress, setGenerationProgress] = useState('');
@@ -153,6 +156,33 @@ export default function AuditoriaHistoryScreen() {
       setIsRefreshing(false);
     }
   }, [buildingId, loadLocalHistory, showAlert]);
+
+  const handleRetryUpload = useCallback(
+    async (session: OfflineAuditSession) => {
+      setRetryingUploadLocalId(session.local_id);
+      try {
+        await DatabaseService.updateOfflineAuditSessionStatus(
+          session.local_id,
+          'pending',
+          null,
+        );
+        await syncService.triggerSync('audit-history-manual-retry', {
+          pushOnly: true,
+          force: true,
+        });
+        await loadLocalHistory();
+      } catch (error) {
+        console.error('Failed to retry audit upload:', error);
+        showAlert(
+          'Error',
+          'No se pudo reintentar la subida. La auditoria sigue guardada localmente.',
+        );
+      } finally {
+        setRetryingUploadLocalId(null);
+      }
+    },
+    [loadLocalHistory, showAlert],
+  );
 
   const handleCreateAudit = useCallback(() => {
     if (!buildingId) {
@@ -549,11 +579,18 @@ export default function AuditoriaHistoryScreen() {
         <HistorySessionCard
           item={item}
           isGeneratingPdf={isGeneratingPdf}
+          isRetryingUpload={retryingUploadLocalId === item.local_id}
           onGenerateReport={handleGenerateReport}
+          onRetryUpload={handleRetryUpload}
         />
       );
     },
-    [handleGenerateReport, isGeneratingPdf],
+    [
+      handleGenerateReport,
+      handleRetryUpload,
+      isGeneratingPdf,
+      retryingUploadLocalId,
+    ],
   );
 
   if (!buildingId) {

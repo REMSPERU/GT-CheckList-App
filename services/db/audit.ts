@@ -176,7 +176,7 @@ export async function getPendingAuditSessions() {
     return db.getAllAsync(
       `SELECT *
        FROM offline_audit_sessions
-       WHERE sync_status IN ('pending', 'error')
+       WHERE sync_status IN ('pending', 'error', 'syncing')
        ORDER BY created_at ASC`,
     );
   });

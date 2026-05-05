@@ -99,6 +99,10 @@ interface AuditPayload {
   equipment_feedback?: AuditEquipmentFeedbackPayload[];
 }
 
+function hasUploadedAuditPhoto(photo: AuditPhotoPayload) {
+  return Boolean(photo.bucket && photo.path);
+}
+
 interface RemoteAuditSession {
   client_submission_id: string;
   property_id: string;
@@ -524,6 +528,12 @@ class SyncService {
           }
         }
 
+        if (item.sync_status === 'syncing') {
+          log(
+            `[SYNC-AUDIT] Recovering stuck syncing session ${item.client_submission_id}`,
+          );
+        }
+
         if (payload?.answers?.length) {
           for (const answer of payload.answers) {
             if (answer.status !== 'OBS' || !answer.photos?.length) continue;
@@ -532,7 +542,12 @@ class SyncService {
 
             for (const photo of answer.photos) {
               const sourceUri = photo.local_uri;
-              if (!sourceUri) continue;
+              if (!sourceUri) {
+                if (hasUploadedAuditPhoto(photo)) {
+                  uploadedPhotos.push(photo);
+                }
+                continue;
+              }
 
               const uploaded = await supabaseAuditStorageService.uploadPhoto({
                 uri: sourceUri,
@@ -564,7 +579,7 @@ class SyncService {
               for (const photo of photos) {
                 const sourceUri = photo.local_uri;
                 if (!sourceUri) {
-                  if (photo.bucket || photo.path) {
+                  if (hasUploadedAuditPhoto(photo)) {
                     uploadedPhotos.push(photo);
                   }
                   continue;
@@ -599,6 +614,11 @@ class SyncService {
           }
         }
 
+        await DatabaseService.updateOfflineAuditSessionPayload(
+          item.local_id,
+          payload,
+        );
+
         const { error } = await supabase.from('audit_sessions').upsert(
           {
             client_submission_id: item.client_submission_id,
@@ -619,11 +639,6 @@ class SyncService {
         );
 
         if (error) throw error;
-
-        await DatabaseService.updateOfflineAuditSessionPayload(
-          item.local_id,
-          payload,
-        );
 
         await DatabaseService.updateOfflineAuditSessionStatus(
           item.local_id,
@@ -667,6 +682,15 @@ class SyncService {
 
     if (normalized.includes('storage')) {
       return 'No se pudo subir evidencia fotografica a storage.';
+    }
+
+    if (
+      normalized.includes('no such file') ||
+      normalized.includes('file not found') ||
+      normalized.includes('could not be read') ||
+      normalized.includes('no se pudo leer')
+    ) {
+      return 'No se encontro una foto local. Mantenga esta app instalada y contacte soporte antes de borrar datos.';
     }
 
     if (normalized.includes('audit_local_payload_invalid')) {
