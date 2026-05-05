@@ -79,6 +79,24 @@ class SupabaseUserPropertyService {
       throw error;
     }
   }
+
+  /**
+   * Quita la asignacion de un auditor a un inmueble.
+   */
+  async unassignAuditorFromProperty(input: {
+    auditorId: string;
+    propertyId: string;
+  }): Promise<void> {
+    const { error } = await supabase.rpc('unassign_auditor_from_property', {
+      p_auditor_id: input.auditorId,
+      p_property_id: input.propertyId,
+    });
+
+    if (error) {
+      console.error('Error unassigning auditor from property:', error);
+      throw error;
+    }
+  }
 }
 
 export const supabaseUserPropertyService = new SupabaseUserPropertyService();

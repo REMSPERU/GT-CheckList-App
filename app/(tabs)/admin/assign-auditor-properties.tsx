@@ -41,6 +41,9 @@ export default function AssignAuditorPropertiesScreen() {
   const [loading, setLoading] = useState(true);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [removingPropertyId, setRemovingPropertyId] = useState<string | null>(
+    null,
+  );
 
   const propertyNameMap = useMemo(() => {
     return new Map(properties.map(item => [item.id, item.name]));
@@ -128,6 +131,47 @@ export default function AssignAuditorPropertiesScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const removeAssignment = async (propertyId: string) => {
+    if (!selectedAuditor) return;
+
+    try {
+      setRemovingPropertyId(propertyId);
+      await supabaseUserPropertyService.unassignAuditorFromProperty({
+        auditorId: selectedAuditor,
+        propertyId,
+      });
+
+      await loadAssignments(selectedAuditor);
+      Alert.alert('Listo', 'Inmueble quitado del auditor.');
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'No se pudo quitar el inmueble del auditor';
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setRemovingPropertyId(null);
+    }
+  };
+
+  const handleRemoveAssignment = (item: UserPropertyAssignment) => {
+    const propertyName =
+      propertyNameMap.get(item.property_id) || item.property_id;
+
+    Alert.alert(
+      'Quitar inmueble',
+      `Desea quitar ${propertyName} de ${selectedAuditorName || 'este auditor'}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Quitar',
+          style: 'destructive',
+          onPress: () => void removeAssignment(item.property_id),
+        },
+      ],
+    );
   };
 
   const auditorItems = auditors.map(user => ({
@@ -253,6 +297,22 @@ export default function AssignAuditorPropertiesScreen() {
                     ? new Date(item.assigned_at).toLocaleString()
                     : 'N/A'}
                 </Text>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.removeButton,
+                    removingPropertyId === item.property_id &&
+                      styles.removeButtonDisabled,
+                    pressed && styles.pressed,
+                  ]}
+                  onPress={() => handleRemoveAssignment(item)}
+                  disabled={removingPropertyId === item.property_id}
+                  accessibilityRole="button">
+                  <Text style={styles.removeButtonText}>
+                    {removingPropertyId === item.property_id
+                      ? 'Quitando...'
+                      : 'Quitar'}
+                  </Text>
+                </Pressable>
               </View>
             ))}
         </View>
@@ -353,6 +413,24 @@ const styles = StyleSheet.create({
   assignmentMeta: {
     fontSize: 13,
     color: '#6B7280',
+  },
+  removeButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#FEF2F2',
+  },
+  removeButtonDisabled: {
+    opacity: 0.6,
+  },
+  removeButtonText: {
+    color: '#B91C1C',
+    fontSize: 13,
+    fontWeight: '700',
   },
   pressed: {
     opacity: 0.85,
