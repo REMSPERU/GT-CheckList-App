@@ -399,12 +399,16 @@ class SyncService {
       await this.pushData();
       const pushDuration = Date.now() - startTime;
 
-      if (!options?.pushOnly) {
-        await this.pullData(options?.force);
-      }
+      const pulled = options?.pushOnly
+        ? true
+        : await this.pullData(options?.force);
 
       const totalDuration = Date.now() - startTime;
-      this.lastFullSyncTimestamp = Date.now();
+      if (pulled) {
+        this.lastFullSyncTimestamp = Date.now();
+      } else {
+        log(`[SYNC#${syncId}] Pull skipped — not updating dedup timestamp`);
+      }
       if (!options?.pushOnly) {
         this.markReady();
       }
@@ -1038,6 +1042,7 @@ class SyncService {
         const state = await NetInfo.fetch();
         this.isConnected = state.isConnected ?? false;
         if (!this.isConnected || state.isInternetReachable === false) {
+          log('[SYNC] Pull skipped — offline');
           return false;
         }
 

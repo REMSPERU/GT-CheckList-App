@@ -285,6 +285,7 @@ export const useScheduledMaintenances = () => {
 export const useMaintenanceByProperty = (propertyId: string) => {
   return useQuery({
     queryKey: ['maintenance-by-property', propertyId],
+    networkMode: 'always',
     queryFn: async () => {
       if (!propertyId) return [];
       log(
@@ -304,18 +305,10 @@ export const useMaintenanceByProperty = (propertyId: string) => {
 export const useMaintenanceSessions = (propertyId: string) => {
   return useQuery({
     queryKey: ['maintenance-sessions', propertyId],
+    networkMode: 'always',
     queryFn: async () => {
       if (!propertyId) return [];
-      log('[useMaintenanceSessions] query start', {
-        queryKey: ['maintenance-sessions', propertyId],
-        propertyId,
-      });
-      const localSessions =
-        await DatabaseService.getLocalSessionsByProperty(propertyId);
-      log('[useMaintenanceSessions] local query result', {
-        count: localSessions.length,
-      });
-      return localSessions;
+      return await DatabaseService.getLocalSessionsByProperty(propertyId);
     },
     enabled: !!propertyId,
     staleTime: 1000,
