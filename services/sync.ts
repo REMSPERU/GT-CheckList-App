@@ -4,6 +4,7 @@ import { supabaseMaintenanceService } from './supabase-maintenance.service';
 import { supabaseElectricalPanelService } from './supabase-electrical-panel.service';
 import { supabaseGroundingWellService } from './supabase-grounding-well.service';
 import { supabaseAuditStorageService } from './supabase-audit-storage.service';
+import { checklistStorageService } from './checklist-storage.service';
 import NetInfo from '@react-native-community/netinfo';
 import { syncQueue } from './sync-queue';
 
@@ -69,6 +70,50 @@ interface OfflineAuditSession {
   audit_payload: string | null;
   summary: string | null;
   sync_status: string;
+}
+
+interface OfflineChecklistResponse {
+  local_id: number;
+  client_submission_id: string;
+  building_id: string;
+  equipamento_id: string;
+  equipo_id: string;
+  frequency: string;
+  period_start: string;
+  period_end: string;
+  user_created: string;
+  payload_json: string;
+  status: string;
+}
+
+interface OfflineChecklistPhoto {
+  id: number;
+  checklist_local_id: number;
+  question_id: string | null;
+  kind: 'general' | 'question';
+  local_uri: string;
+  status: string;
+  remote_bucket: string | null;
+  remote_path: string | null;
+  remote_public_url: string | null;
+}
+
+interface ChecklistPhotoRefPayload {
+  bucket: string;
+  path: string;
+  public_url: string;
+}
+
+interface ChecklistAnswerPayload {
+  pregunta_id: string;
+  fotos?: ChecklistPhotoRefPayload[];
+}
+
+interface ChecklistResponsePayload {
+  evidencia_general_fotos?: ChecklistPhotoRefPayload[];
+  respuestas_json?: {
+    respuestas?: ChecklistAnswerPayload[];
+  };
 }
 
 interface AuditPhotoPayload {
@@ -473,6 +518,9 @@ class SyncService {
         // 5. Sync Audit Sessions
         await this.syncPendingAuditSessions();
 
+        // 6. Sync generic checklist responses
+        await this.syncPendingChecklistResponses();
+
         try {
           await DatabaseService.cleanupOfflineQueue();
         } catch (cleanupError) {
@@ -490,6 +538,149 @@ class SyncService {
     } finally {
       this.currentPushPromise = null;
     }
+  }
+
+  // ----------------------------------------------------------------
+  // SUB-ROUTINE 6: CHECKLIST RESPONSES
+  // ----------------------------------------------------------------
+  private async syncPendingChecklistResponses() {
+    const pendingItems =
+      (await DatabaseService.getPendingChecklistResponses()) as OfflineChecklistResponse[];
+
+    if (pendingItems.length === 0) return;
+
+    log(`[SYNC-CHECKLIST] Syncing ${pendingItems.length} responses`);
+
+    for (const item of pendingItems) {
+      try {
+        await DatabaseService.updateOfflineChecklistResponseStatus(
+          item.local_id,
+          'syncing',
+        );
+
+        const payload = JSON.parse(
+          item.payload_json,
+        ) as ChecklistResponsePayload & Record<string, unknown>;
+        const photos = (await DatabaseService.getChecklistPhotosByLocalId(
+          item.local_id,
+        )) as OfflineChecklistPhoto[];
+
+        const uploadedPhotos: (OfflineChecklistPhoto & {
+          uploadedRef: ChecklistPhotoRefPayload;
+        })[] = [];
+
+        for (const photo of photos) {
+          if (
+            photo.status === 'synced' &&
+            photo.remote_bucket &&
+            photo.remote_path &&
+            photo.remote_public_url
+          ) {
+            uploadedPhotos.push({
+              ...photo,
+              uploadedRef: {
+                bucket: photo.remote_bucket,
+                path: photo.remote_path,
+                public_url: photo.remote_public_url,
+              },
+            });
+            continue;
+          }
+
+          try {
+            await DatabaseService.updateOfflineChecklistPhotoStatus(
+              photo.id,
+              'syncing',
+            );
+            const uploaded = await checklistStorageService.uploadPhoto({
+              uri: photo.local_uri,
+              userId: item.user_created,
+              equipoId: item.equipo_id,
+              questionId: photo.question_id || undefined,
+              kind: photo.kind,
+            });
+
+            const uploadedRef = {
+              bucket: uploaded.bucket,
+              path: uploaded.path,
+              public_url: uploaded.public_url,
+            };
+
+            await DatabaseService.updateOfflineChecklistPhotoStatus(
+              photo.id,
+              'synced',
+              {
+                bucket: uploaded.bucket,
+                path: uploaded.path,
+                publicUrl: uploaded.public_url,
+              },
+            );
+            uploadedPhotos.push({ ...photo, status: 'synced', uploadedRef });
+          } catch (photoError) {
+            await DatabaseService.updateOfflineChecklistPhotoStatus(
+              photo.id,
+              'error',
+              null,
+              this.getErrorMessage(photoError),
+            );
+            throw photoError;
+          }
+        }
+
+        payload.evidencia_general_fotos = uploadedPhotos
+          .filter(photo => photo.kind === 'general')
+          .map(photo => photo.uploadedRef);
+
+        const questionPhotosById = uploadedPhotos.reduce<
+          Record<string, ChecklistPhotoRefPayload[]>
+        >((acc, photo) => {
+          if (photo.kind !== 'question' || !photo.question_id) return acc;
+          if (!acc[photo.question_id]) acc[photo.question_id] = [];
+          acc[photo.question_id].push(photo.uploadedRef);
+          return acc;
+        }, {});
+
+        payload.respuestas_json?.respuestas?.forEach(answer => {
+          answer.fotos = questionPhotosById[answer.pregunta_id] ?? [];
+        });
+
+        const { error } = await supabase
+          .from('checklist_response')
+          .upsert(payload, {
+            onConflict: 'client_submission_id',
+            ignoreDuplicates: false,
+          });
+
+        if (error) throw error;
+
+        await DatabaseService.updateOfflineChecklistResponseStatus(
+          item.local_id,
+          'synced',
+        );
+      } catch (error) {
+        const message = this.getErrorMessage(error);
+        const isConflict = this.isUniqueConflict(error);
+        await DatabaseService.updateOfflineChecklistResponseStatus(
+          item.local_id,
+          isConflict ? 'conflict' : 'error',
+          isConflict
+            ? 'Conflicto: ya existe un checklist remoto para este equipo y periodo.'
+            : message,
+        );
+        console.error(`[SYNC-CHECKLIST] Failed for ${item.local_id}:`, error);
+      }
+    }
+  }
+
+  private isUniqueConflict(error: unknown) {
+    if (!error || typeof error !== 'object') return false;
+    const candidate = error as { code?: string; message?: string };
+    return (
+      candidate.code === '23505' ||
+      String(candidate.message || '')
+        .toLowerCase()
+        .includes('duplicate key')
+    );
   }
 
   // ----------------------------------------------------------------
