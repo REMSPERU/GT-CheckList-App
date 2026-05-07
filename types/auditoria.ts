@@ -63,6 +63,7 @@ export interface StoredSummary {
 
 export interface OfflineAuditSession {
   local_id: number;
+  property_id: string;
   auditor_id: string;
   scheduled_for: string;
   started_at: string | null;
@@ -71,6 +72,9 @@ export interface OfflineAuditSession {
   summary: string | null;
   sync_status: 'pending' | 'syncing' | 'synced' | 'error';
   error_message: string | null;
+  upload_total_photos: number | null;
+  upload_completed_photos: number | null;
+  upload_progress_message: string | null;
   created_at: string;
 }
 

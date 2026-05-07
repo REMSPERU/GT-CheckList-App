@@ -296,6 +296,9 @@ export async function initDatabase() {
           summary TEXT,
           sync_status TEXT DEFAULT 'pending',
           error_message TEXT,
+          upload_total_photos INTEGER DEFAULT 0,
+          upload_completed_photos INTEGER DEFAULT 0,
+          upload_progress_message TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           synced_at TEXT
         );
@@ -478,6 +481,40 @@ export async function initDatabase() {
       );
     } catch {
       // Index already exists
+    }
+
+    // Migration v1.10: Add audit upload progress columns
+    try {
+      await db.execAsync(
+        `ALTER TABLE offline_audit_sessions ADD COLUMN upload_total_photos INTEGER DEFAULT 0;`,
+      );
+      console.log(
+        'Migration: Added upload_total_photos to offline_audit_sessions',
+      );
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(
+        `ALTER TABLE offline_audit_sessions ADD COLUMN upload_completed_photos INTEGER DEFAULT 0;`,
+      );
+      console.log(
+        'Migration: Added upload_completed_photos to offline_audit_sessions',
+      );
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(
+        `ALTER TABLE offline_audit_sessions ADD COLUMN upload_progress_message TEXT;`,
+      );
+      console.log(
+        'Migration: Added upload_progress_message to offline_audit_sessions',
+      );
+    } catch {
+      // Column already exists
     }
 
     console.log('Database initialized');

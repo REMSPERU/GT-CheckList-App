@@ -851,7 +851,7 @@ export default function AuditoriaSessionScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       quality: 0.7,
       allowsEditing: false,
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
     });
 
     if (!result.canceled) {

@@ -21,6 +21,9 @@ const MIN_PULL_INTERVAL_MS = 30000;
 /** Polling interval for background sync checks */
 const POLL_INTERVAL_MS = 30000;
 
+const AUDIT_PHOTO_UPLOAD_TIMEOUT_MS = 60000;
+const AUDIT_SESSION_UPSERT_TIMEOUT_MS = 45000;
+
 const log = (...args: unknown[]) => {
   if (__DEV__) {
     console.log(...args);
@@ -101,6 +104,52 @@ interface AuditPayload {
 
 function hasUploadedAuditPhoto(photo: AuditPhotoPayload) {
   return Boolean(photo.bucket && photo.path);
+}
+
+function getAuditPhotoGroups(payload: AuditPayload | null) {
+  return [
+    ...(payload?.answers?.map(answer => answer.photos) ?? []),
+    ...(payload?.equipment_feedback?.flatMap(feedback => [
+      feedback.good_practices_photos,
+      feedback.improvement_opportunity_photos,
+    ]) ?? []),
+  ];
+}
+
+function countAuditPhotos(payload: AuditPayload | null) {
+  return getAuditPhotoGroups(payload).reduce(
+    (total, photos) => total + (photos?.length ?? 0),
+    0,
+  );
+}
+
+function countUploadedAuditPhotos(payload: AuditPayload | null) {
+  return getAuditPhotoGroups(payload).reduce((total, photos) => {
+    return total + (photos?.filter(hasUploadedAuditPhoto).length ?? 0);
+  }, 0);
+}
+
+async function withTimeout<T>(
+  promise: PromiseLike<T>,
+  timeoutMs: number,
+  errorMessage: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(errorMessage));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 interface RemoteAuditSession {
@@ -495,6 +544,26 @@ class SyncService {
   // ----------------------------------------------------------------
   // SUB-ROUTINE 5: AUDIT SESSIONS
   // ----------------------------------------------------------------
+  private async persistAuditUploadProgress(
+    item: OfflineAuditSession,
+    payload: AuditPayload | null,
+    message: string | null,
+  ) {
+    const totalPhotos = countAuditPhotos(payload);
+    const completedPhotos = countUploadedAuditPhotos(payload);
+
+    await DatabaseService.updateOfflineAuditSessionPayload(
+      item.local_id,
+      payload,
+    );
+    await DatabaseService.updateOfflineAuditSessionUploadProgress(
+      item.local_id,
+      completedPhotos,
+      totalPhotos,
+      message,
+    );
+  }
+
   private async syncPendingAuditSessions() {
     const pendingItems =
       (await DatabaseService.getPendingAuditSessions()) as OfflineAuditSession[];
@@ -504,13 +573,13 @@ class SyncService {
     log(`[SYNC-AUDIT] Found ${pendingItems.length} pending sessions`);
 
     for (const item of pendingItems) {
+      let payload: AuditPayload | null = null;
       try {
         await DatabaseService.updateOfflineAuditSessionStatus(
           item.local_id,
           'syncing',
         );
 
-        let payload: AuditPayload | null = null;
         if (item.audit_payload) {
           try {
             payload = JSON.parse(item.audit_payload) as AuditPayload;
@@ -534,36 +603,60 @@ class SyncService {
           );
         }
 
+        await this.persistAuditUploadProgress(
+          item,
+          payload,
+          'Preparando evidencias para subir...',
+        );
+
         if (payload?.answers?.length) {
           for (const answer of payload.answers) {
             if (answer.status !== 'OBS' || !answer.photos?.length) continue;
 
-            const uploadedPhotos: AuditPhotoPayload[] = [];
-
-            for (const photo of answer.photos) {
-              const sourceUri = photo.local_uri;
-              if (!sourceUri) {
-                if (hasUploadedAuditPhoto(photo)) {
-                  uploadedPhotos.push(photo);
-                }
+            for (let index = 0; index < answer.photos.length; index += 1) {
+              const photo = answer.photos[index];
+              if (hasUploadedAuditPhoto(photo)) {
+                answer.photos[index] = {
+                  bucket: photo.bucket,
+                  path: photo.path,
+                };
                 continue;
               }
 
-              const uploaded = await supabaseAuditStorageService.uploadPhoto({
-                uri: sourceUri,
-                clientSubmissionId: item.client_submission_id,
-                propertyId: item.property_id,
-                auditorId: item.auditor_id,
-                questionId: answer.question_id,
-              });
+              const sourceUri = photo.local_uri;
+              if (!sourceUri) {
+                continue;
+              }
 
-              uploadedPhotos.push({
+              await this.persistAuditUploadProgress(
+                item,
+                payload,
+                `Subiendo evidencia ${countUploadedAuditPhotos(payload) + 1} de ${countAuditPhotos(payload)}...`,
+              );
+
+              const uploaded = await withTimeout(
+                supabaseAuditStorageService.uploadPhoto({
+                  uri: sourceUri,
+                  clientSubmissionId: item.client_submission_id,
+                  propertyId: item.property_id,
+                  auditorId: item.auditor_id,
+                  questionId: answer.question_id,
+                }),
+                AUDIT_PHOTO_UPLOAD_TIMEOUT_MS,
+                'AUDIT_PHOTO_UPLOAD_TIMEOUT',
+              );
+
+              answer.photos[index] = {
                 bucket: uploaded.bucket,
                 path: uploaded.path,
-              });
-            }
+              };
 
-            answer.photos = uploadedPhotos;
+              await this.persistAuditUploadProgress(
+                item,
+                payload,
+                `Evidencia ${countUploadedAuditPhotos(payload)} de ${countAuditPhotos(payload)} subida.`,
+              );
+            }
           }
         }
 
@@ -575,31 +668,52 @@ class SyncService {
             ) => {
               if (!photos?.length) return [];
 
-              const uploadedPhotos: AuditPhotoPayload[] = [];
-              for (const photo of photos) {
-                const sourceUri = photo.local_uri;
-                if (!sourceUri) {
-                  if (hasUploadedAuditPhoto(photo)) {
-                    uploadedPhotos.push(photo);
-                  }
+              for (let index = 0; index < photos.length; index += 1) {
+                const photo = photos[index];
+                if (hasUploadedAuditPhoto(photo)) {
+                  photos[index] = {
+                    bucket: photo.bucket,
+                    path: photo.path,
+                  };
                   continue;
                 }
 
-                const uploaded = await supabaseAuditStorageService.uploadPhoto({
-                  uri: sourceUri,
-                  clientSubmissionId: item.client_submission_id,
-                  propertyId: item.property_id,
-                  auditorId: item.auditor_id,
-                  questionId: `${feedback.equipment_key}-${suffix}`,
-                });
+                const sourceUri = photo.local_uri;
+                if (!sourceUri) {
+                  continue;
+                }
 
-                uploadedPhotos.push({
+                await this.persistAuditUploadProgress(
+                  item,
+                  payload,
+                  `Subiendo evidencia ${countUploadedAuditPhotos(payload) + 1} de ${countAuditPhotos(payload)}...`,
+                );
+
+                const uploaded = await withTimeout(
+                  supabaseAuditStorageService.uploadPhoto({
+                    uri: sourceUri,
+                    clientSubmissionId: item.client_submission_id,
+                    propertyId: item.property_id,
+                    auditorId: item.auditor_id,
+                    questionId: `${feedback.equipment_key}-${suffix}`,
+                  }),
+                  AUDIT_PHOTO_UPLOAD_TIMEOUT_MS,
+                  'AUDIT_PHOTO_UPLOAD_TIMEOUT',
+                );
+
+                photos[index] = {
                   bucket: uploaded.bucket,
                   path: uploaded.path,
-                });
+                };
+
+                await this.persistAuditUploadProgress(
+                  item,
+                  payload,
+                  `Evidencia ${countUploadedAuditPhotos(payload)} de ${countAuditPhotos(payload)} subida.`,
+                );
               }
 
-              return uploadedPhotos;
+              return photos;
             };
 
             feedback.good_practices_photos = await uploadFeedbackPhotos(
@@ -614,28 +728,33 @@ class SyncService {
           }
         }
 
-        await DatabaseService.updateOfflineAuditSessionPayload(
-          item.local_id,
+        await this.persistAuditUploadProgress(
+          item,
           payload,
+          'Guardando auditoria en el servidor...',
         );
 
-        const { error } = await supabase.from('audit_sessions').upsert(
-          {
-            client_submission_id: item.client_submission_id,
-            property_id: item.property_id,
-            auditor_id: item.auditor_id,
-            created_by: item.created_by || item.auditor_id,
-            scheduled_for: item.scheduled_for,
-            status: 'SINCRONIZADA',
-            started_at: item.started_at,
-            submitted_at: item.submitted_at,
-            audit_payload: payload,
-            summary,
-          },
-          {
-            onConflict: 'client_submission_id',
-            ignoreDuplicates: false,
-          },
+        const { error } = await withTimeout(
+          supabase.from('audit_sessions').upsert(
+            {
+              client_submission_id: item.client_submission_id,
+              property_id: item.property_id,
+              auditor_id: item.auditor_id,
+              created_by: item.created_by || item.auditor_id,
+              scheduled_for: item.scheduled_for,
+              status: 'SINCRONIZADA',
+              started_at: item.started_at,
+              submitted_at: item.submitted_at,
+              audit_payload: payload,
+              summary,
+            },
+            {
+              onConflict: 'client_submission_id',
+              ignoreDuplicates: false,
+            },
+          ),
+          AUDIT_SESSION_UPSERT_TIMEOUT_MS,
+          'AUDIT_SESSION_UPSERT_TIMEOUT',
         );
 
         if (error) throw error;
@@ -644,8 +763,20 @@ class SyncService {
           item.local_id,
           'synced',
         );
+        await DatabaseService.updateOfflineAuditSessionUploadProgress(
+          item.local_id,
+          countAuditPhotos(payload),
+          countAuditPhotos(payload),
+          'Auditoria subida correctamente.',
+        );
       } catch (error) {
         const message = this.getAuditSyncErrorMessage(error);
+        await DatabaseService.updateOfflineAuditSessionUploadProgress(
+          item.local_id,
+          countUploadedAuditPhotos(payload),
+          countAuditPhotos(payload),
+          message,
+        );
         await DatabaseService.updateOfflineAuditSessionStatus(
           item.local_id,
           'error',
@@ -678,6 +809,14 @@ class SyncService {
 
     if (normalized.includes('network') || normalized.includes('fetch')) {
       return 'Sin internet: la auditoria quedo pendiente para reintento automatico.';
+    }
+
+    if (normalized.includes('audit_photo_upload_timeout')) {
+      return 'La subida de una foto tardo demasiado. Revise la conexion y reintente.';
+    }
+
+    if (normalized.includes('audit_session_upsert_timeout')) {
+      return 'La conexion tardo demasiado al guardar la auditoria en el servidor. Reintente.';
     }
 
     if (normalized.includes('storage')) {
