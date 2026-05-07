@@ -31,13 +31,11 @@ import type {
 } from '@/types/checklist';
 import { ensureImagePermission } from '@/lib/image-permissions';
 import { supabase } from '@/lib/supabase';
-import {
-  checklistStorageService,
-  type StoredPhotoRef,
-} from '@/services/checklist-storage.service';
+import type { StoredPhotoRef } from '@/services/checklist-storage.service';
 import { supabaseChecklistScheduleService } from '@/services/supabase-checklist-schedule.service';
 import { DatabaseService } from '@/services/database';
 import { useUserRole } from '@/hooks/use-user-role';
+import { syncService } from '@/services/sync';
 
 type AnswerErrors = Record<string, { observation?: string; photos?: string }>;
 
@@ -62,6 +60,7 @@ interface ChecklistAnswersJson {
 }
 
 interface ChecklistResponseInsert {
+  client_submission_id: string;
   user_created: string;
   equipamento_id: string;
   equipamento_nombre: string;
@@ -84,6 +83,22 @@ interface ChecklistResponseInsert {
   duration_seconds: number;
   interaction_count: number;
   checklist_schedule_id?: string | null;
+}
+
+function generateClientSubmissionId() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
+    const value = Math.floor(Math.random() * 16);
+    const output = char === 'x' ? value : (value & 0x3) | 0x8;
+    return output.toString(16);
+  });
+}
+
+function buildLocalPhotoRef(uri: string): StoredPhotoRef {
+  return {
+    bucket: 'local',
+    path: uri,
+    public_url: uri,
+  };
 }
 
 interface ChecklistSchedulePreview {
@@ -121,8 +136,15 @@ function getPeriodFromFrequency(frequencyRaw: string) {
     end.setTime(end.getTime() - 1);
   }
 
-  const periodStart = start.toISOString().slice(0, 10);
-  const periodEnd = end.toISOString().slice(0, 10);
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const periodStart = formatLocalDate(start);
+  const periodEnd = formatLocalDate(end);
 
   return { periodStart, periodEnd };
 }
@@ -655,46 +677,6 @@ export default function ChecklistFormScreen() {
     [registerInteraction],
   );
 
-  const uploadChecklistPhotos = useCallback(
-    async (userId: string) => {
-      const uploadedGeneralPhotos = await Promise.all(
-        generalPhotoUris.map(uri =>
-          checklistStorageService.uploadPhoto({
-            uri,
-            userId,
-            equipoId: params.equipoId,
-            kind: 'general',
-          }),
-        ),
-      );
-
-      const uploadedQuestionPhotos: Record<string, StoredPhotoRef[]> = {};
-
-      for (const answer of Object.values(answers)) {
-        if (answer.status !== false || answer.photoUris.length === 0) {
-          continue;
-        }
-
-        const photos = await Promise.all(
-          answer.photoUris.map(uri =>
-            checklistStorageService.uploadPhoto({
-              uri,
-              userId,
-              equipoId: params.equipoId,
-              questionId: answer.preguntaId,
-              kind: 'question',
-            }),
-          ),
-        );
-
-        uploadedQuestionPhotos[answer.preguntaId] = photos;
-      }
-
-      return { uploadedGeneralPhotos, uploadedQuestionPhotos };
-    },
-    [answers, generalPhotoUris, params.equipoId],
-  );
-
   const validate = useCallback(() => {
     const nextErrors: AnswerErrors = {};
     let hasErrors = false;
@@ -765,15 +747,7 @@ export default function ChecklistFormScreen() {
       return;
     }
 
-    if (!schedulePreview.hasSchedule) {
-      showAppAlert(
-        'Programacion requerida',
-        'Para guardar el checklist primero debes crear una programacion activa.',
-      );
-      return;
-    }
-
-    if (!schedulePreview.allowed) {
+    if (schedulePreview.hasSchedule && !schedulePreview.allowed) {
       showAppAlert(
         'Checklist fuera de programacion',
         `${schedulePreview.message}${schedulePreview.hint ? `\n${schedulePreview.hint}` : ''}`,
@@ -790,13 +764,16 @@ export default function ChecklistFormScreen() {
     }
 
     setIsSaving(true);
-    let uploadedPhotosForRollback: StoredPhotoRef[] = [];
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data } = await supabase.auth.getUser().catch(() => ({
+        data: { user: null },
+      }));
+      const localSession = data.user
+        ? null
+        : await DatabaseService.getSession();
+      const userId = data.user?.id || localSession?.user_id;
 
-      if (!user?.id) {
+      if (!userId) {
         showAppAlert('Error', 'No se pudo obtener el usuario actual.');
         return;
       }
@@ -843,24 +820,75 @@ export default function ChecklistFormScreen() {
           scheduleValidationError,
         );
 
-        const alreadyExists = await checkAlreadySubmitted();
-        if (alreadyExists) {
-          showAppAlert(
-            'Checklist ya registrado',
-            `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStartLabel} a ${periodEndLabel}.`,
+        try {
+          const alreadyExists = await checkAlreadySubmitted();
+          if (alreadyExists) {
+            showAppAlert(
+              'Checklist ya registrado',
+              `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStartLabel} a ${periodEndLabel}.`,
+            );
+            return;
+          }
+        } catch (periodCheckError) {
+          console.log(
+            'Remote period check unavailable, saving offline first:',
+            periodCheckError,
           );
-          return;
         }
       }
 
       const schedulePeriod = getPeriodFromFrequency(effectiveFrequency);
+      const localCounts = await DatabaseService.getChecklistCountsByEquipo(
+        params.buildingId,
+        params.equipamentoId,
+        effectiveFrequency,
+        schedulePeriod.periodStart,
+      );
+      const existingLocalCount = localCounts
+        .filter(item => item.equipo_id === params.equipoId)
+        .reduce(
+          (acc, item) =>
+            acc +
+            Number(item.synced_count || 0) +
+            Number(item.pending_count || 0) +
+            Number(item.conflict_count || 0),
+          0,
+        );
 
-      const { uploadedGeneralPhotos, uploadedQuestionPhotos } =
-        await uploadChecklistPhotos(user.id);
-      uploadedPhotosForRollback = [
-        ...uploadedGeneralPhotos,
-        ...Object.values(uploadedQuestionPhotos).flat(),
-      ];
+      if (!checklistScheduleId && existingLocalCount > 0) {
+        showAppAlert(
+          'Checklist ya registrado',
+          `Este equipo ya tiene checklist ${effectiveFrequency.toLowerCase()} local para el periodo ${formatDateToSpanish(schedulePeriod.periodStart)} a ${formatDateToSpanish(schedulePeriod.periodEnd)}.`,
+        );
+        return;
+      }
+
+      const uploadedGeneralPhotos = generalPhotoUris.map(buildLocalPhotoRef);
+      const uploadedQuestionPhotos: Record<string, StoredPhotoRef[]> = {};
+      const offlinePhotos: {
+        kind: 'general' | 'question';
+        questionId?: string;
+        localUri: string;
+      }[] = generalPhotoUris.map(uri => ({
+        kind: 'general' as const,
+        localUri: uri,
+      }));
+
+      Object.values(answers).forEach(answer => {
+        if (answer.status !== false || answer.photoUris.length === 0) {
+          return;
+        }
+
+        uploadedQuestionPhotos[answer.preguntaId] =
+          answer.photoUris.map(buildLocalPhotoRef);
+        answer.photoUris.forEach(uri => {
+          offlinePhotos.push({
+            kind: 'question',
+            questionId: answer.preguntaId,
+            localUri: uri,
+          });
+        });
+      });
 
       const respuestasJson = buildChecklistAnswersJson(
         questions,
@@ -878,9 +906,11 @@ export default function ChecklistFormScreen() {
         1,
         Math.round((submittedAtMs - startedAtMsRef.current) / 1000),
       );
+      const clientSubmissionId = generateClientSubmissionId();
 
       const payload: ChecklistResponseInsert = {
-        user_created: user.id,
+        client_submission_id: clientSubmissionId,
+        user_created: userId,
         equipamento_id: params.equipamentoId,
         equipamento_nombre: params.equipamentoNombre,
         equipo_id: params.equipoId,
@@ -910,32 +940,30 @@ export default function ChecklistFormScreen() {
         checklist_schedule_id: checklistScheduleId,
       };
 
-      const { error } = await supabase
-        .from('checklist_response')
-        .insert(payload);
+      await DatabaseService.saveOfflineChecklistResponse({
+        clientSubmissionId,
+        buildingId: params.buildingId,
+        equipamentoId: params.equipamentoId,
+        equipoId: params.equipoId,
+        frequency: effectiveFrequency,
+        periodStart: schedulePeriod.periodStart,
+        periodEnd: schedulePeriod.periodEnd,
+        userCreated: userId,
+        payload,
+        photos: offlinePhotos,
+      });
 
-      if (error) {
-        throw error;
-      }
+      void syncService.triggerSync('checklist-save-local', { pushOnly: true });
 
       showAppAlert(
-        'Checklist guardado',
+        'Checklist guardado localmente',
         hasObservation
-          ? 'Se guardo con observaciones registradas.'
-          : 'Se guardo correctamente.',
+          ? 'Se guardo con observaciones y se sincronizara automaticamente.'
+          : 'Se guardo correctamente y se sincronizara automaticamente.',
         () => router.back(),
       );
     } catch (error) {
       console.error('Error saving checklist response:', error);
-
-      if (uploadedPhotosForRollback.length > 0) {
-        try {
-          await checklistStorageService.removePhotos(uploadedPhotosForRollback);
-        } catch (rollbackError) {
-          console.error('Error rollback checklist photos:', rollbackError);
-        }
-      }
-
       showAppAlert('Error', 'No se pudo guardar el checklist.');
     } finally {
       setIsSaving(false);
@@ -944,6 +972,7 @@ export default function ChecklistFormScreen() {
     answers,
     checkAlreadySubmitted,
     frecuencia,
+    generalPhotoUris,
     params.buildingName,
     params.buildingId,
     params.equipoCodigo,
@@ -962,7 +991,6 @@ export default function ChecklistFormScreen() {
     schedulePreview.isLoading,
     schedulePreview.message,
     showAppAlert,
-    uploadChecklistPhotos,
     validate,
   ]);
 
@@ -1049,11 +1077,7 @@ export default function ChecklistFormScreen() {
       return 'No se puede guardar porque este checklist no tiene preguntas activas.';
     }
 
-    if (!schedulePreview.hasSchedule) {
-      return 'No se puede guardar porque no hay una programacion activa para este checklist.';
-    }
-
-    if (!schedulePreview.allowed) {
+    if (schedulePreview.hasSchedule && !schedulePreview.allowed) {
       return (
         schedulePreview.message ||
         'No se puede guardar porque la programacion actual lo restringe.'

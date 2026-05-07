@@ -311,6 +311,38 @@ export async function initDatabase() {
           synced_at TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS offline_checklist_responses (
+          local_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          client_submission_id TEXT NOT NULL UNIQUE,
+          building_id TEXT NOT NULL,
+          equipamento_id TEXT NOT NULL,
+          equipo_id TEXT NOT NULL,
+          frequency TEXT NOT NULL,
+          period_start TEXT NOT NULL,
+          period_end TEXT NOT NULL,
+          user_created TEXT NOT NULL,
+          payload_json TEXT NOT NULL,
+          status TEXT DEFAULT 'pending', -- pending, syncing, synced, error, conflict
+          error_message TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          synced_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS offline_checklist_photos (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          checklist_local_id INTEGER NOT NULL,
+          question_id TEXT,
+          kind TEXT NOT NULL, -- general, question
+          local_uri TEXT NOT NULL,
+          status TEXT DEFAULT 'pending', -- pending, syncing, synced, error
+          remote_bucket TEXT,
+          remote_path TEXT,
+          remote_public_url TEXT,
+          error_message TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(checklist_local_id) REFERENCES offline_checklist_responses(local_id)
+        );
+
         -- Performance indexes for frequent offline-first queries
         CREATE INDEX IF NOT EXISTS idx_local_equipos_property ON local_equipos(id_property);
         CREATE INDEX IF NOT EXISTS idx_local_equipos_equipamento ON local_equipos(id_equipamento);
@@ -346,6 +378,11 @@ export async function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_offline_panel_panel_status ON offline_panel_configurations(panel_id, status);
         CREATE INDEX IF NOT EXISTS idx_offline_audit_sync_status ON offline_audit_sessions(sync_status);
         CREATE INDEX IF NOT EXISTS idx_offline_audit_property_date ON offline_audit_sessions(property_id, scheduled_for);
+
+        CREATE INDEX IF NOT EXISTS idx_offline_checklist_status ON offline_checklist_responses(status);
+        CREATE INDEX IF NOT EXISTS idx_offline_checklist_scope_period ON offline_checklist_responses(building_id, equipamento_id, frequency, period_start);
+        CREATE INDEX IF NOT EXISTS idx_offline_checklist_equipo_period ON offline_checklist_responses(equipo_id, frequency, period_start);
+        CREATE INDEX IF NOT EXISTS idx_offline_checklist_photo_status ON offline_checklist_photos(checklist_local_id, status);
 
         CREATE INDEX IF NOT EXISTS idx_offline_gw_status ON offline_grounding_well_checklist(status);
         CREATE INDEX IF NOT EXISTS idx_offline_gw_maint ON offline_grounding_well_checklist(maintenance_id);
