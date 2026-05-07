@@ -136,6 +136,20 @@ function formatDateToSpanish(value: string) {
   return `${day}-${month}-${year}`;
 }
 
+function parsePonderado(value: number | string | null | undefined) {
+  if (value === null || value === undefined || String(value).trim() === '') {
+    return 0;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatPonderado(value: number) {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
 function buildFriendlyRestrictionMessage(
   reason: string,
   windowLabel: string,
@@ -275,6 +289,7 @@ const ChecklistQuestionRow = memo(function ChecklistQuestionRow({
     <QuestionChecklistItem
       order={index + 1}
       question={question.pregunta}
+      ponderado={question.ponderado}
       value={{
         status: answer.status,
         observation: answer.observacion,
@@ -1054,41 +1069,71 @@ export default function ChecklistFormScreen() {
     schedulePreview.message,
   ]);
 
+  const ponderadoSummary = useMemo(() => {
+    let total = 0;
+    let ok = 0;
+    let observed = 0;
+
+    questions.forEach(question => {
+      const weight = parsePonderado(question.ponderado);
+      const answer = answers[question.id];
+
+      total += weight;
+      if (answer?.status === true) {
+        ok += weight;
+      } else if (answer?.status === false) {
+        observed += weight;
+      }
+    });
+
+    return {
+      total,
+      ok,
+      observed,
+      hasPonderado: total > 0,
+      progress: total > 0 ? Math.min(100, Math.max(0, (ok / total) * 100)) : 0,
+    };
+  }, [answers, questions]);
+
   const listHeader = useMemo(
     () => (
-      <View style={styles.generalPhotoCard}>
-        <Text style={styles.generalPhotoTitle}>Foto general (obligatoria)</Text>
-        <Text style={styles.generalPhotoSubtitle}>
-          Sirve como evidencia global del estado del equipo.
-        </Text>
+      <>
+        <View style={styles.generalPhotoCard}>
+          <Text style={styles.generalPhotoTitle}>
+            Foto general (obligatoria)
+          </Text>
+          <Text style={styles.generalPhotoSubtitle}>
+            Sirve como evidencia global del estado del equipo.
+          </Text>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.photosRow}>
-          {generalPhotoUris.map((uri, index) => (
-            <View key={`${uri}_${index}`}>
-              {renderGeneralPhoto({ item: uri, index })}
-            </View>
-          ))}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.photosRow}>
+            {generalPhotoUris.map((uri, index) => (
+              <View key={`${uri}_${index}`}>
+                {renderGeneralPhoto({ item: uri, index })}
+              </View>
+            ))}
 
-          <Pressable
-            onPress={handleAddGeneralPhoto}
-            style={({ pressed }) => [
-              styles.addPhotoBtn,
-              pressed && styles.pressed,
-            ]}
-            disabled={isSaving}
-            accessibilityRole="button">
-            <Ionicons name="camera-outline" size={22} color="#475569" />
-            <Text style={styles.addPhotoText}>Agregar foto</Text>
-          </Pressable>
-        </ScrollView>
+            <Pressable
+              onPress={handleAddGeneralPhoto}
+              style={({ pressed }) => [
+                styles.addPhotoBtn,
+                pressed && styles.pressed,
+              ]}
+              disabled={isSaving}
+              accessibilityRole="button">
+              <Ionicons name="camera-outline" size={22} color="#475569" />
+              <Text style={styles.addPhotoText}>Agregar foto</Text>
+            </Pressable>
+          </ScrollView>
 
-        {generalPhotoError ? (
-          <Text style={styles.errorText}>{generalPhotoError}</Text>
-        ) : null}
-      </View>
+          {generalPhotoError ? (
+            <Text style={styles.errorText}>{generalPhotoError}</Text>
+          ) : null}
+        </View>
+      </>
     ),
     [
       generalPhotoError,
@@ -1116,7 +1161,27 @@ export default function ChecklistFormScreen() {
           accessibilityRole="button">
           <Text style={styles.backBtnText}>Volver</Text>
         </Pressable>
-        <Text style={styles.title}>{params.equipoCodigo || 'Checklist'}</Text>
+        <View style={styles.headerTitleRow}>
+          <Text style={styles.title}>{params.equipoCodigo || 'Checklist'}</Text>
+          {ponderadoSummary.hasPonderado ? (
+            <View style={styles.headerScoreBadge}>
+              <Text style={styles.headerScoreLabel}>Resultado</Text>
+              <Text style={styles.headerScoreValue}>
+                {formatPonderado(ponderadoSummary.ok)}%
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        {ponderadoSummary.hasPonderado ? (
+          <View style={styles.headerScoreTrack}>
+            <View
+              style={[
+                styles.headerScoreFill,
+                { width: `${ponderadoSummary.progress}%` },
+              ]}
+            />
+          </View>
+        ) : null}
         <Text style={styles.subtitle}>
           {params.equipamentoNombre || '-'} - {frecuencia} ({periodStartLabel})
         </Text>
@@ -1254,9 +1319,59 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#0F172A',
+    flex: 1,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  headerScoreBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
+  },
+  headerScoreLabel: {
+    paddingLeft: 8,
+    paddingRight: 6,
+    paddingVertical: 4,
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  headerScoreValue: {
+    minWidth: 46,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderLeftWidth: 1,
+    borderLeftColor: '#CBD5E1',
+    backgroundColor: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#0F172A',
+    textAlign: 'center',
+  },
+  headerScoreTrack: {
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: '#E5E7EB',
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  headerScoreFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#0891B2',
   },
   subtitle: {
-    marginTop: 2,
+    marginTop: 5,
     fontSize: 12,
     color: '#64748B',
   },

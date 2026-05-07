@@ -621,7 +621,7 @@ export async function getChecklistQuestionsByEquipamento(
     const db = await dbPromise;
     const rows = (await db.getAllAsync(
       `
-        SELECT id, equipamento_id, pregunta, orden, activa, created_at, updated_at
+        SELECT id, equipamento_id, pregunta, orden, activa, ponderado, created_at, updated_at
         FROM local_preguntas_equipamento
         WHERE equipamento_id = ?
           AND activa = 1

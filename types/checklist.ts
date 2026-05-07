@@ -4,6 +4,7 @@ export interface PreguntaEquipamento {
   pregunta: string;
   orden: number;
   activa: boolean;
+  ponderado?: number | string | null;
   created_at: string;
   updated_at: string;
 }

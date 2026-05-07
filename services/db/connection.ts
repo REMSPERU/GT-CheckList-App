@@ -135,6 +135,7 @@ export async function initDatabase() {
           pregunta TEXT,
           orden INTEGER,
           activa INTEGER,
+          ponderado REAL,
           created_at TEXT,
           updated_at TEXT
         );
@@ -465,12 +466,24 @@ export async function initDatabase() {
           pregunta TEXT,
           orden INTEGER,
           activa INTEGER,
+          ponderado REAL,
           created_at TEXT,
           updated_at TEXT
         );
       `);
     } catch {
       // Table already exists
+    }
+
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_preguntas_equipamento ADD COLUMN ponderado REAL;`,
+      );
+      console.log(
+        'Migration: Added ponderado column to local_preguntas_equipamento',
+      );
+    } catch {
+      // Column already exists
     }
 
     // Migration v1.7: Add image_url column to local_properties

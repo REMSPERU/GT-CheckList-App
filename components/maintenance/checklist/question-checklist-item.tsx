@@ -27,6 +27,7 @@ interface QuestionChecklistItemErrors {
 interface QuestionChecklistItemProps {
   order: number;
   question: string;
+  ponderado?: number | string | null;
   value: QuestionChecklistItemValue;
   onChangeStatus: (status: boolean) => void;
   onChangeApplicable?: (isApplicable: boolean) => void;
@@ -41,9 +42,26 @@ interface QuestionChecklistItemProps {
   statusLayout?: 'inline' | 'stacked';
 }
 
+function formatPonderadoPercent(value: number | string | null | undefined) {
+  if (value === null || value === undefined || String(value).trim() === '') {
+    return null;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  const rounded = Math.round(parsed * 10) / 10;
+  const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+
+  return `${text}%`;
+}
+
 export const QuestionChecklistItem = memo(function QuestionChecklistItem({
   order,
   question,
+  ponderado,
   value,
   onChangeStatus,
   onChangeApplicable,
@@ -62,6 +80,7 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
   const showObservationBlock = isApplicable && value.status === false;
   const statusLabel =
     value.status === null ? 'Sin respuesta' : value.status ? 'OK' : 'OBS';
+  const ponderadoLabel = formatPonderadoPercent(ponderado);
   const handleAddPhotoPress = useCallback(() => {
     if (!disabled) {
       onAddPhoto();
@@ -144,6 +163,19 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
               }>
               {question}
             </Text>
+            {ponderadoLabel ? (
+              <View style={styles.ponderadoWrap}>
+                <View style={styles.ponderadoBadge}>
+                  <Ionicons
+                    name="analytics-outline"
+                    size={12}
+                    color="#0369A1"
+                  />
+                  <Text style={styles.ponderadoLabel}>Ponderacion</Text>
+                </View>
+                <Text style={styles.ponderadoPercent}>{ponderadoLabel}</Text>
+              </View>
+            ) : null}
             {allowQuestionExpand && questionMaxLines ? (
               <Pressable
                 onPress={() => setIsQuestionExpanded(prev => !prev)}
@@ -317,6 +349,43 @@ const styles = StyleSheet.create({
   questionTextWrap: {
     flex: 1,
     gap: 4,
+  },
+  ponderadoWrap: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderRadius: 999,
+    backgroundColor: '#E0F2FE',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  ponderadoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingLeft: 8,
+    paddingRight: 6,
+    paddingVertical: 4,
+  },
+  ponderadoLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0369A1',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  ponderadoPercent: {
+    minWidth: 42,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#FFFFFF',
+    borderLeftWidth: 1,
+    borderLeftColor: '#BAE6FD',
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#0369A1',
+    textAlign: 'center',
   },
   expandQuestionBtn: {
     alignSelf: 'flex-start',
