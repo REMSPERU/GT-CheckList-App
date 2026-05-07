@@ -10,11 +10,14 @@ import {
   type ListRenderItem,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { memo, useState, useEffect, useCallback, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import MaintenanceCard from '@/components/maintenance-card';
-import type { EquipamentoResponse } from '@/types/api';
+import type {
+  EquipamentoResponse,
+  SistemaChecklistResponse,
+} from '@/types/api';
 // import { useEquipamentosByPropertyQuery } from '@/hooks/use-equipments-by-property-query';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
@@ -46,6 +49,146 @@ const log = (...args: unknown[]) => {
     console.log(...args);
   }
 };
+
+function getIconForEquipamento(abreviatura: string) {
+  const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
+    TBELEC: 'stats-chart-outline',
+    LUZ: 'flashlight-outline',
+    PT: 'construct-outline',
+    PAT: 'filter-outline',
+    ASC: 'arrow-up-outline',
+    CHAG: 'water-outline',
+    CHAI: 'snow-outline',
+    TOE: 'sync-circle-outline',
+  };
+  return iconMap[abreviatura] || 'cube-outline';
+}
+
+interface ChecklistSystemCardProps {
+  item: SistemaChecklistResponse;
+  isExpanded: boolean;
+  onToggle: (systemId: string) => void;
+  onPressEquipamento: (equipamento: EquipamentoResponse) => void;
+  onSchedulePress: (equipamento: EquipamentoResponse) => void;
+}
+
+const ChecklistSystemCard = memo(function ChecklistSystemCard({
+  item,
+  isExpanded,
+  onToggle,
+  onPressEquipamento,
+  onSchedulePress,
+}: ChecklistSystemCardProps) {
+  const handleToggle = useCallback(() => {
+    onToggle(item.id);
+  }, [item.id, onToggle]);
+
+  return (
+    <View style={[styles.systemCard, isExpanded && styles.systemCardExpanded]}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.systemHeader,
+          pressed && styles.checklistCardPressed,
+        ]}
+        onPress={handleToggle}
+        accessibilityRole="button"
+        accessibilityLabel={`Abrir sistema ${item.nombre}`}
+        accessibilityHint="Despliega los equipamientos del sistema">
+        <View style={styles.systemIconWrap}>
+          <Ionicons name="layers-outline" size={22} color="#0891B2" />
+        </View>
+        <View style={styles.systemHeaderBody}>
+          <Text style={styles.systemTitle}>{item.nombre}</Text>
+          <Text style={styles.systemSubtitle}>
+            {item.equipamentos.length} equipamentos · {item.equipos_count}{' '}
+            equipos activos
+          </Text>
+        </View>
+        <View style={styles.systemChevronWrap}>
+          <Ionicons
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color="#64748B"
+          />
+        </View>
+      </Pressable>
+
+      {isExpanded ? (
+        <View style={styles.equipmentPanel}>
+          {item.equipamentos.map(equipamento => (
+            <ChecklistEquipamentoRow
+              key={equipamento.id}
+              item={equipamento}
+              onPress={onPressEquipamento}
+              onSchedulePress={onSchedulePress}
+            />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+});
+
+interface ChecklistEquipamentoRowProps {
+  item: EquipamentoResponse;
+  onPress: (equipamento: EquipamentoResponse) => void;
+  onSchedulePress: (equipamento: EquipamentoResponse) => void;
+}
+
+const ChecklistEquipamentoRow = memo(function ChecklistEquipamentoRow({
+  item,
+  onPress,
+  onSchedulePress,
+}: ChecklistEquipamentoRowProps) {
+  const handlePress = useCallback(() => {
+    onPress(item);
+  }, [item, onPress]);
+
+  const handleSchedulePress = useCallback(
+    (event: { stopPropagation: () => void }) => {
+      event.stopPropagation();
+      onSchedulePress(item);
+    },
+    [item, onSchedulePress],
+  );
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.equipmentRow,
+        pressed && styles.checklistCardPressed,
+      ]}
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`Abrir checklist de ${item.nombre}`}>
+      <View style={styles.equipmentIconWrap}>
+        <Ionicons
+          name={getIconForEquipamento(item.abreviatura)}
+          size={20}
+          color="#0F766E"
+        />
+      </View>
+      <View style={styles.equipmentRowBody}>
+        <Text style={styles.equipmentRowTitle}>{item.nombre}</Text>
+        <Text style={styles.equipmentRowSubtitle}>
+          {(item.frecuencia || 'MENSUAL').toUpperCase()} ·{' '}
+          {item.equipos_count ?? 0} equipos
+        </Text>
+      </View>
+      <View style={styles.checklistActions}>
+        <Pressable
+          style={styles.scheduleButton}
+          onPress={handleSchedulePress}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Programar checklist de tipo ${item.nombre}`}>
+          <Ionicons name="calendar-outline" size={18} color="#0891B2" />
+        </Pressable>
+        <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+      </View>
+    </Pressable>
+  );
+});
 
 export default function SelectDeviceScreen() {
   const router = useRouter();
@@ -100,6 +243,10 @@ export default function SelectDeviceScreen() {
   ]);
 
   const [equipamentos, setEquipamentos] = useState<EquipamentoResponse[]>([]);
+  const [checklistSystems, setChecklistSystems] = useState<
+    SistemaChecklistResponse[]
+  >([]);
+  const [expandedSystemId, setExpandedSystemId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,15 +260,29 @@ export default function SelectDeviceScreen() {
     setError(null);
 
     try {
-      const data = await DatabaseService.getEquipamentosByProperty(building.id);
-      setEquipamentos(data as EquipamentoResponse[]);
+      if (flowType === 'checklist') {
+        const data = await DatabaseService.getChecklistSystemsByProperty(
+          building.id,
+        );
+        const systems = data as SistemaChecklistResponse[];
+        setChecklistSystems(systems);
+        setEquipamentos([]);
+        setExpandedSystemId(current => current ?? systems[0]?.id ?? null);
+      } else {
+        const data = await DatabaseService.getEquipamentosByProperty(
+          building.id,
+        );
+        setEquipamentos(data as EquipamentoResponse[]);
+        setChecklistSystems([]);
+        setExpandedSystemId(null);
+      }
     } catch (err) {
       console.error('Error loading equipments:', err);
       setError('Error al cargar equipamientos locales');
     }
 
     setIsLoading(false);
-  }, [building?.id]);
+  }, [building?.id, flowType]);
 
   useEffect(() => {
     if (!paramsResolved) return;
@@ -132,6 +293,8 @@ export default function SelectDeviceScreen() {
     }
 
     setEquipamentos([]);
+    setChecklistSystems([]);
+    setExpandedSystemId(null);
     setError('No se pudo identificar el inmueble seleccionado.');
     setIsLoading(false);
   }, [building?.id, loadData, paramsResolved]);
@@ -247,17 +410,29 @@ export default function SelectDeviceScreen() {
     [building?.id, building?.name, router],
   );
 
-  const getIconForEquipamento = useCallback((abreviatura: string) => {
-    // Map equipment abbreviations to icons
-    const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
-      TBELEC: 'stats-chart-outline', // Tablero electrico
-      LUZ: 'flashlight-outline', // Luces de Emergencia
-      PT: 'construct-outline',
-      PAT: 'filter-outline', // Pozo a Tierra
-      ASC: 'arrow-up-outline',
-    };
-    return iconMap[abreviatura] || 'cube-outline';
+  const handleToggleSystem = useCallback((systemId: string) => {
+    setExpandedSystemId(current => (current === systemId ? null : systemId));
   }, []);
+
+  const renderChecklistSystemItem = useCallback<
+    ListRenderItem<SistemaChecklistResponse>
+  >(
+    ({ item }) => (
+      <ChecklistSystemCard
+        item={item}
+        isExpanded={expandedSystemId === item.id}
+        onToggle={handleToggleSystem}
+        onPressEquipamento={handleEquipamentoPress}
+        onSchedulePress={handleChecklistSchedulePress}
+      />
+    ),
+    [
+      expandedSystemId,
+      handleChecklistSchedulePress,
+      handleEquipamentoPress,
+      handleToggleSystem,
+    ],
+  );
 
   const renderEquipamentoItem = useCallback<
     ListRenderItem<EquipamentoResponse>
@@ -312,12 +487,7 @@ export default function SelectDeviceScreen() {
         />
       );
     },
-    [
-      flowType,
-      getIconForEquipamento,
-      handleChecklistSchedulePress,
-      handleEquipamentoPress,
-    ],
+    [flowType, handleChecklistSchedulePress, handleEquipamentoPress],
   );
 
   return (
@@ -379,6 +549,27 @@ export default function SelectDeviceScreen() {
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
+      ) : flowType === 'checklist' ? (
+        <FlatList
+          data={checklistSystems}
+          keyExtractor={item => String(item.id)}
+          renderItem={renderChecklistSystemItem}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.listWrapper,
+            styles.checklistListWrapper,
+            checklistSystems.length === 0 && styles.listWrapperEmpty,
+          ]}
+          refreshing={isRefreshing}
+          onRefresh={onRefresh}
+          ListEmptyComponent={
+            <View style={styles.centerContainer}>
+              <Text style={styles.emptyText}>
+                No hay sistemas con equipos activos para este inmueble.
+              </Text>
+            </View>
+          }
+        />
       ) : (
         <FlatList
           data={equipamentos}
@@ -476,6 +667,11 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 24,
   },
+  checklistListWrapper: {
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    gap: 12,
+  },
   listWrapperEmpty: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -502,6 +698,110 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.84,
+  },
+  systemCard: {
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  systemCardExpanded: {
+    borderColor: '#CBD5E1',
+  },
+  systemHeader: {
+    minHeight: 72,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+  },
+  systemIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 15,
+    backgroundColor: '#ECFEFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#CFFAFE',
+  },
+  systemHeaderBody: {
+    flex: 1,
+  },
+  systemTitle: {
+    fontSize: 16,
+    color: '#0F172A',
+    fontWeight: '800',
+  },
+  systemSubtitle: {
+    marginTop: 3,
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  systemChevronWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  equipmentPanel: {
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    gap: 7,
+  },
+  equipmentRow: {
+    minHeight: 62,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  equipmentIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 13,
+    backgroundColor: '#CCFBF1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  equipmentRowBody: {
+    flex: 1,
+  },
+  equipmentRowTitle: {
+    fontSize: 14,
+    color: '#0F172A',
+    fontWeight: '800',
+  },
+  equipmentRowSubtitle: {
+    marginTop: 3,
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  scheduleButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   checklistCard: {
     minHeight: 60,

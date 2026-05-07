@@ -119,7 +119,14 @@ export async function initDatabase() {
           id TEXT PRIMARY KEY,
           nombre TEXT,
           abreviatura TEXT,
-          frecuencia TEXT
+          frecuencia TEXT,
+          id_sistema TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS local_sistemas (
+          id TEXT PRIMARY KEY,
+          nombre TEXT,
+          activo INTEGER
         );
 
         CREATE TABLE IF NOT EXISTS local_preguntas_equipamento (
@@ -322,6 +329,8 @@ export async function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_local_user_session_user ON local_user_sesion_mantenimiento(id_user);
 
         CREATE INDEX IF NOT EXISTS idx_local_instrumentos_equipamento ON local_instrumentos(equipamento);
+        CREATE INDEX IF NOT EXISTS idx_local_equipamentos_sistema ON local_equipamentos(id_sistema);
+        CREATE INDEX IF NOT EXISTS idx_local_sistemas_activo ON local_sistemas(activo);
         CREATE INDEX IF NOT EXISTS idx_local_equipamentos_property_property ON local_equipamentos_property(id_property);
         CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_equipamento ON local_preguntas_equipamento(equipamento_id);
         CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_activa ON local_preguntas_equipamento(activa);
@@ -398,6 +407,53 @@ export async function initDatabase() {
       console.log('Migration: Added frecuencia column to local_equipamentos');
     } catch {
       // Column already exists
+    }
+
+    // Migration v1.5b: Add systems catalog support to checklist equipment types
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_equipamentos ADD COLUMN id_sistema TEXT;`,
+      );
+      console.log('Migration: Added id_sistema column to local_equipamentos');
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS local_sistemas (
+          id TEXT PRIMARY KEY,
+          nombre TEXT,
+          activo INTEGER
+        );
+      `);
+    } catch {
+      // Table already exists
+    }
+
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_sistemas ADD COLUMN activo INTEGER;`,
+      );
+      console.log('Migration: Added activo column to local_sistemas');
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(
+        'CREATE INDEX IF NOT EXISTS idx_local_equipamentos_sistema ON local_equipamentos(id_sistema);',
+      );
+    } catch {
+      // Index already exists
+    }
+
+    try {
+      await db.execAsync(
+        'CREATE INDEX IF NOT EXISTS idx_local_sistemas_activo ON local_sistemas(activo);',
+      );
+    } catch {
+      // Index already exists
     }
 
     // Migration v1.6: Ensure local_preguntas_equipamento exists for checklist

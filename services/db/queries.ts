@@ -78,6 +78,86 @@ export async function getEquipamentosByProperty(propertyId: string) {
   });
 }
 
+export async function getChecklistSystemsByProperty(propertyId: string) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+    const rows = (await db.getAllAsync(
+      `
+        SELECT
+          COALESCE(s.id, 'sin-sistema') as sistema_id,
+          COALESCE(s.nombre, 'SIN SISTEMA') as sistema_nombre,
+          COALESCE(s.activo, 1) as sistema_activo,
+          e.id as equipamento_id,
+          e.nombre as equipamento_nombre,
+          e.abreviatura as equipamento_abreviatura,
+          e.frecuencia as equipamento_frecuencia,
+          e.id_sistema,
+          COUNT(eq.id) as equipos_count
+        FROM local_equipos eq
+        JOIN local_equipamentos e ON e.id = eq.id_equipamento
+        LEFT JOIN local_sistemas s ON s.id = e.id_sistema
+        WHERE eq.id_property = ?
+          AND (eq.estatus IS NULL OR eq.estatus != ?)
+        GROUP BY
+          sistema_id,
+          sistema_nombre,
+          sistema_activo,
+          e.id,
+          e.nombre,
+          e.abreviatura,
+          e.frecuencia,
+          e.id_sistema
+        ORDER BY sistema_nombre ASC, e.nombre ASC
+      `,
+      [propertyId, 'INACTIVO'],
+    )) as any[];
+
+    const groups = new Map<
+      string,
+      {
+        id: string;
+        nombre: string;
+        activo: boolean;
+        equipamentos: {
+          id: string;
+          nombre: string;
+          abreviatura: string;
+          frecuencia?: string | null;
+          id_sistema?: string | null;
+          equipos_count: number;
+        }[];
+        equipos_count: number;
+      }
+    >();
+
+    for (const row of rows) {
+      const sistemaId = String(row.sistema_id);
+      const current = groups.get(sistemaId) ?? {
+        id: sistemaId,
+        nombre: String(row.sistema_nombre),
+        activo: row.sistema_activo === 1,
+        equipamentos: [],
+        equipos_count: 0,
+      };
+      const equiposCount = Number(row.equipos_count || 0);
+
+      current.equipamentos.push({
+        id: String(row.equipamento_id),
+        nombre: String(row.equipamento_nombre),
+        abreviatura: String(row.equipamento_abreviatura || ''),
+        frecuencia: row.equipamento_frecuencia || null,
+        id_sistema: row.id_sistema || null,
+        equipos_count: equiposCount,
+      });
+      current.equipos_count += equiposCount;
+      groups.set(sistemaId, current);
+    }
+
+    return Array.from(groups.values());
+  });
+}
+
 export async function getElectricalPanelsByProperty(
   propertyId: string,
   filters?: {

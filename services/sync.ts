@@ -1241,6 +1241,7 @@ class SyncService {
           propertiesResult,
           userPropertiesResult,
           instrumentosResult,
+          sistemasResult,
           equipamentosResult,
           preguntasEquipamentoResult,
           auditQuestionsResult,
@@ -1271,6 +1272,9 @@ class SyncService {
           }),
           safeFetch(() =>
             supabase.from('instrumentos').select('*').limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
+            supabase.from('sistemas').select('*').limit(SYNC_ROW_LIMIT),
           ),
           safeFetch(() =>
             supabase.from('equipamentos').select('*').limit(SYNC_ROW_LIMIT),
@@ -1355,6 +1359,7 @@ class SyncService {
         if (propertiesResult.failed) failedTables.push('properties');
         if (userPropertiesResult.failed) failedTables.push('user_properties');
         if (instrumentosResult.failed) failedTables.push('instrumentos');
+        if (sistemasResult.failed) failedTables.push('sistemas');
         if (equipamentosResult.failed) failedTables.push('equipamentos');
         if (preguntasEquipamentoResult.failed)
           failedTables.push('preguntas_equipamento');
@@ -1383,6 +1388,7 @@ class SyncService {
           null, // users — not fetched in pull
           userPropertiesResult.data,
           instrumentosResult.data,
+          sistemasResult.data,
           equipamentosResult.data,
           preguntasEquipamentoResult.data,
           auditQuestionsResult.data,
