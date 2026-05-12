@@ -5,6 +5,7 @@ import {
 } from '@/lib/auditoria/history-utils';
 import type { OfflineAuditSession, StoredSummary } from '@/types/auditoria';
 import { Pressable, Text, View } from 'react-native';
+import type { DimensionValue } from 'react-native';
 import { historyScreenStyles } from './history-screen-styles';
 
 function getSyncStatusStyle(syncStatus: OfflineAuditSession['sync_status']) {
@@ -34,6 +35,17 @@ export function HistorySessionCard({
   const totalOk = summary?.total_ok ?? 0;
   const totalObs = summary?.total_obs ?? 0;
   const canRetryUpload = item.sync_status !== 'synced';
+  const uploadTotal = item.upload_total_photos ?? 0;
+  const uploadCompleted = Math.min(
+    item.upload_completed_photos ?? 0,
+    uploadTotal,
+  );
+  const shouldShowUploadProgress =
+    item.sync_status !== 'synced' && uploadTotal > 0;
+  const uploadProgressPercent = uploadTotal
+    ? Math.round((uploadCompleted / uploadTotal) * 100)
+    : 0;
+  const uploadProgressWidth = `${uploadProgressPercent}%` as DimensionValue;
 
   return (
     <View style={historyScreenStyles.sessionCard}>
@@ -60,6 +72,32 @@ export function HistorySessionCard({
         <Text style={historyScreenStyles.errorMessage}>
           {item.error_message}
         </Text>
+      ) : null}
+
+      {shouldShowUploadProgress ? (
+        <View style={historyScreenStyles.progressContainer}>
+          <View style={historyScreenStyles.progressHeaderRow}>
+            <Text style={historyScreenStyles.progressLabel}>
+              Evidencias subidas
+            </Text>
+            <Text style={historyScreenStyles.progressCount}>
+              {uploadCompleted}/{uploadTotal}
+            </Text>
+          </View>
+          <View style={historyScreenStyles.progressTrack}>
+            <View
+              style={[
+                historyScreenStyles.progressFill,
+                { width: uploadProgressWidth },
+              ]}
+            />
+          </View>
+          {item.upload_progress_message ? (
+            <Text style={historyScreenStyles.progressMessage}>
+              {item.upload_progress_message}
+            </Text>
+          ) : null}
+        </View>
       ) : null}
 
       {item.sync_status === 'syncing' ? (

@@ -33,6 +33,7 @@ export async function clearMirrorTables() {
     DELETE FROM local_properties;
     DELETE FROM local_users;
     DELETE FROM local_user_properties;
+    DELETE FROM local_sistemas;
     DELETE FROM local_equipamentos;
     DELETE FROM local_preguntas_equipamento;
     DELETE FROM local_audit_questions;
@@ -115,6 +116,7 @@ export async function bulkInsertMirrorData(
   users: any[] | null,
   userProperties: any[] | null = [],
   instrumentos: any[] | null = [],
+  sistemas: any[] | null = [],
   equipamentos: any[] | null = [],
   perguntasEquipamento: any[] | null = [],
   auditQuestions: any[] | null = [],
@@ -230,6 +232,18 @@ export async function bulkInsertMirrorData(
         );
       }
 
+      // --- Smart Sync for Sistemas (Catalog) ---
+      if (sistemas !== null) {
+        await smartSyncTable(
+          db,
+          'local_sistemas',
+          sistemas,
+          'id',
+          'INSERT OR REPLACE INTO local_sistemas (id, nombre, activo) VALUES (?, ?, ?)',
+          item => [item.id, item.nombre, item.activo ? 1 : 0],
+        );
+      }
+
       // --- Smart Sync for Equipamentos (Catalog) ---
       if (equipamentos !== null) {
         await smartSyncTable(
@@ -237,8 +251,14 @@ export async function bulkInsertMirrorData(
           'local_equipamentos',
           equipamentos,
           'id',
-          'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura, frecuencia) VALUES (?, ?, ?, ?)',
-          item => [item.id, item.nombre, item.abreviatura, item.frecuencia],
+          'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura, frecuencia, id_sistema) VALUES (?, ?, ?, ?, ?)',
+          item => [
+            item.id,
+            item.nombre,
+            item.abreviatura,
+            item.frecuencia || item.Frecuencia || null,
+            item.id_sistema || null,
+          ],
         );
       }
 
@@ -249,13 +269,14 @@ export async function bulkInsertMirrorData(
           'local_preguntas_equipamento',
           perguntasEquipamento,
           'id',
-          'INSERT OR REPLACE INTO local_preguntas_equipamento (id, equipamento_id, pregunta, orden, activa, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          'INSERT OR REPLACE INTO local_preguntas_equipamento (id, equipamento_id, pregunta, orden, activa, ponderado, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           item => [
             item.id,
             item.equipamento_id,
             item.pregunta,
             item.orden,
             item.activa ? 1 : 0,
+            item.ponderado ?? null,
             item.created_at,
             item.updated_at,
           ],

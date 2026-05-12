@@ -25,7 +25,7 @@ import type {
   StoredSummary,
 } from '@/types/auditoria';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -140,6 +140,18 @@ export default function AuditoriaHistoryScreen() {
     }, [loadHistory]),
   );
 
+  useEffect(() => {
+    if (!isBackgroundSyncing && retryingUploadLocalId === null) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      void loadLocalHistory();
+    }, 1500);
+
+    return () => clearInterval(intervalId);
+  }, [isBackgroundSyncing, loadLocalHistory, retryingUploadLocalId]);
+
   const handleRefresh = useCallback(async () => {
     if (!buildingId) {
       return;
@@ -170,7 +182,32 @@ export default function AuditoriaHistoryScreen() {
           pushOnly: true,
           force: true,
         });
-        await loadLocalHistory();
+
+        const updatedSessions =
+          (await DatabaseService.getAuditSessionsByProperty(
+            session.property_id,
+          )) as OfflineAuditSession[];
+        setSessions(updatedSessions || []);
+
+        const updatedSession = updatedSessions.find(
+          item => item.local_id === session.local_id,
+        );
+
+        if (updatedSession?.sync_status === 'synced') {
+          showAlert('Subida completada', 'La auditoria ya fue subida.');
+        } else if (updatedSession?.sync_status === 'error') {
+          showAlert(
+            'Subida pendiente',
+            updatedSession.error_message ||
+              'No se pudo subir la auditoria. Revise la conexion y reintente.',
+          );
+        } else {
+          showAlert(
+            'Subida pendiente',
+            updatedSession?.upload_progress_message ||
+              'La auditoria sigue guardada localmente y se reintentara automaticamente.',
+          );
+        }
       } catch (error) {
         console.error('Failed to retry audit upload:', error);
         showAlert(
@@ -181,7 +218,7 @@ export default function AuditoriaHistoryScreen() {
         setRetryingUploadLocalId(null);
       }
     },
-    [loadLocalHistory, showAlert],
+    [showAlert],
   );
 
   const handleCreateAudit = useCallback(() => {

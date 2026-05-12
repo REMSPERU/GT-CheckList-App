@@ -97,6 +97,47 @@ export const historyScreenStyles = StyleSheet.create({
     color: '#4B5563',
     marginBottom: 10,
   },
+  progressContainer: {
+    marginBottom: 10,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 10,
+  },
+  progressHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  progressLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  progressCount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F766E',
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: '#E2E8F0',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: '#0891B2',
+  },
+  progressMessage: {
+    marginTop: 7,
+    fontSize: 12,
+    color: '#475569',
+  },
   reportButton: {
     borderRadius: 8,
     borderWidth: 1,

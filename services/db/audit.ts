@@ -24,6 +24,9 @@ export interface OfflineAuditSessionRecord {
   summary: string | null;
   sync_status: 'pending' | 'syncing' | 'synced' | 'error';
   error_message: string | null;
+  upload_total_photos: number | null;
+  upload_completed_photos: number | null;
+  upload_progress_message: string | null;
   created_at: string;
   synced_at: string | null;
 }
@@ -142,10 +145,13 @@ export async function saveOfflineAuditSession(
         started_at,
         submitted_at,
         audit_payload,
-        summary,
-        sync_status,
-        created_at
-      ) VALUES (?, ?, ?, ?, ?, 'ENVIADA', ?, ?, ?, ?, 'pending', ?)
+          summary,
+          sync_status,
+          upload_total_photos,
+          upload_completed_photos,
+          upload_progress_message,
+          created_at
+      ) VALUES (?, ?, ?, ?, ?, 'ENVIADA', ?, ?, ?, ?, 'pending', 0, 0, NULL, ?)
       `,
       [
         clientSubmissionId,
@@ -232,6 +238,27 @@ export async function updateOfflineAuditSessionPayload(
        SET audit_payload = ?
        WHERE local_id = ?`,
       [toJsonText(auditPayload), localId],
+    );
+  });
+}
+
+export async function updateOfflineAuditSessionUploadProgress(
+  localId: number,
+  completedPhotos: number,
+  totalPhotos: number,
+  progressMessage: string | null,
+) {
+  await ensureInitialized();
+
+  return withLock(async () => {
+    const db = await dbPromise;
+    await db.runAsync(
+      `UPDATE offline_audit_sessions
+       SET upload_completed_photos = ?,
+           upload_total_photos = ?,
+           upload_progress_message = ?
+       WHERE local_id = ?`,
+      [completedPhotos, totalPhotos, progressMessage, localId],
     );
   });
 }

@@ -49,6 +49,7 @@ import {
   getEquipmentById,
   getLocalProperties,
   getEquipamentosByProperty,
+  getChecklistSystemsByProperty,
   getElectricalPanelsByProperty,
   getEquipmentByProperty,
   getLocalScheduledMaintenances,
@@ -67,8 +68,17 @@ import {
   getPendingAuditSessions,
   updateOfflineAuditSessionStatus,
   updateOfflineAuditSessionPayload,
+  updateOfflineAuditSessionUploadProgress,
   upsertSyncedAuditSessions,
 } from './audit';
+import {
+  saveOfflineChecklistResponse,
+  getPendingChecklistResponses,
+  updateOfflineChecklistResponseStatus,
+  getChecklistPhotosByLocalId,
+  updateOfflineChecklistPhotoStatus,
+  getChecklistCountsByEquipo,
+} from './checklist';
 import {
   createEquipment,
   updateEquipment,
@@ -89,6 +99,7 @@ export * from './queries';
 export * from './equipment';
 export * from './session-photos';
 export * from './audit';
+export * from './checklist';
 
 // Create DatabaseService object for backward compatibility
 export const DatabaseService = {
@@ -146,6 +157,7 @@ export const DatabaseService = {
   getEquipmentById,
   getLocalProperties,
   getEquipamentosByProperty,
+  getChecklistSystemsByProperty,
   getElectricalPanelsByProperty,
   getEquipmentByProperty,
   getLocalScheduledMaintenances,
@@ -164,7 +176,16 @@ export const DatabaseService = {
   getPendingAuditSessions,
   updateOfflineAuditSessionStatus,
   updateOfflineAuditSessionPayload,
+  updateOfflineAuditSessionUploadProgress,
   upsertSyncedAuditSessions,
+
+  // Checklist
+  saveOfflineChecklistResponse,
+  getPendingChecklistResponses,
+  updateOfflineChecklistResponseStatus,
+  getChecklistPhotosByLocalId,
+  updateOfflineChecklistPhotoStatus,
+  getChecklistCountsByEquipo,
 
   // Equipment CRUD
   createEquipment,

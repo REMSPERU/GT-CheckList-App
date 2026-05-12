@@ -138,6 +138,16 @@ export interface EquipamentoResponse {
   nombre: string;
   abreviatura: string;
   frecuencia?: string | null;
+  id_sistema?: string | null;
+  equipos_count?: number;
+}
+
+export interface SistemaChecklistResponse {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  equipamentos: EquipamentoResponse[];
+  equipos_count: number;
 }
 
 export interface EquipamentoListResponse {

@@ -119,7 +119,14 @@ export async function initDatabase() {
           id TEXT PRIMARY KEY,
           nombre TEXT,
           abreviatura TEXT,
-          frecuencia TEXT
+          frecuencia TEXT,
+          id_sistema TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS local_sistemas (
+          id TEXT PRIMARY KEY,
+          nombre TEXT,
+          activo INTEGER
         );
 
         CREATE TABLE IF NOT EXISTS local_preguntas_equipamento (
@@ -128,6 +135,7 @@ export async function initDatabase() {
           pregunta TEXT,
           orden INTEGER,
           activa INTEGER,
+          ponderado REAL,
           created_at TEXT,
           updated_at TEXT
         );
@@ -296,8 +304,43 @@ export async function initDatabase() {
           summary TEXT,
           sync_status TEXT DEFAULT 'pending',
           error_message TEXT,
+          upload_total_photos INTEGER DEFAULT 0,
+          upload_completed_photos INTEGER DEFAULT 0,
+          upload_progress_message TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           synced_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS offline_checklist_responses (
+          local_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          client_submission_id TEXT NOT NULL UNIQUE,
+          building_id TEXT NOT NULL,
+          equipamento_id TEXT NOT NULL,
+          equipo_id TEXT NOT NULL,
+          frequency TEXT NOT NULL,
+          period_start TEXT NOT NULL,
+          period_end TEXT NOT NULL,
+          user_created TEXT NOT NULL,
+          payload_json TEXT NOT NULL,
+          status TEXT DEFAULT 'pending', -- pending, syncing, synced, error, conflict
+          error_message TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          synced_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS offline_checklist_photos (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          checklist_local_id INTEGER NOT NULL,
+          question_id TEXT,
+          kind TEXT NOT NULL, -- general, question
+          local_uri TEXT NOT NULL,
+          status TEXT DEFAULT 'pending', -- pending, syncing, synced, error
+          remote_bucket TEXT,
+          remote_path TEXT,
+          remote_public_url TEXT,
+          error_message TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(checklist_local_id) REFERENCES offline_checklist_responses(local_id)
         );
 
         -- Performance indexes for frequent offline-first queries
@@ -319,6 +362,8 @@ export async function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_local_user_session_user ON local_user_sesion_mantenimiento(id_user);
 
         CREATE INDEX IF NOT EXISTS idx_local_instrumentos_equipamento ON local_instrumentos(equipamento);
+        CREATE INDEX IF NOT EXISTS idx_local_equipamentos_sistema ON local_equipamentos(id_sistema);
+        CREATE INDEX IF NOT EXISTS idx_local_sistemas_activo ON local_sistemas(activo);
         CREATE INDEX IF NOT EXISTS idx_local_equipamentos_property_property ON local_equipamentos_property(id_property);
         CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_equipamento ON local_preguntas_equipamento(equipamento_id);
         CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_activa ON local_preguntas_equipamento(activa);
@@ -333,6 +378,11 @@ export async function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_offline_panel_panel_status ON offline_panel_configurations(panel_id, status);
         CREATE INDEX IF NOT EXISTS idx_offline_audit_sync_status ON offline_audit_sessions(sync_status);
         CREATE INDEX IF NOT EXISTS idx_offline_audit_property_date ON offline_audit_sessions(property_id, scheduled_for);
+
+        CREATE INDEX IF NOT EXISTS idx_offline_checklist_status ON offline_checklist_responses(status);
+        CREATE INDEX IF NOT EXISTS idx_offline_checklist_scope_period ON offline_checklist_responses(building_id, equipamento_id, frequency, period_start);
+        CREATE INDEX IF NOT EXISTS idx_offline_checklist_equipo_period ON offline_checklist_responses(equipo_id, frequency, period_start);
+        CREATE INDEX IF NOT EXISTS idx_offline_checklist_photo_status ON offline_checklist_photos(checklist_local_id, status);
 
         CREATE INDEX IF NOT EXISTS idx_offline_gw_status ON offline_grounding_well_checklist(status);
         CREATE INDEX IF NOT EXISTS idx_offline_gw_maint ON offline_grounding_well_checklist(maintenance_id);
@@ -397,6 +447,53 @@ export async function initDatabase() {
       // Column already exists
     }
 
+    // Migration v1.5b: Add systems catalog support to checklist equipment types
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_equipamentos ADD COLUMN id_sistema TEXT;`,
+      );
+      console.log('Migration: Added id_sistema column to local_equipamentos');
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS local_sistemas (
+          id TEXT PRIMARY KEY,
+          nombre TEXT,
+          activo INTEGER
+        );
+      `);
+    } catch {
+      // Table already exists
+    }
+
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_sistemas ADD COLUMN activo INTEGER;`,
+      );
+      console.log('Migration: Added activo column to local_sistemas');
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(
+        'CREATE INDEX IF NOT EXISTS idx_local_equipamentos_sistema ON local_equipamentos(id_sistema);',
+      );
+    } catch {
+      // Index already exists
+    }
+
+    try {
+      await db.execAsync(
+        'CREATE INDEX IF NOT EXISTS idx_local_sistemas_activo ON local_sistemas(activo);',
+      );
+    } catch {
+      // Index already exists
+    }
+
     // Migration v1.6: Ensure local_preguntas_equipamento exists for checklist
     try {
       await db.execAsync(`
@@ -406,12 +503,24 @@ export async function initDatabase() {
           pregunta TEXT,
           orden INTEGER,
           activa INTEGER,
+          ponderado REAL,
           created_at TEXT,
           updated_at TEXT
         );
       `);
     } catch {
       // Table already exists
+    }
+
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_preguntas_equipamento ADD COLUMN ponderado REAL;`,
+      );
+      console.log(
+        'Migration: Added ponderado column to local_preguntas_equipamento',
+      );
+    } catch {
+      // Column already exists
     }
 
     // Migration v1.7: Add image_url column to local_properties
@@ -478,6 +587,40 @@ export async function initDatabase() {
       );
     } catch {
       // Index already exists
+    }
+
+    // Migration v1.10: Add audit upload progress columns
+    try {
+      await db.execAsync(
+        `ALTER TABLE offline_audit_sessions ADD COLUMN upload_total_photos INTEGER DEFAULT 0;`,
+      );
+      console.log(
+        'Migration: Added upload_total_photos to offline_audit_sessions',
+      );
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(
+        `ALTER TABLE offline_audit_sessions ADD COLUMN upload_completed_photos INTEGER DEFAULT 0;`,
+      );
+      console.log(
+        'Migration: Added upload_completed_photos to offline_audit_sessions',
+      );
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(
+        `ALTER TABLE offline_audit_sessions ADD COLUMN upload_progress_message TEXT;`,
+      );
+      console.log(
+        'Migration: Added upload_progress_message to offline_audit_sessions',
+      );
+    } catch {
+      // Column already exists
     }
 
     console.log('Database initialized');
