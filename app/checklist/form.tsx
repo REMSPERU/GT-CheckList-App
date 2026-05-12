@@ -158,20 +158,6 @@ function formatDateToSpanish(value: string) {
   return `${day}-${month}-${year}`;
 }
 
-function parsePonderado(value: number | string | null | undefined) {
-  if (value === null || value === undefined || String(value).trim() === '') {
-    return 0;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function formatPonderado(value: number) {
-  const rounded = Math.round(value * 10) / 10;
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-}
-
 function buildFriendlyRestrictionMessage(
   reason: string,
   windowLabel: string,
@@ -311,7 +297,6 @@ const ChecklistQuestionRow = memo(function ChecklistQuestionRow({
     <QuestionChecklistItem
       order={index + 1}
       question={question.pregunta}
-      ponderado={question.ponderado}
       value={{
         status: answer.status,
         observation: answer.observacion,
@@ -1093,32 +1078,6 @@ export default function ChecklistFormScreen() {
     schedulePreview.message,
   ]);
 
-  const ponderadoSummary = useMemo(() => {
-    let total = 0;
-    let ok = 0;
-    let observed = 0;
-
-    questions.forEach(question => {
-      const weight = parsePonderado(question.ponderado);
-      const answer = answers[question.id];
-
-      total += weight;
-      if (answer?.status === true) {
-        ok += weight;
-      } else if (answer?.status === false) {
-        observed += weight;
-      }
-    });
-
-    return {
-      total,
-      ok,
-      observed,
-      hasPonderado: total > 0,
-      progress: total > 0 ? Math.min(100, Math.max(0, (ok / total) * 100)) : 0,
-    };
-  }, [answers, questions]);
-
   const listHeader = useMemo(
     () => (
       <>
@@ -1187,25 +1146,7 @@ export default function ChecklistFormScreen() {
         </Pressable>
         <View style={styles.headerTitleRow}>
           <Text style={styles.title}>{params.equipoCodigo || 'Checklist'}</Text>
-          {ponderadoSummary.hasPonderado ? (
-            <View style={styles.headerScoreBadge}>
-              <Text style={styles.headerScoreLabel}>Resultado</Text>
-              <Text style={styles.headerScoreValue}>
-                {formatPonderado(ponderadoSummary.ok)}%
-              </Text>
-            </View>
-          ) : null}
         </View>
-        {ponderadoSummary.hasPonderado ? (
-          <View style={styles.headerScoreTrack}>
-            <View
-              style={[
-                styles.headerScoreFill,
-                { width: `${ponderadoSummary.progress}%` },
-              ]}
-            />
-          </View>
-        ) : null}
         <Text style={styles.subtitle}>
           {params.equipamentoNombre || '-'} - {frecuencia} ({periodStartLabel})
         </Text>
@@ -1350,49 +1291,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
-  },
-  headerScoreBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#F8FAFC',
-    overflow: 'hidden',
-  },
-  headerScoreLabel: {
-    paddingLeft: 8,
-    paddingRight: 6,
-    paddingVertical: 4,
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  headerScoreValue: {
-    minWidth: 46,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderLeftWidth: 1,
-    borderLeftColor: '#CBD5E1',
-    backgroundColor: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#0F172A',
-    textAlign: 'center',
-  },
-  headerScoreTrack: {
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: '#E5E7EB',
-    overflow: 'hidden',
-    marginTop: 8,
-  },
-  headerScoreFill: {
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: '#0891B2',
   },
   subtitle: {
     marginTop: 5,
