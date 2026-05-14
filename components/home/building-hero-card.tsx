@@ -35,7 +35,7 @@ export function BuildingHeroCard({ building, onPress }: BuildingHeroCardProps) {
           <Text style={styles.badgeText}>Inmueble activo</Text>
         </View>
 
-        <Text style={styles.title} numberOfLines={1}>
+        <Text style={styles.title} numberOfLines={2}>
           {building?.name || 'Seleccionar inmueble'}
         </Text>
 

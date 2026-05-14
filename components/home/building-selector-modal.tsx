@@ -59,7 +59,7 @@ const BuildingSelectorRow = memo(function BuildingSelectorRow({
         </View>
 
         <View style={styles.buildingRowTextWrap}>
-          <Text style={styles.buildingRowName} numberOfLines={1}>
+          <Text style={styles.buildingRowName}>
             {building.name}
           </Text>
           {building.address ? (
