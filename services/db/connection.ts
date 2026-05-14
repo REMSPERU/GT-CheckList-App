@@ -425,7 +425,6 @@ export async function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_local_equipos_estatus ON local_equipos(estatus);
 
         CREATE INDEX IF NOT EXISTS idx_local_sched_equipo ON local_scheduled_maintenances(id_equipo);
-        CREATE INDEX IF NOT EXISTS idx_local_sched_session ON local_scheduled_maintenances(id_sesion);
         CREATE INDEX IF NOT EXISTS idx_local_sched_status ON local_scheduled_maintenances(estatus);
         CREATE INDEX IF NOT EXISTS idx_local_sched_date ON local_scheduled_maintenances(dia_programado);
 
@@ -436,8 +435,6 @@ export async function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_local_user_session_user ON local_user_sesion_mantenimiento(id_user);
 
         CREATE INDEX IF NOT EXISTS idx_local_instrumentos_equipamento ON local_instrumentos(equipamento);
-        CREATE INDEX IF NOT EXISTS idx_local_equipamentos_sistema ON local_equipamentos(id_sistema);
-        CREATE INDEX IF NOT EXISTS idx_local_sistemas_activo ON local_sistemas(activo);
         CREATE INDEX IF NOT EXISTS idx_local_equipamentos_property_property ON local_equipamentos_property(id_property);
         CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_equipamento ON local_preguntas_equipamento(equipamento_id);
         CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_activa ON local_preguntas_equipamento(activa);
@@ -506,6 +503,26 @@ export async function initDatabase() {
       );
       console.log(
         'Migration: Added id_sesion column to local_scheduled_maintenances',
+      );
+    } catch {
+      // Column already exists (new installs or already-migrated DBs)
+    }
+
+    try {
+      await db.execAsync(
+        'CREATE INDEX IF NOT EXISTS idx_local_sched_session ON local_scheduled_maintenances(id_sesion);',
+      );
+    } catch {
+      // Index already exists
+    }
+
+    // Migration v1.4b: Add assigned_technicians column to scheduled maintenances
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_scheduled_maintenances ADD COLUMN assigned_technicians TEXT;`,
+      );
+      console.log(
+        'Migration: Added assigned_technicians column to local_scheduled_maintenances',
       );
     } catch {
       // Column already exists (new installs or already-migrated DBs)
@@ -698,7 +715,10 @@ export async function initDatabase() {
     }
 
     console.log('Database initialized');
-  })();
+  })().catch(error => {
+    initializationPromise = null;
+    throw error;
+  });
 
   return initializationPromise;
 }
