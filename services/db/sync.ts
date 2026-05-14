@@ -42,6 +42,36 @@ export async function clearMirrorTables() {
   `);
 }
 
+export async function hasUsableLocalMirror() {
+  await ensureInitialized();
+  const db = await dbPromise;
+
+  const row = await db.getFirstAsync<{
+    properties_count: number;
+    equipos_count: number;
+    equipamentos_count: number;
+    equipamentos_property_count: number;
+    audit_questions_count: number;
+  }>(`
+    SELECT
+      (SELECT COUNT(*) FROM local_properties) as properties_count,
+      (SELECT COUNT(*) FROM local_equipos) as equipos_count,
+      (SELECT COUNT(*) FROM local_equipamentos) as equipamentos_count,
+      (SELECT COUNT(*) FROM local_equipamentos_property) as equipamentos_property_count,
+      (SELECT COUNT(*) FROM local_audit_questions) as audit_questions_count
+  `);
+
+  if (!row) return false;
+
+  return (
+    row.properties_count > 0 ||
+    row.equipos_count > 0 ||
+    row.equipamentos_count > 0 ||
+    row.equipamentos_property_count > 0 ||
+    row.audit_questions_count > 0
+  );
+}
+
 /** Batch size for INSERT OR REPLACE operations */
 const INSERT_BATCH_SIZE = 50;
 

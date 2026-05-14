@@ -447,6 +447,13 @@ class SyncService {
   }
 
   private async syncOnReconnect() {
+    const hasLocalMirror = await this.hasInitialMirrorForNavigation();
+
+    if (!hasLocalMirror) {
+      await this.triggerSync('reconnect-initial-pull', { force: true });
+      return;
+    }
+
     await this.triggerSync('reconnect', { pushOnly: true, force: true });
 
     if (this.reconnectPullTimeoutId) {
@@ -486,16 +493,28 @@ class SyncService {
   private normalizeTriggerOptions(
     reason: string,
     options?: TriggerSyncOptions,
+    hasLocalMirror = true,
   ): TriggerSyncOptions | undefined {
     if (options?.force || options?.pushOnly) {
       return options;
     }
 
-    if (this.isPassiveSyncReason(reason)) {
+    if (hasLocalMirror && this.isPassiveSyncReason(reason)) {
       return { ...options, pushOnly: true };
     }
 
     return options;
+  }
+
+  private async hasInitialMirrorForNavigation() {
+    if (this._isInitialSyncDone) return true;
+
+    try {
+      return await DatabaseService.hasUsableLocalMirror();
+    } catch (error) {
+      console.warn('[SYNC] Failed to inspect local mirror state:', error);
+      return false;
+    }
   }
 
   private isCriticalSyncReason(reason: string) {
@@ -559,7 +578,12 @@ class SyncService {
     reason: string,
     options?: TriggerSyncOptions,
   ): Promise<void> {
-    const normalizedOptions = this.normalizeTriggerOptions(reason, options);
+    const hasLocalMirror = await this.hasInitialMirrorForNavigation();
+    const normalizedOptions = this.normalizeTriggerOptions(
+      reason,
+      options,
+      hasLocalMirror,
+    );
     const force = normalizedOptions?.force ?? false;
     const pushOnly = normalizedOptions?.pushOnly ?? false;
     const now = Date.now();
@@ -628,7 +652,7 @@ class SyncService {
       } else {
         log(`[SYNC#${syncId}] Pull skipped — not updating dedup timestamp`);
       }
-      if (!options?.pushOnly) {
+      if (!options?.pushOnly && pulled) {
         this.markReady();
       }
 
