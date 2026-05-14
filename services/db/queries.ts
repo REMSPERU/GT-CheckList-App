@@ -17,73 +17,64 @@ function normalizeMaintenanceStatus(status: unknown): string | null {
 
 export async function getLocalEquipments() {
   await ensureInitialized();
-  return withLock(async () => {
-    const db = await dbPromise;
-    return await db.getAllAsync('SELECT * FROM local_equipos');
-  });
+  const db = await dbPromise;
+  return await db.getAllAsync('SELECT * FROM local_equipos');
 }
 
 export async function getEquipmentById(id: string) {
   await ensureInitialized();
-  return withLock(async () => {
-    const db = await dbPromise;
-    const row = (await db.getFirstAsync(
-      'SELECT * FROM local_equipos WHERE id = ?',
-      [id],
-    )) as any;
+  const db = await dbPromise;
+  const row = (await db.getFirstAsync(
+    'SELECT * FROM local_equipos WHERE id = ?',
+    [id],
+  )) as any;
 
-    if (!row) return null;
+  if (!row) return null;
 
-    try {
-      return {
-        ...row,
-        equipment_detail: row.equipment_detail
-          ? JSON.parse(row.equipment_detail)
-          : null,
-        config: row.config === 1,
-      };
-    } catch (e) {
-      console.error('Error parsing equipment detail:', e);
-      return row;
-    }
-  });
+  try {
+    return {
+      ...row,
+      equipment_detail: row.equipment_detail
+        ? JSON.parse(row.equipment_detail)
+        : null,
+      config: row.config === 1,
+    };
+  } catch (e) {
+    console.error('Error parsing equipment detail:', e);
+    return row;
+  }
 }
 
 export async function getLocalProperties() {
   await ensureInitialized();
-  return withLock(async () => {
-    const db = await dbPromise;
-    return await db.getAllAsync(
-      'SELECT * FROM local_properties ORDER BY name ASC',
-    );
-  });
+  const db = await dbPromise;
+  return await db.getAllAsync(
+    'SELECT * FROM local_properties ORDER BY name ASC',
+  );
 }
 
 export async function getEquipamentosByProperty(propertyId: string) {
   await ensureInitialized();
-  return withLock(async () => {
-    const db = await dbPromise;
-    // Join local_equipamentos and local_equipamentos_property
-    const rows = await db.getAllAsync(
-      `
+  const db = await dbPromise;
+  // Join local_equipamentos and local_equipamentos_property
+  const rows = await db.getAllAsync(
+    `
         SELECT e.id, e.nombre, e.abreviatura
              , e.frecuencia
         FROM local_equipamentos e
         JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
         WHERE ep.id_property = ?
         `,
-      [propertyId],
-    );
-    return rows;
-  });
+    [propertyId],
+  );
+  return rows;
 }
 
 export async function getChecklistSystemsByProperty(propertyId: string) {
   await ensureInitialized();
-  return withLock(async () => {
-    const db = await dbPromise;
-    const rows = (await db.getAllAsync(
-      `
+  const db = await dbPromise;
+  const rows = (await db.getAllAsync(
+    `
         SELECT
           COALESCE(s.id, 'sin-sistema') as sistema_id,
           COALESCE(s.nombre, 'SIN SISTEMA') as sistema_nombre,
@@ -110,52 +101,51 @@ export async function getChecklistSystemsByProperty(propertyId: string) {
           e.id_sistema
         ORDER BY sistema_nombre ASC, e.nombre ASC
       `,
-      [propertyId, 'INACTIVO'],
-    )) as any[];
+    [propertyId, 'INACTIVO'],
+  )) as any[];
 
-    const groups = new Map<
-      string,
-      {
+  const groups = new Map<
+    string,
+    {
+      id: string;
+      nombre: string;
+      activo: boolean;
+      equipamentos: {
         id: string;
         nombre: string;
-        activo: boolean;
-        equipamentos: {
-          id: string;
-          nombre: string;
-          abreviatura: string;
-          frecuencia?: string | null;
-          id_sistema?: string | null;
-          equipos_count: number;
-        }[];
+        abreviatura: string;
+        frecuencia?: string | null;
+        id_sistema?: string | null;
         equipos_count: number;
-      }
-    >();
-
-    for (const row of rows) {
-      const sistemaId = String(row.sistema_id);
-      const current = groups.get(sistemaId) ?? {
-        id: sistemaId,
-        nombre: String(row.sistema_nombre),
-        activo: row.sistema_activo === 1,
-        equipamentos: [],
-        equipos_count: 0,
-      };
-      const equiposCount = Number(row.equipos_count || 0);
-
-      current.equipamentos.push({
-        id: String(row.equipamento_id),
-        nombre: String(row.equipamento_nombre),
-        abreviatura: String(row.equipamento_abreviatura || ''),
-        frecuencia: row.equipamento_frecuencia || null,
-        id_sistema: row.id_sistema || null,
-        equipos_count: equiposCount,
-      });
-      current.equipos_count += equiposCount;
-      groups.set(sistemaId, current);
+      }[];
+      equipos_count: number;
     }
+  >();
 
-    return Array.from(groups.values());
-  });
+  for (const row of rows) {
+    const sistemaId = String(row.sistema_id);
+    const current = groups.get(sistemaId) ?? {
+      id: sistemaId,
+      nombre: String(row.sistema_nombre),
+      activo: row.sistema_activo === 1,
+      equipamentos: [],
+      equipos_count: 0,
+    };
+    const equiposCount = Number(row.equipos_count || 0);
+
+    current.equipamentos.push({
+      id: String(row.equipamento_id),
+      nombre: String(row.equipamento_nombre),
+      abreviatura: String(row.equipamento_abreviatura || ''),
+      frecuencia: row.equipamento_frecuencia || null,
+      id_sistema: row.id_sistema || null,
+      equipos_count: equiposCount,
+    });
+    current.equipos_count += equiposCount;
+    groups.set(sistemaId, current);
+  }
+
+  return Array.from(groups.values());
 }
 
 export async function getElectricalPanelsByProperty(
@@ -514,11 +504,10 @@ export async function updateLocalScheduledMaintenanceStatus(
  */
 export async function getLocalSessionsByProperty(propertyId: string) {
   await ensureInitialized();
-  return withLock(async () => {
-    const db = await dbPromise;
+  const db = await dbPromise;
 
-    const rows = await db.getAllAsync(
-      `
+  const rows = await db.getAllAsync(
+    `
       SELECT *
       FROM (
         SELECT
@@ -582,24 +571,23 @@ export async function getLocalSessionsByProperty(propertyId: string) {
       ) sessions
       ORDER BY fecha_programada DESC
       `,
-      [propertyId, propertyId, propertyId],
-    );
+    [propertyId, propertyId, propertyId],
+  );
 
-    return rows.map((row: any) => ({
-      id: row.id,
-      nombre: row.nombre,
-      descripcion: row.descripcion,
-      fecha_programada: row.fecha_programada,
-      estatus: normalizeMaintenanceStatus(row.estatus) || 'NO_INICIADO',
-      id_property: row.id_property,
-      created_by: row.created_by,
-      created_at: row.created_at,
-      total: row.total_count || 0,
-      completed: row.completed_count || 0,
-      inProgress: row.in_progress_count || 0,
-      equipmentTypes: row.equipment_types ? row.equipment_types.split(',') : [],
-    }));
-  });
+  return rows.map((row: any) => ({
+    id: row.id,
+    nombre: row.nombre,
+    descripcion: row.descripcion,
+    fecha_programada: row.fecha_programada,
+    estatus: normalizeMaintenanceStatus(row.estatus) || 'NO_INICIADO',
+    id_property: row.id_property,
+    created_by: row.created_by,
+    created_at: row.created_at,
+    total: row.total_count || 0,
+    completed: row.completed_count || 0,
+    inProgress: row.in_progress_count || 0,
+    equipmentTypes: row.equipment_types ? row.equipment_types.split(',') : [],
+  }));
 }
 
 export async function getInstrumentsByEquipmentType(equipmentTypeId: string) {

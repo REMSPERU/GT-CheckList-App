@@ -250,13 +250,14 @@ export default function SelectDeviceScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedLocalDataRef = useRef(false);
 
   const loadData = useCallback(async () => {
     if (!building?.id) {
       setIsLoading(false);
       return;
     }
-    setIsLoading(true);
+    setIsLoading(!hasLoadedLocalDataRef.current);
     setError(null);
 
     try {
@@ -268,6 +269,7 @@ export default function SelectDeviceScreen() {
         setChecklistSystems(systems);
         setEquipamentos([]);
         setExpandedSystemId(current => current ?? systems[0]?.id ?? null);
+        hasLoadedLocalDataRef.current = true;
       } else {
         const data = await DatabaseService.getEquipamentosByProperty(
           building.id,
@@ -275,6 +277,7 @@ export default function SelectDeviceScreen() {
         setEquipamentos(data as EquipamentoResponse[]);
         setChecklistSystems([]);
         setExpandedSystemId(null);
+        hasLoadedLocalDataRef.current = true;
       }
     } catch (err) {
       console.error('Error loading equipments:', err);
@@ -540,7 +543,11 @@ export default function SelectDeviceScreen() {
         </SafeAreaView>
       </View>
 
-      {!paramsResolved || (isLoading && !isRefreshing) ? (
+      {!paramsResolved ||
+      (isLoading &&
+        !isRefreshing &&
+        equipamentos.length === 0 &&
+        checklistSystems.length === 0) ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Cargando localmente...</Text>
