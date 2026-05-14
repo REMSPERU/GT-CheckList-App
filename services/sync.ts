@@ -16,8 +16,8 @@ interface NetworkState {
 /** Maximum rows fetched per table to prevent OOM on mobile devices */
 const SYNC_ROW_LIMIT = 5000;
 
-/** Minimum interval between pull syncs to prevent rapid successive downloads */
-const MIN_PULL_INTERVAL_MS = 30000;
+/** Minimum interval between full pull syncs to avoid reloading data on navigation */
+const MIN_PULL_INTERVAL_MS = 5 * 60 * 1000;
 
 /** Polling interval for background sync checks */
 const POLL_INTERVAL_MS = 30000;
@@ -256,6 +256,7 @@ class SyncService {
   private currentSyncPromise: Promise<boolean> | null = null;
   private syncOperationLock: Promise<void> = Promise.resolve();
   private netInfoUnsubscribe: (() => void) | null = null;
+  private reconnectPullTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private initialized = false;
   private lastPullTimestamp = 0;
 
@@ -264,6 +265,8 @@ class SyncService {
   private syncCounter = 0;
   /** Timestamp of last completed full sync (push + pull) */
   private lastFullSyncTimestamp = 0;
+  /** Timestamp of last full sync attempt, including failed pulls */
+  private lastFullSyncAttemptTimestamp = 0;
   /** If a sync is requested while one is running, store ONE pending reason */
   private pendingSyncRequest: {
     reason: string;
@@ -271,8 +274,9 @@ class SyncService {
   } | null = null;
   /** Whether a full sync cycle is currently executing */
   private isFullSyncing = false;
-  /** Minimum ms between full syncs — prevents boot duplicates */
-  private static readonly FULL_SYNC_DEDUP_MS = 15_000;
+  /** Minimum ms between full sync attempts — prevents boot/navigation duplicates */
+  private static readonly FULL_SYNC_DEDUP_MS = 60_000;
+  private static readonly RECONNECT_PULL_DELAY_MS = 60_000;
   /** Initial mirror readiness state after first successful full sync */
   private _isInitialSyncDone = false;
   /** One-time listeners fired when initial sync becomes ready */
@@ -280,6 +284,12 @@ class SyncService {
 
   get isInitialSyncDone(): boolean {
     return this._isInitialSyncDone;
+  }
+
+  get isSyncActive(): boolean {
+    return (
+      this.isFullSyncing || this.isSyncing || this.currentSyncPromise !== null
+    );
   }
 
   onReady(listener: () => void): () => void {
@@ -397,12 +407,17 @@ class SyncService {
       this.netInfoUnsubscribe();
       this.netInfoUnsubscribe = null;
     }
+    if (this.reconnectPullTimeoutId) {
+      clearTimeout(this.reconnectPullTimeoutId);
+      this.reconnectPullTimeoutId = null;
+    }
 
     this.initialized = false;
     this.isConnected = false;
     this.isFullSyncing = false;
     this.pendingSyncRequest = null;
     this.lastFullSyncTimestamp = 0;
+    this.lastFullSyncAttemptTimestamp = 0;
     this.syncCounter = 0;
     this._isInitialSyncDone = false;
     this.readyListeners.clear();
@@ -432,7 +447,113 @@ class SyncService {
   }
 
   private async syncOnReconnect() {
-    await this.triggerSync('reconnect');
+    const hasLocalMirror = await this.hasInitialMirrorForNavigation();
+
+    if (!hasLocalMirror) {
+      await this.triggerSync('reconnect-initial-pull', { force: true });
+      return;
+    }
+
+    await this.triggerSync('reconnect', { pushOnly: true, force: true });
+
+    if (this.reconnectPullTimeoutId) {
+      clearTimeout(this.reconnectPullTimeoutId);
+    }
+
+    this.reconnectPullTimeoutId = setTimeout(() => {
+      this.reconnectPullTimeoutId = null;
+      void this.triggerSync('reconnect-background-pull');
+    }, SyncService.RECONNECT_PULL_DELAY_MS);
+  }
+
+  private isPassiveSyncReason(reason: string) {
+    const normalizedReason = reason.toLowerCase();
+
+    if (
+      normalizedReason.includes('refresh') ||
+      normalizedReason.includes('manual') ||
+      normalizedReason.includes('retry') ||
+      normalizedReason.includes('save') ||
+      normalizedReason.includes('submit') ||
+      normalizedReason.includes('finalize') ||
+      normalizedReason.includes('post-') ||
+      normalizedReason === 'reconnect'
+    ) {
+      return false;
+    }
+
+    return (
+      normalizedReason.endsWith('-focus') ||
+      normalizedReason.endsWith('-mount') ||
+      normalizedReason.includes('screen-mount') ||
+      normalizedReason.includes('index-mount')
+    );
+  }
+
+  private normalizeTriggerOptions(
+    reason: string,
+    options?: TriggerSyncOptions,
+    hasLocalMirror = true,
+  ): TriggerSyncOptions | undefined {
+    if (options?.force || options?.pushOnly) {
+      return options;
+    }
+
+    if (hasLocalMirror && this.isPassiveSyncReason(reason)) {
+      return { ...options, pushOnly: true };
+    }
+
+    return options;
+  }
+
+  private async hasInitialMirrorForNavigation() {
+    if (this._isInitialSyncDone) return true;
+
+    try {
+      return await DatabaseService.hasUsableLocalMirror();
+    } catch (error) {
+      console.warn('[SYNC] Failed to inspect local mirror state:', error);
+      return false;
+    }
+  }
+
+  private isCriticalSyncReason(reason: string) {
+    const normalizedReason = reason.toLowerCase();
+
+    return (
+      normalizedReason === 'reconnect' ||
+      normalizedReason.includes('manual') ||
+      normalizedReason.includes('retry') ||
+      normalizedReason.includes('save') ||
+      normalizedReason.includes('submit') ||
+      normalizedReason.includes('finalize') ||
+      normalizedReason.includes('post-')
+    );
+  }
+
+  private shouldReplacePendingSync(
+    incomingReason: string,
+    incomingOptions?: TriggerSyncOptions,
+  ) {
+    if (!this.pendingSyncRequest) return true;
+
+    if (incomingOptions?.force) return true;
+    if (this.pendingSyncRequest.options?.force) return false;
+
+    const incomingPassive = this.isPassiveSyncReason(incomingReason);
+    const pendingPassive = this.isPassiveSyncReason(
+      this.pendingSyncRequest.reason,
+    );
+
+    if (incomingPassive && pendingPassive) return false;
+    if (
+      incomingOptions?.pushOnly &&
+      this.pendingSyncRequest.options?.pushOnly
+    ) {
+      return false;
+    }
+
+    return !incomingPassive;
   }
 
   // ----------------------------------------------------------------
@@ -457,26 +578,45 @@ class SyncService {
     reason: string,
     options?: TriggerSyncOptions,
   ): Promise<void> {
-    const force = options?.force ?? false;
+    const hasLocalMirror = await this.hasInitialMirrorForNavigation();
+    const normalizedOptions = this.normalizeTriggerOptions(
+      reason,
+      options,
+      hasLocalMirror,
+    );
+    const force = normalizedOptions?.force ?? false;
+    const pushOnly = normalizedOptions?.pushOnly ?? false;
     const now = Date.now();
-    const elapsed = now - this.lastFullSyncTimestamp;
+    const elapsed = now - this.lastFullSyncAttemptTimestamp;
 
-    // Dedup: skip if last full sync completed recently
-    if (!force && elapsed < SyncService.FULL_SYNC_DEDUP_MS) {
+    // Queue while active before applying dedup so important writes are not lost.
+    if (this.isFullSyncing) {
+      if (!this.shouldReplacePendingSync(reason, normalizedOptions)) {
+        log(`[SYNC] Pending kept — ignored passive reason: ${reason}`);
+        return;
+      }
+
+      this.pendingSyncRequest = { reason, options: normalizedOptions };
       log(
-        `[SYNC] Skipped (dedup) — reason: ${reason}, last sync ${elapsed}ms ago`,
+        `[SYNC] Queued pending — reason: ${reason}${pushOnly ? ' (push-only)' : ''}`,
       );
       return;
     }
 
-    // If already running, queue ONE pending re-run (latest request wins)
-    if (this.isFullSyncing) {
-      this.pendingSyncRequest = { reason, options };
-      log(`[SYNC] Queued pending — reason: ${reason}`);
+    // Dedup only full pulls; push-only writes should still be allowed.
+    if (
+      !force &&
+      !pushOnly &&
+      !this.isCriticalSyncReason(reason) &&
+      elapsed < SyncService.FULL_SYNC_DEDUP_MS
+    ) {
+      log(
+        `[SYNC] Skipped (dedup) — reason: ${reason}, last full sync attempt ${elapsed}ms ago`,
+      );
       return;
     }
 
-    await this._executeFullSync(reason, options);
+    await this._executeFullSync(reason, normalizedOptions);
   }
 
   /**
@@ -490,8 +630,13 @@ class SyncService {
     this.isFullSyncing = true;
     const syncId = ++this.syncCounter;
     const startTime = Date.now();
+    if (!options?.pushOnly) {
+      this.lastFullSyncAttemptTimestamp = startTime;
+    }
 
-    log(`[SYNC#${syncId}] Start — reason: ${reason}`);
+    log(
+      `[SYNC#${syncId}] Start — reason: ${reason}${options?.pushOnly ? ' (push-only)' : ''}`,
+    );
 
     try {
       await this.pushData();
@@ -507,7 +652,7 @@ class SyncService {
       } else {
         log(`[SYNC#${syncId}] Pull skipped — not updating dedup timestamp`);
       }
-      if (!options?.pushOnly) {
+      if (!options?.pushOnly && pulled) {
         this.markReady();
       }
 
@@ -529,7 +674,7 @@ class SyncService {
       const pending = this.pendingSyncRequest;
       this.pendingSyncRequest = null;
       log(`[SYNC] Draining pending request — reason: ${pending.reason}`);
-      await this._executeFullSync(pending.reason, pending.options);
+      await this.triggerSync(pending.reason, pending.options);
     }
   }
 

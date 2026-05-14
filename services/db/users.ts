@@ -22,7 +22,7 @@ export async function saveCurrentUser(user: {
         user.role || '',
       ],
     );
-  });
+  }, 'saveCurrentUser');
   console.log(
     'Current user saved to local DB:',
     user.email,
@@ -40,7 +40,7 @@ export async function getLocalUserById(id: string) {
       [id],
     );
     return result;
-  });
+  }, 'getLocalUserById');
 }
 
 export async function getLocalUsers() {
@@ -49,16 +49,18 @@ export async function getLocalUsers() {
     const db = await dbPromise;
     const result = await db.getAllAsync('SELECT * FROM local_users');
     return result;
-  });
+  }, 'getLocalUsers');
 }
 
 export async function updateLocalUserRole(userId: string, role: string) {
   await ensureInitialized();
   await withLock(async () => {
     const db = await dbPromise;
-    await db.runAsync('UPDATE local_users SET role = ? WHERE id = ?', [
-      role,
-      userId,
-    ]);
-  });
+    await db.runAsync(
+      `UPDATE local_users
+       SET role = ?
+       WHERE id = ? AND COALESCE(role, '') != ?`,
+      [role, userId, role],
+    );
+  }, 'updateLocalUserRole');
 }

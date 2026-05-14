@@ -35,8 +35,8 @@ export async function saveOfflineChecklistResponse(
     const db = await dbPromise;
     let localId = 0;
 
-    await db.withTransactionAsync(async () => {
-      const result = await db.runAsync(
+    await db.withExclusiveTransactionAsync(async tx => {
+      const result = await tx.runAsync(
         `INSERT INTO offline_checklist_responses (
           client_submission_id,
           building_id,
@@ -65,7 +65,7 @@ export async function saveOfflineChecklistResponse(
       localId = result.lastInsertRowId;
 
       for (const photo of input.photos) {
-        await db.runAsync(
+        await tx.runAsync(
           `INSERT INTO offline_checklist_photos (
             checklist_local_id,
             question_id,

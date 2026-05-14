@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import {
   useMutation,
   useQuery,
@@ -98,25 +97,13 @@ export function useProperties(
   >,
 ) {
   const queryClient = useQueryClient();
-  const [isSyncReady, setIsSyncReady] = useState(syncService.isInitialSyncDone);
   const { enabled: optionsEnabled, ...restOptions } = options ?? {};
   const normalizedFilters = filters ?? null;
   const queryKey = propertyKeys.list(normalizedFilters);
 
-  useEffect(() => {
-    if (syncService.isInitialSyncDone) {
-      setIsSyncReady(true);
-      return;
-    }
-
-    return syncService.onReady(() => {
-      setIsSyncReady(true);
-    });
-  }, []);
-
   return useQuery({
     queryKey,
-    enabled: isSyncReady && (optionsEnabled ?? true),
+    enabled: optionsEnabled ?? true,
     queryFn: async () => {
       logPropertiesFlow('query start', {
         queryKey,
@@ -132,6 +119,11 @@ export function useProperties(
 
       // If we have local data, return it immediately and fetch remote in background
       if (localData.items.length > 0) {
+        if (syncService.isSyncActive) {
+          logPropertiesFlow('using local data, remote sync already active');
+          return localData;
+        }
+
         logPropertiesFlow(
           'using local data and starting background remote fetch',
         );

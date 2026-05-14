@@ -91,38 +91,34 @@ function toJsonText(value: unknown): string | null {
 export async function getAuditQuestions() {
   await ensureInitialized();
 
-  return withLock(async () => {
-    const db = await dbPromise;
-    return db.getAllAsync(
-      `SELECT id, question_text, section_id, section_name, section_order_index, equipment_name, is_active
+  const db = await dbPromise;
+  return db.getAllAsync(
+    `SELECT id, question_text, section_id, section_name, section_order_index, equipment_name, is_active
        FROM local_audit_questions
         WHERE is_active = 1
         ORDER BY
           COALESCE(section_order_index, 999999) ASC,
           LOWER(COALESCE(equipment_name, '')) ASC,
           LOWER(COALESCE(question_text, '')) ASC`,
-    ) as Promise<LocalAuditQuestion[]>;
-  });
+  ) as Promise<LocalAuditQuestion[]>;
 }
 
 export async function getAssignedPropertiesForAuditor(userId: string) {
   await ensureInitialized();
 
-  return withLock(async () => {
-    const db = await dbPromise;
-    const now = new Date().toISOString();
+  const db = await dbPromise;
+  const now = new Date().toISOString();
 
-    return db.getAllAsync(
-      `SELECT p.*
+  return db.getAllAsync(
+    `SELECT p.*
        FROM local_properties p
        INNER JOIN local_user_properties up
          ON up.property_id = p.id
        WHERE up.user_id = ?
          AND (up.expires_at IS NULL OR up.expires_at > ?)
        ORDER BY p.name ASC`,
-      [userId, now],
-    ) as Promise<AuditorAssignedProperty[]>;
-  });
+    [userId, now],
+  ) as Promise<AuditorAssignedProperty[]>;
 }
 
 export async function saveOfflineAuditSession(
@@ -171,7 +167,7 @@ export async function saveOfflineAuditSession(
       localId: result.lastInsertRowId,
       clientSubmissionId,
     };
-  });
+  }, 'saveOfflineAuditSession');
 }
 
 export async function getPendingAuditSessions() {
@@ -185,22 +181,20 @@ export async function getPendingAuditSessions() {
        WHERE sync_status IN ('pending', 'error', 'syncing')
        ORDER BY created_at ASC`,
     );
-  });
+  }, 'getPendingAuditSessions');
 }
 
 export async function getAuditSessionsByProperty(propertyId: string) {
   await ensureInitialized();
 
-  return withLock(async () => {
-    const db = await dbPromise;
-    return db.getAllAsync(
-      `SELECT *
+  const db = await dbPromise;
+  return db.getAllAsync(
+    `SELECT *
        FROM offline_audit_sessions
        WHERE property_id = ?
        ORDER BY COALESCE(submitted_at, created_at) DESC`,
-      [propertyId],
-    ) as Promise<OfflineAuditSessionRecord[]>;
-  });
+    [propertyId],
+  ) as Promise<OfflineAuditSessionRecord[]>;
 }
 
 export async function updateOfflineAuditSessionStatus(
@@ -222,7 +216,7 @@ export async function updateOfflineAuditSessionStatus(
        WHERE local_id = ?`,
       [syncStatus, errorMessage, syncedAt, localId],
     );
-  });
+  }, 'updateOfflineAuditSessionStatus');
 }
 
 export async function updateOfflineAuditSessionPayload(
@@ -239,7 +233,7 @@ export async function updateOfflineAuditSessionPayload(
        WHERE local_id = ?`,
       [toJsonText(auditPayload), localId],
     );
-  });
+  }, 'updateOfflineAuditSessionPayload');
 }
 
 export async function updateOfflineAuditSessionUploadProgress(
@@ -260,7 +254,7 @@ export async function updateOfflineAuditSessionUploadProgress(
        WHERE local_id = ?`,
       [completedPhotos, totalPhotos, progressMessage, localId],
     );
-  });
+  }, 'updateOfflineAuditSessionUploadProgress');
 }
 
 export async function upsertSyncedAuditSessions(
@@ -276,9 +270,9 @@ export async function upsertSyncedAuditSessions(
     const db = await dbPromise;
     const syncedAt = new Date().toISOString();
 
-    await db.withTransactionAsync(async () => {
+    await db.withExclusiveTransactionAsync(async tx => {
       for (const session of sessions) {
-        await db.runAsync(
+        await tx.runAsync(
           `INSERT INTO offline_audit_sessions (
             client_submission_id,
             property_id,
@@ -325,5 +319,5 @@ export async function upsertSyncedAuditSessions(
         );
       }
     });
-  });
+  }, 'upsertSyncedAuditSessions');
 }

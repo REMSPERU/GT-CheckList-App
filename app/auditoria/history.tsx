@@ -25,7 +25,7 @@ import type {
   StoredSummary,
 } from '@/types/auditoria';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -54,6 +54,7 @@ export default function AuditoriaHistoryScreen() {
 
   const [sessions, setSessions] = useState<OfflineAuditSession[]>([]);
   const [questions, setQuestions] = useState<AuditQuestion[]>([]);
+  const hasLoadedLocalHistoryRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
@@ -92,6 +93,7 @@ export default function AuditoriaHistoryScreen() {
 
     setSessions((localSessions || []) as OfflineAuditSession[]);
     setQuestions((localQuestions || []) as AuditQuestion[]);
+    hasLoadedLocalHistoryRef.current = true;
   }, [buildingId]);
 
   const syncHistoryInBackground = useCallback(async () => {
@@ -111,7 +113,7 @@ export default function AuditoriaHistoryScreen() {
   }, [buildingId, loadLocalHistory]);
 
   const loadHistory = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoading(!hasLoadedLocalHistoryRef.current);
     try {
       await Promise.race([
         loadLocalHistory(),

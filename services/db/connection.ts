@@ -4,6 +4,12 @@ export const dbPromise = SQLite.openDatabaseAsync('offline_maintenance.db');
 
 const SQLITE_BUSY_MAX_RETRIES = 5;
 const SQLITE_BUSY_BASE_DELAY_MS = 120;
+const DB_LOCK_WAIT_LOG_MS = 1000;
+const DB_LOCK_HOLD_LOG_MS = 2000;
+
+interface WithLockOptions {
+  maxRetries?: number;
+}
 
 function isSqliteBusyError(error: unknown) {
   if (!error) return false;
@@ -24,38 +30,106 @@ function sleep(ms: number) {
 
 // Simple mutex to prevent concurrent transactions
 let transactionLock: Promise<void> = Promise.resolve();
+let activeLockLabel: string | null = null;
+let activeLockStartedAt = 0;
+let lockSequence = 0;
+let queuedLockCount = 0;
 
-export const withLock = async <T>(fn: () => Promise<T>): Promise<T> => {
+function getCallerLabel() {
+  const stack = new Error().stack;
+  const callerLine = stack?.split('\n').find(line => {
+    const trimmed = line.trim();
+    return (
+      trimmed !== 'Error' &&
+      !trimmed.includes('withLock') &&
+      !trimmed.includes('getCallerLabel')
+    );
+  });
+
+  return callerLine?.trim() || 'unknown-db-operation';
+}
+
+async function runLocked<T>(
+  fn: () => Promise<T>,
+  label: string,
+  requestId: number,
+): Promise<T> {
   const previousLock = transactionLock;
+  const requestedAt = Date.now();
+  const queuedBehind = activeLockLabel;
+  queuedLockCount += 1;
   let resolve: () => void;
   transactionLock = new Promise(r => {
     resolve = r;
   });
+
   try {
     await previousLock;
+    queuedLockCount -= 1;
 
-    for (let attempt = 0; ; attempt += 1) {
-      try {
-        return await fn();
-      } catch (error) {
-        const shouldRetry =
-          isSqliteBusyError(error) && attempt < SQLITE_BUSY_MAX_RETRIES;
+    const waitedMs = Date.now() - requestedAt;
+    activeLockLabel = label;
+    activeLockStartedAt = Date.now();
 
-        if (!shouldRetry) {
-          throw error;
-        }
-
-        const delay = SQLITE_BUSY_BASE_DELAY_MS * (attempt + 1);
-        if (__DEV__) {
-          console.warn(
-            `[DB] SQLITE_BUSY retry ${attempt + 1}/${SQLITE_BUSY_MAX_RETRIES} in ${delay}ms`,
-          );
-        }
-        await sleep(delay);
-      }
+    if (__DEV__ && waitedMs >= DB_LOCK_WAIT_LOG_MS) {
+      console.log('[DB-LOCK] waited', {
+        requestId,
+        label,
+        waitedMs,
+        queuedBehind,
+        queuedLockCount,
+      });
     }
+
+    return await fn();
   } finally {
+    const heldMs = Date.now() - activeLockStartedAt;
+    if (__DEV__ && heldMs >= DB_LOCK_HOLD_LOG_MS) {
+      console.log('[DB-LOCK] released', {
+        requestId,
+        label,
+        heldMs,
+        queuedLockCount,
+      });
+    }
+    activeLockLabel = null;
+    activeLockStartedAt = 0;
     resolve!();
+  }
+}
+
+export const withLock = async <T>(
+  fn: () => Promise<T>,
+  label = getCallerLabel(),
+  options: WithLockOptions = {},
+): Promise<T> => {
+  const requestId = ++lockSequence;
+  const maxRetries = options.maxRetries ?? SQLITE_BUSY_MAX_RETRIES;
+
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await runLocked(fn, label, requestId);
+    } catch (error) {
+      const shouldRetry = isSqliteBusyError(error) && attempt < maxRetries;
+
+      if (!shouldRetry) {
+        throw error;
+      }
+
+      const delay = SQLITE_BUSY_BASE_DELAY_MS * (attempt + 1);
+      if (__DEV__) {
+        console.warn(
+          `[DB] SQLITE_BUSY retry ${attempt + 1}/${maxRetries} in ${delay}ms`,
+          {
+            requestId,
+            label,
+            activeLockLabel,
+            queuedLockCount,
+          },
+        );
+      }
+      await sleep(delay);
+    }
   }
 };
 
