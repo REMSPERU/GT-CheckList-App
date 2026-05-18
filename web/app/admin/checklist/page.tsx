@@ -191,20 +191,25 @@ export default function AdminChecklistPage() {
   }
 
   return (
-    <main className="admin-content">
-      <section className="section-heading">
+    <main className="grid gap-5 px-8 pb-11 pt-7 max-[640px]:px-[18px]">
+      <section className="rounded-3xl border border-slate-900/10 bg-white/80 p-[26px] shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
         <div>
-          <span className="eyebrow">Checklist</span>
-          <h2>Preguntas y respuestas</h2>
-          <p>
+          <span className="mb-1.5 inline-block text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
+            Checklist
+          </span>
+          <h2 className="m-0 text-[clamp(2rem,4vw,4.2rem)] font-bold tracking-[-0.04em] text-[#0c1720]">
+            Preguntas y respuestas
+          </h2>
+          <p className="max-w-[680px] text-base text-slate-500">
             Administra la visibilidad de preguntas por equipamento y revisa como
             se respondieron los checklist sincronizados.
           </p>
         </div>
       </section>
 
-      <section className="table-toolbar">
+      <section className="flex items-center gap-3 max-[640px]:flex-col max-[640px]:items-stretch">
         <select
+          className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900"
           value={selectedEquipmentType}
           onChange={event => handleEquipmentTypeChange(event.target.value)}>
           <option value="">Todos los equipamentos</option>
@@ -217,51 +222,66 @@ export default function AdminChecklistPage() {
         </select>
       </section>
 
-      {errorMessage ? <div className="feedback error">{errorMessage}</div> : null}
+      {errorMessage ? (
+        <div className="mt-3 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2.5 text-[0.95rem] text-red-800">
+          {errorMessage}
+        </div>
+      ) : null}
 
-      <section className="table-card priority-card">
-        <div className="table-meta">
+      <section className="overflow-hidden rounded-[22px] border border-emerald-800/25 bg-white/80 shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
+        <div className="border-b border-slate-300 px-[18px] py-4 font-bold text-slate-500">
           {isLoading
             ? 'Cargando respuestas...'
             : `${responses.length} de ${responseTotal} respuestas · pagina ${responsePage} de ${responseTotalPages}`}
         </div>
-        <div className="table-scroll">
-          <table>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[860px] border-collapse">
             <thead>
               <tr>
-                <th>Fecha</th>
-                <th>Inmueble</th>
-                <th>Equipo</th>
-                <th>Frecuencia</th>
-                <th>Resumen</th>
-                <th>Detalle</th>
+                {['Fecha', 'Inmueble', 'Equipo', 'Frecuencia', 'Resumen', 'Detalle'].map(
+                  header => (
+                    <th
+                      className="border-b border-slate-100 bg-slate-50 px-[18px] py-3.5 text-left align-top text-xs uppercase tracking-[0.08em] text-slate-500"
+                      key={header}>
+                      {header}
+                    </th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>
               {responses.map(response => (
                 <tr key={response.id}>
-                  <td>{formatDateTime(response.submitted_at)}</td>
-                  <td>{response.building_name ?? '-'}</td>
-                  <td>
-                    <strong>{response.equipo_codigo ?? '-'}</strong>
-                    <small>{response.equipamento_nombre ?? '-'}</small>
+                  <td className="border-b border-slate-100 px-[18px] py-3.5 text-left align-top text-[0.92rem] text-[#0c1720]">
+                    {formatDateTime(response.submitted_at)}
                   </td>
-                  <td>
-                    <strong>{response.frequency ?? '-'}</strong>
-                    <small>{response.period_start ?? ''}</small>
+                  <td className="border-b border-slate-100 px-[18px] py-3.5 text-left align-top text-[0.92rem] text-[#0c1720]">
+                    {response.building_name ?? '-'}
                   </td>
-                  <td>
-                    <strong>
+                  <td className="border-b border-slate-100 px-[18px] py-3.5 text-left align-top text-[0.92rem] text-[#0c1720]">
+                    <strong className="block">{response.equipo_codigo ?? '-'}</strong>
+                    <small className="mt-1 block text-slate-500">
+                      {response.equipamento_nombre ?? '-'}
+                    </small>
+                  </td>
+                  <td className="border-b border-slate-100 px-[18px] py-3.5 text-left align-top text-[0.92rem] text-[#0c1720]">
+                    <strong className="block">{response.frequency ?? '-'}</strong>
+                    <small className="mt-1 block text-slate-500">
+                      {response.period_start ?? ''}
+                    </small>
+                  </td>
+                  <td className="border-b border-slate-100 px-[18px] py-3.5 text-left align-top text-[0.92rem] text-[#0c1720]">
+                    <strong className="block">
                       OK {response.total_ok ?? 0} / {response.total_questions ?? 0}
                     </strong>
-                    <small>
+                    <small className="mt-1 block text-slate-500">
                       Observadas {response.total_observed ?? 0} · Fotos{' '}
                       {response.total_photos ?? 0}
                     </small>
                   </td>
-                  <td>
+                  <td className="border-b border-slate-100 px-[18px] py-3.5 text-left align-top text-[0.92rem] text-[#0c1720]">
                     <button
-                      className="inline-button"
+                      className="m-0 h-[34px] w-auto rounded-[10px] bg-teal-100 px-3 text-[0.84rem] font-bold text-teal-950 hover:bg-teal-200 disabled:cursor-not-allowed disabled:opacity-60"
                       type="button"
                       onClick={() =>
                         setExpandedResponseId(current =>
@@ -279,28 +299,40 @@ export default function AdminChecklistPage() {
 
         {responses.map(response =>
           expandedResponseId === response.id ? (
-            <div className="response-detail" key={`detail-${response.id}`}>
-              <h3>Detalle de respuestas</h3>
+            <div
+              className="border-t border-slate-300 bg-[#fbfdfb] p-[18px]"
+              key={`detail-${response.id}`}>
+              <h3 className="mb-3 mt-0 text-lg font-bold">Detalle de respuestas</h3>
               {response.answers.length === 0 ? (
                 <p>No hay detalle JSON de respuestas para este registro.</p>
               ) : (
-                <div className="answer-list">
+                <div className="grid gap-2.5">
                   {response.answers.map(answer => (
                     <article
-                      className="answer-card"
+                      className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3.5 gap-y-2.5 rounded-2xl border border-[#dfe8e5] bg-white p-3.5 max-[640px]:grid-cols-1"
                       key={`${response.id}-${answer.pregunta_id}`}>
                       <div>
-                        <span className="eyebrow">Pregunta {answer.orden ?? '-'}</span>
-                        <h4>{answer.pregunta}</h4>
+                        <span className="mb-1.5 inline-block text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
+                          Pregunta {answer.orden ?? '-'}
+                        </span>
+                        <h4 className="m-0 text-[#0c1720]">{answer.pregunta}</h4>
                       </div>
                       <span
                         className={
-                          answer.status_ok ? 'status-pill' : 'status-pill warn'
+                          answer.status_ok
+                            ? 'inline-flex min-h-7 items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-extrabold text-green-900'
+                            : 'inline-flex min-h-7 items-center rounded-full bg-orange-100 px-2.5 py-1 text-xs font-extrabold text-orange-900'
                         }>
                         {answer.status_ok ? 'Conforme' : 'Observada'}
                       </span>
-                      {answer.observacion ? <p>{answer.observacion}</p> : null}
-                      <small>{answer.fotos.length} fotos</small>
+                      {answer.observacion ? (
+                        <p className="col-span-full m-0 text-slate-500">
+                          {answer.observacion}
+                        </p>
+                      ) : null}
+                      <small className="col-span-full m-0 text-slate-500">
+                        {answer.fotos.length} fotos
+                      </small>
                     </article>
                   ))}
                 </div>
@@ -309,8 +341,9 @@ export default function AdminChecklistPage() {
           ) : null,
         )}
 
-        <div className="pagination-bar">
+        <div className="flex items-center justify-end gap-3 border-t border-slate-300 px-[18px] py-3.5 font-bold text-slate-500 max-[640px]:flex-col max-[640px]:items-stretch">
           <button
+            className="m-0 h-[38px] w-auto rounded-[10px] border-0 bg-emerald-800 px-3.5 font-bold text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
             type="button"
             disabled={responsePage <= 1 || isLoading}
             onClick={() => setResponsePage(current => Math.max(1, current - 1))}>
@@ -320,6 +353,7 @@ export default function AdminChecklistPage() {
             Pagina {responsePage} de {responseTotalPages}
           </span>
           <button
+            className="m-0 h-[38px] w-auto rounded-[10px] border-0 bg-emerald-800 px-3.5 font-bold text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
             type="button"
             disabled={responsePage >= responseTotalPages || isLoading}
             onClick={() =>
@@ -332,43 +366,53 @@ export default function AdminChecklistPage() {
         </div>
       </section>
 
-      <section className="table-card">
-        <div className="table-meta">
+      <section className="overflow-hidden rounded-[22px] border border-slate-900/10 bg-white/80 shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
+        <div className="border-b border-slate-300 px-[18px] py-4 font-bold text-slate-500">
           {isLoading
             ? 'Cargando preguntas...'
             : `${questions.length} preguntas en ${groupedQuestions.length} grupos`}
         </div>
 
-        <div className="question-groups">
+        <div className="grid gap-4 p-[18px]">
           {groupedQuestions.map(group => (
-            <section className="question-group" key={group.key}>
+            <section
+              className="overflow-hidden rounded-[18px] border border-[#dfe8e5] bg-white"
+              key={group.key}>
               <button
-                className="question-group-header"
+                className="m-0 flex h-auto w-full cursor-pointer items-center justify-between gap-3.5 rounded-none border-b border-[#e9efed] bg-gradient-to-br from-[#f7fbf7] to-[#effaf5] px-[18px] py-4 text-left text-inherit hover:from-[#effaf5] hover:to-[#e7f8ee] max-[640px]:flex-col max-[640px]:items-stretch"
                 type="button"
                 onClick={() => toggleQuestionGroup(group.key)}
                 aria-expanded={expandedQuestionGroups[group.key] === true}>
                 <div>
-                  <span className="eyebrow">{group.systemName}</span>
-                  <h3>{group.equipmentName}</h3>
+                  <span className="mb-1.5 inline-block text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
+                    {group.systemName}
+                  </span>
+                  <h3 className="m-0 text-[#0c1720]">{group.equipmentName}</h3>
                 </div>
-                <strong>
+                <strong className="whitespace-nowrap text-emerald-800">
                   {group.questions.length} preguntas ·{' '}
                   {expandedQuestionGroups[group.key] ? 'Ocultar' : 'Ver'}
                 </strong>
               </button>
 
               {expandedQuestionGroups[group.key] ? (
-                <div className="question-list">
+                <div className="grid">
                   {group.questions.map(question => (
-                    <article className="question-card" key={question.id}>
-                      <div className="question-order">{question.orden ?? '-'}</div>
-                      <div className="question-body">
-                        <p>{question.pregunta}</p>
-                        <div className="question-controls">
-                          <label>
+                    <article
+                      className="grid grid-cols-[54px_minmax(0,1fr)] gap-3 border-b border-slate-100 px-[18px] py-3.5 last:border-b-0 max-[640px]:grid-cols-1"
+                      key={question.id}>
+                      <div className="grid h-[38px] w-[38px] place-items-center rounded-xl bg-lime-200 font-black text-emerald-900 max-[640px]:w-full">
+                        {question.orden ?? '-'}
+                      </div>
+                      <div>
+                        <p className="m-0 font-semibold text-[#0c1720]">
+                          {question.pregunta}
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-end gap-2.5">
+                          <label className="grid gap-1.5 text-sm font-semibold">
                             Ponderado
                             <input
-                              className="table-input"
+                              className="m-0 h-9 w-[120px] rounded-[10px] border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-300"
                               type="number"
                               step="0.01"
                               value={String(question.ponderado ?? '')}
@@ -379,9 +423,10 @@ export default function AdminChecklistPage() {
                               }
                             />
                           </label>
-                          <label>
+                          <label className="grid gap-1.5 text-sm font-semibold">
                             Activa
                             <select
+                              className="min-h-9 rounded-[10px] border border-slate-300 bg-white px-3 py-1.5 text-[0.95rem] text-slate-900"
                               value={question.activa ? 'true' : 'false'}
                               onChange={event =>
                                 updateQuestionDraft(question.id, {
@@ -393,7 +438,7 @@ export default function AdminChecklistPage() {
                             </select>
                           </label>
                           <button
-                            className="inline-button"
+                            className="m-0 h-[34px] w-auto rounded-[10px] bg-teal-100 px-3 text-[0.84rem] font-bold text-teal-950 hover:bg-teal-200 disabled:cursor-not-allowed disabled:opacity-60"
                             type="button"
                             disabled={savingQuestionId === question.id}
                             onClick={() => handleSaveQuestion(question)}>

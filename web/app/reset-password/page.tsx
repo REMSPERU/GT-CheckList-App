@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
 
 import { AuthShell } from '@/components/auth-shell';
 import { getSupabaseClient } from '@/lib/supabase-browser';
@@ -90,10 +91,11 @@ export default function ResetPasswordPage() {
     <AuthShell
       title="Nueva contrasena"
       description="Ingresa tu nueva contrasena para terminar la recuperacion.">
-      <form onSubmit={onSubmit}>
-        <label>
+      <form className="mt-[18px] grid gap-3" onSubmit={onSubmit}>
+        <label className="text-sm font-semibold">
           Nueva contrasena (minimo 8)
           <input
+            className="mt-1.5 h-11 w-full rounded-[10px] border border-slate-300 px-3 py-2.5 text-base outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-300"
             type="password"
             autoComplete="new-password"
             required
@@ -103,9 +105,10 @@ export default function ResetPasswordPage() {
           />
         </label>
 
-        <label>
+        <label className="text-sm font-semibold">
           Confirmar contrasena
           <input
+            className="mt-1.5 h-11 w-full rounded-[10px] border border-slate-300 px-3 py-2.5 text-base outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-300"
             type="password"
             autoComplete="new-password"
             required
@@ -116,6 +119,7 @@ export default function ResetPasswordPage() {
         </label>
 
         <button
+          className="mt-1 h-11 rounded-[10px] border-0 bg-emerald-800 px-4 font-bold text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
           type="submit"
           disabled={isSubmitting || !isFormValid || !isReady}>
           {isSubmitting ? 'Actualizando...' : 'Actualizar contrasena'}
@@ -123,13 +127,25 @@ export default function ResetPasswordPage() {
       </form>
 
       {errorMessage ? (
-        <div className="feedback error">{errorMessage}</div>
+        <div className="mt-3 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2.5 text-[0.95rem] text-red-800">
+          {errorMessage}
+        </div>
       ) : null}
-      {message ? <div className="feedback ok">{message}</div> : null}
+      {message ? (
+        <div className="mt-3 rounded-[10px] border border-green-200 bg-green-50 px-3 py-2.5 text-[0.95rem] text-green-800">
+          {message}
+        </div>
+      ) : null}
 
-      <div className="links">
-        <Link href="/login">Ir a iniciar sesion</Link>
-        <Link href="/forgot-password">Solicitar nuevo enlace</Link>
+      <div className="mt-3.5 flex flex-wrap gap-3">
+        <Link className="text-emerald-800 underline underline-offset-2" href="/login">
+          Ir a iniciar sesion
+        </Link>
+        <Link
+          className="text-emerald-800 underline underline-offset-2"
+          href="/forgot-password">
+          Solicitar nuevo enlace
+        </Link>
       </div>
     </AuthShell>
   );
