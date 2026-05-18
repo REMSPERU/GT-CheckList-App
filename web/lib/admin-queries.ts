@@ -127,7 +127,7 @@ interface EquipmentTypeQueryRow {
   id: string;
   nombre: string;
   abreviatura: string | null;
-  frecuencia: string | null;
+  Frecuencia: string | null;
   id_sistema: string | null;
 }
 
@@ -387,9 +387,9 @@ export async function listAdminMaintenances(
   const equipmentIds = uniqueValues(rows.map(item => item.id_equipo));
   const { data: equipmentData, error: equipmentError } = equipmentIds.length
     ? await supabase
-      .from('equipos')
-      .select('id, id_property, id_equipamento, codigo')
-      .in('id', equipmentIds)
+        .from('equipos')
+        .select('id, id_property, id_equipamento, codigo')
+        .in('id', equipmentIds)
     : { data: [], error: null };
 
   if (equipmentError) throw equipmentError;
@@ -450,7 +450,7 @@ export async function listAdminEquipmentTypes(
     id: item.id,
     nombre: item.nombre,
     abreviatura: item.abreviatura,
-    frecuencia: item.frecuencia,
+    frecuencia: item.Frecuencia,
     systemName: item.id_sistema
       ? (systemsById.get(item.id_sistema) ?? 'Sin sistema')
       : 'Sin sistema',
