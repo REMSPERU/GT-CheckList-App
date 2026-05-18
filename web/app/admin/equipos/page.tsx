@@ -8,28 +8,45 @@ import {
 } from '@/lib/admin-queries';
 import { getSupabaseClient } from '@/lib/supabase-browser';
 
-function normalize(value: string | null) {
-  return (value ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
+const PAGE_SIZE = 50;
 
 export default function AdminEquipmentsPage() {
   const [items, setItems] = useState<AdminEquipmentRow[]>([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [status, setStatus] = useState('TODOS');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 250);
+
+    return () => clearTimeout(timeout);
+  }, [search]);
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadEquipments() {
       try {
+        setIsLoading(true);
+        setErrorMessage(null);
         const supabase = getSupabaseClient();
-        const result = await listAdminEquipments(supabase);
-        if (isMounted) setItems(result);
+        const result = await listAdminEquipments(supabase, {
+          page,
+          pageSize: PAGE_SIZE,
+          search: debouncedSearch,
+          status,
+        });
+        if (isMounted) {
+          setItems(result.items);
+          setTotal(result.total);
+        }
       } catch (error) {
         if (isMounted) {
           setErrorMessage(
@@ -48,27 +65,17 @@ export default function AdminEquipmentsPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [debouncedSearch, page, status]);
 
-  const filteredItems = useMemo(() => {
-    const query = normalize(search);
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    [total],
+  );
 
-    return items.filter(item => {
-      const matchesStatus = status === 'TODOS' || item.estatus === status;
-      const matchesSearch =
-        !query ||
-        [
-          item.codigo,
-          item.ubicacion,
-          item.detalle_ubicacion,
-          item.propertyName,
-          item.propertyCode,
-          item.equipmentName,
-        ].some(value => normalize(value).includes(query));
-
-      return matchesStatus && matchesSearch;
-    });
-  }, [items, search, status]);
+  function handleStatusChange(nextStatus: string) {
+    setStatus(nextStatus);
+    setPage(1);
+  }
 
   return (
     <main className="admin-content">
@@ -76,18 +83,20 @@ export default function AdminEquipmentsPage() {
         <div>
           <span className="eyebrow">Inventario</span>
           <h2>Equipos</h2>
-          <p>Consulta equipos por inmueble, tipo, estado, codigo o ubicacion.</p>
+          <p>Consulta todos los equipos con paginacion y filtro por estado.</p>
         </div>
       </section>
 
       <section className="table-toolbar">
         <input
           type="search"
-          placeholder="Buscar codigo, inmueble o ubicacion"
+          placeholder="Buscar codigo o ubicacion"
           value={search}
           onChange={event => setSearch(event.target.value)}
         />
-        <select value={status} onChange={event => setStatus(event.target.value)}>
+        <select
+          value={status}
+          onChange={event => handleStatusChange(event.target.value)}>
           <option value="TODOS">Todos los estados</option>
           <option value="ACTIVO">Activo</option>
           <option value="INACTIVO">Inactivo</option>
@@ -98,7 +107,9 @@ export default function AdminEquipmentsPage() {
 
       <section className="table-card">
         <div className="table-meta">
-          {isLoading ? 'Cargando equipos...' : `${filteredItems.length} equipos`}
+          {isLoading
+            ? 'Cargando equipos...'
+            : `${items.length} de ${total} equipos · pagina ${page} de ${totalPages}`}
         </div>
         <div className="table-scroll">
           <table>
@@ -113,7 +124,7 @@ export default function AdminEquipmentsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredItems.map(item => (
+              {items.map(item => (
                 <tr key={item.id}>
                   <td>{item.codigo ?? '-'}</td>
                   <td>
@@ -133,6 +144,23 @@ export default function AdminEquipmentsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="pagination-bar">
+          <button
+            type="button"
+            disabled={page <= 1 || isLoading}
+            onClick={() => setPage(current => Math.max(1, current - 1))}>
+            Anterior
+          </button>
+          <span>
+            Pagina {page} de {totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={page >= totalPages || isLoading}
+            onClick={() => setPage(current => Math.min(totalPages, current + 1))}>
+            Siguiente
+          </button>
         </div>
       </section>
     </main>

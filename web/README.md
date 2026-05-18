@@ -10,6 +10,7 @@ App web con Next.js para autenticacion y administracion basica:
 - Consulta de equipos (`/admin/equipos`)
 - Consulta de inmuebles (`/admin/inmuebles`)
 - Consulta de mantenimientos (`/admin/mantenimientos`)
+- Consulta de preguntas y respuestas de checklist (`/admin/checklist`)
 
 ## 1) Instalar y ejecutar local
 
@@ -61,6 +62,12 @@ permiso de lectura sobre:
 - `equipos`
 - `equipamentos`
 - `mantenimientos`
+- `preguntas_equipamento`
+- `checklist_response`
+
+Para editar `activa` y `ponderado` en preguntas de checklist, el rol
+administrativo tambien necesita permiso de actualizacion sobre
+`preguntas_equipamento`.
 
 ## 5) Desplegar en Vercel
 

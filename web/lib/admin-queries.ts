@@ -22,6 +22,61 @@ export interface AdminEquipmentRow {
   equipmentAbbreviation: string | null;
 }
 
+export interface AdminPaginatedResult<T> {
+  items: T[];
+  total: number;
+}
+
+export interface AdminEquipmentFilters {
+  page: number;
+  pageSize: number;
+  search?: string;
+  status?: string;
+}
+
+export interface AdminEquipmentTypeRow {
+  id: string;
+  nombre: string;
+  abreviatura: string | null;
+  frecuencia: string | null;
+}
+
+export interface AdminChecklistQuestionRow {
+  id: string;
+  equipamento_id: string;
+  equipmentName: string;
+  pregunta: string;
+  orden: number | null;
+  activa: boolean | null;
+  ponderado: number | string | null;
+  updated_at: string | null;
+}
+
+export interface AdminChecklistAnswerItem {
+  pregunta_id: string;
+  pregunta: string;
+  orden: number | null;
+  status_ok: boolean | null;
+  observacion: string | null;
+  fotos: unknown[];
+}
+
+export interface AdminChecklistResponseRow {
+  id: string;
+  client_submission_id: string | null;
+  submitted_at: string | null;
+  building_name: string | null;
+  equipamento_nombre: string | null;
+  equipo_codigo: string | null;
+  frequency: string | null;
+  period_start: string | null;
+  total_questions: number | null;
+  total_ok: number | null;
+  total_observed: number | null;
+  total_photos: number | null;
+  answers: AdminChecklistAnswerItem[];
+}
+
 export interface AdminPropertyRow {
   id: string;
   code: string | null;
@@ -63,6 +118,44 @@ interface EquipmentQueryRow {
   config: boolean | null;
   properties?: RelatedProperty | RelatedProperty[] | null;
   equipamentos?: RelatedEquipmentType | RelatedEquipmentType[] | null;
+}
+
+interface EquipmentTypeQueryRow {
+  id: string;
+  nombre: string;
+  abreviatura: string | null;
+  frecuencia: string | null;
+}
+
+interface ChecklistQuestionQueryRow {
+  id: string;
+  equipamento_id: string;
+  pregunta: string;
+  orden: number | null;
+  activa: boolean | null;
+  ponderado: number | string | null;
+  updated_at: string | null;
+  equipamentos?: RelatedEquipmentType | RelatedEquipmentType[] | null;
+}
+
+interface ChecklistAnswersJson {
+  respuestas?: AdminChecklistAnswerItem[];
+}
+
+interface ChecklistResponseQueryRow {
+  id: string;
+  client_submission_id: string | null;
+  submitted_at: string | null;
+  building_name: string | null;
+  equipamento_nombre: string | null;
+  equipo_codigo: string | null;
+  frequency: string | null;
+  period_start: string | null;
+  total_questions: number | null;
+  total_ok: number | null;
+  total_observed: number | null;
+  total_photos: number | null;
+  respuestas_json: ChecklistAnswersJson | null;
 }
 
 interface MaintenanceQueryRow {
@@ -149,8 +242,13 @@ export async function getAdminMetrics(
 
 export async function listAdminEquipments(
   supabase: SupabaseClient,
-): Promise<AdminEquipmentRow[]> {
-  const { data, error } = await supabase
+  filters: AdminEquipmentFilters,
+): Promise<AdminPaginatedResult<AdminEquipmentRow>> {
+  const from = (filters.page - 1) * filters.pageSize;
+  const to = from + filters.pageSize - 1;
+  const search = filters.search?.trim();
+
+  let query = supabase
     .from('equipos')
     .select(
       `
@@ -163,13 +261,25 @@ export async function listAdminEquipments(
         properties (name, code, city),
         equipamentos (nombre, abreviatura)
       `,
+      { count: 'exact' },
     )
-    .order('codigo', { ascending: true })
-    .limit(250);
+    .order('codigo', { ascending: true });
+
+  if (filters.status && filters.status !== 'TODOS') {
+    query = query.eq('estatus', filters.status);
+  }
+
+  if (search) {
+    query = query.or(
+      `codigo.ilike.%${search}%,ubicacion.ilike.%${search}%,detalle_ubicacion.ilike.%${search}%`,
+    );
+  }
+
+  const { data, error, count } = await query.range(from, to);
 
   if (error) throw error;
 
-  return ((data ?? []) as EquipmentQueryRow[]).map(item => {
+  const items = ((data ?? []) as EquipmentQueryRow[]).map(item => {
     const property = firstRelation(item.properties);
     const equipmentType = firstRelation(item.equipamentos);
 
@@ -187,6 +297,11 @@ export async function listAdminEquipments(
       equipmentAbbreviation: equipmentType?.abreviatura ?? null,
     };
   });
+
+  return {
+    items,
+    total: count ?? 0,
+  };
 }
 
 export async function listAdminProperties(
@@ -242,4 +357,148 @@ export async function listAdminMaintenances(
       equipmentType: equipmentType?.nombre ?? 'Sin tipo',
     };
   });
+}
+
+export async function listAdminEquipmentTypes(
+  supabase: SupabaseClient,
+): Promise<AdminEquipmentTypeRow[]> {
+  const { data, error } = await supabase
+    .from('equipamentos')
+    .select('id, nombre, abreviatura, frecuencia')
+    .order('nombre', { ascending: true });
+
+  if (error) throw error;
+
+  return ((data ?? []) as EquipmentTypeQueryRow[]).map(item => ({
+    id: item.id,
+    nombre: item.nombre,
+    abreviatura: item.abreviatura,
+    frecuencia: item.frecuencia,
+  }));
+}
+
+export async function listAdminChecklistQuestions(
+  supabase: SupabaseClient,
+  equipamentoId?: string,
+): Promise<AdminChecklistQuestionRow[]> {
+  let query = supabase
+    .from('preguntas_equipamento')
+    .select(
+      `
+        id,
+        equipamento_id,
+        pregunta,
+        orden,
+        activa,
+        ponderado,
+        updated_at,
+        equipamentos (nombre, abreviatura)
+      `,
+    )
+    .order('orden', { ascending: true });
+
+  if (equipamentoId) {
+    query = query.eq('equipamento_id', equipamentoId);
+  }
+
+  const { data, error } = await query.limit(500);
+
+  if (error) throw error;
+
+  return ((data ?? []) as ChecklistQuestionQueryRow[]).map(item => {
+    const equipmentType = firstRelation(item.equipamentos);
+
+    return {
+      id: item.id,
+      equipamento_id: item.equipamento_id,
+      equipmentName: equipmentType?.nombre ?? 'Sin tipo',
+      pregunta: item.pregunta,
+      orden: item.orden,
+      activa: item.activa,
+      ponderado: item.ponderado,
+      updated_at: item.updated_at,
+    };
+  });
+}
+
+export async function listAdminChecklistResponses(
+  supabase: SupabaseClient,
+  filters: { page: number; pageSize: number; equipamentoId?: string },
+): Promise<AdminPaginatedResult<AdminChecklistResponseRow>> {
+  const from = (filters.page - 1) * filters.pageSize;
+  const to = from + filters.pageSize - 1;
+
+  let query = supabase
+    .from('checklist_response')
+    .select(
+      `
+        id,
+        client_submission_id,
+        submitted_at,
+        building_name,
+        equipamento_nombre,
+        equipo_codigo,
+        frequency,
+        period_start,
+        total_questions,
+        total_ok,
+        total_observed,
+        total_photos,
+        respuestas_json
+      `,
+      { count: 'exact' },
+    )
+    .order('submitted_at', { ascending: false });
+
+  if (filters.equipamentoId) {
+    query = query.eq('equipamento_id', filters.equipamentoId);
+  }
+
+  const { data, error, count } = await query.range(from, to);
+
+  if (error) throw error;
+
+  const items = ((data ?? []) as ChecklistResponseQueryRow[]).map(item => ({
+    id: item.id,
+    client_submission_id: item.client_submission_id,
+    submitted_at: item.submitted_at,
+    building_name: item.building_name,
+    equipamento_nombre: item.equipamento_nombre,
+    equipo_codigo: item.equipo_codigo,
+    frequency: item.frequency,
+    period_start: item.period_start,
+    total_questions: item.total_questions,
+    total_ok: item.total_ok,
+    total_observed: item.total_observed,
+    total_photos: item.total_photos,
+    answers: item.respuestas_json?.respuestas ?? [],
+  }));
+
+  return {
+    items,
+    total: count ?? 0,
+  };
+}
+
+export async function updateAdminChecklistQuestion(
+  supabase: SupabaseClient,
+  input: { id: string; activa: boolean; ponderado: string | number | null },
+): Promise<void> {
+  const parsedWeight =
+    typeof input.ponderado === 'string' && input.ponderado.trim() === ''
+      ? null
+      : typeof input.ponderado === 'string'
+        ? Number(input.ponderado)
+        : input.ponderado;
+
+  const { error } = await supabase
+    .from('preguntas_equipamento')
+    .update({
+      activa: input.activa,
+      ponderado: parsedWeight,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', input.id);
+
+  if (error) throw error;
 }

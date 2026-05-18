@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { href: '/admin/equipos', label: 'Equipos' },
   { href: '/admin/inmuebles', label: 'Inmuebles' },
   { href: '/admin/mantenimientos', label: 'Mantenimientos' },
+  { href: '/admin/checklist', label: 'Checklist' },
 ];
 
 export function AdminShell({ children }: AdminShellProps) {

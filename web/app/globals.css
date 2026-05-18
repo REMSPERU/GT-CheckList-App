@@ -400,6 +400,13 @@ select {
   background: rgba(255, 255, 255, 0.9);
 }
 
+.table-input {
+  width: 120px;
+  height: 36px;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
 .table-card {
   overflow: hidden;
   border-radius: 22px;
@@ -465,6 +472,80 @@ td small {
   font-weight: 800;
 }
 
+.status-pill.warn {
+  color: #7c2d12;
+  background: #ffedd5;
+}
+
+.inline-button {
+  width: auto;
+  height: 34px;
+  margin: 0;
+  padding: 0 12px;
+  color: #063f38;
+  background: #ccfbf1;
+  font-size: 0.84rem;
+}
+
+.inline-button:hover {
+  background: #99f6e4;
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.pagination-bar button {
+  width: auto;
+  height: 38px;
+  margin: 0;
+  padding: 0 14px;
+}
+
+.response-detail {
+  padding: 18px;
+  border-top: 1px solid var(--line);
+  background: #fbfdfb;
+}
+
+.response-detail h3 {
+  margin: 0 0 12px;
+}
+
+.answer-list {
+  display: grid;
+  gap: 10px;
+}
+
+.answer-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 14px;
+  padding: 14px;
+  border: 1px solid #dfe8e5;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.answer-card h4 {
+  margin: 0;
+  color: var(--ink);
+}
+
+.answer-card p,
+.answer-card small {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+}
+
 @media (max-width: 980px) {
   .admin-app {
     grid-template-columns: 1fr;
@@ -476,7 +557,7 @@ td small {
   }
 
   .admin-nav {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .metric-grid {
@@ -499,7 +580,13 @@ td small {
   }
 
   .admin-nav,
-  .metric-grid {
+  .metric-grid,
+  .answer-card {
     grid-template-columns: 1fr;
+  }
+
+  .pagination-bar {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
