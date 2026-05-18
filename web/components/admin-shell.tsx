@@ -75,8 +75,7 @@ export function AdminShell({ children }: AdminShellProps) {
     <div className="admin-app">
       <aside className="admin-sidebar">
         <Link href="/admin" className="admin-brand">
-          <span>GT</span>
-          <strong>CheckList Admin</strong>
+          <strong>GEMA-Panel </strong>
         </Link>
 
         <nav className="admin-nav" aria-label="Navegacion administrativa">

@@ -4,8 +4,8 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'GT CheckList Admin',
-  description: 'Portal administrativo de GT CheckList',
+  title: 'Admin GEMA-CheckList',
+  description: 'Portal administrativo de GEMA-CheckList',
 };
 
 interface RootLayoutProps {
