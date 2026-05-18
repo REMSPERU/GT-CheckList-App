@@ -1,12 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 
 import { AuthShell } from '@/components/auth-shell';
 import { getSupabaseClient } from '@/lib/supabase-browser';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,7 +34,8 @@ export default function LoginPage() {
         return;
       }
 
-      setMessage('Sesion iniciada correctamente.');
+      setMessage('Sesion iniciada correctamente. Redirigiendo...');
+      router.push('/admin');
     } finally {
       setIsSubmitting(false);
     }
@@ -40,7 +44,7 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Iniciar sesion"
-      description="Accede para validar que tu cuenta funciona.">
+      description="Accede al panel administrativo de GT CheckList.">
       <form onSubmit={onSubmit}>
         <label>
           Correo

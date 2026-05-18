@@ -1,5 +1,7 @@
 :root {
   --bg: #f4f6fb;
+  --admin-bg: #eef3f2;
+  --ink: #0c1720;
   --panel: #ffffff;
   --text: #112037;
   --muted: #5b677c;
@@ -110,6 +112,16 @@ button:disabled {
   cursor: not-allowed;
 }
 
+select {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  color: var(--text);
+  background: #fff;
+  font-size: 0.95rem;
+}
+
 .feedback {
   margin-top: 12px;
   padding: 10px 12px;
@@ -148,5 +160,346 @@ button:disabled {
 @media (max-width: 480px) {
   .card {
     padding: 22px;
+  }
+}
+
+.admin-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  background: var(--admin-bg);
+}
+
+.loading-mark {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #bdd2d0;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.admin-app {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  background:
+    radial-gradient(circle at 15% 0%, rgba(8, 145, 178, 0.16), transparent 28%),
+    linear-gradient(135deg, #edf5f3 0%, #f7f4ea 100%);
+}
+
+.admin-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 24px 18px;
+  color: #ecfdf5;
+  background: linear-gradient(180deg, #082f2a 0%, #0b1f28 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #fff;
+  text-decoration: none;
+}
+
+.admin-brand span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 14px;
+  color: #052e2b;
+  background: #b9fbc0;
+  font-weight: 900;
+}
+
+.admin-brand strong {
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.admin-nav {
+  display: grid;
+  gap: 8px;
+  margin-top: 34px;
+}
+
+.admin-nav a {
+  padding: 12px 14px;
+  border-radius: 12px;
+  color: #cce6df;
+  text-decoration: none;
+  font-weight: 650;
+}
+
+.admin-nav a:hover,
+.admin-nav a.active {
+  color: #082f2a;
+  background: #d9f99d;
+}
+
+.admin-main {
+  min-width: 0;
+}
+
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 32px;
+  border-bottom: 1px solid rgba(12, 23, 32, 0.08);
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(14px);
+}
+
+.admin-topbar h1,
+.section-heading h2,
+.hero-panel h2 {
+  margin: 0;
+  color: var(--ink);
+  letter-spacing: -0.04em;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 6px;
+  color: #0c5f4f;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.admin-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.admin-user button {
+  margin: 0;
+  width: auto;
+  padding: 0 16px;
+  background: #0b1f28;
+}
+
+.admin-content {
+  display: grid;
+  gap: 20px;
+  padding: 28px 32px 44px;
+}
+
+.hero-panel,
+.section-heading,
+.table-card,
+.metric-card {
+  border: 1px solid rgba(12, 23, 32, 0.1);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 20px 60px rgba(12, 23, 32, 0.08);
+}
+
+.hero-panel,
+.section-heading {
+  border-radius: 24px;
+  padding: 26px;
+}
+
+.hero-panel {
+  min-height: 190px;
+  display: flex;
+  align-items: end;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(217, 249, 157, 0.42)),
+    radial-gradient(circle at 78% 20%, rgba(8, 145, 178, 0.24), transparent 30%);
+}
+
+.hero-panel h2,
+.section-heading h2 {
+  font-size: clamp(2rem, 4vw, 4.2rem);
+}
+
+.hero-panel p,
+.section-heading p {
+  max-width: 680px;
+  font-size: 1rem;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.metric-card {
+  min-height: 150px;
+  display: grid;
+  align-content: space-between;
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.metric-card span,
+.metric-card small {
+  color: var(--muted);
+}
+
+.metric-card strong {
+  color: var(--ink);
+  font-size: 2.6rem;
+  letter-spacing: -0.07em;
+}
+
+.skeleton {
+  overflow: hidden;
+  position: relative;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.8),
+    transparent
+  );
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.table-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.table-toolbar input {
+  max-width: 520px;
+  margin: 0;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.table-card {
+  overflow: hidden;
+  border-radius: 22px;
+}
+
+.table-meta {
+  padding: 16px 18px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  font-weight: 700;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 14px 18px;
+  text-align: left;
+  border-bottom: 1px solid #edf1f5;
+  vertical-align: top;
+}
+
+th {
+  color: #52606f;
+  background: #f8fafc;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+td {
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+td strong,
+td small {
+  display: block;
+}
+
+td small {
+  margin-top: 3px;
+  color: var(--muted);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #0f5132;
+  background: #dcfce7;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+@media (max-width: 980px) {
+  .admin-app {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sidebar {
+    position: static;
+    height: auto;
+  }
+
+  .admin-nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-topbar,
+  .table-toolbar,
+  .admin-user {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-topbar,
+  .admin-content {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .admin-nav,
+  .metric-grid {
+    grid-template-columns: 1fr;
   }
 }
