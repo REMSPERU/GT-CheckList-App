@@ -568,9 +568,20 @@ td small {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
+  width: 100%;
+  height: auto;
+  margin: 0;
   padding: 16px 18px;
+  text-align: left;
   border-bottom: 1px solid #e9efed;
+  border-radius: 0;
+  color: inherit;
   background: linear-gradient(135deg, #f7fbf7, #effaf5);
+  cursor: pointer;
+}
+
+.question-group-header:hover {
+  background: linear-gradient(135deg, #effaf5, #e7f8ee);
 }
 
 .question-group-header h3 {

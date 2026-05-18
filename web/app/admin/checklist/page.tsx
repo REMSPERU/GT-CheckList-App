@@ -39,6 +39,9 @@ export default function AdminChecklistPage() {
   const [expandedResponseId, setExpandedResponseId] = useState<string | null>(
     null,
   );
+  const [expandedQuestionGroups, setExpandedQuestionGroups] = useState<
+    Record<string, boolean>
+  >({});
   const [responsePage, setResponsePage] = useState(1);
   const [responseTotal, setResponseTotal] = useState(0);
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
@@ -145,6 +148,14 @@ export default function AdminChecklistPage() {
   function handleEquipmentTypeChange(value: string) {
     setSelectedEquipmentType(value);
     setResponsePage(1);
+    setExpandedQuestionGroups({});
+  }
+
+  function toggleQuestionGroup(groupKey: string) {
+    setExpandedQuestionGroups(current => ({
+      ...current,
+      [groupKey]: !current[groupKey],
+    }));
   }
 
   function updateQuestionDraft(
@@ -331,62 +342,71 @@ export default function AdminChecklistPage() {
         <div className="question-groups">
           {groupedQuestions.map(group => (
             <section className="question-group" key={group.key}>
-              <div className="question-group-header">
+              <button
+                className="question-group-header"
+                type="button"
+                onClick={() => toggleQuestionGroup(group.key)}
+                aria-expanded={expandedQuestionGroups[group.key] === true}>
                 <div>
                   <span className="eyebrow">{group.systemName}</span>
                   <h3>{group.equipmentName}</h3>
                 </div>
-                <strong>{group.questions.length} preguntas</strong>
-              </div>
+                <strong>
+                  {group.questions.length} preguntas ·{' '}
+                  {expandedQuestionGroups[group.key] ? 'Ocultar' : 'Ver'}
+                </strong>
+              </button>
 
-              <div className="question-list">
-                {group.questions.map(question => (
-                  <article className="question-card" key={question.id}>
-                    <div className="question-order">{question.orden ?? '-'}</div>
-                    <div className="question-body">
-                      <p>{question.pregunta}</p>
-                      <div className="question-controls">
-                        <label>
-                          Ponderado
-                          <input
-                            className="table-input"
-                            type="number"
-                            step="0.01"
-                            value={String(question.ponderado ?? '')}
-                            onChange={event =>
-                              updateQuestionDraft(question.id, {
-                                ponderado: event.target.value,
-                              })
-                            }
-                          />
-                        </label>
-                        <label>
-                          Activa
-                          <select
-                            value={question.activa ? 'true' : 'false'}
-                            onChange={event =>
-                              updateQuestionDraft(question.id, {
-                                activa: event.target.value === 'true',
-                              })
-                            }>
-                            <option value="true">Si</option>
-                            <option value="false">No</option>
-                          </select>
-                        </label>
-                        <button
-                          className="inline-button"
-                          type="button"
-                          disabled={savingQuestionId === question.id}
-                          onClick={() => handleSaveQuestion(question)}>
-                          {savingQuestionId === question.id
-                            ? 'Guardando'
-                            : 'Guardar'}
-                        </button>
+              {expandedQuestionGroups[group.key] ? (
+                <div className="question-list">
+                  {group.questions.map(question => (
+                    <article className="question-card" key={question.id}>
+                      <div className="question-order">{question.orden ?? '-'}</div>
+                      <div className="question-body">
+                        <p>{question.pregunta}</p>
+                        <div className="question-controls">
+                          <label>
+                            Ponderado
+                            <input
+                              className="table-input"
+                              type="number"
+                              step="0.01"
+                              value={String(question.ponderado ?? '')}
+                              onChange={event =>
+                                updateQuestionDraft(question.id, {
+                                  ponderado: event.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            Activa
+                            <select
+                              value={question.activa ? 'true' : 'false'}
+                              onChange={event =>
+                                updateQuestionDraft(question.id, {
+                                  activa: event.target.value === 'true',
+                                })
+                              }>
+                              <option value="true">Si</option>
+                              <option value="false">No</option>
+                            </select>
+                          </label>
+                          <button
+                            className="inline-button"
+                            type="button"
+                            disabled={savingQuestionId === question.id}
+                            onClick={() => handleSaveQuestion(question)}>
+                            {savingQuestionId === question.id
+                              ? 'Guardando'
+                              : 'Guardar'}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
             </section>
           ))}
         </div>
