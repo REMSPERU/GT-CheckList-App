@@ -15,6 +15,13 @@ import { getSupabaseClient } from '@/lib/supabase-browser';
 
 const RESPONSE_PAGE_SIZE = 20;
 
+interface QuestionGroup {
+  key: string;
+  systemName: string;
+  equipmentName: string;
+  questions: AdminChecklistQuestionRow[];
+}
+
 function formatDateTime(value: string | null) {
   if (!value) return '-';
   const date = new Date(value);
@@ -112,6 +119,29 @@ export default function AdminChecklistPage() {
     [responseTotal],
   );
 
+  const groupedQuestions = useMemo<QuestionGroup[]>(() => {
+    const groups = new Map<string, QuestionGroup>();
+
+    questions.forEach(question => {
+      const key = `${question.systemName}::${question.equipmentName}`;
+      const current = groups.get(key) ?? {
+        key,
+        systemName: question.systemName,
+        equipmentName: question.equipmentName,
+        questions: [],
+      };
+
+      current.questions.push(question);
+      groups.set(key, current);
+    });
+
+    return Array.from(groups.values()).sort((a, b) => {
+      const systemCompare = a.systemName.localeCompare(b.systemName, 'es');
+      if (systemCompare !== 0) return systemCompare;
+      return a.equipmentName.localeCompare(b.equipmentName, 'es');
+    });
+  }, [questions]);
+
   function handleEquipmentTypeChange(value: string) {
     setSelectedEquipmentType(value);
     setResponsePage(1);
@@ -169,7 +199,8 @@ export default function AdminChecklistPage() {
           <option value="">Todos los equipamentos</option>
           {equipmentTypes.map(item => (
             <option value={item.id} key={item.id}>
-              {item.nombre} {item.frecuencia ? `· ${item.frecuencia}` : ''}
+              {item.systemName} · {item.nombre}{' '}
+              {item.frecuencia ? `· ${item.frecuencia}` : ''}
             </option>
           ))}
         </select>
@@ -177,72 +208,7 @@ export default function AdminChecklistPage() {
 
       {errorMessage ? <div className="feedback error">{errorMessage}</div> : null}
 
-      <section className="table-card">
-        <div className="table-meta">
-          {isLoading
-            ? 'Cargando preguntas...'
-            : `${questions.length} preguntas de checklist`}
-        </div>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Orden</th>
-                <th>Equipamento</th>
-                <th>Pregunta</th>
-                <th>Ponderado</th>
-                <th>Activa</th>
-                <th>Guardar</th>
-              </tr>
-            </thead>
-            <tbody>
-              {questions.map(question => (
-                <tr key={question.id}>
-                  <td>{question.orden ?? '-'}</td>
-                  <td>{question.equipmentName}</td>
-                  <td>{question.pregunta}</td>
-                  <td>
-                    <input
-                      className="table-input"
-                      type="number"
-                      step="0.01"
-                      value={String(question.ponderado ?? '')}
-                      onChange={event =>
-                        updateQuestionDraft(question.id, {
-                          ponderado: event.target.value,
-                        })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <select
-                      value={question.activa ? 'true' : 'false'}
-                      onChange={event =>
-                        updateQuestionDraft(question.id, {
-                          activa: event.target.value === 'true',
-                        })
-                      }>
-                      <option value="true">Si</option>
-                      <option value="false">No</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button
-                      className="inline-button"
-                      type="button"
-                      disabled={savingQuestionId === question.id}
-                      onClick={() => handleSaveQuestion(question)}>
-                      {savingQuestionId === question.id ? 'Guardando' : 'Guardar'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="table-card">
+      <section className="table-card priority-card">
         <div className="table-meta">
           {isLoading
             ? 'Cargando respuestas...'
@@ -352,6 +318,77 @@ export default function AdminChecklistPage() {
             }>
             Siguiente
           </button>
+        </div>
+      </section>
+
+      <section className="table-card">
+        <div className="table-meta">
+          {isLoading
+            ? 'Cargando preguntas...'
+            : `${questions.length} preguntas en ${groupedQuestions.length} grupos`}
+        </div>
+
+        <div className="question-groups">
+          {groupedQuestions.map(group => (
+            <section className="question-group" key={group.key}>
+              <div className="question-group-header">
+                <div>
+                  <span className="eyebrow">{group.systemName}</span>
+                  <h3>{group.equipmentName}</h3>
+                </div>
+                <strong>{group.questions.length} preguntas</strong>
+              </div>
+
+              <div className="question-list">
+                {group.questions.map(question => (
+                  <article className="question-card" key={question.id}>
+                    <div className="question-order">{question.orden ?? '-'}</div>
+                    <div className="question-body">
+                      <p>{question.pregunta}</p>
+                      <div className="question-controls">
+                        <label>
+                          Ponderado
+                          <input
+                            className="table-input"
+                            type="number"
+                            step="0.01"
+                            value={String(question.ponderado ?? '')}
+                            onChange={event =>
+                              updateQuestionDraft(question.id, {
+                                ponderado: event.target.value,
+                              })
+                            }
+                          />
+                        </label>
+                        <label>
+                          Activa
+                          <select
+                            value={question.activa ? 'true' : 'false'}
+                            onChange={event =>
+                              updateQuestionDraft(question.id, {
+                                activa: event.target.value === 'true',
+                              })
+                            }>
+                            <option value="true">Si</option>
+                            <option value="false">No</option>
+                          </select>
+                        </label>
+                        <button
+                          className="inline-button"
+                          type="button"
+                          disabled={savingQuestionId === question.id}
+                          onClick={() => handleSaveQuestion(question)}>
+                          {savingQuestionId === question.id
+                            ? 'Guardando'
+                            : 'Guardar'}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       </section>
     </main>

@@ -412,6 +412,10 @@ select {
   border-radius: 22px;
 }
 
+.priority-card {
+  border-color: rgba(12, 95, 79, 0.24);
+}
+
 .table-meta {
   padding: 16px 18px;
   color: var(--muted);
@@ -546,6 +550,91 @@ td small {
   color: var(--muted);
 }
 
+.question-groups {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.question-group {
+  overflow: hidden;
+  border: 1px solid #dfe8e5;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.question-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #e9efed;
+  background: linear-gradient(135deg, #f7fbf7, #effaf5);
+}
+
+.question-group-header h3 {
+  margin: 0;
+  color: var(--ink);
+}
+
+.question-group-header strong {
+  white-space: nowrap;
+  color: var(--primary);
+}
+
+.question-list {
+  display: grid;
+}
+
+.question-card {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.question-card:last-child {
+  border-bottom: 0;
+}
+
+.question-order {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  color: #0b4f42;
+  background: #d9f99d;
+  font-weight: 900;
+}
+
+.question-body p {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.question-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.question-controls label {
+  display: grid;
+  gap: 5px;
+}
+
+.question-controls select {
+  min-height: 36px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
 @media (max-width: 980px) {
   .admin-app {
     grid-template-columns: 1fr;
@@ -581,12 +670,18 @@ td small {
 
   .admin-nav,
   .metric-grid,
-  .answer-card {
+  .answer-card,
+  .question-card {
     grid-template-columns: 1fr;
   }
 
-  .pagination-bar {
+  .pagination-bar,
+  .question-group-header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .question-order {
+    width: 100%;
   }
 }

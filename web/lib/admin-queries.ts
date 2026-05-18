@@ -39,11 +39,13 @@ export interface AdminEquipmentTypeRow {
   nombre: string;
   abreviatura: string | null;
   frecuencia: string | null;
+  systemName: string;
 }
 
 export interface AdminChecklistQuestionRow {
   id: string;
   equipamento_id: string;
+  systemName: string;
   equipmentName: string;
   pregunta: string;
   orden: number | null;
@@ -99,25 +101,26 @@ export interface AdminMaintenanceRow {
 }
 
 interface RelatedProperty {
+  id?: string | null;
   name?: string | null;
   code?: string | null;
   city?: string | null;
 }
 
-interface RelatedEquipmentType {
+interface RelatedSystem {
+  id: string;
   nombre?: string | null;
-  abreviatura?: string | null;
 }
 
 interface EquipmentQueryRow {
   id: string;
+  id_property: string | null;
+  id_equipamento: string | null;
   codigo: string | null;
   ubicacion: string | null;
   detalle_ubicacion: string | null;
   estatus: string | null;
   config: boolean | null;
-  properties?: RelatedProperty | RelatedProperty[] | null;
-  equipamentos?: RelatedEquipmentType | RelatedEquipmentType[] | null;
 }
 
 interface EquipmentTypeQueryRow {
@@ -125,6 +128,7 @@ interface EquipmentTypeQueryRow {
   nombre: string;
   abreviatura: string | null;
   frecuencia: string | null;
+  id_sistema: string | null;
 }
 
 interface ChecklistQuestionQueryRow {
@@ -135,7 +139,6 @@ interface ChecklistQuestionQueryRow {
   activa: boolean | null;
   ponderado: number | string | null;
   updated_at: string | null;
-  equipamentos?: RelatedEquipmentType | RelatedEquipmentType[] | null;
 }
 
 interface ChecklistAnswersJson {
@@ -160,21 +163,47 @@ interface ChecklistResponseQueryRow {
 
 interface MaintenanceQueryRow {
   id: string;
+  id_equipo: string | null;
   codigo: string | null;
   dia_programado: string | null;
   tipo_mantenimiento: string | null;
   estatus: string | null;
-  equipos?:
-    | (Pick<EquipmentQueryRow, 'codigo'> & {
-        properties?: RelatedProperty | RelatedProperty[] | null;
-        equipamentos?: RelatedEquipmentType | RelatedEquipmentType[] | null;
-      })
-    | null;
 }
 
-function firstRelation<T>(value: T | T[] | null | undefined): T | null {
-  if (!value) return null;
-  return Array.isArray(value) ? (value[0] ?? null) : value;
+function uniqueValues(values: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(values.filter((value): value is string => !!value)));
+}
+
+async function getSystemNameById(
+  supabase: SupabaseClient,
+): Promise<Map<string, string>> {
+  const { data, error } = await supabase.from('sistemas').select('id, nombre');
+  if (error) throw error;
+
+  return new Map(
+    ((data ?? []) as RelatedSystem[]).map(item => [
+      item.id,
+      item.nombre ?? 'Sin sistema',
+    ]),
+  );
+}
+
+async function getPropertiesById(
+  supabase: SupabaseClient,
+  propertyIds: string[],
+): Promise<Map<string, RelatedProperty>> {
+  if (propertyIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from('properties')
+    .select('id, name, code, city')
+    .in('id', propertyIds);
+
+  if (error) throw error;
+
+  return new Map(
+    ((data ?? []) as RelatedProperty[]).map(item => [String(item.id), item]),
+  );
 }
 
 export async function getAdminMetrics(
@@ -253,13 +282,13 @@ export async function listAdminEquipments(
     .select(
       `
         id,
+        id_property,
+        id_equipamento,
         codigo,
         ubicacion,
         detalle_ubicacion,
         estatus,
-        config,
-        properties (name, code, city),
-        equipamentos (nombre, abreviatura)
+        config
       `,
       { count: 'exact' },
     )
@@ -279,9 +308,25 @@ export async function listAdminEquipments(
 
   if (error) throw error;
 
-  const items = ((data ?? []) as EquipmentQueryRow[]).map(item => {
-    const property = firstRelation(item.properties);
-    const equipmentType = firstRelation(item.equipamentos);
+  const rows = (data ?? []) as EquipmentQueryRow[];
+  const [propertiesById, equipmentTypes] = await Promise.all([
+    getPropertiesById(
+      supabase,
+      uniqueValues(rows.map(item => item.id_property)),
+    ),
+    listAdminEquipmentTypes(supabase),
+  ]);
+  const equipmentTypesById = new Map(
+    equipmentTypes.map(item => [item.id, item]),
+  );
+
+  const items = rows.map(item => {
+    const property = item.id_property
+      ? propertiesById.get(item.id_property)
+      : null;
+    const equipmentType = item.id_equipamento
+      ? equipmentTypesById.get(item.id_equipamento)
+      : null;
 
     return {
       id: item.id,
@@ -326,15 +371,11 @@ export async function listAdminMaintenances(
     .select(
       `
         id,
+        id_equipo,
         codigo,
         dia_programado,
         tipo_mantenimiento,
-        estatus,
-        equipos (
-          codigo,
-          properties (name),
-          equipamentos (nombre)
-        )
+        estatus
       `,
     )
     .order('dia_programado', { ascending: false })
@@ -342,9 +383,40 @@ export async function listAdminMaintenances(
 
   if (error) throw error;
 
-  return ((data ?? []) as MaintenanceQueryRow[]).map(item => {
-    const property = firstRelation(item.equipos?.properties);
-    const equipmentType = firstRelation(item.equipos?.equipamentos);
+  const rows = (data ?? []) as MaintenanceQueryRow[];
+  const equipmentIds = uniqueValues(rows.map(item => item.id_equipo));
+  const { data: equipmentData, error: equipmentError } = equipmentIds.length
+    ? await supabase
+      .from('equipos')
+      .select('id, id_property, id_equipamento, codigo')
+      .in('id', equipmentIds)
+    : { data: [], error: null };
+
+  if (equipmentError) throw equipmentError;
+
+  const equipmentRows = (equipmentData ?? []) as Array<
+    Pick<EquipmentQueryRow, 'id' | 'id_property' | 'id_equipamento' | 'codigo'>
+  >;
+  const equipmentById = new Map(equipmentRows.map(item => [item.id, item]));
+  const [propertiesById, equipmentTypes] = await Promise.all([
+    getPropertiesById(
+      supabase,
+      uniqueValues(equipmentRows.map(item => item.id_property)),
+    ),
+    listAdminEquipmentTypes(supabase),
+  ]);
+  const equipmentTypesById = new Map(
+    equipmentTypes.map(item => [item.id, item]),
+  );
+
+  return rows.map(item => {
+    const equipment = item.id_equipo ? equipmentById.get(item.id_equipo) : null;
+    const property = equipment?.id_property
+      ? propertiesById.get(equipment.id_property)
+      : null;
+    const equipmentType = equipment?.id_equipamento
+      ? equipmentTypesById.get(equipment.id_equipamento)
+      : null;
 
     return {
       id: item.id,
@@ -353,7 +425,7 @@ export async function listAdminMaintenances(
       tipo_mantenimiento: item.tipo_mantenimiento,
       estatus: item.estatus,
       propertyName: property?.name ?? 'Sin inmueble',
-      equipmentCode: item.equipos?.codigo ?? null,
+      equipmentCode: equipment?.codigo ?? null,
       equipmentType: equipmentType?.nombre ?? 'Sin tipo',
     };
   });
@@ -362,10 +434,15 @@ export async function listAdminMaintenances(
 export async function listAdminEquipmentTypes(
   supabase: SupabaseClient,
 ): Promise<AdminEquipmentTypeRow[]> {
-  const { data, error } = await supabase
-    .from('equipamentos')
-    .select('id, nombre, abreviatura, frecuencia')
-    .order('nombre', { ascending: true });
+  const [systemsById, equipmentTypesResult] = await Promise.all([
+    getSystemNameById(supabase),
+    supabase
+      .from('equipamentos')
+      .select('id, nombre, abreviatura, Frecuencia, id_sistema')
+      .order('nombre', { ascending: true }),
+  ]);
+
+  const { data, error } = equipmentTypesResult;
 
   if (error) throw error;
 
@@ -374,6 +451,9 @@ export async function listAdminEquipmentTypes(
     nombre: item.nombre,
     abreviatura: item.abreviatura,
     frecuencia: item.frecuencia,
+    systemName: item.id_sistema
+      ? (systemsById.get(item.id_sistema) ?? 'Sin sistema')
+      : 'Sin sistema',
   }));
 }
 
@@ -381,6 +461,11 @@ export async function listAdminChecklistQuestions(
   supabase: SupabaseClient,
   equipamentoId?: string,
 ): Promise<AdminChecklistQuestionRow[]> {
+  const equipmentTypes = await listAdminEquipmentTypes(supabase);
+  const equipmentTypesById = new Map(
+    equipmentTypes.map(item => [item.id, item]),
+  );
+
   let query = supabase
     .from('preguntas_equipamento')
     .select(
@@ -391,8 +476,7 @@ export async function listAdminChecklistQuestions(
         orden,
         activa,
         ponderado,
-        updated_at,
-        equipamentos (nombre, abreviatura)
+        updated_at
       `,
     )
     .order('orden', { ascending: true });
@@ -406,11 +490,12 @@ export async function listAdminChecklistQuestions(
   if (error) throw error;
 
   return ((data ?? []) as ChecklistQuestionQueryRow[]).map(item => {
-    const equipmentType = firstRelation(item.equipamentos);
+    const equipmentType = equipmentTypesById.get(item.equipamento_id);
 
     return {
       id: item.id,
       equipamento_id: item.equipamento_id,
+      systemName: equipmentType?.systemName ?? 'Sin sistema',
       equipmentName: equipmentType?.nombre ?? 'Sin tipo',
       pregunta: item.pregunta,
       orden: item.orden,
