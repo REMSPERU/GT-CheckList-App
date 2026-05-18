@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - dev
+    paths-ignore:
+      - 'web/**'
   workflow_dispatch:
     inputs:
       profile:
