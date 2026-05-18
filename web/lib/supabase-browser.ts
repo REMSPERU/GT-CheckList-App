@@ -7,15 +7,16 @@ let browserClient: SupabaseClient | null = null;
 
 function getEnvValues() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabasePublishableKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabasePublishableKey) {
     throw new Error(
-      'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY',
+      'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
     );
   }
 
-  return { supabaseUrl, supabaseAnonKey };
+  return { supabaseUrl, supabasePublishableKey };
 }
 
 export function getSupabaseClient() {
@@ -23,8 +24,8 @@ export function getSupabaseClient() {
     return browserClient;
   }
 
-  const { supabaseUrl, supabaseAnonKey } = getEnvValues();
-  browserClient = createClient(supabaseUrl, supabaseAnonKey);
+  const { supabaseUrl, supabasePublishableKey } = getEnvValues();
+  browserClient = createClient(supabaseUrl, supabasePublishableKey);
 
   return browserClient;
 }

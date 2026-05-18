@@ -1,11 +1,16 @@
-# GT CheckList - Web Auth
+# GT CheckList - Web Admin
 
-Pequena app web con Next.js para:
+App web con Next.js para autenticacion y administracion basica:
 
 - Registro de usuario (`/register`)
 - Inicio de sesion (`/login`)
 - Recuperar contrasena (`/forgot-password`)
 - Definir nueva contrasena (`/reset-password`)
+- Panel administrativo (`/admin`)
+- Consulta de equipos (`/admin/equipos`)
+- Consulta de inmuebles (`/admin/inmuebles`)
+- Consulta de mantenimientos (`/admin/mantenimientos`)
+- Consulta de preguntas y respuestas de checklist (`/admin/checklist`)
 
 ## 1) Instalar y ejecutar local
 
@@ -17,12 +22,15 @@ npm run dev
 
 Abrir `http://localhost:3000`.
 
+El panel administrativo requiere iniciar sesion. Despues del login se redirige a
+`/admin`.
+
 ## 2) Variables de entorno
 
 Copiar `.env.example` a `.env.local` y completar:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `NEXT_PUBLIC_SITE_URL` (ej: `http://localhost:3000` en local)
 
 ## 3) Configurar Supabase para envio de correo
@@ -44,7 +52,24 @@ Nota: Supabase envia correos de confirmacion y recuperacion de forma nativa.
 Si quieres mejor entregabilidad, configura SMTP propio en
 **Authentication -> SMTP Settings**.
 
-## 4) Desplegar en Vercel
+## 4) Permisos de datos
+
+El admin web usa `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, por lo que respeta las
+reglas RLS de Supabase. Asegurate de que los roles administrativos tengan
+permiso de lectura sobre:
+
+- `properties`
+- `equipos`
+- `equipamentos`
+- `mantenimientos`
+- `preguntas_equipamento`
+- `checklist_response`
+
+Para editar `activa` y `ponderado` en preguntas de checklist, el rol
+administrativo tambien necesita permiso de actualizacion sobre
+`preguntas_equipamento`.
+
+## 5) Desplegar en Vercel
 
 1. Importa este repositorio en Vercel.
 2. En el proyecto, configura:
@@ -52,11 +77,11 @@ Si quieres mejor entregabilidad, configura SMTP propio en
    - Framework: Next.js
 3. Agrega env vars en Vercel:
    - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
    - `NEXT_PUBLIC_SITE_URL` = URL publica de Vercel
 4. Deploy.
 
-## 5) Flujo de recuperacion
+## 6) Flujo de recuperacion
 
 1. Usuario entra a `/forgot-password` y coloca correo.
 2. Supabase envia email con enlace.
