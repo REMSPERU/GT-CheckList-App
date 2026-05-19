@@ -46,6 +46,19 @@ export async function listAdminEquipments(
     query = query.eq('id_property', filters.propertyId);
   }
 
+  if (filters.systemId) {
+    const { data: matchedEquipamentos } = await supabase
+      .from('equipamentos')
+      .select('id')
+      .eq('id_sistema', filters.systemId);
+
+    const matchedIds = (matchedEquipamentos ?? []).map(item => item.id);
+    query = query.in(
+      'id_equipamento',
+      matchedIds.length > 0 ? matchedIds : ['00000000-0000-0000-0000-000000000000'],
+    );
+  }
+
   if (filters.equipmentTypeId) {
     query = query.eq('id_equipamento', filters.equipmentTypeId);
   }

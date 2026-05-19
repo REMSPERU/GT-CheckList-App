@@ -26,5 +26,6 @@ export async function listAdminEquipmentTypes(
     systemName: item.id_sistema
       ? (systemsById.get(item.id_sistema) ?? 'Sin sistema')
       : 'Sin sistema',
+    systemId: item.id_sistema,
   }));
 }

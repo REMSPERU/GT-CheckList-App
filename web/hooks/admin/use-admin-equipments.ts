@@ -19,8 +19,10 @@ export function useAdminEquipments() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('TODOS');
   const [propertyId, setPropertyId] = useState('');
+  const [systemId, setSystemId] = useState('');
   const [equipmentTypeId, setEquipmentTypeId] = useState('');
   const [properties, setProperties] = useState<AdminPropertyRow[]>([]);
+  const [systems, setSystems] = useState<{ id: string; nombre: string }[]>([]);
   const [equipmentTypes, setEquipmentTypes] = useState<AdminEquipmentTypeRow[]>(
     [],
   );
@@ -30,19 +32,26 @@ export function useAdminEquipments() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search, 250);
 
-  // Load filter options (properties and equipment types) once on mount
+  // Load filter options (properties, systems and equipment types) once on mount
   useEffect(() => {
     let isMounted = true;
     async function loadFilterOptions() {
       try {
         const supabase = getSupabaseClient();
-        const [props, types] = await Promise.all([
+        const [props, types, systemsRes] = await Promise.all([
           listAdminProperties(supabase),
           listAdminEquipmentTypes(supabase),
+          supabase
+            .from('sistemas')
+            .select('id, nombre')
+            .order('nombre', { ascending: true }),
         ]);
         if (isMounted) {
           setProperties(props);
           setEquipmentTypes(types);
+          setSystems(
+            (systemsRes.data ?? []) as { id: string; nombre: string }[],
+          );
         }
       } catch (error) {
         console.error('Error loading filter options:', error);
@@ -56,7 +65,7 @@ export function useAdminEquipments() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, status, propertyId, equipmentTypeId]);
+  }, [debouncedSearch, status, propertyId, systemId, equipmentTypeId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -72,6 +81,7 @@ export function useAdminEquipments() {
           search: debouncedSearch,
           status,
           propertyId,
+          systemId,
           equipmentTypeId,
         });
         if (isMounted) {
@@ -96,7 +106,7 @@ export function useAdminEquipments() {
     return () => {
       isMounted = false;
     };
-  }, [debouncedSearch, page, status, propertyId, equipmentTypeId]);
+  }, [debouncedSearch, page, status, propertyId, systemId, equipmentTypeId]);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(total / PAGE_SIZE)),
@@ -113,6 +123,12 @@ export function useAdminEquipments() {
     setPage(1);
   }
 
+  function handleSystemChange(nextSystemId: string) {
+    setSystemId(nextSystemId);
+    setEquipmentTypeId(''); // Reset equipment type when system changes
+    setPage(1);
+  }
+
   function handleEquipmentTypeChange(nextEquipmentTypeId: string) {
     setEquipmentTypeId(nextEquipmentTypeId);
     setPage(1);
@@ -126,9 +142,12 @@ export function useAdminEquipments() {
     handleStatusChange,
     propertyId,
     handlePropertyChange,
+    systemId,
+    handleSystemChange,
     equipmentTypeId,
     handleEquipmentTypeChange,
     properties,
+    systems,
     equipmentTypes,
     page,
     setPage,

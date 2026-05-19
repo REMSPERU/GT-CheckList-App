@@ -29,6 +29,7 @@ export interface AdminEquipmentFilters {
   search?: string;
   status?: string;
   propertyId?: string;
+  systemId?: string;
   equipmentTypeId?: string;
 }
 
@@ -38,6 +39,7 @@ export interface AdminEquipmentTypeRow {
   abreviatura: string | null;
   frecuencia: string | null;
   systemName: string;
+  systemId: string | null;
 }
 
 export interface AdminChecklistQuestionRow {

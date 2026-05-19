@@ -25,22 +25,36 @@ export default function AdminEquipmentsPage() {
     })),
   ];
 
+  const systemOptions = [
+    { value: '', label: 'Todos los sistemas' },
+    ...equipments.systems.map(item => ({
+      value: item.id,
+      label: item.nombre,
+    })),
+  ];
+
+  // Dynamically filter equipment types if a system is selected
+  const filteredEquipmentTypes = equipments.systemId
+    ? equipments.equipmentTypes.filter(item => item.systemId === equipments.systemId)
+    : equipments.equipmentTypes;
+
   const equipmentTypeOptions = [
     { value: '', label: 'Todos los tipos de equipo' },
-    ...equipments.equipmentTypes.map(item => ({
+    ...filteredEquipmentTypes.map(item => ({
       value: item.id,
       label: `${item.systemName} · ${item.nombre}`,
     })),
   ];
 
   return (
-    <main className="grid gap-5 px-8 pb-11 pt-7 max-[640px]:px-[18px]">
+    <main className="grid gap-4 px-8 pb-8 pt-5 max-[640px]:px-[14px]">
       <AdminPageHeader
         eyebrow="Inventario"
         title="Equipos"
-        description="Consulta y administra los equipos registrados por inmueble, tipo y estado."
+        description="Consulta y administra los equipos registrados por inmueble, sistema, tipo y estado."
+        compact
       />
-      <section className="grid grid-cols-[1.2fr_1fr_1fr_0.8fr] gap-3 max-[1024px]:grid-cols-2 max-[640px]:grid-cols-1">
+      <section className="grid grid-cols-[1.2fr_1fr_1fr_1.2fr_0.8fr] gap-2.5 max-[1200px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1">
         <SearchInput
           placeholder="Buscar codigo o ubicacion"
           value={equipments.search}
@@ -51,6 +65,12 @@ export default function AdminEquipmentsPage() {
           options={propertyOptions}
           onChange={equipments.handlePropertyChange}
           ariaLabel="Filtrar por inmueble"
+        />
+        <SelectField
+          value={equipments.systemId}
+          options={systemOptions}
+          onChange={equipments.handleSystemChange}
+          ariaLabel="Filtrar por sistema"
         />
         <SelectField
           value={equipments.equipmentTypeId}
