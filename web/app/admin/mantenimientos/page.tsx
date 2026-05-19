@@ -1,6 +1,5 @@
 'use client';
 
-import { AdminPageHeader } from '@/components/admin/admin-page-header';
 import { MaintenancesTable } from '@/components/admin/maintenances-table';
 import { Alert } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
@@ -20,12 +19,7 @@ export default function AdminMaintenancesPage() {
   const maintenances = useAdminMaintenances();
 
   return (
-    <main className="grid gap-5 px-8 pb-11 pt-7 max-[640px]:px-[18px]">
-      <AdminPageHeader
-        eyebrow="Operacion"
-        title="Mantenimientos"
-        description="Revision administrativa de mantenimientos programados y cerrados."
-      />
+    <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
       <section className="flex items-center gap-3 max-[640px]:flex-col max-[640px]:items-stretch">
         <SearchInput
           placeholder="Buscar codigo, inmueble, equipo o tipo"

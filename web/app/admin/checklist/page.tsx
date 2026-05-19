@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 
-import { AdminPageHeader } from '@/components/admin/admin-page-header';
 import { AdminPagination } from '@/components/admin/admin-pagination';
 import { ChecklistQuestionGroups } from '@/components/admin/checklist-question-groups';
 import { ChecklistResponsesTable } from '@/components/admin/checklist-responses-table';
@@ -37,13 +36,7 @@ export default function AdminChecklistPage() {
   ];
 
   return (
-    <main className="grid gap-5 px-8 pb-11 pt-7 max-[640px]:px-[18px]">
-      <AdminPageHeader
-        eyebrow="Checklist"
-        title="Preguntas y respuestas"
-        description="Revisa checklist sincronizados, detecta observaciones y administra la visibilidad de preguntas por equipo."
-        compact
-      />
+    <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
 
       <section className="grid gap-3 rounded-[22px] border border-slate-900/10 bg-white/80 p-[18px] shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
         <div className="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[640px]:grid-cols-1">
