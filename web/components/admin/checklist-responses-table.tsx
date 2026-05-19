@@ -4,7 +4,12 @@ import type { AdminChecklistResponseRow } from '@/types/admin';
 import { formatDateTime } from '@/utils/date';
 
 import { AdminTableShell } from './admin-table-shell';
-import { ResponsiveTable, TABLE_CLASS, TD_CLASS, TableHeaders } from './table-primitives';
+import {
+  ResponsiveTable,
+  TABLE_CLASS,
+  TD_CLASS,
+  TableHeaders,
+} from './table-primitives';
 
 interface ChecklistResponsesTableProps {
   responses: AdminChecklistResponseRow[];
@@ -33,63 +38,85 @@ export function ChecklistResponsesTable({
       summary={
         isLoading
           ? 'Cargando respuestas...'
-          : `${responses.length} de ${total} respuestas · pagina ${page} de ${totalPages}`
+          : `${responses.length} de ${total} respuestas · página ${page} de ${totalPages}`
       }>
-      <ResponsiveTable>
-        <table className={TABLE_CLASS}>
-          <TableHeaders
-            headers={['Fecha', 'Inmueble', 'Equipo', 'Frecuencia', 'Resumen', 'Detalle']}
-          />
-          <tbody>
-            {responses.map(response => (
-              <tr key={response.id}>
-                <td className={TD_CLASS}>{formatDateTime(response.submitted_at)}</td>
-                <td className={TD_CLASS}>{response.building_name ?? '-'}</td>
-                <td className={TD_CLASS}>
-                  <strong className="block">{response.equipo_codigo ?? '-'}</strong>
-                  <small className="mt-1 block text-slate-500">
-                    {response.equipamento_nombre ?? '-'}
-                  </small>
-                </td>
-                <td className={TD_CLASS}>
-                  <strong className="block">{response.frequency ?? '-'}</strong>
-                  <small className="mt-1 block text-slate-500">
-                    {response.period_start ?? ''}
-                  </small>
-                </td>
-                <td className={TD_CLASS}>
-                  <strong className="block">
-                    OK {response.total_ok ?? 0} / {response.total_questions ?? 0}
-                  </strong>
-                  <small className="mt-1 block text-slate-500">
-                    Observadas {response.total_observed ?? 0} · Fotos{' '}
-                    {response.total_photos ?? 0}
-                  </small>
-                </td>
-                <td className={TD_CLASS}>
-                  <button
-                    className="m-0 h-[34px] w-auto rounded-[10px] bg-teal-100 px-3 text-[0.84rem] font-bold text-teal-950 hover:bg-teal-200 disabled:cursor-not-allowed disabled:opacity-60"
-                    type="button"
-                    onClick={() =>
-                      setExpandedResponseId(current =>
-                        current === response.id ? null : response.id,
-                      )
-                    }>
-                    {expandedResponseId === response.id ? 'Ocultar' : 'Ver'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </ResponsiveTable>
+      {responses.length === 0 && !isLoading ? (
+        <EmptyState message="No hay respuestas para el filtro seleccionado." />
+      ) : (
+        <ResponsiveTable>
+          <table className={TABLE_CLASS}>
+            <TableHeaders
+              headers={[
+                'Fecha',
+                'Inmueble',
+                'Equipo',
+                'Frecuencia',
+                'Resumen',
+                'Detalle',
+              ]}
+            />
+            <tbody>
+              {responses.map(response => (
+                <tr key={response.id}>
+                  <td className={TD_CLASS}>
+                    {formatDateTime(response.submitted_at)}
+                  </td>
+                  <td className={TD_CLASS}>{response.building_name ?? '-'}</td>
+                  <td className={TD_CLASS}>
+                    <strong className="block">
+                      {response.equipo_codigo ?? '-'}
+                    </strong>
+                    <small className="mt-1 block text-slate-500">
+                      {response.equipamento_nombre ?? '-'}
+                    </small>
+                  </td>
+                  <td className={TD_CLASS}>
+                    <strong className="block">
+                      {response.frequency ?? '-'}
+                    </strong>
+                    <small className="mt-1 block text-slate-500">
+                      {response.period_start ?? ''}
+                    </small>
+                  </td>
+                  <td className={TD_CLASS}>
+                    <StatusBadge
+                      observed={response.total_observed ?? 0}
+                      ok={response.total_ok ?? 0}
+                      total={response.total_questions ?? 0}
+                    />
+                    <small className="mt-2 block text-slate-500">
+                      Observadas {response.total_observed ?? 0} · Fotos{' '}
+                      {response.total_photos ?? 0}
+                    </small>
+                  </td>
+                  <td className={TD_CLASS}>
+                    <button
+                      className="m-0 h-[34px] w-auto rounded-[10px] bg-teal-100 px-3 text-[0.84rem] font-bold text-teal-950 hover:bg-teal-200 disabled:cursor-not-allowed disabled:opacity-60"
+                      type="button"
+                      onClick={() =>
+                        setExpandedResponseId(current =>
+                          current === response.id ? null : response.id,
+                        )
+                      }
+                      aria-expanded={expandedResponseId === response.id}>
+                      {expandedResponseId === response.id ? 'Ocultar' : 'Ver'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </ResponsiveTable>
+      )}
 
       {responses.map(response =>
         expandedResponseId === response.id ? (
           <div
             className="border-t border-slate-300 bg-[#fbfdfb] p-[18px]"
             key={`detail-${response.id}`}>
-            <h3 className="mb-3 mt-0 text-lg font-bold">Detalle de respuestas</h3>
+            <h3 className="mb-3 mt-0 text-lg font-bold">
+              Detalle de respuestas
+            </h3>
             {response.answers.length === 0 ? (
               <p>No hay detalle JSON de respuestas para este registro.</p>
             ) : (
@@ -118,7 +145,9 @@ export function ChecklistResponsesTable({
                       </p>
                     ) : null}
                     <small className="col-span-full m-0 text-slate-500">
-                      {answer.fotos.length} fotos
+                      {answer.fotos.length > 0
+                        ? `${answer.fotos.length} fotos de evidencia`
+                        : 'Sin fotos de evidencia'}
                     </small>
                   </article>
                 ))}
@@ -130,5 +159,38 @@ export function ChecklistResponsesTable({
 
       {footer}
     </AdminTableShell>
+  );
+}
+
+interface StatusBadgeProps {
+  observed: number;
+  ok: number;
+  total: number;
+}
+
+function StatusBadge({ observed, ok, total }: StatusBadgeProps) {
+  const hasObservations = observed > 0;
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${
+        hasObservations
+          ? 'bg-orange-100 text-orange-900'
+          : 'bg-green-100 text-green-900'
+      }`}>
+      {hasObservations ? `${observed} observadas` : 'Conforme'} · OK {ok} /{' '}
+      {total}
+    </span>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="grid min-h-[180px] place-items-center px-5 py-10 text-center text-slate-500">
+      <div>
+        <strong className="block text-lg text-[#0c1720]">Sin resultados</strong>
+        <p className="mb-0 mt-2">{message}</p>
+      </div>
+    </div>
   );
 }

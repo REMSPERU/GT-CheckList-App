@@ -40,6 +40,7 @@ export function useAdminChecklist() {
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -74,9 +75,13 @@ export function useAdminChecklist() {
       try {
         setIsLoading(true);
         setErrorMessage(null);
+        setSuccessMessage(null);
         const supabase = getSupabaseClient();
         const [questionResult, responseResult] = await Promise.all([
-          listAdminChecklistQuestions(supabase, selectedEquipmentType || undefined),
+          listAdminChecklistQuestions(
+            supabase,
+            selectedEquipmentType || undefined,
+          ),
           listAdminChecklistResponses(supabase, {
             page: responsePage,
             pageSize: RESPONSE_PAGE_SIZE,
@@ -138,10 +143,32 @@ export function useAdminChecklist() {
     });
   }, [questions]);
 
+  const checklistMetrics = useMemo(() => {
+    const observedResponses = responses.filter(
+      response => (response.total_observed ?? 0) > 0,
+    ).length;
+    const totalPhotos = responses.reduce(
+      (sum, response) => sum + (response.total_photos ?? 0),
+      0,
+    );
+    const activeQuestions = questions.filter(
+      question => question.activa === true,
+    ).length;
+
+    return {
+      responseTotal,
+      observedResponses,
+      totalPhotos,
+      activeQuestions,
+      inactiveQuestions: questions.length - activeQuestions,
+    };
+  }, [questions, responseTotal, responses]);
+
   function handleEquipmentTypeChange(value: string) {
     setSelectedEquipmentType(value);
     setResponsePage(1);
     setExpandedQuestionGroups({});
+    setSuccessMessage(null);
   }
 
   function toggleQuestionGroup(groupKey: string) {
@@ -166,12 +193,14 @@ export function useAdminChecklist() {
     try {
       setSavingQuestionId(question.id);
       setErrorMessage(null);
+      setSuccessMessage(null);
       const supabase = getSupabaseClient();
       await updateAdminChecklistQuestion(supabase, {
         id: question.id,
         activa: question.activa === true,
         ponderado: question.ponderado,
       });
+      setSuccessMessage('Pregunta actualizada correctamente.');
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -192,6 +221,7 @@ export function useAdminChecklist() {
     setResponsePage,
     responseTotal,
     responseTotalPages,
+    checklistMetrics,
     expandedResponseId,
     setExpandedResponseId,
     questions,
@@ -203,5 +233,6 @@ export function useAdminChecklist() {
     savingQuestionId,
     isLoading,
     errorMessage,
+    successMessage,
   };
 }

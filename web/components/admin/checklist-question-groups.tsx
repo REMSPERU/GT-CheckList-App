@@ -34,6 +34,19 @@ export function ChecklistQuestionGroups({
           ? 'Cargando preguntas...'
           : `${questions.length} preguntas en ${groups.length} grupos`
       }>
+      {groups.length === 0 && !isLoading ? (
+        <div className="grid min-h-[180px] place-items-center px-5 py-10 text-center text-slate-500">
+          <div>
+            <strong className="block text-lg text-[#0c1720]">
+              Sin preguntas
+            </strong>
+            <p className="mb-0 mt-2">
+              No hay preguntas para el equipamento seleccionado.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 p-[18px]">
         {groups.map(group => (
           <section
@@ -94,10 +107,18 @@ export function ChecklistQuestionGroups({
                                 activa: event.target.value === 'true',
                               })
                             }>
-                            <option value="true">Si</option>
+                            <option value="true">Sí</option>
                             <option value="false">No</option>
                           </select>
                         </label>
+                        <span
+                          className={`inline-flex h-9 items-center rounded-full px-2.5 text-xs font-extrabold ${
+                            question.activa
+                              ? 'bg-green-100 text-green-900'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}>
+                          {question.activa ? 'Visible en app' : 'Oculta en app'}
+                        </span>
                         <button
                           className="m-0 h-[34px] w-auto rounded-[10px] bg-teal-100 px-3 text-[0.84rem] font-bold text-teal-950 hover:bg-teal-200 disabled:cursor-not-allowed disabled:opacity-60"
                           type="button"
@@ -107,6 +128,11 @@ export function ChecklistQuestionGroups({
                             ? 'Guardando'
                             : 'Guardar'}
                         </button>
+                        {savingQuestionId === question.id ? (
+                          <small className="font-semibold text-slate-500">
+                            Aplicando cambio...
+                          </small>
+                        ) : null}
                       </div>
                     </div>
                   </article>
