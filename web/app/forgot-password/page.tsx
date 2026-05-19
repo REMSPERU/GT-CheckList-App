@@ -1,78 +1,39 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-import type { FormEvent } from 'react';
 
+import { AuthFormField } from '@/components/auth/auth-form-field';
+import { AuthMessages } from '@/components/auth/auth-messages';
+import { AuthSubmitButton } from '@/components/auth/auth-submit-button';
 import { AuthShell } from '@/components/auth-shell';
-import { getSiteUrl, getSupabaseClient } from '@/lib/supabase-browser';
+import { useForgotPassword } from '@/hooks/auth/use-forgot-password';
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setErrorMessage(null);
-    setMessage(null);
-    setIsSubmitting(true);
-
-    try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${getSiteUrl()}/reset-password`,
-      });
-
-      if (error) {
-        setErrorMessage(error.message);
-        return;
-      }
-
-      setMessage(
-        'Te enviamos un correo con el enlace para cambiar tu contrasena.',
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+  const forgotPassword = useForgotPassword();
 
   return (
     <AuthShell
       title="Recuperar contrasena"
       description="Te enviaremos un enlace seguro para definir una nueva contrasena.">
-      <form className="mt-6 grid gap-4" onSubmit={onSubmit}>
-        <label className="text-sm font-bold text-slate-700">
-          Correo
-          <input
-            className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-4 focus:ring-emerald-700/10"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={event => setEmail(event.target.value)}
-          />
-        </label>
-
-        <button
-          className="mt-2 h-12 rounded-2xl border-0 bg-emerald-900 px-4 font-black text-white shadow-[0_12px_28px_rgba(6,78,59,0.24)] transition hover:-translate-y-0.5 hover:bg-emerald-950 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
-          type="submit"
-          disabled={isSubmitting}>
-          {isSubmitting ? 'Enviando...' : 'Enviar enlace'}
-        </button>
+      <form className="mt-6 grid gap-4" onSubmit={forgotPassword.onSubmit}>
+        <AuthFormField
+          label="Correo"
+          type="email"
+          autoComplete="email"
+          value={forgotPassword.email}
+          onChange={forgotPassword.setEmail}
+        />
+        <AuthSubmitButton
+          isSubmitting={forgotPassword.isSubmitting}
+          submittingLabel="Enviando...">
+          Enviar enlace
+        </AuthSubmitButton>
       </form>
 
-      {errorMessage ? (
-        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
-          {errorMessage}
-        </div>
-      ) : null}
-      {message ? (
-        <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
-          {message}
-        </div>
-      ) : null}
+      <AuthMessages
+        errorMessage={forgotPassword.errorMessage}
+        message={forgotPassword.message}
+      />
 
       <div className="mt-5 rounded-2xl border border-emerald-950/10 bg-emerald-50/70 p-4 text-sm text-slate-600">
         <Link

@@ -2,17 +2,12 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
-import { getSupabaseClient } from '@/lib/supabase-browser';
+import { useAdminSession } from '@/hooks/auth/use-admin-session';
 
 interface AdminShellProps {
   children: ReactNode;
-}
-
-interface AdminUser {
-  email: string;
 }
 
 const NAV_ITEMS = [
@@ -25,42 +20,7 @@ const NAV_ITEMS = [
 
 export function AdminShell({ children }: AdminShellProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [user, setUser] = useState<AdminUser | null>(null);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function checkSession() {
-      const supabase = getSupabaseClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!isMounted) return;
-
-      if (!session?.user) {
-        router.replace('/login');
-        return;
-      }
-
-      setUser({ email: session.user.email ?? 'Usuario' });
-      setIsCheckingSession(false);
-    }
-
-    checkSession();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [router]);
-
-  async function handleSignOut() {
-    const supabase = getSupabaseClient();
-    await supabase.auth.signOut();
-    router.replace('/login');
-  }
+  const { user, isCheckingSession, handleSignOut } = useAdminSession();
 
   if (isCheckingSession) {
     return (

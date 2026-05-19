@@ -1,34 +1,10 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
 import { AuthShell } from '@/components/auth-shell';
-import { getSupabaseClient } from '@/lib/supabase-browser';
+import { useHomeRedirect } from '@/hooks/auth/use-home-redirect';
 
 export default function HomePage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function routeBySession() {
-      const supabase = getSupabaseClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!isMounted) return;
-
-      router.replace(session?.user ? '/admin' : '/login');
-    }
-
-    void routeBySession();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [router]);
+  useHomeRedirect();
 
   return (
     <AuthShell
