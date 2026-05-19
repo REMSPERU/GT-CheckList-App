@@ -81,6 +81,7 @@ export interface AdminChecklistResponseRow {
   total_ok: number | null;
   total_observed: number | null;
   total_photos: number | null;
+  generalPhotos: AdminChecklistPhotoRef[];
   answers: AdminChecklistAnswerItem[];
 }
 

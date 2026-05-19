@@ -85,6 +85,7 @@ export async function listAdminChecklistResponses(
         total_ok,
         total_observed,
         total_photos,
+        evidencia_general_fotos,
         respuestas_json
       `,
       { count: 'exact' },
@@ -149,6 +150,7 @@ export async function getAdminChecklistResponseById(
         total_ok,
         total_observed,
         total_photos,
+        evidencia_general_fotos,
         respuestas_json
       `,
     )
@@ -179,6 +181,7 @@ function mapChecklistResponse(
     total_ok: item.total_ok,
     total_observed: item.total_observed,
     total_photos: item.total_photos,
+    generalPhotos: item.evidencia_general_fotos ?? [],
     answers: item.respuestas_json?.respuestas ?? [],
   };
 }

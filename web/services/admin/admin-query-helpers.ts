@@ -58,6 +58,9 @@ export interface ChecklistResponseQueryRow {
   total_ok: number | null;
   total_observed: number | null;
   total_photos: number | null;
+  evidencia_general_fotos:
+    | import('@/types/admin').AdminChecklistPhotoRef[]
+    | null;
   respuestas_json: ChecklistAnswersJson | null;
 }
 
@@ -71,7 +74,9 @@ export interface MaintenanceQueryRow {
 }
 
 export function uniqueValues(values: (string | null | undefined)[]): string[] {
-  return Array.from(new Set(values.filter((value): value is string => !!value)));
+  return Array.from(
+    new Set(values.filter((value): value is string => !!value)),
+  );
 }
 
 export async function getSystemNameById(

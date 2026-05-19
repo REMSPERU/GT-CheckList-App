@@ -125,6 +125,24 @@ export default function AdminChecklistResponseDetailPage() {
         <MetricCard label="Fotos" value={response.total_photos ?? 0} />
       </section>
 
+      {response.generalPhotos.length > 0 ? (
+        <section className="rounded-[24px] border border-emerald-900/10 bg-white/85 p-[18px] shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
+          <div className="mb-4">
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
+              Evidencia general
+            </span>
+            <h2 className="m-0 mt-1 text-2xl tracking-[-0.03em] text-[#0c1720]">
+              Fotos generales del checklist
+            </h2>
+            <p className="mb-0 mt-1 text-sm text-slate-500">
+              Estas fotos no pertenecen a una pregunta especifica, pero forman
+              parte de la evidencia enviada.
+            </p>
+          </div>
+          <PhotoGrid photos={response.generalPhotos} />
+        </section>
+      ) : null}
+
       <section className="rounded-[24px] border border-slate-900/10 bg-white/85 shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-[18px] py-4 max-[760px]:grid">
           <div>
