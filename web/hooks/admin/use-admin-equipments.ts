@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
+import { listAdminEquipmentTypes } from '@/services/admin/equipment-types.service';
 import { listAdminEquipments } from '@/services/admin/equipments.service';
-import type { AdminEquipmentRow } from '@/types/admin';
+import { listAdminProperties } from '@/services/admin/properties.service';
+import type {
+  AdminEquipmentRow,
+  AdminEquipmentTypeRow,
+  AdminPropertyRow,
+} from '@/types/admin';
 
 import { useDebouncedValue } from './use-debounced-value';
 
@@ -12,15 +18,45 @@ export function useAdminEquipments() {
   const [items, setItems] = useState<AdminEquipmentRow[]>([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('TODOS');
+  const [propertyId, setPropertyId] = useState('');
+  const [equipmentTypeId, setEquipmentTypeId] = useState('');
+  const [properties, setProperties] = useState<AdminPropertyRow[]>([]);
+  const [equipmentTypes, setEquipmentTypes] = useState<AdminEquipmentTypeRow[]>(
+    [],
+  );
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search, 250);
 
+  // Load filter options (properties and equipment types) once on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadFilterOptions() {
+      try {
+        const supabase = getSupabaseClient();
+        const [props, types] = await Promise.all([
+          listAdminProperties(supabase),
+          listAdminEquipmentTypes(supabase),
+        ]);
+        if (isMounted) {
+          setProperties(props);
+          setEquipmentTypes(types);
+        }
+      } catch (error) {
+        console.error('Error loading filter options:', error);
+      }
+    }
+    void loadFilterOptions();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, status, propertyId, equipmentTypeId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -35,6 +71,8 @@ export function useAdminEquipments() {
           pageSize: PAGE_SIZE,
           search: debouncedSearch,
           status,
+          propertyId,
+          equipmentTypeId,
         });
         if (isMounted) {
           setItems(result.items);
@@ -58,7 +96,7 @@ export function useAdminEquipments() {
     return () => {
       isMounted = false;
     };
-  }, [debouncedSearch, page, status]);
+  }, [debouncedSearch, page, status, propertyId, equipmentTypeId]);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(total / PAGE_SIZE)),
@@ -70,12 +108,28 @@ export function useAdminEquipments() {
     setPage(1);
   }
 
+  function handlePropertyChange(nextPropertyId: string) {
+    setPropertyId(nextPropertyId);
+    setPage(1);
+  }
+
+  function handleEquipmentTypeChange(nextEquipmentTypeId: string) {
+    setEquipmentTypeId(nextEquipmentTypeId);
+    setPage(1);
+  }
+
   return {
     items,
     search,
     setSearch,
     status,
     handleStatusChange,
+    propertyId,
+    handlePropertyChange,
+    equipmentTypeId,
+    handleEquipmentTypeChange,
+    properties,
+    equipmentTypes,
     page,
     setPage,
     total,

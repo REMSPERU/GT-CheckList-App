@@ -17,23 +17,52 @@ const STATUS_OPTIONS = [
 export default function AdminEquipmentsPage() {
   const equipments = useAdminEquipments();
 
+  const propertyOptions = [
+    { value: '', label: 'Todos los inmuebles' },
+    ...equipments.properties.map(item => ({
+      value: item.id,
+      label: item.name,
+    })),
+  ];
+
+  const equipmentTypeOptions = [
+    { value: '', label: 'Todos los tipos de equipo' },
+    ...equipments.equipmentTypes.map(item => ({
+      value: item.id,
+      label: `${item.systemName} · ${item.nombre}`,
+    })),
+  ];
+
   return (
     <main className="grid gap-5 px-8 pb-11 pt-7 max-[640px]:px-[18px]">
       <AdminPageHeader
         eyebrow="Inventario"
         title="Equipos"
-        description="Consulta todos los equipos con paginacion y filtro por estado."
+        description="Consulta y administra los equipos registrados por inmueble, tipo y estado."
       />
-      <section className="flex items-center gap-3 max-[640px]:flex-col max-[640px]:items-stretch">
+      <section className="grid grid-cols-[1.2fr_1fr_1fr_0.8fr] gap-3 max-[1024px]:grid-cols-2 max-[640px]:grid-cols-1">
         <SearchInput
           placeholder="Buscar codigo o ubicacion"
           value={equipments.search}
           onChange={equipments.setSearch}
         />
         <SelectField
+          value={equipments.propertyId}
+          options={propertyOptions}
+          onChange={equipments.handlePropertyChange}
+          ariaLabel="Filtrar por inmueble"
+        />
+        <SelectField
+          value={equipments.equipmentTypeId}
+          options={equipmentTypeOptions}
+          onChange={equipments.handleEquipmentTypeChange}
+          ariaLabel="Filtrar por tipo de equipo"
+        />
+        <SelectField
           value={equipments.status}
           options={STATUS_OPTIONS}
           onChange={equipments.handleStatusChange}
+          ariaLabel="Filtrar por estado"
         />
       </section>
       <Alert>{equipments.errorMessage}</Alert>

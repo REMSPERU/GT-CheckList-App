@@ -28,6 +28,8 @@ export interface AdminEquipmentFilters {
   pageSize: number;
   search?: string;
   status?: string;
+  propertyId?: string;
+  equipmentTypeId?: string;
 }
 
 export interface AdminEquipmentTypeRow {

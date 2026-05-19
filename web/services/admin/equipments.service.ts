@@ -42,6 +42,14 @@ export async function listAdminEquipments(
     query = query.eq('estatus', filters.status);
   }
 
+  if (filters.propertyId) {
+    query = query.eq('id_property', filters.propertyId);
+  }
+
+  if (filters.equipmentTypeId) {
+    query = query.eq('id_equipamento', filters.equipmentTypeId);
+  }
+
   if (search) {
     query = query.or(
       `codigo.ilike.%${search}%,ubicacion.ilike.%${search}%,detalle_ubicacion.ilike.%${search}%`,
