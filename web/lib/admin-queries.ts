@@ -170,7 +170,7 @@ interface MaintenanceQueryRow {
   estatus: string | null;
 }
 
-function uniqueValues(values: Array<string | null | undefined>): string[] {
+function uniqueValues(values: (string | null | undefined)[]): string[] {
   return Array.from(new Set(values.filter((value): value is string => !!value)));
 }
 
@@ -394,9 +394,10 @@ export async function listAdminMaintenances(
 
   if (equipmentError) throw equipmentError;
 
-  const equipmentRows = (equipmentData ?? []) as Array<
-    Pick<EquipmentQueryRow, 'id' | 'id_property' | 'id_equipamento' | 'codigo'>
-  >;
+  const equipmentRows = (equipmentData ?? []) as Pick<
+    EquipmentQueryRow,
+    'id' | 'id_property' | 'id_equipamento' | 'codigo'
+  >[];
   const equipmentById = new Map(equipmentRows.map(item => [item.id, item]));
   const [propertiesById, equipmentTypes] = await Promise.all([
     getPropertiesById(

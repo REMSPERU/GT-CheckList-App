@@ -90,12 +90,12 @@ export default function ResetPasswordPage() {
   return (
     <AuthShell
       title="Nueva contrasena"
-      description="Ingresa tu nueva contrasena para terminar la recuperacion.">
-      <form className="mt-[18px] grid gap-3" onSubmit={onSubmit}>
-        <label className="text-sm font-semibold">
+      description="Termina la recuperacion y vuelve a entrar al panel con tu nueva clave.">
+      <form className="mt-6 grid gap-4" onSubmit={onSubmit}>
+        <label className="text-sm font-bold text-slate-700">
           Nueva contrasena (minimo 8)
           <input
-            className="mt-1.5 h-11 w-full rounded-[10px] border border-slate-300 px-3 py-2.5 text-base outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-300"
+            className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-4 focus:ring-emerald-700/10"
             type="password"
             autoComplete="new-password"
             required
@@ -105,10 +105,10 @@ export default function ResetPasswordPage() {
           />
         </label>
 
-        <label className="text-sm font-semibold">
+        <label className="text-sm font-bold text-slate-700">
           Confirmar contrasena
           <input
-            className="mt-1.5 h-11 w-full rounded-[10px] border border-slate-300 px-3 py-2.5 text-base outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-300"
+            className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-4 focus:ring-emerald-700/10"
             type="password"
             autoComplete="new-password"
             required
@@ -119,7 +119,7 @@ export default function ResetPasswordPage() {
         </label>
 
         <button
-          className="mt-1 h-11 rounded-[10px] border-0 bg-emerald-800 px-4 font-bold text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-2 h-12 rounded-2xl border-0 bg-emerald-900 px-4 font-black text-white shadow-[0_12px_28px_rgba(6,78,59,0.24)] transition hover:-translate-y-0.5 hover:bg-emerald-950 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
           type="submit"
           disabled={isSubmitting || !isFormValid || !isReady}>
           {isSubmitting ? 'Actualizando...' : 'Actualizar contrasena'}
@@ -127,22 +127,24 @@ export default function ResetPasswordPage() {
       </form>
 
       {errorMessage ? (
-        <div className="mt-3 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2.5 text-[0.95rem] text-red-800">
+        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
           {errorMessage}
         </div>
       ) : null}
       {message ? (
-        <div className="mt-3 rounded-[10px] border border-green-200 bg-green-50 px-3 py-2.5 text-[0.95rem] text-green-800">
+        <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
           {message}
         </div>
       ) : null}
 
-      <div className="mt-3.5 flex flex-wrap gap-3">
-        <Link className="text-emerald-800 underline underline-offset-2" href="/login">
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-950/10 bg-emerald-50/70 p-4 text-sm text-slate-600">
+        <Link
+          className="font-black text-emerald-900 underline-offset-4 hover:underline"
+          href="/login">
           Ir a iniciar sesion
         </Link>
         <Link
-          className="text-emerald-800 underline underline-offset-2"
+          className="font-black text-emerald-900 underline-offset-4 hover:underline"
           href="/forgot-password">
           Solicitar nuevo enlace
         </Link>
