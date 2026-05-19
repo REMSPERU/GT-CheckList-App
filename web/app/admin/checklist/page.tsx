@@ -7,16 +7,23 @@ import { AdminPagination } from '@/components/admin/admin-pagination';
 import { ChecklistQuestionGroups } from '@/components/admin/checklist-question-groups';
 import { ChecklistResponsesTable } from '@/components/admin/checklist-responses-table';
 import { Alert } from '@/components/ui/alert';
+import { SearchInput } from '@/components/ui/search-input';
 import { SelectField } from '@/components/ui/select-field';
 import { useAdminChecklist } from '@/hooks/admin/use-admin-checklist';
 
 type ChecklistTab = 'responses' | 'questions';
 
+const REVIEW_STATUS_OPTIONS = [
+  { value: 'all', label: 'Todas las respuestas' },
+  { value: 'observed', label: 'Solo observadas' },
+  { value: 'photos', label: 'Con fotos' },
+];
+
 export default function AdminChecklistPage() {
   const checklist = useAdminChecklist();
   const [activeTab, setActiveTab] = useState<ChecklistTab>('responses');
   const equipmentOptions = [
-    { value: '', label: 'Todos los equipamentos' },
+    { value: '', label: 'Todos los equipos' },
     ...checklist.equipmentTypes.map(item => ({
       value: item.id,
       label: `${item.systemName} · ${item.nombre}${
@@ -30,12 +37,13 @@ export default function AdminChecklistPage() {
       <AdminPageHeader
         eyebrow="Checklist"
         title="Preguntas y respuestas"
-        description="Revisa checklist sincronizados, detecta observaciones y administra la visibilidad de preguntas por equipamento."
+        description="Revisa checklist sincronizados, detecta observaciones y administra la visibilidad de preguntas por equipo."
+        compact
       />
 
       <section className="grid gap-3 rounded-[22px] border border-slate-900/10 bg-white/80 p-[18px] shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
         <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-          Filtrar por equipamento
+          Filtrar por equipo
           <SelectField
             value={checklist.selectedEquipmentType}
             options={equipmentOptions}
@@ -85,23 +93,36 @@ export default function AdminChecklistPage() {
       </section>
 
       {activeTab === 'responses' ? (
-        <ChecklistResponsesTable
-          responses={checklist.responses}
-          total={checklist.responseTotal}
-          page={checklist.responsePage}
-          totalPages={checklist.responseTotalPages}
-          expandedResponseId={checklist.expandedResponseId}
-          setExpandedResponseId={checklist.setExpandedResponseId}
-          isLoading={checklist.isLoading}
-          footer={
-            <AdminPagination
-              page={checklist.responsePage}
-              totalPages={checklist.responseTotalPages}
-              isLoading={checklist.isLoading}
-              setPage={checklist.setResponsePage}
+        <section className="grid gap-4">
+          <div className="flex items-center gap-3 max-[760px]:grid">
+            <SearchInput
+              placeholder="Buscar inmueble, equipo, codigo o frecuencia"
+              value={checklist.responseSearch}
+              onChange={checklist.handleResponseSearchChange}
             />
-          }
-        />
+            <SelectField
+              value={checklist.responseReviewStatus}
+              options={REVIEW_STATUS_OPTIONS}
+              onChange={checklist.handleResponseReviewStatusChange}
+              ariaLabel="Filtrar respuestas por estado de revision"
+            />
+          </div>
+          <ChecklistResponsesTable
+            responses={checklist.responses}
+            total={checklist.responseTotal}
+            page={checklist.responsePage}
+            totalPages={checklist.responseTotalPages}
+            isLoading={checklist.isLoading}
+            footer={
+              <AdminPagination
+                page={checklist.responsePage}
+                totalPages={checklist.responseTotalPages}
+                isLoading={checklist.isLoading}
+                setPage={checklist.setResponsePage}
+              />
+            }
+          />
+        </section>
       ) : (
         <ChecklistQuestionGroups
           questions={checklist.questions}

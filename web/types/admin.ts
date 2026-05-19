@@ -56,7 +56,15 @@ export interface AdminChecklistAnswerItem {
   orden: number | null;
   status_ok: boolean | null;
   observacion: string | null;
-  fotos: unknown[];
+  fotos: AdminChecklistPhotoRef[];
+}
+
+export interface AdminChecklistPhotoRef {
+  bucket?: string | null;
+  path?: string | null;
+  public_url?: string | null;
+  publicUrl?: string | null;
+  url?: string | null;
 }
 
 export interface AdminChecklistResponseRow {
@@ -100,6 +108,8 @@ export interface AdminChecklistResponseFilters {
   page: number;
   pageSize: number;
   equipamentoId?: string;
+  search?: string;
+  reviewStatus?: 'observed' | 'photos';
 }
 
 export interface AdminChecklistQuestionUpdateInput {

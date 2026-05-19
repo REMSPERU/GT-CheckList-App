@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import {
@@ -14,6 +14,8 @@ import type {
 } from '@/types/admin';
 
 const RESPONSE_PAGE_SIZE = 20;
+
+export type ChecklistReviewStatus = 'all' | 'observed' | 'photos';
 
 export interface QuestionGroup {
   key: string;
@@ -36,11 +38,15 @@ export function useAdminChecklist() {
     Record<string, boolean>
   >({});
   const [responsePage, setResponsePage] = useState(1);
+  const [responseSearch, setResponseSearch] = useState('');
+  const [responseReviewStatus, setResponseReviewStatus] =
+    useState<ChecklistReviewStatus>('all');
   const [responseTotal, setResponseTotal] = useState(0);
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const deferredResponseSearch = useDeferredValue(responseSearch);
 
   useEffect(() => {
     let isMounted = true;
@@ -86,6 +92,9 @@ export function useAdminChecklist() {
             page: responsePage,
             pageSize: RESPONSE_PAGE_SIZE,
             equipamentoId: selectedEquipmentType || undefined,
+            search: deferredResponseSearch || undefined,
+            reviewStatus:
+              responseReviewStatus === 'all' ? undefined : responseReviewStatus,
           }),
         ]);
 
@@ -113,7 +122,12 @@ export function useAdminChecklist() {
     return () => {
       isMounted = false;
     };
-  }, [responsePage, selectedEquipmentType]);
+  }, [
+    deferredResponseSearch,
+    responsePage,
+    responseReviewStatus,
+    selectedEquipmentType,
+  ]);
 
   const responseTotalPages = useMemo(
     () => Math.max(1, Math.ceil(responseTotal / RESPONSE_PAGE_SIZE)),
@@ -171,6 +185,16 @@ export function useAdminChecklist() {
     setSuccessMessage(null);
   }
 
+  function handleResponseSearchChange(value: string) {
+    setResponseSearch(value);
+    setResponsePage(1);
+  }
+
+  function handleResponseReviewStatusChange(value: string) {
+    setResponseReviewStatus(value as ChecklistReviewStatus);
+    setResponsePage(1);
+  }
+
   function toggleQuestionGroup(groupKey: string) {
     setExpandedQuestionGroups(current => ({
       ...current,
@@ -217,6 +241,10 @@ export function useAdminChecklist() {
     selectedEquipmentType,
     handleEquipmentTypeChange,
     responses,
+    responseSearch,
+    handleResponseSearchChange,
+    responseReviewStatus,
+    handleResponseReviewStatusChange,
     responsePage,
     setResponsePage,
     responseTotal,

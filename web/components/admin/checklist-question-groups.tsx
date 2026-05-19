@@ -41,7 +41,7 @@ export function ChecklistQuestionGroups({
               Sin preguntas
             </strong>
             <p className="mb-0 mt-2">
-              No hay preguntas para el equipamento seleccionado.
+              No hay preguntas para el equipo seleccionado.
             </p>
           </div>
         </div>

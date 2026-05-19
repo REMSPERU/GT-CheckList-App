@@ -34,7 +34,9 @@ export function AdminShell({ children }: AdminShellProps) {
   return (
     <div className="grid min-h-screen grid-cols-[260px_minmax(0,1fr)] bg-[radial-gradient(circle_at_15%_0%,rgba(8,145,178,0.16),transparent_28%),linear-gradient(135deg,#edf5f3_0%,#f7f4ea_100%)] max-[980px]:grid-cols-1">
       <aside className="sticky top-0 h-screen border-r border-white/10 bg-gradient-to-b from-[#082f2a] to-[#0b1f28] px-[18px] py-6 text-emerald-50 max-[980px]:static max-[980px]:h-auto">
-        <Link href="/admin" className="flex items-center gap-3 text-white no-underline">
+        <Link
+          href="/admin"
+          className="flex items-center gap-3 text-white no-underline">
           <strong>GEMA-Panel </strong>
         </Link>
 
@@ -51,9 +53,7 @@ export function AdminShell({ children }: AdminShellProps) {
                 key={item.href}
                 href={item.href}
                 className={`rounded-xl px-3.5 py-3 font-semibold no-underline hover:bg-lime-200 hover:text-teal-950 ${
-                  isActive
-                    ? 'bg-lime-200 text-teal-950'
-                    : 'text-emerald-100'
+                  isActive ? 'bg-lime-200 text-teal-950' : 'text-emerald-100'
                 }`}>
                 {item.label}
               </Link>
@@ -63,19 +63,19 @@ export function AdminShell({ children }: AdminShellProps) {
       </aside>
 
       <div className="min-w-0">
-        <header className="flex items-center justify-between gap-5 border-b border-slate-900/10 bg-white/60 px-8 py-6 backdrop-blur-[14px] max-[640px]:flex-col max-[640px]:items-stretch max-[640px]:px-[18px]">
+        <header className="flex min-h-14 items-center justify-between gap-4 border-b border-slate-900/10 bg-white/55 px-8 py-2.5 backdrop-blur-[14px] max-[640px]:flex-col max-[640px]:items-stretch max-[640px]:px-[18px]">
           <div>
-            <span className="mb-1.5 inline-block text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
+            <span className="inline-block text-[0.68rem] font-black uppercase tracking-[0.16em] text-emerald-800">
               Panel web
             </span>
-            <h1 className="m-0 text-[#0c1720] tracking-[-0.04em]">
+            <h1 className="m-0 text-lg text-[#0c1720] tracking-[-0.03em]">
               Administracion operativa
             </h1>
           </div>
           <div className="flex items-center gap-3 text-sm text-slate-500 max-[640px]:flex-col max-[640px]:items-stretch">
             <span>{user?.email}</span>
             <button
-              className="m-0 h-11 w-auto rounded-[10px] border-0 bg-slate-900 px-4 font-bold text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
+              className="m-0 h-9 w-auto rounded-[10px] border-0 bg-slate-900 px-3.5 text-sm font-bold text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
               type="button"
               onClick={handleSignOut}>
               Salir
