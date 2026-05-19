@@ -31,6 +31,10 @@ export default function AdminChecklistPage() {
       }`,
     })),
   ];
+  const buildingOptions = [
+    { value: '', label: 'Todos los inmuebles' },
+    ...checklist.responseFilterOptions.buildings,
+  ];
 
   return (
     <main className="grid gap-5 px-8 pb-11 pt-7 max-[640px]:px-[18px]">
@@ -42,15 +46,6 @@ export default function AdminChecklistPage() {
       />
 
       <section className="grid gap-3 rounded-[22px] border border-slate-900/10 bg-white/80 p-[18px] shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
-        <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-          Filtrar por equipo
-          <SelectField
-            value={checklist.selectedEquipmentType}
-            options={equipmentOptions}
-            onChange={checklist.handleEquipmentTypeChange}
-            ariaLabel="Filtrar checklist por equipamento"
-          />
-        </label>
         <div className="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[640px]:grid-cols-1">
           <MetricCard
             label="Respuestas"
@@ -94,11 +89,23 @@ export default function AdminChecklistPage() {
 
       {activeTab === 'responses' ? (
         <section className="grid gap-4">
-          <div className="flex items-center gap-3 max-[760px]:grid">
+          <div className="grid grid-cols-[minmax(220px,1.2fr)_minmax(220px,1fr)_minmax(220px,1fr)_minmax(180px,0.8fr)] gap-3 max-[1180px]:grid-cols-2 max-[640px]:grid-cols-1">
             <SearchInput
               placeholder="Buscar inmueble, equipo, codigo o frecuencia"
               value={checklist.responseSearch}
               onChange={checklist.handleResponseSearchChange}
+            />
+            <SelectField
+              value={checklist.selectedEquipmentType}
+              options={equipmentOptions}
+              onChange={checklist.handleEquipmentTypeChange}
+              ariaLabel="Filtrar respuestas por tipo de equipamento"
+            />
+            <SelectField
+              value={checklist.selectedBuildingName}
+              options={buildingOptions}
+              onChange={checklist.handleBuildingNameChange}
+              ariaLabel="Filtrar respuestas por inmueble"
             />
             <SelectField
               value={checklist.responseReviewStatus}
@@ -124,16 +131,27 @@ export default function AdminChecklistPage() {
           />
         </section>
       ) : (
-        <ChecklistQuestionGroups
-          questions={checklist.questions}
-          groups={checklist.groupedQuestions}
-          expandedGroups={checklist.expandedQuestionGroups}
-          savingQuestionId={checklist.savingQuestionId}
-          isLoading={checklist.isLoading}
-          onToggleGroup={checklist.toggleQuestionGroup}
-          onUpdateQuestion={checklist.updateQuestionDraft}
-          onSaveQuestion={checklist.handleSaveQuestion}
-        />
+        <section className="grid gap-4">
+          <label className="grid gap-1.5 text-sm font-bold text-slate-600">
+            Tipo de equipamento
+            <SelectField
+              value={checklist.selectedEquipmentType}
+              options={equipmentOptions}
+              onChange={checklist.handleEquipmentTypeChange}
+              ariaLabel="Filtrar preguntas por tipo de equipamento"
+            />
+          </label>
+          <ChecklistQuestionGroups
+            questions={checklist.questions}
+            groups={checklist.groupedQuestions}
+            expandedGroups={checklist.expandedQuestionGroups}
+            savingQuestionId={checklist.savingQuestionId}
+            isLoading={checklist.isLoading}
+            onToggleGroup={checklist.toggleQuestionGroup}
+            onUpdateQuestion={checklist.updateQuestionDraft}
+            onSaveQuestion={checklist.handleSaveQuestion}
+          />
+        </section>
       )}
     </main>
   );

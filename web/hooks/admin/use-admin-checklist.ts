@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import {
+  listAdminChecklistResponseFilterOptions,
   listAdminChecklistQuestions,
   listAdminChecklistResponses,
   updateAdminChecklistQuestion,
@@ -9,6 +10,7 @@ import {
 import { listAdminEquipmentTypes } from '@/services/admin/equipment-types.service';
 import type {
   AdminChecklistQuestionRow,
+  AdminChecklistResponseFilterOptions,
   AdminChecklistResponseRow,
   AdminEquipmentTypeRow,
 } from '@/types/admin';
@@ -39,8 +41,13 @@ export function useAdminChecklist() {
   >({});
   const [responsePage, setResponsePage] = useState(1);
   const [responseSearch, setResponseSearch] = useState('');
+  const [selectedBuildingName, setSelectedBuildingName] = useState('');
   const [responseReviewStatus, setResponseReviewStatus] =
     useState<ChecklistReviewStatus>('all');
+  const [responseFilterOptions, setResponseFilterOptions] =
+    useState<AdminChecklistResponseFilterOptions>({
+      buildings: [],
+    });
   const [responseTotal, setResponseTotal] = useState(0);
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,6 +84,35 @@ export function useAdminChecklist() {
   useEffect(() => {
     let isMounted = true;
 
+    async function loadResponseFilterOptions() {
+      try {
+        const supabase = getSupabaseClient();
+        const result = await listAdminChecklistResponseFilterOptions(supabase, {
+          equipamentoId: selectedEquipmentType || undefined,
+        });
+
+        if (isMounted) setResponseFilterOptions(result);
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : 'No se pudieron cargar los filtros de checklist',
+          );
+        }
+      }
+    }
+
+    void loadResponseFilterOptions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedEquipmentType]);
+
+  useEffect(() => {
+    let isMounted = true;
+
     async function loadChecklistData() {
       try {
         setIsLoading(true);
@@ -92,6 +128,7 @@ export function useAdminChecklist() {
             page: responsePage,
             pageSize: RESPONSE_PAGE_SIZE,
             equipamentoId: selectedEquipmentType || undefined,
+            buildingName: selectedBuildingName || undefined,
             search: deferredResponseSearch || undefined,
             reviewStatus:
               responseReviewStatus === 'all' ? undefined : responseReviewStatus,
@@ -126,6 +163,7 @@ export function useAdminChecklist() {
     deferredResponseSearch,
     responsePage,
     responseReviewStatus,
+    selectedBuildingName,
     selectedEquipmentType,
   ]);
 
@@ -183,6 +221,11 @@ export function useAdminChecklist() {
     setResponsePage(1);
     setExpandedQuestionGroups({});
     setSuccessMessage(null);
+  }
+
+  function handleBuildingNameChange(value: string) {
+    setSelectedBuildingName(value);
+    setResponsePage(1);
   }
 
   function handleResponseSearchChange(value: string) {
@@ -243,6 +286,9 @@ export function useAdminChecklist() {
     responses,
     responseSearch,
     handleResponseSearchChange,
+    selectedBuildingName,
+    handleBuildingNameChange,
+    responseFilterOptions,
     responseReviewStatus,
     handleResponseReviewStatusChange,
     responsePage,

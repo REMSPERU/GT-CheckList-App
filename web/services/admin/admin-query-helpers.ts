@@ -49,6 +49,7 @@ export interface ChecklistResponseQueryRow {
   id: string;
   client_submission_id: string | null;
   submitted_at: string | null;
+  equipo_id: string | null;
   building_name: string | null;
   equipamento_nombre: string | null;
   equipo_codigo: string | null;

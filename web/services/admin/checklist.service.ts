@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   AdminChecklistQuestionRow,
   AdminChecklistQuestionUpdateInput,
+  AdminChecklistResponseFilterOptions,
   AdminChecklistResponseFilters,
   AdminChecklistResponseRow,
   AdminPaginatedResult,
@@ -76,6 +77,7 @@ export async function listAdminChecklistResponses(
         id,
         client_submission_id,
         submitted_at,
+        equipo_id,
         building_name,
         equipamento_nombre,
         equipo_codigo,
@@ -94,6 +96,10 @@ export async function listAdminChecklistResponses(
 
   if (filters.equipamentoId) {
     query = query.eq('equipamento_id', filters.equipamentoId);
+  }
+
+  if (filters.buildingName) {
+    query = query.eq('building_name', filters.buildingName);
   }
 
   if (filters.reviewStatus === 'observed') {
@@ -141,6 +147,7 @@ export async function getAdminChecklistResponseById(
         id,
         client_submission_id,
         submitted_at,
+        equipo_id,
         building_name,
         equipamento_nombre,
         equipo_codigo,
@@ -172,6 +179,7 @@ function mapChecklistResponse(
     id: item.id,
     client_submission_id: item.client_submission_id,
     submitted_at: item.submitted_at,
+    equipo_id: item.equipo_id,
     building_name: item.building_name,
     equipamento_nombre: item.equipamento_nombre,
     equipo_codigo: item.equipo_codigo,
@@ -221,6 +229,38 @@ async function hydrateAnswerWeights(
       ponderado: answer.ponderado ?? weights.get(answer.pregunta_id) ?? null,
     }));
   });
+}
+
+export async function listAdminChecklistResponseFilterOptions(
+  supabase: SupabaseClient,
+  filters: Pick<AdminChecklistResponseFilters, 'equipamentoId'>,
+): Promise<AdminChecklistResponseFilterOptions> {
+  let buildingQuery = supabase
+    .from('checklist_response')
+    .select('building_name')
+    .not('building_name', 'is', null)
+    .order('building_name', { ascending: true })
+    .limit(2000);
+
+  if (filters.equipamentoId) {
+    buildingQuery = buildingQuery.eq('equipamento_id', filters.equipamentoId);
+  }
+
+  const buildingResult = await buildingQuery;
+
+  if (buildingResult.error) throw buildingResult.error;
+
+  const buildings = Array.from(
+    new Set(
+      ((buildingResult.data ?? []) as { building_name: string | null }[])
+        .map(item => item.building_name)
+        .filter((value): value is string => !!value),
+    ),
+  ).map(value => ({ value, label: value }));
+
+  return {
+    buildings,
+  };
 }
 
 export async function updateAdminChecklistQuestion(
