@@ -43,6 +43,7 @@ interface ChecklistAnswerJsonItem {
   pregunta_id: string;
   pregunta: string;
   orden: number;
+  ponderado: number | string | null;
   status_ok: boolean;
   observacion: string | null;
   fotos: StoredPhotoRef[];
@@ -56,6 +57,8 @@ interface ChecklistAnswersJson {
     total_ok: number;
     total_observadas: number;
     total_fotos: number;
+    puntaje_obtenido: number;
+    ponderado_total: number;
   };
 }
 
@@ -218,6 +221,7 @@ function buildChecklistAnswersJson(
     pregunta_id: answer.preguntaId,
     pregunta: questionMap.get(answer.preguntaId)?.pregunta || '',
     orden: questionMap.get(answer.preguntaId)?.orden || 0,
+    ponderado: questionMap.get(answer.preguntaId)?.ponderado ?? null,
     status_ok: answer.status === true,
     observacion: answer.status === false ? answer.observacion.trim() : null,
     fotos:
@@ -232,6 +236,15 @@ function buildChecklistAnswersJson(
     (acc, item) => acc + item.fotos.length,
     0,
   );
+  const ponderadoTotal = respuestas.reduce(
+    (acc, item) => acc + parseQuestionWeight(item.ponderado),
+    0,
+  );
+  const puntajeObtenido = respuestas.reduce(
+    (acc, item) =>
+      acc + (item.status_ok ? parseQuestionWeight(item.ponderado) : 0),
+    0,
+  );
 
   return {
     version: 1,
@@ -241,8 +254,19 @@ function buildChecklistAnswersJson(
       total_ok: totalOk,
       total_observadas: totalObservadas,
       total_fotos: totalFotos,
+      puntaje_obtenido: puntajeObtenido,
+      ponderado_total: ponderadoTotal,
     },
   };
+}
+
+function parseQuestionWeight(
+  value: number | string | null | undefined,
+): number {
+  if (value === null || value === undefined || value === '') return 0;
+
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 interface ChecklistQuestionRowProps {

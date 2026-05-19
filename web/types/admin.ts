@@ -54,6 +54,7 @@ export interface AdminChecklistAnswerItem {
   pregunta_id: string;
   pregunta: string;
   orden: number | null;
+  ponderado?: number | string | null;
   status_ok: boolean | null;
   observacion: string | null;
   fotos: AdminChecklistPhotoRef[];

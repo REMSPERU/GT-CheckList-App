@@ -118,10 +118,13 @@ export async function listAdminChecklistResponses(
   const { data, error, count } = await query.range(from, to);
   if (error) throw error;
 
+  const items = ((data ?? []) as ChecklistResponseQueryRow[]).map(
+    mapChecklistResponse,
+  );
+  await hydrateAnswerWeights(supabase, items);
+
   return {
-    items: ((data ?? []) as ChecklistResponseQueryRow[]).map(
-      mapChecklistResponse,
-    ),
+    items,
     total: count ?? 0,
   };
 }
@@ -153,7 +156,11 @@ export async function getAdminChecklistResponseById(
     .maybeSingle();
 
   if (error) throw error;
-  return data ? mapChecklistResponse(data as ChecklistResponseQueryRow) : null;
+  if (!data) return null;
+
+  const response = mapChecklistResponse(data as ChecklistResponseQueryRow);
+  await hydrateAnswerWeights(supabase, [response]);
+  return response;
 }
 
 function mapChecklistResponse(
@@ -174,6 +181,43 @@ function mapChecklistResponse(
     total_photos: item.total_photos,
     answers: item.respuestas_json?.respuestas ?? [],
   };
+}
+
+async function hydrateAnswerWeights(
+  supabase: SupabaseClient,
+  responses: AdminChecklistResponseRow[],
+): Promise<void> {
+  const questionIds = Array.from(
+    new Set(
+      responses.flatMap(response =>
+        response.answers
+          .filter(answer => answer.ponderado === undefined)
+          .map(answer => answer.pregunta_id),
+      ),
+    ),
+  );
+
+  if (questionIds.length === 0) return;
+
+  const { data, error } = await supabase
+    .from('preguntas_equipamento')
+    .select('id, ponderado')
+    .in('id', questionIds);
+
+  if (error) throw error;
+
+  const weights = new Map(
+    ((data ?? []) as { id: string; ponderado: number | string | null }[]).map(
+      item => [item.id, item.ponderado],
+    ),
+  );
+
+  responses.forEach(response => {
+    response.answers = response.answers.map(answer => ({
+      ...answer,
+      ponderado: answer.ponderado ?? weights.get(answer.pregunta_id) ?? null,
+    }));
+  });
 }
 
 export async function updateAdminChecklistQuestion(

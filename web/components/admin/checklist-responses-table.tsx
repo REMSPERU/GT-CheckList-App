@@ -2,6 +2,10 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 
 import type { AdminChecklistResponseRow } from '@/types/admin';
+import {
+  formatWeight,
+  getChecklistWeightedScore,
+} from '@/utils/checklist-score';
 import { formatDateTime } from '@/utils/date';
 
 import { AdminTableShell } from './admin-table-shell';
@@ -76,6 +80,7 @@ export function ChecklistResponsesTable({
                     </small>
                   </td>
                   <td className={TD_CLASS}>
+                    <WeightedScoreBadge response={response} />
                     <StatusBadge
                       observed={response.total_observed ?? 0}
                       ok={response.total_ok ?? 0}
@@ -101,6 +106,36 @@ export function ChecklistResponsesTable({
       )}
       {footer}
     </AdminTableShell>
+  );
+}
+
+function WeightedScoreBadge({
+  response,
+}: {
+  response: AdminChecklistResponseRow;
+}) {
+  const score = getChecklistWeightedScore(response);
+
+  if (score.total === 0) {
+    return (
+      <span className="mb-2 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-600">
+        Sin ponderado
+      </span>
+    );
+  }
+
+  const isLowScore = score.percent < 80;
+
+  return (
+    <span
+      className={`mb-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${
+        isLowScore
+          ? 'bg-orange-100 text-orange-900'
+          : 'bg-emerald-100 text-emerald-900'
+      }`}>
+      Puntaje {formatWeight(score.earned)} / {formatWeight(score.total)} ·{' '}
+      {formatWeight(score.percent)}%
+    </span>
   );
 }
 

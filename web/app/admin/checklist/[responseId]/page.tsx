@@ -12,6 +12,11 @@ import type {
   AdminChecklistPhotoRef,
   AdminChecklistResponseRow,
 } from '@/types/admin';
+import {
+  formatWeight,
+  getAnswerWeight,
+  getChecklistWeightedScore,
+} from '@/utils/checklist-score';
 import { formatDateTime } from '@/utils/date';
 
 type AnswerFilter = 'all' | 'observed' | 'photos';
@@ -96,12 +101,20 @@ export default function AdminChecklistResponseDetailPage() {
     );
   }
 
+  const weightedScore = getChecklistWeightedScore(response);
+
   return (
     <main className="grid gap-5 px-8 pb-11 pt-7 max-[640px]:px-[18px]">
       <DetailHeader response={response} />
       <Alert>{errorMessage}</Alert>
 
-      <section className="grid grid-cols-4 gap-3 max-[980px]:grid-cols-2 max-[640px]:grid-cols-1">
+      <section className="grid grid-cols-5 gap-3 max-[1180px]:grid-cols-3 max-[760px]:grid-cols-2 max-[520px]:grid-cols-1">
+        <MetricCard
+          label="Puntaje"
+          value={formatWeight(weightedScore.earned)}
+          note={`de ${formatWeight(weightedScore.total)} (${formatWeight(weightedScore.percent)}%)`}
+          tone={weightedScore.percent < 80 ? 'warning' : 'default'}
+        />
         <MetricCard label="Preguntas" value={response.total_questions ?? 0} />
         <MetricCard label="Conformes" value={response.total_ok ?? 0} />
         <MetricCard
@@ -186,11 +199,12 @@ function DetailHeader({ response }: DetailHeaderProps) {
 
 interface MetricCardProps {
   label: string;
-  value: number;
+  value: number | string;
+  note?: string;
   tone?: 'default' | 'warning';
 }
 
-function MetricCard({ label, value, tone = 'default' }: MetricCardProps) {
+function MetricCard({ label, value, note, tone = 'default' }: MetricCardProps) {
   return (
     <article
       className={`rounded-2xl border px-4 py-3.5 shadow-[0_12px_34px_rgba(12,23,32,0.06)] ${
@@ -204,6 +218,11 @@ function MetricCard({ label, value, tone = 'default' }: MetricCardProps) {
       <strong className="mt-1 block text-3xl tracking-[-0.04em]">
         {value}
       </strong>
+      {note ? (
+        <small className="mt-1 block font-semibold text-slate-500">
+          {note}
+        </small>
+      ) : null}
     </article>
   );
 }
@@ -232,6 +251,7 @@ function FilterButton({ active, children, onClick }: FilterButtonProps) {
 
 function AnswerCard({ answer }: { answer: AdminChecklistAnswerItem }) {
   const isObserved = answer.status_ok !== true;
+  const weight = getAnswerWeight(answer);
 
   return (
     <article
@@ -253,7 +273,7 @@ function AnswerCard({ answer }: { answer: AdminChecklistAnswerItem }) {
               ? 'bg-orange-100 text-orange-900'
               : 'bg-green-100 text-green-900'
           }`}>
-          {isObserved ? 'Observada' : 'Conforme'}
+          {isObserved ? 'Observada' : 'Conforme'} · {formatWeight(weight)} pts
         </span>
       </div>
 

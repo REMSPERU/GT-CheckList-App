@@ -48,100 +48,200 @@ export function ChecklistQuestionGroups({
       ) : null}
 
       <div className="grid gap-4 p-[18px]">
-        {groups.map(group => (
-          <section
-            className="overflow-hidden rounded-[18px] border border-[#dfe8e5] bg-white"
-            key={group.key}>
-            <button
-              className="m-0 flex h-auto w-full cursor-pointer items-center justify-between gap-3.5 rounded-none border-b border-[#e9efed] bg-gradient-to-br from-[#f7fbf7] to-[#effaf5] px-[18px] py-4 text-left text-inherit hover:from-[#effaf5] hover:to-[#e7f8ee] max-[640px]:flex-col max-[640px]:items-stretch"
-              type="button"
-              onClick={() => onToggleGroup(group.key)}
-              aria-expanded={expandedGroups[group.key] === true}>
-              <div>
-                <span className="mb-1.5 inline-block text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
-                  {group.systemName}
-                </span>
-                <h3 className="m-0 text-[#0c1720]">{group.equipmentName}</h3>
-              </div>
-              <strong className="whitespace-nowrap text-emerald-800">
-                {group.questions.length} preguntas ·{' '}
-                {expandedGroups[group.key] ? 'Ocultar' : 'Ver'}
-              </strong>
-            </button>
+        {groups.map(group => {
+          const metrics = getGroupMetrics(group.questions);
 
-            {expandedGroups[group.key] ? (
-              <div className="grid">
-                {group.questions.map(question => (
-                  <article
-                    className="grid grid-cols-[54px_minmax(0,1fr)] gap-3 border-b border-slate-100 px-[18px] py-3.5 last:border-b-0 max-[640px]:grid-cols-1"
-                    key={question.id}>
-                    <div className="grid h-[38px] w-[38px] place-items-center rounded-xl bg-lime-200 font-black text-emerald-900 max-[640px]:w-full">
-                      {question.orden ?? '-'}
-                    </div>
-                    <div>
-                      <p className="m-0 font-semibold text-[#0c1720]">
-                        {question.pregunta}
-                      </p>
-                      <div className="mt-3 flex flex-wrap items-end gap-2.5">
-                        <label className="grid gap-1.5 text-sm font-semibold">
-                          Ponderado
-                          <input
-                            className="m-0 h-9 w-[120px] rounded-[10px] border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-300"
-                            type="number"
-                            step="0.01"
-                            value={String(question.ponderado ?? '')}
-                            onChange={event =>
-                              onUpdateQuestion(question.id, {
-                                ponderado: event.target.value,
-                              })
-                            }
-                          />
-                        </label>
-                        <label className="grid gap-1.5 text-sm font-semibold">
-                          Activa
-                          <select
-                            className="min-h-9 rounded-[10px] border border-slate-300 bg-white px-3 py-1.5 text-[0.95rem] text-slate-900"
-                            value={question.activa ? 'true' : 'false'}
-                            onChange={event =>
-                              onUpdateQuestion(question.id, {
-                                activa: event.target.value === 'true',
-                              })
-                            }>
-                            <option value="true">Sí</option>
-                            <option value="false">No</option>
-                          </select>
-                        </label>
-                        <span
-                          className={`inline-flex h-9 items-center rounded-full px-2.5 text-xs font-extrabold ${
-                            question.activa
-                              ? 'bg-green-100 text-green-900'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}>
-                          {question.activa ? 'Visible en app' : 'Oculta en app'}
-                        </span>
-                        <button
-                          className="m-0 h-[34px] w-auto rounded-[10px] bg-teal-100 px-3 text-[0.84rem] font-bold text-teal-950 hover:bg-teal-200 disabled:cursor-not-allowed disabled:opacity-60"
-                          type="button"
-                          disabled={savingQuestionId === question.id}
-                          onClick={() => onSaveQuestion(question)}>
-                          {savingQuestionId === question.id
-                            ? 'Guardando'
-                            : 'Guardar'}
-                        </button>
-                        {savingQuestionId === question.id ? (
-                          <small className="font-semibold text-slate-500">
-                            Aplicando cambio...
-                          </small>
-                        ) : null}
+          return (
+            <section
+              className="overflow-hidden rounded-[18px] border border-[#dfe8e5] bg-white"
+              key={group.key}>
+              <button
+                className="m-0 grid h-auto w-full cursor-pointer grid-cols-[minmax(0,1fr)_minmax(280px,420px)] items-center gap-4 rounded-none border-b border-[#e9efed] bg-gradient-to-br from-[#f7fbf7] to-[#effaf5] px-[18px] py-4 text-left text-inherit hover:from-[#effaf5] hover:to-[#e7f8ee] max-[900px]:grid-cols-1"
+                type="button"
+                onClick={() => onToggleGroup(group.key)}
+                aria-expanded={expandedGroups[group.key] === true}>
+                <div>
+                  <span className="mb-1.5 inline-block text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
+                    {group.systemName}
+                  </span>
+                  <h3 className="m-0 text-[#0c1720]">{group.equipmentName}</h3>
+                </div>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between gap-3 text-sm font-black text-emerald-900">
+                    <span>Ponderado activo</span>
+                    <strong className="text-lg">
+                      {formatWeight(metrics.activeWeight)} / 100
+                    </strong>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-white/90">
+                    <span
+                      className={`block h-full rounded-full ${
+                        metrics.activeWeight > 100
+                          ? 'bg-orange-500'
+                          : 'bg-emerald-700'
+                      }`}
+                      style={{
+                        width: `${Math.min(metrics.activeWeight, 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
+                    <span>{metrics.activeCount} activas</span>
+                    <span>{metrics.inactiveCount} inactivas</span>
+                    <span>{metrics.missingWeightCount} sin ponderado</span>
+                    <span>{expandedGroups[group.key] ? 'Ocultar' : 'Ver'}</span>
+                  </div>
+                  <WeightHint metrics={metrics} />
+                </div>
+              </button>
+
+              {expandedGroups[group.key] ? (
+                <div className="grid">
+                  {group.questions.map(question => (
+                    <article
+                      className="grid grid-cols-[54px_minmax(0,1fr)] gap-3 border-b border-slate-100 px-[18px] py-3.5 last:border-b-0 max-[640px]:grid-cols-1"
+                      key={question.id}>
+                      <div className="grid h-[38px] w-[38px] place-items-center rounded-xl bg-lime-200 font-black text-emerald-900 max-[640px]:w-full">
+                        {question.orden ?? '-'}
                       </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : null}
-          </section>
-        ))}
+                      <div>
+                        <p className="m-0 font-semibold text-[#0c1720]">
+                          {question.pregunta}
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-end gap-2.5">
+                          <label className="grid gap-1.5 text-sm font-semibold">
+                            Ponderado
+                            <input
+                              className="m-0 h-9 w-[120px] rounded-[10px] border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-300"
+                              type="number"
+                              step="0.01"
+                              value={String(question.ponderado ?? '')}
+                              onChange={event =>
+                                onUpdateQuestion(question.id, {
+                                  ponderado: event.target.value,
+                                })
+                              }
+                            />
+                          </label>
+                          <label className="grid gap-1.5 text-sm font-semibold">
+                            Activa
+                            <select
+                              className="min-h-9 rounded-[10px] border border-slate-300 bg-white px-3 py-1.5 text-[0.95rem] text-slate-900"
+                              value={question.activa ? 'true' : 'false'}
+                              onChange={event =>
+                                onUpdateQuestion(question.id, {
+                                  activa: event.target.value === 'true',
+                                })
+                              }>
+                              <option value="true">Sí</option>
+                              <option value="false">No</option>
+                            </select>
+                          </label>
+                          <span
+                            className={`inline-flex h-9 items-center rounded-full px-2.5 text-xs font-extrabold ${
+                              question.activa
+                                ? 'bg-green-100 text-green-900'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}>
+                            {question.activa
+                              ? 'Visible en app'
+                              : 'Oculta en app'}
+                          </span>
+                          <button
+                            className="m-0 h-[34px] w-auto rounded-[10px] bg-teal-100 px-3 text-[0.84rem] font-bold text-teal-950 hover:bg-teal-200 disabled:cursor-not-allowed disabled:opacity-60"
+                            type="button"
+                            disabled={savingQuestionId === question.id}
+                            onClick={() => onSaveQuestion(question)}>
+                            {savingQuestionId === question.id
+                              ? 'Guardando'
+                              : 'Guardar'}
+                          </button>
+                          {savingQuestionId === question.id ? (
+                            <small className="font-semibold text-slate-500">
+                              Aplicando cambio...
+                            </small>
+                          ) : null}
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          );
+        })}
       </div>
     </AdminTableShell>
+  );
+}
+
+interface GroupMetrics {
+  activeWeight: number;
+  activeCount: number;
+  inactiveCount: number;
+  missingWeightCount: number;
+}
+
+function getGroupMetrics(questions: AdminChecklistQuestionRow[]): GroupMetrics {
+  return questions.reduce<GroupMetrics>(
+    (metrics, question) => {
+      if (question.activa) {
+        metrics.activeCount += 1;
+        const weight = parseWeight(question.ponderado);
+
+        if (weight === null) {
+          metrics.missingWeightCount += 1;
+        } else {
+          metrics.activeWeight += weight;
+        }
+      } else {
+        metrics.inactiveCount += 1;
+      }
+
+      return metrics;
+    },
+    {
+      activeWeight: 0,
+      activeCount: 0,
+      inactiveCount: 0,
+      missingWeightCount: 0,
+    },
+  );
+}
+
+function parseWeight(
+  value: AdminChecklistQuestionRow['ponderado'],
+): number | null {
+  if (value === null || value === '') return null;
+
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatWeight(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function WeightHint({ metrics }: { metrics: GroupMetrics }) {
+  if (metrics.activeWeight > 100) {
+    return (
+      <small className="font-bold text-orange-700">
+        Supera 100 por {formatWeight(metrics.activeWeight - 100)} puntos.
+      </small>
+    );
+  }
+
+  if (metrics.activeWeight < 100) {
+    return (
+      <small className="font-bold text-slate-500">
+        Faltan {formatWeight(100 - metrics.activeWeight)} puntos para 100.
+      </small>
+    );
+  }
+
+  return (
+    <small className="font-bold text-emerald-800">
+      Ponderado completo para este equipo.
+    </small>
   );
 }

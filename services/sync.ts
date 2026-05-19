@@ -109,6 +109,7 @@ interface ChecklistPhotoRefPayload {
 
 interface ChecklistAnswerPayload {
   pregunta_id: string;
+  ponderado?: number | string | null;
   fotos?: ChecklistPhotoRefPayload[];
 }
 
