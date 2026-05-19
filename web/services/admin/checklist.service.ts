@@ -76,7 +76,12 @@ export async function listAdminChecklistResponses(
       `
         id,
         client_submission_id,
+        user_created,
         submitted_at,
+        form_started_at,
+        first_interaction_at,
+        duration_seconds,
+        interaction_count,
         equipo_id,
         building_name,
         equipamento_nombre,
@@ -146,7 +151,12 @@ export async function getAdminChecklistResponseById(
       `
         id,
         client_submission_id,
+        user_created,
         submitted_at,
+        form_started_at,
+        first_interaction_at,
+        duration_seconds,
+        interaction_count,
         equipo_id,
         building_name,
         equipamento_nombre,
@@ -168,6 +178,29 @@ export async function getAdminChecklistResponseById(
   if (!data) return null;
 
   const response = mapChecklistResponse(data as ChecklistResponseQueryRow);
+
+  // Fetch user name via separate query to avoid foreign key / relationship errors
+  if (response.user_created) {
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('first_name, last_name')
+        .eq('id', response.user_created)
+        .maybeSingle();
+
+      if (userData) {
+        const first = (userData as any).first_name ?? '';
+        const last = (userData as any).last_name ?? '';
+        const name = `${first} ${last}`.trim();
+        if (name) {
+          response.user_created_name = name;
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching user info:', err);
+    }
+  }
+
   await hydrateAnswerWeights(supabase, [response]);
   return response;
 }
@@ -178,7 +211,13 @@ function mapChecklistResponse(
   return {
     id: item.id,
     client_submission_id: item.client_submission_id,
+    user_created: item.user_created,
+    user_created_name: item.user_created,
     submitted_at: item.submitted_at,
+    form_started_at: item.form_started_at,
+    first_interaction_at: item.first_interaction_at,
+    duration_seconds: item.duration_seconds,
+    interaction_count: item.interaction_count,
     equipo_id: item.equipo_id,
     building_name: item.building_name,
     equipamento_nombre: item.equipamento_nombre,

@@ -71,7 +71,13 @@ export interface AdminChecklistPhotoRef {
 export interface AdminChecklistResponseRow {
   id: string;
   client_submission_id: string | null;
+  user_created: string | null;
+  user_created_name: string | null;
   submitted_at: string | null;
+  form_started_at: string | null;
+  first_interaction_at: string | null;
+  duration_seconds: number | null;
+  interaction_count: number | null;
   equipo_id: string | null;
   building_name: string | null;
   equipamento_nombre: string | null;

@@ -125,6 +125,30 @@ export default function AdminChecklistResponseDetailPage() {
         <MetricCard label="Fotos" value={response.total_photos ?? 0} />
       </section>
 
+      <section className="grid grid-cols-3 gap-3 rounded-[24px] border border-slate-900/10 bg-white/85 p-[18px] shadow-[0_20px_60px_rgba(12,23,32,0.08)] max-[980px]:grid-cols-2 max-[640px]:grid-cols-1">
+        <InfoItem label="Llenado por" value={response.user_created_name ?? '-'} />
+        <InfoItem
+          label="Inicio"
+          value={formatDateTime(response.form_started_at)}
+        />
+        <InfoItem
+          label="Primera interaccion"
+          value={formatDateTime(response.first_interaction_at)}
+        />
+        <InfoItem
+          label="Termino"
+          value={formatDateTime(response.submitted_at)}
+        />
+        <InfoItem
+          label="Duracion"
+          value={formatDuration(response.duration_seconds)}
+        />
+        <InfoItem
+          label="Interacciones"
+          value={String(response.interaction_count ?? '-')}
+        />
+      </section>
+
       {response.generalPhotos.length > 0 ? (
         <section className="rounded-[24px] border border-emerald-900/10 bg-white/85 p-[18px] shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
           <div className="mb-4">
@@ -213,6 +237,29 @@ function DetailHeader({ response }: DetailHeaderProps) {
       </p>
     </section>
   );
+}
+
+function InfoItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-900/10 bg-[#f8fbfa] px-4 py-3">
+      <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </span>
+      <strong className="mt-1 block break-words text-sm text-[#0c1720]">
+        {value}
+      </strong>
+    </div>
+  );
+}
+
+function formatDuration(value: number | null): string {
+  if (!value) return '-';
+
+  const minutes = Math.floor(value / 60);
+  const seconds = value % 60;
+
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m ${seconds}s`;
 }
 
 interface MetricCardProps {
