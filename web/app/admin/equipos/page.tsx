@@ -39,9 +39,10 @@ export default function AdminEquipmentsPage() {
     : equipments.equipmentTypes;
 
   // Dynamically filter equipment types to only those present in the selected property
-  if (equipments.availableEquipmentTypeIds) {
+  const availableIds = equipments.availableEquipmentTypeIds;
+  if (availableIds) {
     filteredEquipmentTypes = filteredEquipmentTypes.filter(item =>
-      equipments.availableEquipmentTypeIds.includes(item.id),
+      availableIds.includes(item.id),
     );
   }
 
