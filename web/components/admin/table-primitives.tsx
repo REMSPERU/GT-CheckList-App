@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 export const TABLE_CLASS = 'w-full min-w-[860px] border-collapse';
 export const TH_CLASS =
-  'border-b border-slate-100 bg-slate-50 px-[18px] py-3.5 text-left align-top text-xs uppercase tracking-[0.08em] text-slate-500';
+  'sticky top-0 z-10 border-b border-slate-100 bg-slate-50 px-[18px] py-3.5 text-left align-top text-xs uppercase tracking-[0.08em] text-slate-500';
 export const TD_CLASS =
   'border-b border-slate-100 px-[18px] py-3.5 text-left align-top text-[0.92rem] text-[#0c1720]';
 
@@ -29,5 +29,9 @@ interface ResponsiveTableProps {
 }
 
 export function ResponsiveTable({ children }: ResponsiveTableProps) {
-  return <div className="overflow-x-auto">{children}</div>;
+  return (
+    <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-250px)] min-h-[300px] max-[980px]:max-h-[500px]">
+      {children}
+    </div>
+  );
 }

@@ -16,7 +16,7 @@ export function AdminTableShell({
       className={`overflow-hidden rounded-[22px] border bg-white/80 shadow-[0_20px_60px_rgba(12,23,32,0.08)] ${
         accent ? 'border-emerald-800/25' : 'border-slate-900/10'
       }`}>
-      <div className="border-b border-slate-300 px-[18px] py-4 font-bold text-slate-500">
+      <div className="border-b border-slate-200 bg-slate-50/40 px-4 py-2 text-[0.72rem] font-bold uppercase tracking-wider text-slate-500">
         {summary}
       </div>
       {children}

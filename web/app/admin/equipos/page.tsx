@@ -5,6 +5,7 @@ import { EquipmentTable } from '@/components/admin/equipment-table';
 import { Alert } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { SelectField } from '@/components/ui/select-field';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useAdminEquipments } from '@/hooks/admin/use-admin-equipments';
 
 const STATUS_OPTIONS = [
@@ -53,11 +54,11 @@ export default function AdminEquipmentsPage() {
           value={equipments.search}
           onChange={equipments.setSearch}
         />
-        <SelectField
+        <SearchableSelect
           value={equipments.propertyId}
           options={propertyOptions}
           onChange={equipments.handlePropertyChange}
-          ariaLabel="Filtrar por inmueble"
+          placeholder="Todos los inmuebles"
         />
         <SelectField
           value={equipments.systemId}
