@@ -31,6 +31,15 @@ export function AdminShell({ children }: AdminShellProps) {
     );
   }
 
+  const getSectionTitle = () => {
+    if (pathname === '/admin') return 'Dashboard';
+    if (pathname.startsWith('/admin/equipos')) return 'Inventario · Equipos';
+    if (pathname.startsWith('/admin/inmuebles')) return 'Inventario · Inmuebles';
+    if (pathname.startsWith('/admin/mantenimientos')) return 'Operaciones · Mantenimientos';
+    if (pathname.startsWith('/admin/checklist')) return 'Monitoreo · Checklist';
+    return null;
+  };
+
   return (
     <div className="grid min-h-screen grid-cols-[260px_minmax(0,1fr)] bg-[radial-gradient(circle_at_15%_0%,rgba(8,145,178,0.16),transparent_28%),linear-gradient(135deg,#edf5f3_0%,#f7f4ea_100%)] max-[980px]:grid-cols-1">
       <aside className="sticky top-0 h-screen border-r border-white/10 bg-gradient-to-b from-[#082f2a] to-[#0b1f28] px-[18px] py-6 text-emerald-50 max-[980px]:static max-[980px]:h-auto">
@@ -68,8 +77,14 @@ export function AdminShell({ children }: AdminShellProps) {
             <span className="inline-block text-[0.68rem] font-black uppercase tracking-[0.16em] text-emerald-800">
               Panel web
             </span>
-            <h1 className="m-0 text-lg text-[#0c1720] tracking-[-0.03em]">
-              Administracion operativa
+            <h1 className="m-0 text-lg text-[#0c1720] tracking-[-0.03em] flex items-center gap-2 max-[480px]:flex-wrap">
+              <span className="text-slate-600 font-normal">Administracion operativa</span>
+              {getSectionTitle() && (
+                <>
+                  <span className="text-slate-300 font-light">/</span>
+                  <span className="text-emerald-800 font-semibold">{getSectionTitle()}</span>
+                </>
+              )}
             </h1>
           </div>
           <div className="flex items-center gap-3 text-sm text-slate-500 max-[640px]:flex-col max-[640px]:items-stretch">

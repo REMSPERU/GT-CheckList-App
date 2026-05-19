@@ -1,6 +1,5 @@
 'use client';
 
-import { AdminPageHeader } from '@/components/admin/admin-page-header';
 import { AdminPagination } from '@/components/admin/admin-pagination';
 import { EquipmentTable } from '@/components/admin/equipment-table';
 import { Alert } from '@/components/ui/alert';
@@ -47,13 +46,7 @@ export default function AdminEquipmentsPage() {
   ];
 
   return (
-    <main className="grid gap-4 px-8 pb-8 pt-5 max-[640px]:px-[14px]">
-      <AdminPageHeader
-        eyebrow="Inventario"
-        title="Equipos"
-        description="Consulta y administra los equipos registrados por inmueble, sistema, tipo y estado."
-        compact
-      />
+    <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
       <section className="grid grid-cols-[1.2fr_1fr_1fr_1.2fr_0.8fr] gap-2.5 max-[1200px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1">
         <SearchInput
           placeholder="Buscar codigo o ubicacion"
