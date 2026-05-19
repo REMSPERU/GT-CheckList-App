@@ -21,6 +21,9 @@ export function useAdminEquipments() {
   const [propertyId, setPropertyId] = useState('');
   const [systemId, setSystemId] = useState('');
   const [equipmentTypeId, setEquipmentTypeId] = useState('');
+  const [availableEquipmentTypeIds, setAvailableEquipmentTypeIds] = useState<
+    string[] | null
+  >(null);
   const [properties, setProperties] = useState<AdminPropertyRow[]>([]);
   const [systems, setSystems] = useState<{ id: string; nombre: string }[]>([]);
   const [equipmentTypes, setEquipmentTypes] = useState<AdminEquipmentTypeRow[]>(
@@ -113,6 +116,55 @@ export function useAdminEquipments() {
     [total],
   );
 
+  // Load unique equipment types present in the selected property
+  useEffect(() => {
+    let isMounted = true;
+    async function loadAvailableTypes() {
+      if (!propertyId) {
+        if (isMounted) setAvailableEquipmentTypeIds(null);
+        return;
+      }
+      try {
+        const supabase = getSupabaseClient();
+        const { data } = await supabase
+          .from('equipos')
+          .select('id_equipamento')
+          .eq('id_property', propertyId);
+
+        if (isMounted && data) {
+          const ids = Array.from(
+            new Set(
+              data
+                .map(item => item.id_equipamento)
+                .filter((id): id is string => !!id),
+            ),
+          );
+          setAvailableEquipmentTypeIds(ids);
+        }
+      } catch (error) {
+        console.error(
+          'Error loading available equipment types for property:',
+          error,
+        );
+      }
+    }
+    void loadAvailableTypes();
+    return () => {
+      isMounted = false;
+    };
+  }, [propertyId]);
+
+  // Reset selected equipment type if it is no longer available in the newly filtered set
+  useEffect(() => {
+    if (
+      availableEquipmentTypeIds &&
+      equipmentTypeId &&
+      !availableEquipmentTypeIds.includes(equipmentTypeId)
+    ) {
+      setEquipmentTypeId('');
+    }
+  }, [availableEquipmentTypeIds, equipmentTypeId]);
+
   function handleStatusChange(nextStatus: string) {
     setStatus(nextStatus);
     setPage(1);
@@ -146,6 +198,7 @@ export function useAdminEquipments() {
     handleSystemChange,
     equipmentTypeId,
     handleEquipmentTypeChange,
+    availableEquipmentTypeIds,
     properties,
     systems,
     equipmentTypes,

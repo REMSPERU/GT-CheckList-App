@@ -34,9 +34,16 @@ export default function AdminEquipmentsPage() {
   ];
 
   // Dynamically filter equipment types if a system is selected
-  const filteredEquipmentTypes = equipments.systemId
+  let filteredEquipmentTypes = equipments.systemId
     ? equipments.equipmentTypes.filter(item => item.systemId === equipments.systemId)
     : equipments.equipmentTypes;
+
+  // Dynamically filter equipment types to only those present in the selected property
+  if (equipments.availableEquipmentTypeIds) {
+    filteredEquipmentTypes = filteredEquipmentTypes.filter(item =>
+      equipments.availableEquipmentTypeIds.includes(item.id),
+    );
+  }
 
   const equipmentTypeOptions = [
     { value: '', label: 'Todos los tipos de equipo' },
