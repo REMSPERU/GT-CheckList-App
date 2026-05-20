@@ -37,33 +37,6 @@ export default function AdminChecklistPage() {
 
   return (
     <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
-
-      <section className="grid gap-3 rounded-[22px] border border-slate-900/10 bg-white/80 p-[18px] shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
-        <div className="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[640px]:grid-cols-1">
-          <MetricCard
-            label="Respuestas"
-            value={checklist.checklistMetrics.responseTotal}
-            note="Checklist sincronizados"
-          />
-          <MetricCard
-            label="Con observaciones"
-            value={checklist.checklistMetrics.observedResponses}
-            note="En esta página"
-            tone="warning"
-          />
-          <MetricCard
-            label="Fotos"
-            value={checklist.checklistMetrics.totalPhotos}
-            note="Evidencias en esta página"
-          />
-          <MetricCard
-            label="Preguntas activas"
-            value={checklist.checklistMetrics.activeQuestions}
-            note={`${checklist.checklistMetrics.inactiveQuestions} inactivas`}
-          />
-        </div>
-      </section>
-
       <Alert>{checklist.errorMessage}</Alert>
       <Alert variant="success">{checklist.successMessage}</Alert>
 
@@ -147,32 +120,6 @@ export default function AdminChecklistPage() {
         </section>
       )}
     </main>
-  );
-}
-
-interface MetricCardProps {
-  label: string;
-  value: number;
-  note: string;
-  tone?: 'default' | 'warning';
-}
-
-function MetricCard({ label, value, note, tone = 'default' }: MetricCardProps) {
-  return (
-    <article
-      className={`rounded-2xl border px-4 py-3.5 ${
-        tone === 'warning'
-          ? 'border-amber-200 bg-amber-50 text-amber-950'
-          : 'border-emerald-900/10 bg-[#f7fbf7] text-[#0c1720]'
-      }`}>
-      <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-        {label}
-      </span>
-      <strong className="mt-1 block text-3xl tracking-[-0.04em]">
-        {value}
-      </strong>
-      <small className="mt-1 block font-semibold text-slate-500">{note}</small>
-    </article>
   );
 }
 

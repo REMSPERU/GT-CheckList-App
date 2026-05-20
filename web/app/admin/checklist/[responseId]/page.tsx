@@ -108,45 +108,72 @@ export default function AdminChecklistResponseDetailPage() {
       <DetailHeader response={response} />
       <Alert>{errorMessage}</Alert>
 
-      <section className="grid grid-cols-5 gap-3 max-[1180px]:grid-cols-3 max-[760px]:grid-cols-2 max-[520px]:grid-cols-1">
-        <MetricCard
-          label="Puntaje"
-          value={formatWeight(weightedScore.earned)}
-          note={`de ${formatWeight(weightedScore.total)} (${formatWeight(weightedScore.percent)}%)`}
-          tone={weightedScore.percent < 80 ? 'warning' : 'default'}
-        />
-        <MetricCard label="Preguntas" value={response.total_questions ?? 0} />
-        <MetricCard label="Conformes" value={response.total_ok ?? 0} />
-        <MetricCard
-          label="Observadas"
-          value={response.total_observed ?? 0}
-          tone="warning"
-        />
-        <MetricCard label="Fotos" value={response.total_photos ?? 0} />
-      </section>
+      <section className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-3">
+        {/* Columna 1: Operatividad y Métricas rápidas */}
+        <div className="flex flex-col gap-2 md:col-span-1 md:border-r md:border-slate-100 md:pr-4 last:border-0 max-[768px]:border-b max-[768px]:pb-4 max-[768px]:pr-0">
+          <span className="text-xs font-black uppercase tracking-wider text-emerald-800">
+            Operatividad
+          </span>
+          <div className="flex items-baseline gap-2">
+            <span className={`text-4xl font-extrabold tracking-tight ${weightedScore.percent < 80 ? 'text-amber-600' : 'text-emerald-800'}`}>
+              {formatWeight(weightedScore.percent)}%
+            </span>
+            <span className="text-xs font-semibold text-slate-500">
+              ({formatWeight(weightedScore.earned)} de {formatWeight(weightedScore.total)} ítems)
+            </span>
+          </div>
+          <div className="grid grid-cols-4 gap-2 pt-1 text-center">
+            <div className="rounded-lg bg-slate-50 py-1 px-0.5">
+              <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-500">Preg.</span>
+              <strong className="text-xs text-slate-800">{response.total_questions ?? 0}</strong>
+            </div>
+            <div className="rounded-lg bg-emerald-50 py-1 px-0.5 text-emerald-950">
+              <span className="block text-[9px] font-bold uppercase tracking-wider text-emerald-700">Conf.</span>
+              <strong className="text-xs text-emerald-800">{response.total_ok ?? 0}</strong>
+            </div>
+            <div className="rounded-lg bg-amber-50 py-1 px-0.5 text-amber-950">
+              <span className="block text-[9px] font-bold uppercase tracking-wider text-amber-700">Obs.</span>
+              <strong className="text-xs text-amber-700">{response.total_observed ?? 0}</strong>
+            </div>
+            <div className="rounded-lg bg-slate-50 py-1 px-0.5">
+              <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-500">Fotos</span>
+              <strong className="text-xs text-slate-800">{response.total_photos ?? 0}</strong>
+            </div>
+          </div>
+        </div>
 
-      <section className="grid grid-cols-3 gap-3 rounded-[24px] border border-slate-900/10 bg-white/85 p-[18px] shadow-[0_20px_60px_rgba(12,23,32,0.08)] max-[980px]:grid-cols-2 max-[640px]:grid-cols-1">
-        <InfoItem label="Llenado por" value={response.user_created_name ?? '-'} />
-        <InfoItem
-          label="Inicio"
-          value={formatDateTime(response.form_started_at)}
-        />
-        <InfoItem
-          label="Primera interaccion"
-          value={formatDateTime(response.first_interaction_at)}
-        />
-        <InfoItem
-          label="Termino"
-          value={formatDateTime(response.submitted_at)}
-        />
-        <InfoItem
-          label="Duracion"
-          value={formatDuration(response.duration_seconds)}
-        />
-        <InfoItem
-          label="Interacciones"
-          value={String(response.interaction_count ?? '-')}
-        />
+        {/* Columna 2 & 3: Detalles de Llenado */}
+        <div className="grid gap-2 md:col-span-2">
+          <span className="text-xs font-black uppercase tracking-wider text-emerald-800">
+            Información del Registro
+          </span>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+            <div className="flex flex-col">
+              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Llenado por</span>
+              <span className="font-semibold text-[#0c1720] truncate" title={response.user_created_name ?? '-'}>
+                {response.user_created_name ?? '-'}
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Duración / Interacciones</span>
+              <span className="font-semibold text-[#0c1720]">
+                {formatDuration(response.duration_seconds)} ({response.interaction_count ?? 0} clics)
+              </span>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Inicio</span>
+              <span className="font-semibold text-slate-700">{formatDateTime(response.form_started_at)}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Término</span>
+              <span className="font-semibold text-slate-700">{formatDateTime(response.submitted_at)}</span>
+            </div>
+            <div className="flex flex-col col-span-2">
+              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Primera interacción</span>
+              <span className="font-semibold text-slate-700">{formatDateTime(response.first_interaction_at)}</span>
+            </div>
+          </div>
+        </div>
       </section>
 
       {response.generalPhotos.length > 0 ? (
@@ -218,37 +245,27 @@ interface DetailHeaderProps {
 
 function DetailHeader({ response }: DetailHeaderProps) {
   return (
-    <section className="rounded-3xl border border-slate-900/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.9),rgba(236,253,245,0.72)),radial-gradient(circle_at_78%_18%,rgba(245,158,11,0.18),transparent_28%)] p-[26px] shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
       <Link
-        className="mb-5 inline-flex rounded-full bg-white/80 px-3 py-2 text-sm font-bold text-emerald-900 no-underline hover:bg-emerald-50"
+        className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3.5 py-2 text-sm font-bold text-[#0c1720] no-underline hover:bg-slate-200 transition-colors"
         href="/admin/checklist">
-        Volver a checklist
+        ← Volver a checklist
       </Link>
-      <span className="mb-1.5 block text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
-        Auditoria formal
-      </span>
-      <h1 className="m-0 text-[clamp(2rem,4vw,4.2rem)] font-bold tracking-[-0.04em] text-[#0c1720]">
-        {response?.equipo_codigo ?? 'Detalle de checklist'}
-      </h1>
-      <p className="max-w-[820px] text-base text-slate-600">
-        {response
-          ? `${response.building_name ?? 'Sin inmueble'} · ${response.equipamento_nombre ?? 'Sin equipo'} · ${formatDateTime(response.submitted_at)}`
-          : 'Vista dedicada para revisar respuestas, observaciones y evidencia fotografica.'}
-      </p>
-    </section>
-  );
-}
-
-function InfoItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-900/10 bg-[#f8fbfa] px-4 py-3">
-      <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-        {label}
-      </span>
-      <strong className="mt-1 block break-words text-sm text-[#0c1720]">
-        {value}
-      </strong>
-    </div>
+      {response ? (
+        <div className="text-right max-[640px]:text-left">
+          <span className="block text-sm font-black text-[#0c1720]">
+            {response.equipo_codigo}
+          </span>
+          <span className="block text-xs font-semibold text-slate-500">
+            {response.building_name} · {response.equipamento_nombre} · {formatDateTime(response.submitted_at)}
+          </span>
+        </div>
+      ) : (
+        <span className="text-xs font-semibold text-slate-400">
+          Cargando...
+        </span>
+      )}
+    </header>
   );
 }
 
@@ -260,36 +277,6 @@ function formatDuration(value: number | null): string {
 
   if (minutes === 0) return `${seconds}s`;
   return `${minutes}m ${seconds}s`;
-}
-
-interface MetricCardProps {
-  label: string;
-  value: number | string;
-  note?: string;
-  tone?: 'default' | 'warning';
-}
-
-function MetricCard({ label, value, note, tone = 'default' }: MetricCardProps) {
-  return (
-    <article
-      className={`rounded-2xl border px-4 py-3.5 shadow-[0_12px_34px_rgba(12,23,32,0.06)] ${
-        tone === 'warning'
-          ? 'border-amber-200 bg-amber-50 text-amber-950'
-          : 'border-emerald-900/10 bg-white/85 text-[#0c1720]'
-      }`}>
-      <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
-        {label}
-      </span>
-      <strong className="mt-1 block text-3xl tracking-[-0.04em]">
-        {value}
-      </strong>
-      {note ? (
-        <small className="mt-1 block font-semibold text-slate-500">
-          {note}
-        </small>
-      ) : null}
-    </article>
-  );
 }
 
 interface FilterButtonProps {
