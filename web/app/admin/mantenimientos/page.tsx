@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { MaintenancesTable } from '@/components/admin/maintenances-table';
 import { Alert } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
@@ -16,7 +17,7 @@ const STATUS_OPTIONS = [
   { value: 'CANCELADO', label: 'Cancelado' },
 ];
 
-export default function AdminMaintenancesPage() {
+function AdminMaintenancesContent() {
   const maintenances = useAdminMaintenances();
 
   const propertyOptions = [
@@ -113,5 +114,18 @@ export default function AdminMaintenancesPage() {
         isLoading={maintenances.isLoading}
       />
     </main>
+  );
+}
+
+export default function AdminMaintenancesPage() {
+  return (
+    <Suspense fallback={
+      <div className="grid min-h-[400px] place-items-center gap-3">
+        <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
+        <p className="text-sm text-slate-500 font-medium">Cargando mantenimientos...</p>
+      </div>
+    }>
+      <AdminMaintenancesContent />
+    </Suspense>
   );
 }

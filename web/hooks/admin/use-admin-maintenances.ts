@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import { listAdminEquipmentTypes } from '@/services/admin/equipment-types.service';
@@ -14,6 +16,23 @@ import { normalizeSearchText } from '@/utils/search';
 import { useDebouncedValue } from './use-debounced-value';
 
 export function useAdminMaintenances() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Helper to update URL params
+  const updateUrlParams = (updates: Record<string, string | number | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === '' || value === undefined) {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   const [items, setItems] = useState<AdminMaintenanceSessionRow[]>([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('TODOS');
@@ -29,6 +48,35 @@ export function useAdminMaintenances() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const debouncedSearch = useDebouncedValue(search, 250);
+
+  // Synchronize URL search params to React state (handles back/forward navigation)
+  useEffect(() => {
+    const searchVal = searchParams.get('search') || '';
+    if (searchVal !== search) setSearch(searchVal);
+
+    const statusVal = searchParams.get('status') || 'TODOS';
+    if (statusVal !== status) setStatus(statusVal);
+
+    const propertyVal = searchParams.get('property') || '';
+    if (propertyVal !== propertyId) setPropertyId(propertyVal);
+
+    const eqTypeVal = searchParams.get('eqType') || '';
+    if (eqTypeVal !== equipmentTypeId) setEquipmentTypeId(eqTypeVal);
+
+    const startVal = searchParams.get('start') || '';
+    if (startVal !== startDate) setStartDate(startVal);
+
+    const endVal = searchParams.get('end') || '';
+    if (endVal !== endDate) setEndDate(endVal);
+  }, [searchParams]);
+
+  // Synchronize debounced search text back to URL
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || '';
+    if (debouncedSearch !== urlSearch) {
+      updateUrlParams({ search: debouncedSearch });
+    }
+  }, [debouncedSearch]);
 
   // Load filter options once on mount
   useEffect(() => {
@@ -125,23 +173,60 @@ export function useAdminMaintenances() {
     setEndDate('');
   };
 
+  const handleStatusChange = (nextStatus: string) => {
+    setStatus(nextStatus);
+    updateUrlParams({ status: nextStatus });
+  };
+
+  const handlePropertyChange = (nextPropertyId: string) => {
+    setPropertyId(nextPropertyId);
+    updateUrlParams({ property: nextPropertyId });
+  };
+
+  const handleEquipmentTypeChange = (nextEquipmentTypeId: string) => {
+    setEquipmentTypeId(nextEquipmentTypeId);
+    updateUrlParams({ eqType: nextEquipmentTypeId });
+  };
+
+  const handleStartDateChange = (nextStartDate: string) => {
+    setStartDate(nextStartDate);
+    updateUrlParams({ start: nextStartDate });
+  };
+
+  const handleEndDateChange = (nextEndDate: string) => {
+    setEndDate(nextEndDate);
+    updateUrlParams({ end: nextEndDate });
+  };
+
+  const handleClearFilters = () => {
+    clearFilters();
+    updateUrlParams({
+      search: '',
+      status: 'TODOS',
+      property: '',
+      eqType: '',
+      start: '',
+      end: '',
+    });
+  };
+
   return {
     filteredItems,
     search,
     setSearch,
     status,
-    setStatus,
+    setStatus: handleStatusChange,
     propertyId,
-    setPropertyId,
+    setPropertyId: handlePropertyChange,
     equipmentTypeId,
-    setEquipmentTypeId,
+    setEquipmentTypeId: handleEquipmentTypeChange,
     startDate,
-    setStartDate,
+    setStartDate: handleStartDateChange,
     endDate,
-    setEndDate,
+    setEndDate: handleEndDateChange,
     properties,
     equipmentTypes,
-    clearFilters,
+    clearFilters: handleClearFilters,
     isLoading,
     errorMessage,
   };

@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { AdminPagination } from '@/components/admin/admin-pagination';
 import { EquipmentTable } from '@/components/admin/equipment-table';
 import { Alert } from '@/components/ui/alert';
@@ -14,7 +15,7 @@ const STATUS_OPTIONS = [
   { value: 'INACTIVO', label: 'Inactivo' },
 ];
 
-export default function AdminEquipmentsPage() {
+function AdminEquipmentsContent() {
   const equipments = useAdminEquipments();
 
   const propertyOptions = [
@@ -104,5 +105,18 @@ export default function AdminEquipmentsPage() {
         }
       />
     </main>
+  );
+}
+
+export default function AdminEquipmentsPage() {
+  return (
+    <Suspense fallback={
+      <div className="grid min-h-[400px] place-items-center gap-3">
+        <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
+        <p className="text-sm text-slate-500 font-medium">Cargando equipos...</p>
+      </div>
+    }>
+      <AdminEquipmentsContent />
+    </Suspense>
   );
 }

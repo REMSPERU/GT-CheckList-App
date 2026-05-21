@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+
 
 import { AdminPagination } from '@/components/admin/admin-pagination';
 import { ChecklistQuestionGroups } from '@/components/admin/checklist-question-groups';
@@ -66,9 +68,18 @@ function formatDateTime(value: string | null) {
   }).format(new Date(value));
 }
 
-export default function AdminChecklistPage() {
+function AdminChecklistContent() {
   const checklist = useAdminChecklist();
-  const [activeTab, setActiveTab] = useState<ChecklistTab>('responses');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const activeTab = (searchParams.get('tab') as ChecklistTab) || 'responses';
+  const setActiveTab = (tab: ChecklistTab) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', tab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
   const equipmentOptions = [
     { value: '', label: 'Todos los equipos' },
     ...checklist.equipmentTypes.map(item => ({
@@ -660,5 +671,18 @@ function TabButton({ active, children, onClick }: TabButtonProps) {
       aria-pressed={active}>
       {children}
     </button>
+  );
+}
+
+export default function AdminChecklistPage() {
+  return (
+    <Suspense fallback={
+      <div className="grid min-h-[400px] place-items-center gap-3">
+        <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
+        <p className="text-sm text-slate-500 font-medium">Cargando checklist...</p>
+      </div>
+    }>
+      <AdminChecklistContent />
+    </Suspense>
   );
 }

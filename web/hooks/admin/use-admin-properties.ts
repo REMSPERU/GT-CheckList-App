@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+
+import { useDebouncedValue } from './use-debounced-value';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import { listAdminProperties } from '@/services/admin/properties.service';
@@ -6,10 +9,42 @@ import type { AdminPropertyRow } from '@/types/admin';
 import { normalizeSearchText } from '@/utils/search';
 
 export function useAdminProperties() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Helper to update URL params
+  const updateUrlParams = (updates: Record<string, string | number | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === '' || value === undefined) {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   const [items, setItems] = useState<AdminPropertyRow[]>([]);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const debouncedSearch = useDebouncedValue(search, 250);
+
+  // Synchronize URL search params to React state (handles back/forward navigation)
+  useEffect(() => {
+    const searchVal = searchParams.get('search') || '';
+    if (searchVal !== search) setSearch(searchVal);
+  }, [searchParams]);
+
+  // Synchronize debounced search text back to URL
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || '';
+    if (debouncedSearch !== urlSearch) {
+      updateUrlParams({ search: debouncedSearch });
+    }
+  }, [debouncedSearch]);
 
   useEffect(() => {
     let isMounted = true;

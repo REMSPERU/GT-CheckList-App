@@ -1,10 +1,8 @@
-import type { Dispatch, SetStateAction } from 'react';
-
 interface AdminPaginationProps {
   page: number;
   totalPages: number;
   isLoading: boolean;
-  setPage: Dispatch<SetStateAction<number>>;
+  setPage: (page: number) => void;
 }
 
 export function AdminPagination({
@@ -19,7 +17,7 @@ export function AdminPagination({
         className="m-0 h-8 rounded-lg border border-slate-200 bg-white px-3 font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
         type="button"
         disabled={page <= 1 || isLoading}
-        onClick={() => setPage(current => Math.max(1, current - 1))}>
+        onClick={() => setPage(Math.max(1, page - 1))}>
         Anterior
       </button>
       <span className="px-2 text-[0.82rem] font-semibold text-slate-600">
@@ -29,7 +27,7 @@ export function AdminPagination({
         className="m-0 h-8 rounded-lg border border-slate-200 bg-white px-3 font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
         type="button"
         disabled={page >= totalPages || isLoading}
-        onClick={() => setPage(current => Math.min(totalPages, current + 1))}>
+        onClick={() => setPage(Math.min(totalPages, page + 1))}>
         Siguiente
       </button>
     </div>

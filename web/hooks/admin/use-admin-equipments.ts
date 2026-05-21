@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import { listAdminEquipmentTypes } from '@/services/admin/equipment-types.service';
@@ -15,6 +17,23 @@ import { useDebouncedValue } from './use-debounced-value';
 const PAGE_SIZE = 50;
 
 export function useAdminEquipments() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Helper to update URL params
+  const updateUrlParams = (updates: Record<string, string | number | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === '' || value === undefined) {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   const [items, setItems] = useState<AdminEquipmentRow[]>([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('TODOS');
@@ -34,6 +53,35 @@ export function useAdminEquipments() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search, 250);
+
+  // Synchronize URL search params to React state (handles back/forward navigation)
+  useEffect(() => {
+    const searchVal = searchParams.get('search') || '';
+    if (searchVal !== search) setSearch(searchVal);
+
+    const statusVal = searchParams.get('status') || 'TODOS';
+    if (statusVal !== status) setStatus(statusVal);
+
+    const propertyVal = searchParams.get('property') || '';
+    if (propertyVal !== propertyId) setPropertyId(propertyVal);
+
+    const systemVal = searchParams.get('system') || '';
+    if (systemVal !== systemId) setSystemId(systemVal);
+
+    const eqTypeVal = searchParams.get('eqType') || '';
+    if (eqTypeVal !== equipmentTypeId) setEquipmentTypeId(eqTypeVal);
+
+    const pageVal = Number(searchParams.get('page') || '1');
+    if (pageVal !== page) setPage(pageVal);
+  }, [searchParams]);
+
+  // Synchronize debounced search text back to URL
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || '';
+    if (debouncedSearch !== urlSearch) {
+      updateUrlParams({ search: debouncedSearch, page: 1 });
+    }
+  }, [debouncedSearch]);
 
   // Load filter options (properties, systems and equipment types) once on mount
   useEffect(() => {
@@ -168,22 +216,26 @@ export function useAdminEquipments() {
   function handleStatusChange(nextStatus: string) {
     setStatus(nextStatus);
     setPage(1);
+    updateUrlParams({ status: nextStatus, page: 1 });
   }
 
   function handlePropertyChange(nextPropertyId: string) {
     setPropertyId(nextPropertyId);
     setPage(1);
+    updateUrlParams({ property: nextPropertyId, page: 1 });
   }
 
   function handleSystemChange(nextSystemId: string) {
     setSystemId(nextSystemId);
     setEquipmentTypeId(''); // Reset equipment type when system changes
     setPage(1);
+    updateUrlParams({ system: nextSystemId, eqType: '', page: 1 });
   }
 
   function handleEquipmentTypeChange(nextEquipmentTypeId: string) {
     setEquipmentTypeId(nextEquipmentTypeId);
     setPage(1);
+    updateUrlParams({ eqType: nextEquipmentTypeId, page: 1 });
   }
 
   return {
@@ -203,7 +255,10 @@ export function useAdminEquipments() {
     systems,
     equipmentTypes,
     page,
-    setPage,
+    setPage: (nextPage: number) => {
+      setPage(nextPage);
+      updateUrlParams({ page: nextPage });
+    },
     total,
     totalPages,
     isLoading,

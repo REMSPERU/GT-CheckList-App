@@ -1,11 +1,12 @@
 'use client';
 
+import { Suspense } from 'react';
 import { PropertiesTable } from '@/components/admin/properties-table';
 import { Alert } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { useAdminProperties } from '@/hooks/admin/use-admin-properties';
 
-export default function AdminPropertiesPage() {
+function AdminPropertiesContent() {
   const properties = useAdminProperties();
 
   return (
@@ -23,5 +24,18 @@ export default function AdminPropertiesPage() {
         isLoading={properties.isLoading}
       />
     </main>
+  );
+}
+
+export default function AdminPropertiesPage() {
+  return (
+    <Suspense fallback={
+      <div className="grid min-h-[400px] place-items-center gap-3">
+        <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
+        <p className="text-sm text-slate-500 font-medium">Cargando inmuebles...</p>
+      </div>
+    }>
+      <AdminPropertiesContent />
+    </Suspense>
   );
 }

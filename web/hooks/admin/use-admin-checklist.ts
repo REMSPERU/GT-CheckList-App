@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import {
@@ -39,6 +40,23 @@ export interface QuestionGroup {
 }
 
 export function useAdminChecklist() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Helper to update URL params
+  const updateUrlParams = (updates: Record<string, string | number | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === '' || value === undefined) {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   const [properties, setProperties] = useState<AdminPropertyRow[]>([]);
   const [equipmentTypes, setEquipmentTypes] = useState<AdminEquipmentTypeRow[]>(
     [],
@@ -94,6 +112,52 @@ export function useAdminChecklist() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const deferredResponseSearch = useDeferredValue(responseSearch);
+
+  // Synchronize URL search params to React state (handles back/forward navigation)
+  useEffect(() => {
+    const eqType = searchParams.get('eqType') || '';
+    if (eqType !== selectedEquipmentType) {
+      setSelectedEquipmentType(eqType);
+    }
+
+    const pageVal = Number(searchParams.get('page') || '1');
+    if (pageVal !== responsePage) {
+      setResponsePage(pageVal);
+    }
+
+    const searchVal = searchParams.get('search') || '';
+    if (searchVal !== responseSearch) {
+      setResponseSearch(searchVal);
+    }
+
+    const buildingVal = searchParams.get('building') || '';
+    if (buildingVal !== selectedBuildingName) {
+      setSelectedBuildingName(buildingVal);
+    }
+
+    const reviewStatusVal = (searchParams.get('status') as ChecklistReviewStatus) || 'all';
+    if (reviewStatusVal !== responseReviewStatus) {
+      setResponseReviewStatus(reviewStatusVal);
+    }
+
+    const schedPropVal = searchParams.get('schedProp') || '';
+    if (schedPropVal !== selectedScheduleProperty) {
+      setSelectedScheduleProperty(schedPropVal);
+    }
+
+    const schedEqTypeVal = searchParams.get('schedEqType') || '';
+    if (schedEqTypeVal !== selectedScheduleEquipmentType) {
+      setSelectedScheduleEquipmentType(schedEqTypeVal);
+    }
+  }, [searchParams]);
+
+  // Synchronize debounced search text back to URL
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || '';
+    if (deferredResponseSearch !== urlSearch) {
+      updateUrlParams({ search: deferredResponseSearch, page: 1 });
+    }
+  }, [deferredResponseSearch]);
 
   useEffect(() => {
     let isMounted = true;
@@ -440,11 +504,13 @@ export function useAdminChecklist() {
     setResponsePage(1);
     setExpandedQuestionGroups({});
     setSuccessMessage(null);
+    updateUrlParams({ eqType: value, page: 1 });
   }
 
   function handleBuildingNameChange(value: string) {
     setSelectedBuildingName(value);
     setResponsePage(1);
+    updateUrlParams({ building: value, page: 1 });
   }
 
   function handleResponseSearchChange(value: string) {
@@ -455,12 +521,17 @@ export function useAdminChecklist() {
   function handleResponseReviewStatusChange(value: string) {
     setResponseReviewStatus(value as ChecklistReviewStatus);
     setResponsePage(1);
+    updateUrlParams({ status: value, page: 1 });
   }
 
   function handleSelectSchedule(schedule: AdminChecklistScheduleRow) {
     setSelectedScheduleProperty(schedule.property_id);
     setSelectedScheduleEquipmentType(schedule.equipamento_id);
     setSuccessMessage(null);
+    updateUrlParams({
+      schedProp: schedule.property_id,
+      schedEqType: schedule.equipamento_id,
+    });
   }
 
   function handleSchedulePropertyChange(value: string) {
@@ -469,6 +540,7 @@ export function useAdminChecklist() {
     setScheduleEquipments([]);
     setScheduleProgress(null);
     setSuccessMessage(null);
+    updateUrlParams({ schedProp: value, schedEqType: '' });
   }
 
   async function refreshSchedules() {
@@ -615,7 +687,10 @@ export function useAdminChecklist() {
     responseReviewStatus,
     handleResponseReviewStatusChange,
     responsePage,
-    setResponsePage,
+    setResponsePage: (newPage: number) => {
+      setResponsePage(newPage);
+      updateUrlParams({ page: newPage });
+    },
     responseTotal,
     responseTotalPages,
     checklistMetrics,
@@ -631,7 +706,10 @@ export function useAdminChecklist() {
     selectedScheduleProperty,
     handleSchedulePropertyChange,
     selectedScheduleEquipmentType,
-    setSelectedScheduleEquipmentType,
+    setSelectedScheduleEquipmentType: (value: string) => {
+      setSelectedScheduleEquipmentType(value);
+      updateUrlParams({ schedEqType: value });
+    },
     scheduleFrequency,
     setScheduleFrequency,
     scheduleOccurrencesPerDay,
