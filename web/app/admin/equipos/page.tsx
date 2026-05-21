@@ -50,7 +50,7 @@ export default function AdminEquipmentsPage() {
     { value: '', label: 'Todos los tipos de equipo' },
     ...filteredEquipmentTypes.map(item => ({
       value: item.id,
-      label: `${item.systemName} · ${item.nombre}`,
+      label: item.nombre,
     })),
   ];
 
@@ -74,11 +74,11 @@ export default function AdminEquipmentsPage() {
           onChange={equipments.handleSystemChange}
           ariaLabel="Filtrar por sistema"
         />
-        <SelectField
+        <SearchableSelect
           value={equipments.equipmentTypeId}
           options={equipmentTypeOptions}
           onChange={equipments.handleEquipmentTypeChange}
-          ariaLabel="Filtrar por tipo de equipo"
+          placeholder="Todos los tipos de equipo"
         />
         <SelectField
           value={equipments.status}

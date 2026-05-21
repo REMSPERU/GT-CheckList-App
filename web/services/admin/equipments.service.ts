@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type {
+  AdminEquipmentDetailRow,
   AdminEquipmentFilters,
   AdminEquipmentRow,
   AdminPaginatedResult,
@@ -12,6 +13,27 @@ import {
   type EquipmentQueryRow,
 } from './admin-query-helpers';
 import { listAdminEquipmentTypes } from './equipment-types.service';
+
+type AdminEquipmentRawRow = EquipmentQueryRow & {
+  equipment_detail?: unknown;
+  created_at?: string | null;
+  updated_at?: string | null;
+  created?: string | null;
+  updated?: string | null;
+  created_by?: string | null;
+  updated_by?: string | null;
+  [key: string]: unknown;
+};
+
+type AdminPropertyDetailRow = {
+  id?: string | null;
+  name?: string | null;
+  code?: string | null;
+  address?: string | null;
+  city?: string | null;
+  is_active?: boolean | null;
+  maintenance_priority?: string | null;
+};
 
 export async function listAdminEquipments(
   supabase: SupabaseClient,
@@ -55,7 +77,9 @@ export async function listAdminEquipments(
     const matchedIds = (matchedEquipamentos ?? []).map(item => item.id);
     query = query.in(
       'id_equipamento',
-      matchedIds.length > 0 ? matchedIds : ['00000000-0000-0000-0000-000000000000'],
+      matchedIds.length > 0
+        ? matchedIds
+        : ['00000000-0000-0000-0000-000000000000'],
     );
   }
 
@@ -108,5 +132,67 @@ export async function listAdminEquipments(
       };
     }),
     total: count ?? 0,
+  };
+}
+
+export async function getAdminEquipmentById(
+  supabase: SupabaseClient,
+  equipmentId: string,
+): Promise<AdminEquipmentDetailRow | null> {
+  const { data, error } = await supabase
+    .from('equipos')
+    .select('*')
+    .eq('id', equipmentId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const row = data as AdminEquipmentRawRow;
+  const [propertyResult, equipmentTypes] = await Promise.all([
+    row.id_property
+      ? supabase
+          .from('properties')
+          .select('*')
+          .eq('id', row.id_property)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    listAdminEquipmentTypes(supabase),
+  ]);
+
+  if (propertyResult.error) throw propertyResult.error;
+
+  const property = propertyResult.data as AdminPropertyDetailRow | null;
+  const equipmentType = row.id_equipamento
+    ? equipmentTypes.find(item => item.id === row.id_equipamento)
+    : null;
+
+  return {
+    id: row.id,
+    id_property: row.id_property,
+    id_equipamento: row.id_equipamento,
+    codigo: row.codigo,
+    ubicacion: row.ubicacion,
+    detalle_ubicacion: row.detalle_ubicacion,
+    estatus: row.estatus,
+    config: row.config,
+    equipment_detail: row.equipment_detail ?? null,
+    created_at: row.created_at ?? null,
+    updated_at: row.updated_at ?? null,
+    created: row.created ?? null,
+    updated: row.updated ?? null,
+    created_by: row.created_by ?? null,
+    updated_by: row.updated_by ?? null,
+    propertyName: property?.name ?? 'Sin inmueble',
+    propertyCode: property?.code ?? null,
+    propertyCity: property?.city ?? null,
+    propertyAddress: property?.address ?? null,
+    propertyPriority: property?.maintenance_priority ?? null,
+    propertyIsActive: property?.is_active ?? null,
+    equipmentName: equipmentType?.nombre ?? 'Sin tipo',
+    equipmentAbbreviation: equipmentType?.abreviatura ?? null,
+    equipmentFrequency: equipmentType?.frecuencia ?? null,
+    systemName: equipmentType?.systemName ?? null,
+    rawData: row,
   };
 }

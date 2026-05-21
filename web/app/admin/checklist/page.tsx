@@ -7,6 +7,7 @@ import { ChecklistQuestionGroups } from '@/components/admin/checklist-question-g
 import { ChecklistResponsesTable } from '@/components/admin/checklist-responses-table';
 import { Alert } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
+import { SearchableSelectField } from '@/components/ui/searchable-select-field';
 import { SelectField } from '@/components/ui/select-field';
 import { useAdminChecklist } from '@/hooks/admin/use-admin-checklist';
 import type {
@@ -82,19 +83,31 @@ export default function AdminChecklistPage() {
     ...checklist.responseFilterOptions.buildings,
   ];
   const propertyOptions = [
-    { value: '', label: 'Selecciona un inmueble' },
     ...checklist.properties.map(item => ({
       value: item.id,
       label: item.name,
     })),
   ];
   const scheduleEquipmentOptions = [
-    { value: '', label: 'Selecciona un tipo de equipo' },
-    ...checklist.equipmentTypes.map(item => ({
-      value: item.id,
-      label: `${item.systemName} · ${item.nombre}`,
-    })),
+    ...checklist.equipmentTypes
+      .filter(item => checklist.scheduleEquipmentTypeIds.includes(item.id))
+      .map(item => ({
+        value: item.id,
+        label: `${item.systemName} · ${item.nombre}`,
+      })),
   ];
+  const hasScheduleScope = Boolean(
+    checklist.selectedScheduleProperty &&
+    checklist.selectedScheduleEquipmentType,
+  );
+  const cannotScheduleEmptyScope =
+    hasScheduleScope &&
+    !checklist.loadingScheduleEquipments &&
+    checklist.scheduleEquipments.length === 0;
+  const hasNoScheduleEquipmentTypes =
+    Boolean(checklist.selectedScheduleProperty) &&
+    !checklist.loadingScheduleEquipmentTypes &&
+    scheduleEquipmentOptions.length === 0;
 
   return (
     <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
@@ -204,22 +217,46 @@ export default function AdminChecklistPage() {
               <div className="grid gap-3">
                 <label className="grid gap-1.5 text-sm font-bold text-slate-600">
                   Inmueble
-                  <SelectField
+                  <SearchableSelectField
                     value={checklist.selectedScheduleProperty}
                     options={propertyOptions}
-                    onChange={checklist.setSelectedScheduleProperty}
+                    onChange={checklist.handleSchedulePropertyChange}
+                    placeholder="Escribe para buscar inmueble"
                     ariaLabel="Seleccionar inmueble para programar checklist"
                   />
                 </label>
                 <label className="grid gap-1.5 text-sm font-bold text-slate-600">
                   Tipo de equipo
-                  <SelectField
+                  <SearchableSelectField
                     value={checklist.selectedScheduleEquipmentType}
                     options={scheduleEquipmentOptions}
                     onChange={checklist.setSelectedScheduleEquipmentType}
+                    placeholder={
+                      checklist.selectedScheduleProperty
+                        ? checklist.loadingScheduleEquipmentTypes
+                          ? 'Cargando tipos del inmueble...'
+                          : 'Escribe para buscar tipo de equipo'
+                        : 'Primero selecciona un inmueble'
+                    }
+                    disabled={
+                      !checklist.selectedScheduleProperty ||
+                      checklist.loadingScheduleEquipmentTypes
+                    }
                     ariaLabel="Seleccionar tipo de equipo para programar checklist"
                   />
                 </label>
+
+                {hasNoScheduleEquipmentTypes ? (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
+                    Este inmueble no tiene equipos registrados para programar.
+                  </div>
+                ) : null}
+
+                <ScheduleEquipmentPreview
+                  equipments={checklist.scheduleEquipments}
+                  isLoading={checklist.loadingScheduleEquipments}
+                  hasSelection={hasScheduleScope}
+                />
 
                 <div className="grid grid-cols-2 gap-3 max-[640px]:grid-cols-1">
                   <label className="grid gap-1.5 text-sm font-bold text-slate-600">
@@ -317,7 +354,12 @@ export default function AdminChecklistPage() {
                 <button
                   className="min-h-12 rounded-2xl bg-emerald-800 px-4 text-sm font-black text-white shadow-[0_16px_34px_rgba(6,95,70,0.24)] transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-emerald-300"
                   type="button"
-                  disabled={checklist.savingSchedule}
+                  disabled={
+                    !hasScheduleScope ||
+                    checklist.savingSchedule ||
+                    checklist.loadingScheduleEquipments ||
+                    cannotScheduleEmptyScope
+                  }
                   onClick={checklist.handleSaveSchedule}>
                   {checklist.savingSchedule
                     ? 'Guardando...'
@@ -369,6 +411,66 @@ export default function AdminChecklistPage() {
         </section>
       )}
     </main>
+  );
+}
+
+interface ScheduleEquipmentPreviewProps {
+  equipments: ReturnType<typeof useAdminChecklist>['scheduleEquipments'];
+  isLoading: boolean;
+  hasSelection: boolean;
+}
+
+function ScheduleEquipmentPreview({
+  equipments,
+  isLoading,
+  hasSelection,
+}: ScheduleEquipmentPreviewProps) {
+  if (!hasSelection) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
+        Selecciona inmueble y tipo para ver que equipos se programaran.
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
+        Cargando equipos del inmueble...
+      </div>
+    );
+  }
+
+  if (equipments.length === 0) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
+        Este inmueble no tiene equipos de ese tipo. No se puede programar esta
+        regla.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-2 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3">
+      <p className="m-0 text-sm font-black text-emerald-950">
+        Se programaran {equipments.length} equipo
+        {equipments.length === 1 ? '' : 's'}:
+      </p>
+      <div className="grid max-h-36 gap-1.5 overflow-auto pr-1">
+        {equipments.map(equipment => (
+          <div
+            className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-600"
+            key={equipment.id}>
+            <strong className="block text-sm text-slate-950">
+              {equipment.codigo || 'Sin codigo'}
+            </strong>
+            {[equipment.ubicacion, equipment.detalle_ubicacion]
+              .filter(Boolean)
+              .join(' - ') || 'Sin ubicacion'}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

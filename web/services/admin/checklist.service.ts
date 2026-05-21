@@ -7,6 +7,7 @@ import type {
   AdminChecklistResponseFilters,
   AdminChecklistResponseRow,
   AdminChecklistScheduleProgress,
+  AdminChecklistScheduleEquipmentItem,
   AdminChecklistScheduleFrequency,
   AdminChecklistScheduleRow,
   AdminChecklistScheduleUpsertInput,
@@ -258,6 +259,48 @@ export async function upsertAdminChecklistSchedule(
   if (error) throw error;
 }
 
+export async function listAdminChecklistScheduleEquipments(
+  supabase: SupabaseClient,
+  input: {
+    propertyId: string;
+    equipamentoId: string;
+  },
+): Promise<AdminChecklistScheduleEquipmentItem[]> {
+  const { data, error } = await supabase
+    .from('equipos')
+    .select('id, codigo, ubicacion, detalle_ubicacion')
+    .eq('id_property', input.propertyId)
+    .eq('id_equipamento', input.equipamentoId)
+    .order('codigo', { ascending: true })
+    .limit(250);
+
+  if (error) throw error;
+
+  return (data ?? []) as AdminChecklistScheduleEquipmentItem[];
+}
+
+export async function listAdminChecklistPropertyEquipmentTypeIds(
+  supabase: SupabaseClient,
+  propertyId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('equipos')
+    .select('id_equipamento')
+    .eq('id_property', propertyId)
+    .not('id_equipamento', 'is', null)
+    .limit(1000);
+
+  if (error) throw error;
+
+  return Array.from(
+    new Set(
+      (data ?? [])
+        .map(item => item.id_equipamento)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0),
+    ),
+  );
+}
+
 export async function getAdminChecklistScheduleProgress(
   supabase: SupabaseClient,
   input: {
@@ -287,8 +330,8 @@ export async function getAdminChecklistScheduleProgress(
 
   if (equipmentError) throw equipmentError;
 
-  const equipmentRows =
-    (equipmentData ?? []) as ChecklistScheduleProgressEquipmentRow[];
+  const equipmentRows = (equipmentData ??
+    []) as ChecklistScheduleProgressEquipmentRow[];
   const equipmentIds = equipmentRows.map(item => item.id);
 
   if (equipmentIds.length === 0) {

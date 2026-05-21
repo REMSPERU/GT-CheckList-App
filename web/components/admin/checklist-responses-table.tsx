@@ -80,16 +80,7 @@ export function ChecklistResponsesTable({
                     </small>
                   </td>
                   <td className={TD_CLASS}>
-                    <WeightedScoreBadge response={response} />
-                    <StatusBadge
-                      observed={response.total_observed ?? 0}
-                      ok={response.total_ok ?? 0}
-                      total={response.total_questions ?? 0}
-                    />
-                    <small className="mt-2 block text-slate-500">
-                      Observadas {response.total_observed ?? 0} · Fotos{' '}
-                      {response.total_photos ?? 0}
-                    </small>
+                    <OperativityBadge response={response} />
                   </td>
                   <td className={TD_CLASS}>
                     <Link
@@ -109,7 +100,7 @@ export function ChecklistResponsesTable({
   );
 }
 
-function WeightedScoreBadge({
+function OperativityBadge({
   response,
 }: {
   response: AdminChecklistResponseRow;
@@ -119,7 +110,7 @@ function WeightedScoreBadge({
   if (score.total === 0) {
     return (
       <span className="mb-2 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-600">
-        Sin ponderado
+        Sin datos
       </span>
     );
   }
@@ -133,30 +124,7 @@ function WeightedScoreBadge({
           ? 'bg-orange-100 text-orange-900'
           : 'bg-emerald-100 text-emerald-900'
       }`}>
-      Puntaje {formatWeight(score.earned)} / {formatWeight(score.total)} ·{' '}
-      {formatWeight(score.percent)}%
-    </span>
-  );
-}
-
-interface StatusBadgeProps {
-  observed: number;
-  ok: number;
-  total: number;
-}
-
-function StatusBadge({ observed, ok, total }: StatusBadgeProps) {
-  const hasObservations = observed > 0;
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${
-        hasObservations
-          ? 'bg-orange-100 text-orange-900'
-          : 'bg-green-100 text-green-900'
-      }`}>
-      {hasObservations ? `${observed} observadas` : 'Conforme'} · OK {ok} /{' '}
-      {total}
+      {formatWeight(score.percent)}% operatividad
     </span>
   );
 }

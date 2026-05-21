@@ -18,6 +18,24 @@ export interface AdminEquipmentRow {
   equipmentAbbreviation: string | null;
 }
 
+export interface AdminEquipmentDetailRow extends AdminEquipmentRow {
+  id_property: string | null;
+  id_equipamento: string | null;
+  equipment_detail: unknown;
+  created_at: string | null;
+  updated_at: string | null;
+  created: string | null;
+  updated: string | null;
+  created_by: string | null;
+  updated_by: string | null;
+  propertyAddress: string | null;
+  propertyPriority: string | null;
+  propertyIsActive: boolean | null;
+  systemName: string | null;
+  equipmentFrequency: string | null;
+  rawData: Record<string, unknown>;
+}
+
 export interface AdminPaginatedResult<T> {
   items: T[];
   total: number;
@@ -90,6 +108,13 @@ export interface AdminChecklistScheduleUpsertInput {
   endDate?: string | null;
   isActive: boolean;
   userId: string;
+}
+
+export interface AdminChecklistScheduleEquipmentItem {
+  id: string;
+  codigo: string | null;
+  ubicacion: string | null;
+  detalle_ubicacion: string | null;
 }
 
 export interface AdminChecklistScheduleProgressItem {
