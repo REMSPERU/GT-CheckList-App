@@ -97,6 +97,10 @@ jobs:
           echo "aab_name=$FILENAME" >> $GITHUB_OUTPUT
           echo "AAB: $FILENAME"
 
+      - name: Submit to Play Store (Internal Testing)
+        run: |
+          eas submit --platform android --profile production --path "${{ steps.aab.outputs.aab_name }}" --non-interactive
+
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
