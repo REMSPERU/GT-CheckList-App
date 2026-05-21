@@ -38,10 +38,10 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli@latest
 
-      - name: Build AAB on EAS
+      - name: Build AAB on EAS (and Auto-Submit to Play Store)
         id: build
         run: |
-          eas build --platform android --profile production --non-interactive --wait --json > build.json
+          eas build --platform android --profile production --auto-submit --non-interactive --wait --json > build.json
           BUILD_ID=$(node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync('build.json','utf8'));const build=Array.isArray(data)?data[0]:data;process.stdout.write(build.id);")
           ARTIFACT_URL=$(node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync('build.json','utf8'));const build=Array.isArray(data)?data[0]:data;process.stdout.write(build.artifacts?.buildUrl || '');")
           APP_VERSION=$(node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync('build.json','utf8'));const build=Array.isArray(data)?data[0]:data;process.stdout.write(String(build.appVersion || 'unknown'));")
