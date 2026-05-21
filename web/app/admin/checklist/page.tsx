@@ -166,32 +166,6 @@ export default function AdminChecklistPage() {
         </section>
       ) : (
         <section className="grid gap-4">
-          <div className="grid grid-cols-4 gap-3 max-[980px]:grid-cols-2 max-[640px]:grid-cols-1">
-            <ScheduleMetric
-              label="Programadas"
-              value={checklist.scheduleMetrics.total}
-              note="Combinaciones con reglas guardadas"
-            />
-            <ScheduleMetric
-              label="Activas"
-              value={checklist.scheduleMetrics.active}
-              note="Permiten validar registros hoy"
-              tone="success"
-            />
-            <ScheduleMetric
-              label="Pausadas"
-              value={checklist.scheduleMetrics.inactive}
-              note="Configuradas pero desactivadas"
-              tone="warning"
-            />
-            <ScheduleMetric
-              label="Sin configurar"
-              value={checklist.scheduleMetrics.unconfiguredScopes}
-              note="Inmueble x tipo de equipo"
-              tone="neutral"
-            />
-          </div>
-
           <div className="grid grid-cols-[minmax(320px,0.92fr)_minmax(360px,1.08fr)] gap-4 max-[980px]:grid-cols-1">
             <section className="rounded-[26px] border border-emerald-900/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.96),rgba(236,253,245,0.78))] p-5 shadow-[0_22px_54px_rgba(15,23,42,0.08)]">
               <div className="mb-4">
@@ -370,40 +344,6 @@ export default function AdminChecklistPage() {
         </section>
       )}
     </main>
-  );
-}
-
-interface ScheduleMetricProps {
-  label: string;
-  value: number;
-  note: string;
-  tone?: 'success' | 'warning' | 'neutral';
-}
-
-function ScheduleMetric({
-  label,
-  value,
-  note,
-  tone = 'neutral',
-}: ScheduleMetricProps) {
-  const toneClass =
-    tone === 'success'
-      ? 'from-emerald-50 to-white text-emerald-900'
-      : tone === 'warning'
-        ? 'from-amber-50 to-white text-amber-900'
-        : 'from-slate-50 to-white text-slate-900';
-
-  return (
-    <article
-      className={`rounded-[22px] border border-slate-900/10 bg-gradient-to-br ${toneClass} p-4 shadow-[0_14px_36px_rgba(12,23,32,0.06)]`}>
-      <p className="m-0 text-xs font-black uppercase tracking-[0.14em] opacity-70">
-        {label}
-      </p>
-      <strong className="mt-2 block text-3xl font-black tracking-[-0.05em]">
-        {value}
-      </strong>
-      <span className="mt-1 block text-xs font-bold opacity-65">{note}</span>
-    </article>
   );
 }
 
