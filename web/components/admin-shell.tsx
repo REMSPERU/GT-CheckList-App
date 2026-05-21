@@ -9,6 +9,7 @@ import {
   Building2,
   Calendar,
   ClipboardCheck,
+  FileSearch,
   PanelLeftDashed,
 } from 'lucide-react';
 
@@ -44,6 +45,11 @@ const NAV_ITEMS = [
     label: 'Checklist',
     icon: ClipboardCheck,
   },
+  {
+    href: '/admin/auditorias',
+    label: 'Auditorias',
+    icon: FileSearch,
+  },
 ];
 
 export function AdminShell({ children }: AdminShellProps) {
@@ -78,9 +84,13 @@ export function AdminShell({ children }: AdminShellProps) {
   const getSectionTitle = () => {
     if (pathname === '/admin') return 'Dashboard';
     if (pathname.startsWith('/admin/equipos')) return 'Inventario · Equipos';
-    if (pathname.startsWith('/admin/inmuebles')) return 'Inventario · Inmuebles';
-    if (pathname.startsWith('/admin/mantenimientos')) return 'Operaciones · Mantenimientos';
+    if (pathname.startsWith('/admin/inmuebles'))
+      return 'Inventario · Inmuebles';
+    if (pathname.startsWith('/admin/mantenimientos'))
+      return 'Operaciones · Mantenimientos';
     if (pathname.startsWith('/admin/checklist')) return 'Monitoreo · Checklist';
+    if (pathname.startsWith('/admin/auditorias'))
+      return 'Monitoreo · Auditorias';
     return null;
   };
 
@@ -111,7 +121,7 @@ export function AdminShell({ children }: AdminShellProps) {
           </Link>
 
           <nav
-            className="mt-[34px] grid gap-2 max-[980px]:grid-cols-5 max-[640px]:grid-cols-1"
+            className="mt-[34px] grid gap-2 max-[980px]:grid-cols-6 max-[640px]:grid-cols-1"
             aria-label="Navegacion administrativa">
             {NAV_ITEMS.map(item => {
               const isActive =
@@ -130,7 +140,11 @@ export function AdminShell({ children }: AdminShellProps) {
                     isActive ? 'bg-lime-200 text-teal-950' : 'text-emerald-100'
                   }`}
                   title={item.label}>
-                  <IconComponent size={18} strokeWidth={1.5} className="shrink-0" />
+                  <IconComponent
+                    size={18}
+                    strokeWidth={1.5}
+                    className="shrink-0"
+                  />
                   {!isCollapsed && (
                     <span className="whitespace-nowrap">{item.label}</span>
                   )}

@@ -218,6 +218,64 @@ export interface AdminChecklistQuestionUpdateInput {
   ponderado: string | number | null;
 }
 
+export interface AdminAuditPhotoRef {
+  bucket?: string | null;
+  path?: string | null;
+  publicUrl?: string | null;
+  public_url?: string | null;
+  url?: string | null;
+}
+
+export interface AdminAuditAnswerItem {
+  question_id: string;
+  questionText: string;
+  sectionName: string | null;
+  equipmentName: string | null;
+  status: 'OK' | 'OBS';
+  comment: string | null;
+  photos: AdminAuditPhotoRef[];
+}
+
+export interface AdminAuditEquipmentFeedbackItem {
+  equipment_key: string;
+  equipment_label: string;
+  good_practices_comment: string | null;
+  good_practices_photos: AdminAuditPhotoRef[];
+  improvement_opportunity_comment: string | null;
+  improvement_opportunity_photos: AdminAuditPhotoRef[];
+}
+
+export interface AdminAuditSessionRow {
+  id: string;
+  client_submission_id: string;
+  property_id: string;
+  propertyName: string;
+  propertyCode: string | null;
+  auditor_id: string;
+  auditorName: string;
+  scheduled_for: string;
+  status: string;
+  started_at: string | null;
+  submitted_at: string | null;
+  created_at: string | null;
+  total_questions: number;
+  total_applies: number;
+  total_not_applicable: number;
+  total_ok: number;
+  total_obs: number;
+  total_photos: number;
+  answers: AdminAuditAnswerItem[];
+  equipmentFeedback: AdminAuditEquipmentFeedbackItem[];
+}
+
+export interface AdminAuditSessionFilters {
+  page: number;
+  pageSize: number;
+  search?: string;
+  propertyId?: string;
+  status?: string;
+}
+
 export interface AdminMaintenanceSessionRow {
   id: string;
   nombre: string | null;
