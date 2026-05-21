@@ -1,10 +1,16 @@
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 
 import type { AdminEquipmentRow } from '@/types/admin';
 
 import { AdminTableShell } from './admin-table-shell';
 import { StatusBadge } from './status-badge';
-import { ResponsiveTable, TABLE_CLASS, TD_CLASS, TableHeaders } from './table-primitives';
+import {
+  ResponsiveTable,
+  TABLE_CLASS,
+  TD_CLASS,
+  TableHeaders,
+} from './table-primitives';
 
 interface EquipmentTableProps {
   items: AdminEquipmentRow[];
@@ -33,11 +39,21 @@ export function EquipmentTable({
       <ResponsiveTable>
         <table className={TABLE_CLASS}>
           <TableHeaders
-            headers={['Codigo', 'Inmueble', 'Tipo', 'Ubicacion', 'Estado', 'Config']}
+            headers={[
+              'Codigo',
+              'Inmueble',
+              'Tipo',
+              'Ubicacion',
+              'Estado',
+              'Config',
+              'Detalle',
+            ]}
           />
           <tbody>
             {items.map(item => (
-              <tr key={item.id}>
+              <tr
+                className="transition-colors hover:bg-emerald-50/45"
+                key={item.id}>
                 <td className={TD_CLASS}>{item.codigo ?? '-'}</td>
                 <td className={TD_CLASS}>
                   <strong className="block">{item.propertyName}</strong>
@@ -56,6 +72,13 @@ export function EquipmentTable({
                   <StatusBadge>{item.estatus}</StatusBadge>
                 </td>
                 <td className={TD_CLASS}>{item.config ? 'Si' : 'No'}</td>
+                <td className={TD_CLASS}>
+                  <Link
+                    className="inline-flex rounded-full bg-[#0c1720] px-3 py-1.5 text-xs font-black text-white no-underline shadow-sm transition-colors hover:bg-emerald-800"
+                    href={`/admin/equipos/${item.id}`}>
+                    Ver
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>

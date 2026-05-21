@@ -3,6 +3,8 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import {
   getAdminChecklistScheduleProgress,
+  listAdminChecklistPropertyEquipmentTypeIds,
+  listAdminChecklistScheduleEquipments,
   listAdminChecklistResponseFilterOptions,
   listAdminChecklistQuestions,
   listAdminChecklistResponses,
@@ -16,6 +18,7 @@ import type {
   AdminChecklistQuestionRow,
   AdminChecklistResponseFilterOptions,
   AdminChecklistResponseRow,
+  AdminChecklistScheduleEquipmentItem,
   AdminChecklistScheduleFrequency,
   AdminChecklistScheduleProgress,
   AdminChecklistScheduleRow,
@@ -59,6 +62,16 @@ export function useAdminChecklist() {
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [scheduleProgress, setScheduleProgress] =
     useState<AdminChecklistScheduleProgress | null>(null);
+  const [scheduleEquipments, setScheduleEquipments] = useState<
+    AdminChecklistScheduleEquipmentItem[]
+  >([]);
+  const [scheduleEquipmentTypeIds, setScheduleEquipmentTypeIds] = useState<
+    string[]
+  >([]);
+  const [loadingScheduleEquipmentTypes, setLoadingScheduleEquipmentTypes] =
+    useState(false);
+  const [loadingScheduleEquipments, setLoadingScheduleEquipments] =
+    useState(false);
   const [loadingScheduleProgress, setLoadingScheduleProgress] = useState(false);
   const [expandedResponseId, setExpandedResponseId] = useState<string | null>(
     null,
@@ -138,9 +151,7 @@ export function useAdminChecklist() {
     setScheduleWindowStart(
       (currentSchedule?.window_start ?? '08:00').slice(0, 5),
     );
-    setScheduleWindowEnd(
-      (currentSchedule?.window_end ?? '18:00').slice(0, 5),
-    );
+    setScheduleWindowEnd((currentSchedule?.window_end ?? '18:00').slice(0, 5));
     setScheduleStartDate(currentSchedule?.start_date ?? '');
     setScheduleEndDate(currentSchedule?.end_date ?? '');
     setScheduleIsActive(currentSchedule?.is_active ?? true);
@@ -308,6 +319,84 @@ export function useAdminChecklist() {
   useEffect(() => {
     let isMounted = true;
 
+    async function loadScheduleEquipmentTypes() {
+      if (!selectedScheduleProperty) {
+        setScheduleEquipmentTypeIds([]);
+        return;
+      }
+
+      try {
+        setLoadingScheduleEquipmentTypes(true);
+        const supabase = getSupabaseClient();
+        const result = await listAdminChecklistPropertyEquipmentTypeIds(
+          supabase,
+          selectedScheduleProperty,
+        );
+
+        if (isMounted) setScheduleEquipmentTypeIds(result);
+      } catch (error) {
+        if (isMounted) {
+          setScheduleEquipmentTypeIds([]);
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : 'No se pudieron cargar los tipos de equipo del inmueble',
+          );
+        }
+      } finally {
+        if (isMounted) setLoadingScheduleEquipmentTypes(false);
+      }
+    }
+
+    void loadScheduleEquipmentTypes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedScheduleProperty]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadScheduleEquipments() {
+      if (!selectedScheduleProperty || !selectedScheduleEquipmentType) {
+        setScheduleEquipments([]);
+        return;
+      }
+
+      try {
+        setLoadingScheduleEquipments(true);
+        const supabase = getSupabaseClient();
+        const result = await listAdminChecklistScheduleEquipments(supabase, {
+          propertyId: selectedScheduleProperty,
+          equipamentoId: selectedScheduleEquipmentType,
+        });
+
+        if (isMounted) setScheduleEquipments(result);
+      } catch (error) {
+        if (isMounted) {
+          setScheduleEquipments([]);
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : 'No se pudieron cargar los equipos del inmueble',
+          );
+        }
+      } finally {
+        if (isMounted) setLoadingScheduleEquipments(false);
+      }
+    }
+
+    void loadScheduleEquipments();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedScheduleEquipmentType, selectedScheduleProperty]);
+
+  useEffect(() => {
+    let isMounted = true;
+
     async function loadScheduleProgress() {
       if (!selectedSchedule) {
         setScheduleProgress(null);
@@ -374,6 +463,14 @@ export function useAdminChecklist() {
     setSuccessMessage(null);
   }
 
+  function handleSchedulePropertyChange(value: string) {
+    setSelectedScheduleProperty(value);
+    setSelectedScheduleEquipmentType('');
+    setScheduleEquipments([]);
+    setScheduleProgress(null);
+    setSuccessMessage(null);
+  }
+
   async function refreshSchedules() {
     const supabase = getSupabaseClient();
     const result = await listAdminChecklistSchedules(supabase);
@@ -408,7 +505,9 @@ export function useAdminChecklist() {
         scheduleEndDate &&
         scheduleStartDate > scheduleEndDate
       ) {
-        throw new Error('La fecha de inicio no puede ser mayor a la fecha fin.');
+        throw new Error(
+          'La fecha de inicio no puede ser mayor a la fecha fin.',
+        );
       }
 
       const supabase = getSupabaseClient();
@@ -418,6 +517,20 @@ export function useAdminChecklist() {
 
       if (!user?.id) {
         throw new Error('No se pudo identificar al usuario actual.');
+      }
+
+      const availableEquipments = await listAdminChecklistScheduleEquipments(
+        supabase,
+        {
+          propertyId: selectedScheduleProperty,
+          equipamentoId: selectedScheduleEquipmentType,
+        },
+      );
+
+      if (availableEquipments.length === 0) {
+        throw new Error(
+          'No hay equipos de ese tipo en el inmueble seleccionado. No se puede crear la programacion.',
+        );
       }
 
       await upsertAdminChecklistSchedule(supabase, {
@@ -509,10 +622,14 @@ export function useAdminChecklist() {
     schedules,
     scheduleMetrics,
     selectedSchedule,
+    scheduleEquipments,
+    scheduleEquipmentTypeIds,
+    loadingScheduleEquipmentTypes,
+    loadingScheduleEquipments,
     scheduleProgress,
     loadingScheduleProgress,
     selectedScheduleProperty,
-    setSelectedScheduleProperty,
+    handleSchedulePropertyChange,
     selectedScheduleEquipmentType,
     setSelectedScheduleEquipmentType,
     scheduleFrequency,
