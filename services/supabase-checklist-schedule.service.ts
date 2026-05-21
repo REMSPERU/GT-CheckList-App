@@ -49,6 +49,15 @@ export interface ChecklistScheduleValidation {
   window_start: string | null;
   window_end: string | null;
   current_count: number;
+  period_start: string | null;
+  period_end: string | null;
+}
+
+interface ValidateChecklistScheduleParams {
+  p_property_id: string;
+  p_equipamento_id: string;
+  p_submitted_at: string;
+  p_equipo_id?: string;
 }
 
 class SupabaseChecklistScheduleService {
@@ -105,12 +114,22 @@ class SupabaseChecklistScheduleService {
   async validateChecklistSubmission(
     propertyId: string,
     equipamentoId: string,
+    equipoId?: string,
   ): Promise<ChecklistScheduleValidation> {
-    const { data, error } = await supabase.rpc('validate_checklist_schedule', {
+    const params: ValidateChecklistScheduleParams = {
       p_property_id: propertyId,
       p_equipamento_id: equipamentoId,
       p_submitted_at: new Date().toISOString(),
-    });
+    };
+
+    if (equipoId) {
+      params.p_equipo_id = equipoId;
+    }
+
+    const { data, error } = await supabase.rpc(
+      'validate_checklist_schedule',
+      params,
+    );
 
     if (error) {
       throw error;
@@ -134,6 +153,8 @@ class SupabaseChecklistScheduleService {
         typeof firstRow?.current_count === 'number'
           ? firstRow.current_count
           : 0,
+      period_start: firstRow?.period_start || null,
+      period_end: firstRow?.period_end || null,
     };
   }
 }

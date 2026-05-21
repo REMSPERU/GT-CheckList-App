@@ -92,6 +92,20 @@ export interface AdminChecklistScheduleUpsertInput {
   userId: string;
 }
 
+export interface AdminChecklistScheduleProgressItem {
+  equipoId: string;
+  codigo: string | null;
+  ubicacion: string | null;
+  detalle_ubicacion: string | null;
+  submitted_at: string | null;
+}
+
+export interface AdminChecklistScheduleProgress {
+  total: number;
+  completed: AdminChecklistScheduleProgressItem[];
+  pending: AdminChecklistScheduleProgressItem[];
+}
+
 export interface AdminChecklistAnswerItem {
   pregunta_id: string;
   pregunta: string;

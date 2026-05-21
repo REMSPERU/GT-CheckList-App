@@ -45,6 +45,16 @@ function formatTime(value: string) {
   return value.slice(0, 5);
 }
 
+function formatDateTime(value: string | null) {
+  if (!value) return '-';
+
+  return new Intl.DateTimeFormat('es-PE', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+    timeZone: 'America/Lima',
+  }).format(new Date(value));
+}
+
 export default function AdminChecklistPage() {
   const checklist = useAdminChecklist();
   const [activeTab, setActiveTab] = useState<ChecklistTab>('responses');
@@ -176,8 +186,8 @@ export default function AdminChecklistPage() {
                   Define cuando se puede llenar
                 </h2>
                 <p className="mt-1.5 text-sm text-slate-500">
-                  Igual que en movil: frecuencia, veces por dia, horario,
-                  fechas opcionales y estado activo.
+                  Define el rango editable de ejecucion, el horario permitido,
+                  el limite por equipo y el estado activo.
                 </p>
               </div>
 
@@ -216,7 +226,7 @@ export default function AdminChecklistPage() {
                     />
                   </label>
                   <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-                    Veces por dia
+                    Máximo por equipo
                     <input
                       className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                       type="number"
@@ -259,7 +269,7 @@ export default function AdminChecklistPage() {
 
                 <div className="grid grid-cols-2 gap-3 max-[640px]:grid-cols-1">
                   <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-                    Fecha inicio opcional
+                    Inicio del rango
                     <input
                       className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                       type="date"
@@ -270,7 +280,7 @@ export default function AdminChecklistPage() {
                     />
                   </label>
                   <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-                    Fecha fin opcional
+                    Fin del rango
                     <input
                       className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                       type="date"
@@ -339,11 +349,107 @@ export default function AdminChecklistPage() {
                   ))}
                 </div>
               )}
+
+              <ScheduleProgressPanel
+                isLoading={checklist.loadingScheduleProgress}
+                progress={checklist.scheduleProgress}
+              />
             </section>
           </div>
         </section>
       )}
     </main>
+  );
+}
+
+interface ScheduleProgressPanelProps {
+  isLoading: boolean;
+  progress: ReturnType<typeof useAdminChecklist>['scheduleProgress'];
+}
+
+function ScheduleProgressPanel({
+  isLoading,
+  progress,
+}: ScheduleProgressPanelProps) {
+  if (isLoading) {
+    return (
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm font-bold text-slate-500">
+        Cargando avance del rango...
+      </div>
+    );
+  }
+
+  if (!progress) {
+    return (
+      <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm font-bold text-slate-500">
+        Selecciona una programacion para ver equipos pendientes.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex items-center justify-between gap-3 max-[640px]:grid">
+        <div>
+          <p className="m-0 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+            Avance del rango actual
+          </p>
+          <h3 className="m-0 mt-1 text-lg font-black text-slate-950">
+            {progress.completed.length}/{progress.total} equipos completados
+          </h3>
+        </div>
+        <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-900">
+          {progress.pending.length} pendientes
+        </span>
+      </div>
+
+      <ScheduleProgressList title="Pendientes" items={progress.pending} />
+      <ScheduleProgressList title="Completados" items={progress.completed} />
+    </div>
+  );
+}
+
+interface ScheduleProgressListProps {
+  title: string;
+  items: NonNullable<
+    ReturnType<typeof useAdminChecklist>['scheduleProgress']
+  >['pending'];
+}
+
+function ScheduleProgressList({ title, items }: ScheduleProgressListProps) {
+  return (
+    <div className="grid gap-2">
+      <p className="m-0 text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+        {title}
+      </p>
+      {items.length === 0 ? (
+        <div className="rounded-xl bg-white px-3 py-2 text-sm font-bold text-slate-500">
+          Sin registros.
+        </div>
+      ) : (
+        <div className="grid max-h-56 gap-2 overflow-auto pr-1">
+          {items.map(item => (
+            <div
+              key={item.equipoId}
+              className="rounded-xl bg-white px-3 py-2 text-sm shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
+              <strong className="block text-slate-900">
+                {item.codigo || 'Sin codigo'}
+              </strong>
+              <span className="block text-xs font-bold text-slate-500">
+                {[item.ubicacion, item.detalle_ubicacion]
+                  .filter(Boolean)
+                  .join(' - ') || 'Sin ubicacion'}
+              </span>
+              {item.submitted_at ? (
+                <span className="mt-1 block text-xs font-black text-emerald-700">
+                  Enviado: {formatDateTime(item.submitted_at)}
+                </span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -385,7 +491,7 @@ function ScheduleCard({ schedule, selected, onSelect }: ScheduleCardProps) {
       <div className="grid grid-cols-3 gap-2 max-[640px]:grid-cols-1">
         <ScheduleFact label="Frecuencia" value={schedule.frequency} />
         <ScheduleFact
-          label="Limite diario"
+          label="Limite por equipo"
           value={`${schedule.occurrences_per_day} vez${
             schedule.occurrences_per_day === 1 ? '' : 'es'
           }`}
@@ -399,7 +505,7 @@ function ScheduleCard({ schedule, selected, onSelect }: ScheduleCardProps) {
       </div>
 
       <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
-        Vigencia: {formatDate(schedule.start_date)} a{' '}
+        Rango de ejecucion: {formatDate(schedule.start_date)} a{' '}
         {formatDate(schedule.end_date)} · Lima
       </div>
     </button>

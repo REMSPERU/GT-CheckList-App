@@ -444,8 +444,8 @@ export default function EquipmentChecklistListScreen() {
   }, [loadData]);
 
   const frequencyLabel = useMemo(
-    () => (equipamento?.frecuencia || 'MENSUAL').toUpperCase(),
-    [equipamento?.frecuencia],
+    () => (scheduleState.frequency || equipamento?.frecuencia || 'MENSUAL').toUpperCase(),
+    [equipamento?.frecuencia, scheduleState.frequency],
   );
 
   const handlePressEquipment = useCallback(
@@ -459,7 +459,7 @@ export default function EquipmentChecklistListScreen() {
           buildingName: building?.name || '',
           equipamentoId: equipamento.id,
           equipamentoNombre: equipamento.nombre,
-          frecuencia: equipamento.frecuencia || 'MENSUAL',
+          frecuencia: scheduleState.frequency || equipamento.frecuencia || 'MENSUAL',
           equipoId: equipo.id,
           equipoCodigo: equipo.codigo,
           equipoUbicacion: equipo.ubicacion,
@@ -467,7 +467,13 @@ export default function EquipmentChecklistListScreen() {
         },
       });
     },
-    [building?.id, building?.name, equipamento, router],
+    [
+      building?.id,
+      building?.name,
+      equipamento,
+      router,
+      scheduleState.frequency,
+    ],
   );
 
   const renderEquipmentItem = useCallback(

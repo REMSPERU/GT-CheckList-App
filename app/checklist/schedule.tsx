@@ -176,17 +176,17 @@ export default function ChecklistScheduleScreen() {
     }
 
     const parsedOccurrences = Number(occurrencesPerDay);
-    if (
-      !Number.isInteger(parsedOccurrences) ||
-      parsedOccurrences < 1 ||
-      parsedOccurrences > 24
-    ) {
-      Alert.alert(
-        'Dato inválido',
-        'La frecuencia diaria debe ser entre 1 y 24.',
-      );
-      return;
-    }
+      if (
+        !Number.isInteger(parsedOccurrences) ||
+        parsedOccurrences < 1 ||
+        parsedOccurrences > 24
+      ) {
+        Alert.alert(
+          'Dato inválido',
+          'El maximo por equipo debe ser entre 1 y 24.',
+        );
+        return;
+      }
 
     if (!isValidTime(windowStart) || !isValidTime(windowEnd)) {
       Alert.alert(
@@ -204,15 +204,23 @@ export default function ChecklistScheduleScreen() {
       return;
     }
 
-    if (!isValidDate(startDate) || !isValidDate(endDate)) {
-      Alert.alert(
-        'Dato inválido',
+      if (!isValidDate(startDate) || !isValidDate(endDate)) {
+        Alert.alert(
+          'Dato inválido',
         'Las fechas deben tener formato DD-MM-AAAA.',
       );
-      return;
-    }
+        return;
+      }
 
-    if (startDate && endDate && startDate > endDate) {
+      if (!startDate || !endDate) {
+        Alert.alert(
+          'Dato inválido',
+          'Selecciona fecha inicio y fecha fin para definir el rango de ejecución.',
+        );
+        return;
+      }
+
+      if (startDate && endDate && startDate > endDate) {
       Alert.alert(
         'Dato inválido',
         'La fecha de inicio no puede ser mayor a la fecha fin.',
@@ -348,7 +356,7 @@ export default function ChecklistScheduleScreen() {
           </Picker>
         </View>
 
-        <Text style={styles.label}>Veces por día</Text>
+        <Text style={styles.label}>Máximo por equipo</Text>
         <TextInput
           value={occurrencesPerDay}
           onChangeText={setOccurrencesPerDay}
@@ -383,7 +391,7 @@ export default function ChecklistScheduleScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.label}>Fecha inicio (opcional)</Text>
+        <Text style={styles.label}>Inicio del rango</Text>
         <View style={styles.dateRow}>
           <Pressable
             onPress={() => openDatePicker('startDate')}
@@ -418,7 +426,7 @@ export default function ChecklistScheduleScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.label}>Fecha fin (opcional)</Text>
+        <Text style={styles.label}>Fin del rango</Text>
         <View style={styles.dateRow}>
           <Pressable
             onPress={() => openDatePicker('endDate')}

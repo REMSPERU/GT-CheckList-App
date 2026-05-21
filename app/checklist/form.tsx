@@ -115,6 +115,8 @@ interface ChecklistSchedulePreview {
   occurrencesPerDay: number | null;
   windowStart: string | null;
   windowEnd: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
 }
 
 function getPeriodFromFrequency(frequencyRaw: string) {
@@ -199,14 +201,14 @@ function buildFriendlyRestrictionMessage(
 
   if (normalized.includes('maximo')) {
     return {
-      message: `Ya se completo el limite diario (${limitLabel}).`,
-      hint: 'Debes esperar al siguiente dia o ajustar la programacion.',
+      message: `Ya se completo el limite del rango programado (${limitLabel}).`,
+      hint: 'Ajusta el rango de programacion si necesitas reiniciar el avance.',
     };
   }
 
   return {
     message: 'Este checklist esta restringido en este momento.',
-    hint: `Horario configurado: ${windowLabel}. Limite diario: ${limitLabel}.`,
+    hint: `Horario configurado: ${windowLabel}. Limite del rango: ${limitLabel}.`,
   };
 }
 
@@ -378,6 +380,8 @@ export default function ChecklistFormScreen() {
       occurrencesPerDay: null,
       windowStart: null,
       windowEnd: null,
+      periodStart: null,
+      periodEnd: null,
     });
   const startedAtMsRef = useRef<number>(Date.now());
   const firstInteractionAtMsRef = useRef<number | null>(null);
@@ -491,6 +495,7 @@ export default function ChecklistFormScreen() {
           await supabaseChecklistScheduleService.validateChecklistSubmission(
             params.buildingId,
             params.equipamentoId,
+            params.equipoId,
           );
 
         if (!isMounted) {
@@ -509,6 +514,8 @@ export default function ChecklistFormScreen() {
             occurrencesPerDay: null,
             windowStart: null,
             windowEnd: null,
+            periodStart: null,
+            periodEnd: null,
           });
           return;
         }
@@ -521,6 +528,12 @@ export default function ChecklistFormScreen() {
           typeof result.occurrences_per_day === 'number'
             ? `${result.current_count}/${result.occurrences_per_day}`
             : '-';
+        const periodLabel =
+          result.period_start && result.period_end
+            ? `${formatDateToSpanish(result.period_start)} a ${formatDateToSpanish(
+                result.period_end,
+              )}`
+            : 'rango configurado';
         const restrictionCopy = buildFriendlyRestrictionMessage(
           result.reason || 'Fuera de programacion.',
           windowLabel,
@@ -532,7 +545,7 @@ export default function ChecklistFormScreen() {
           hasSchedule: true,
           allowed: result.allowed,
           message: result.allowed
-            ? `Dentro de programacion (${limitLabel} hoy). Horario ${windowLabel}.`
+            ? `Dentro de programacion (${limitLabel} en el rango ${periodLabel}). Horario ${windowLabel}.`
             : restrictionCopy.message,
           hint: result.allowed ? null : restrictionCopy.hint,
           frequency: result.frequency || '',
@@ -540,6 +553,8 @@ export default function ChecklistFormScreen() {
           occurrencesPerDay: result.occurrences_per_day,
           windowStart: result.window_start,
           windowEnd: result.window_end,
+          periodStart: result.period_start,
+          periodEnd: result.period_end,
         });
       } catch (error) {
         console.error('Error checking checklist schedule preview:', error);
@@ -558,6 +573,8 @@ export default function ChecklistFormScreen() {
           occurrencesPerDay: null,
           windowStart: null,
           windowEnd: null,
+          periodStart: null,
+          periodEnd: null,
         });
       }
     };
@@ -567,7 +584,7 @@ export default function ChecklistFormScreen() {
     return () => {
       isMounted = false;
     };
-  }, [params.buildingId, params.equipamentoId]);
+  }, [params.buildingId, params.equipoId, params.equipamentoId]);
 
   const updateAnswer = useCallback(
     (
@@ -789,27 +806,38 @@ export default function ChecklistFormScreen() {
 
       let checklistScheduleId: string | null = null;
       let effectiveFrequency = frecuencia;
+      let effectivePeriodStart: string | null = null;
+      let effectivePeriodEnd: string | null = null;
+      let effectiveOccurrencesLimit: number | null = null;
 
       try {
         const scheduleValidation =
           await supabaseChecklistScheduleService.validateChecklistSubmission(
             params.buildingId,
             params.equipamentoId,
+            params.equipoId,
           );
 
         if (scheduleValidation.has_schedule) {
           checklistScheduleId = scheduleValidation.schedule_id;
           effectiveFrequency = scheduleValidation.frequency || frecuencia;
+          effectivePeriodStart = scheduleValidation.period_start;
+          effectivePeriodEnd = scheduleValidation.period_end;
+          effectiveOccurrencesLimit = scheduleValidation.occurrences_per_day;
 
           if (!scheduleValidation.allowed) {
             const timeWindow =
               scheduleValidation.window_start && scheduleValidation.window_end
                 ? `${scheduleValidation.window_start.slice(0, 5)} - ${scheduleValidation.window_end.slice(0, 5)}`
                 : '-';
+            const rangeLabel =
+              scheduleValidation.period_start && scheduleValidation.period_end
+                ? `${formatDateToSpanish(scheduleValidation.period_start)} a ${formatDateToSpanish(scheduleValidation.period_end)}`
+                : '-';
 
             showAppAlert(
               'Checklist fuera de programación',
-              `${scheduleValidation.reason || 'No está permitido registrar el checklist en este momento.'}\nHorario: ${timeWindow}\nLímite diario: ${scheduleValidation.current_count}/${scheduleValidation.occurrences_per_day ?? '-'} registros.`,
+              `${scheduleValidation.reason || 'No está permitido registrar el checklist en este momento.'}\nRango: ${rangeLabel}\nHorario: ${timeWindow}\nLímite del rango: ${scheduleValidation.current_count}/${scheduleValidation.occurrences_per_day ?? '-'} registros.`,
             );
             return;
           }
@@ -846,7 +874,11 @@ export default function ChecklistFormScreen() {
         }
       }
 
-      const schedulePeriod = getPeriodFromFrequency(effectiveFrequency);
+      const fallbackPeriod = getPeriodFromFrequency(effectiveFrequency);
+      const schedulePeriod = {
+        periodStart: effectivePeriodStart || fallbackPeriod.periodStart,
+        periodEnd: effectivePeriodEnd || fallbackPeriod.periodEnd,
+      };
       const localCounts = await DatabaseService.getChecklistCountsByEquipo(
         params.buildingId,
         params.equipamentoId,
@@ -863,6 +895,18 @@ export default function ChecklistFormScreen() {
             Number(item.conflict_count || 0),
           0,
         );
+
+      if (
+        checklistScheduleId &&
+        effectiveOccurrencesLimit !== null &&
+        existingLocalCount >= effectiveOccurrencesLimit
+      ) {
+        showAppAlert(
+          'Checklist ya registrado',
+          `Este equipo ya alcanzo el limite local para el rango ${formatDateToSpanish(schedulePeriod.periodStart)} a ${formatDateToSpanish(schedulePeriod.periodEnd)}.`,
+        );
+        return;
+      }
 
       if (!checklistScheduleId && existingLocalCount > 0) {
         showAppAlert(

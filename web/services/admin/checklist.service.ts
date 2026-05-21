@@ -6,6 +6,7 @@ import type {
   AdminChecklistResponseFilterOptions,
   AdminChecklistResponseFilters,
   AdminChecklistResponseRow,
+  AdminChecklistScheduleProgress,
   AdminChecklistScheduleFrequency,
   AdminChecklistScheduleRow,
   AdminChecklistScheduleUpsertInput,
@@ -32,6 +33,18 @@ interface ChecklistScheduleQueryRow {
   end_date: string | null;
   is_active: boolean;
   updated_at: string | null;
+}
+
+interface ChecklistScheduleProgressEquipmentRow {
+  id: string;
+  codigo: string | null;
+  ubicacion: string | null;
+  detalle_ubicacion: string | null;
+}
+
+interface ChecklistScheduleProgressResponseRow {
+  equipo_id: string | null;
+  submitted_at: string | null;
 }
 
 export async function listAdminChecklistQuestions(
@@ -243,6 +256,85 @@ export async function upsertAdminChecklistSchedule(
   );
 
   if (error) throw error;
+}
+
+export async function getAdminChecklistScheduleProgress(
+  supabase: SupabaseClient,
+  input: {
+    propertyId: string;
+    equipamentoId: string;
+    startDate: string | null;
+    endDate: string | null;
+  },
+): Promise<AdminChecklistScheduleProgress> {
+  if (!input.startDate || !input.endDate) {
+    return { total: 0, completed: [], pending: [] };
+  }
+
+  const { data: equipmentData, error: equipmentError } = await supabase
+    .from('equipos')
+    .select('id, codigo, ubicacion, detalle_ubicacion')
+    .eq('id_property', input.propertyId)
+    .eq('id_equipamento', input.equipamentoId)
+    .order('codigo', { ascending: true });
+
+  if (equipmentError) throw equipmentError;
+
+  const equipmentRows =
+    (equipmentData ?? []) as ChecklistScheduleProgressEquipmentRow[];
+  const equipmentIds = equipmentRows.map(item => item.id);
+
+  if (equipmentIds.length === 0) {
+    return { total: 0, completed: [], pending: [] };
+  }
+
+  const rangeStartUtc = new Date(`${input.startDate}T00:00:00-05:00`);
+  const rangeEndUtc = new Date(`${input.endDate}T00:00:00-05:00`);
+  rangeEndUtc.setDate(rangeEndUtc.getDate() + 1);
+
+  const { data: responseData, error: responseError } = await supabase
+    .from('checklist_response')
+    .select('equipo_id, submitted_at')
+    .in('equipo_id', equipmentIds)
+    .gte('submitted_at', rangeStartUtc.toISOString())
+    .lt('submitted_at', rangeEndUtc.toISOString())
+    .order('submitted_at', { ascending: false });
+
+  if (responseError) throw responseError;
+
+  const completedByEquipo = new Map<string, string>();
+  ((responseData ?? []) as ChecklistScheduleProgressResponseRow[]).forEach(
+    item => {
+      if (item.equipo_id && item.submitted_at) {
+        completedByEquipo.set(item.equipo_id, item.submitted_at);
+      }
+    },
+  );
+
+  const completed: AdminChecklistScheduleProgress['completed'] = [];
+  const pending: AdminChecklistScheduleProgress['pending'] = [];
+
+  for (const equipment of equipmentRows) {
+    const item = {
+      equipoId: equipment.id,
+      codigo: equipment.codigo,
+      ubicacion: equipment.ubicacion,
+      detalle_ubicacion: equipment.detalle_ubicacion,
+      submitted_at: completedByEquipo.get(equipment.id) ?? null,
+    };
+
+    if (item.submitted_at) {
+      completed.push(item);
+    } else {
+      pending.push(item);
+    }
+  }
+
+  return {
+    total: equipmentRows.length,
+    completed,
+    pending,
+  };
 }
 
 export async function getAdminChecklistResponseById(

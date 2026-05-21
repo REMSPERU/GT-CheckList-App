@@ -2,6 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import {
+  getAdminChecklistScheduleProgress,
   listAdminChecklistResponseFilterOptions,
   listAdminChecklistQuestions,
   listAdminChecklistResponses,
@@ -16,6 +17,7 @@ import type {
   AdminChecklistResponseFilterOptions,
   AdminChecklistResponseRow,
   AdminChecklistScheduleFrequency,
+  AdminChecklistScheduleProgress,
   AdminChecklistScheduleRow,
   AdminEquipmentTypeRow,
   AdminPropertyRow,
@@ -55,6 +57,9 @@ export function useAdminChecklist() {
   const [scheduleEndDate, setScheduleEndDate] = useState('');
   const [scheduleIsActive, setScheduleIsActive] = useState(true);
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [scheduleProgress, setScheduleProgress] =
+    useState<AdminChecklistScheduleProgress | null>(null);
+  const [loadingScheduleProgress, setLoadingScheduleProgress] = useState(false);
   const [expandedResponseId, setExpandedResponseId] = useState<string | null>(
     null,
   );
@@ -300,6 +305,46 @@ export function useAdminChecklist() {
     [schedules, selectedScheduleEquipmentType, selectedScheduleProperty],
   );
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadScheduleProgress() {
+      if (!selectedSchedule) {
+        setScheduleProgress(null);
+        return;
+      }
+
+      try {
+        setLoadingScheduleProgress(true);
+        const supabase = getSupabaseClient();
+        const result = await getAdminChecklistScheduleProgress(supabase, {
+          propertyId: selectedSchedule.property_id,
+          equipamentoId: selectedSchedule.equipamento_id,
+          startDate: selectedSchedule.start_date,
+          endDate: selectedSchedule.end_date,
+        });
+
+        if (isMounted) setScheduleProgress(result);
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : 'No se pudo cargar el avance de la programacion',
+          );
+        }
+      } finally {
+        if (isMounted) setLoadingScheduleProgress(false);
+      }
+    }
+
+    void loadScheduleProgress();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedSchedule]);
+
   function handleEquipmentTypeChange(value: string) {
     setSelectedEquipmentType(value);
     setResponsePage(1);
@@ -350,11 +395,17 @@ export function useAdminChecklist() {
         occurrencesPerDay < 1 ||
         occurrencesPerDay > 24
       ) {
-        throw new Error('Las veces por dia deben ser entre 1 y 24.');
+        throw new Error('El maximo por equipo debe ser entre 1 y 24.');
       }
 
       if (scheduleWindowStart >= scheduleWindowEnd) {
         throw new Error('La hora de inicio debe ser menor que la hora final.');
+      }
+
+      if (!scheduleStartDate || !scheduleEndDate) {
+        throw new Error(
+          'Selecciona fecha inicio y fecha fin para definir el rango de ejecucion.',
+        );
       }
 
       if (
@@ -463,6 +514,8 @@ export function useAdminChecklist() {
     schedules,
     scheduleMetrics,
     selectedSchedule,
+    scheduleProgress,
+    loadingScheduleProgress,
     selectedScheduleProperty,
     setSelectedScheduleProperty,
     selectedScheduleEquipmentType,
