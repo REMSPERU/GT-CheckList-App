@@ -320,6 +320,7 @@ export function useAdminChecklist() {
         const result = await getAdminChecklistScheduleProgress(supabase, {
           propertyId: selectedSchedule.property_id,
           equipamentoId: selectedSchedule.equipamento_id,
+          frequency: selectedSchedule.frequency,
           startDate: selectedSchedule.start_date,
           endDate: selectedSchedule.end_date,
         });
@@ -400,12 +401,6 @@ export function useAdminChecklist() {
 
       if (scheduleWindowStart >= scheduleWindowEnd) {
         throw new Error('La hora de inicio debe ser menor que la hora final.');
-      }
-
-      if (!scheduleStartDate || !scheduleEndDate) {
-        throw new Error(
-          'Selecciona fecha inicio y fecha fin para definir el rango de ejecucion.',
-        );
       }
 
       if (

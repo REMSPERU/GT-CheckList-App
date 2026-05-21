@@ -212,15 +212,7 @@ export default function ChecklistScheduleScreen() {
         return;
       }
 
-      if (!startDate || !endDate) {
-        Alert.alert(
-          'Dato inválido',
-          'Selecciona fecha inicio y fecha fin para definir el rango de ejecución.',
-        );
-        return;
-      }
-
-      if (startDate && endDate && startDate > endDate) {
+    if (startDate && endDate && startDate > endDate) {
       Alert.alert(
         'Dato inválido',
         'La fecha de inicio no puede ser mayor a la fecha fin.',
@@ -391,7 +383,7 @@ export default function ChecklistScheduleScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.label}>Inicio del rango</Text>
+        <Text style={styles.label}>Inicio del rango (opcional)</Text>
         <View style={styles.dateRow}>
           <Pressable
             onPress={() => openDatePicker('startDate')}
@@ -426,7 +418,7 @@ export default function ChecklistScheduleScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.label}>Fin del rango</Text>
+        <Text style={styles.label}>Fin del rango (opcional)</Text>
         <View style={styles.dateRow}>
           <Pressable
             onPress={() => openDatePicker('endDate')}

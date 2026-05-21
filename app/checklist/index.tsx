@@ -88,6 +88,10 @@ function getPeriodFromFrequency(frequencyRaw: string) {
   };
 }
 
+function getTodayPeriodStart() {
+  return getPeriodFromFrequency('DIARIA').periodStart;
+}
+
 const EquipmentListItem = React.memo(function EquipmentListItem({
   item,
   onPress,
@@ -268,10 +272,21 @@ export default function EquipmentChecklistListScreen() {
           (isScheduleActive ? schedule?.frequency : equipamento.frecuencia)
             ?.toUpperCase()
             .trim() || 'MENSUAL';
-        periodStart = getPeriodFromFrequency(effectiveFrequency).periodStart;
+        const hasConfiguredRange =
+          isScheduleActive &&
+          ['SEMANAL', 'MENSUAL'].includes(effectiveFrequency) &&
+          !!schedule?.start_date &&
+          !!schedule?.end_date;
+        periodStart = hasConfiguredRange
+          ? schedule.start_date || getTodayPeriodStart()
+          : isScheduleActive
+            ? getTodayPeriodStart()
+            : getPeriodFromFrequency(effectiveFrequency).periodStart;
 
         const message = isScheduleActive
-          ? `Programacion activa ${effectiveFrequency}.`
+          ? hasConfiguredRange
+            ? `Programacion activa ${effectiveFrequency} con rango configurado.`
+            : `Programacion activa ${effectiveFrequency}. Sin rango, cuenta solo hoy.`
           : 'Sin programacion activa. Se controla por periodo.';
 
         setScheduleState({

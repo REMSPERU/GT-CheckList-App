@@ -45,6 +45,16 @@ function formatTime(value: string) {
   return value.slice(0, 5);
 }
 
+function formatScheduleRange(schedule: AdminChecklistScheduleRow) {
+  const canUseRange = ['SEMANAL', 'MENSUAL'].includes(schedule.frequency);
+
+  if (!canUseRange || !schedule.start_date || !schedule.end_date) {
+    return 'Sin rango: cuenta solo el dia actual';
+  }
+
+  return `${formatDate(schedule.start_date)} a ${formatDate(schedule.end_date)}`;
+}
+
 function formatDateTime(value: string | null) {
   if (!value) return '-';
 
@@ -186,8 +196,8 @@ export default function AdminChecklistPage() {
                   Define cuando se puede llenar
                 </h2>
                 <p className="mt-1.5 text-sm text-slate-500">
-                  Define el rango editable de ejecucion, el horario permitido,
-                  el limite por equipo y el estado activo.
+                  Define horario, limite por equipo y, si aplica, un rango
+                  opcional para semanales o mensuales.
                 </p>
               </div>
 
@@ -269,7 +279,7 @@ export default function AdminChecklistPage() {
 
                 <div className="grid grid-cols-2 gap-3 max-[640px]:grid-cols-1">
                   <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-                    Inicio del rango
+                    Inicio del rango opcional
                     <input
                       className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                       type="date"
@@ -280,7 +290,7 @@ export default function AdminChecklistPage() {
                     />
                   </label>
                   <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-                    Fin del rango
+                    Fin del rango opcional
                     <input
                       className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                       type="date"
@@ -505,8 +515,7 @@ function ScheduleCard({ schedule, selected, onSelect }: ScheduleCardProps) {
       </div>
 
       <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
-        Rango de ejecucion: {formatDate(schedule.start_date)} a{' '}
-        {formatDate(schedule.end_date)} · Lima
+        Rango de ejecucion: {formatScheduleRange(schedule)} · Lima
       </div>
     </button>
   );

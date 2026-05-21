@@ -263,13 +263,20 @@ export async function getAdminChecklistScheduleProgress(
   input: {
     propertyId: string;
     equipamentoId: string;
+    frequency: AdminChecklistScheduleFrequency;
     startDate: string | null;
     endDate: string | null;
   },
 ): Promise<AdminChecklistScheduleProgress> {
-  if (!input.startDate || !input.endDate) {
-    return { total: 0, completed: [], pending: [] };
-  }
+  const usesConfiguredRange =
+    ['SEMANAL', 'MENSUAL'].includes(input.frequency) &&
+    !!input.startDate &&
+    !!input.endDate;
+  const todayInLima = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+  }).format(new Date());
+  const periodStart = usesConfiguredRange ? input.startDate : todayInLima;
+  const periodEnd = usesConfiguredRange ? input.endDate : todayInLima;
 
   const { data: equipmentData, error: equipmentError } = await supabase
     .from('equipos')
@@ -288,8 +295,8 @@ export async function getAdminChecklistScheduleProgress(
     return { total: 0, completed: [], pending: [] };
   }
 
-  const rangeStartUtc = new Date(`${input.startDate}T00:00:00-05:00`);
-  const rangeEndUtc = new Date(`${input.endDate}T00:00:00-05:00`);
+  const rangeStartUtc = new Date(`${periodStart}T00:00:00-05:00`);
+  const rangeEndUtc = new Date(`${periodEnd}T00:00:00-05:00`);
   rangeEndUtc.setDate(rangeEndUtc.getDate() + 1);
 
   const { data: responseData, error: responseError } = await supabase
