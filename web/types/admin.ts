@@ -178,3 +178,28 @@ export interface AdminChecklistQuestionUpdateInput {
   activa: boolean;
   ponderado: string | number | null;
 }
+
+export interface AdminMaintenanceSessionRow {
+  id: string;
+  nombre: string | null;
+  descripcion: string | null;
+  fecha_programada: string | null;
+  estatus: string | null;
+  propertyId: string | null;
+  propertyName: string;
+  propertyCode: string | null;
+  created_at: string | null;
+  equipmentTypes: string[];
+  equipmentCodes: string[];
+  maintenancesCount: number;
+  completedCount: number;
+}
+
+export interface AdminMaintenanceSessionFilters {
+  search?: string;
+  status?: string;
+  propertyId?: string;
+  equipmentTypeId?: string;
+  startDate?: string;
+  endDate?: string;
+}
