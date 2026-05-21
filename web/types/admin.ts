@@ -54,6 +54,44 @@ export interface AdminChecklistQuestionRow {
   updated_at: string | null;
 }
 
+export type AdminChecklistScheduleFrequency =
+  | 'DIARIA'
+  | 'INTERDIARIA'
+  | 'SEMANAL'
+  | 'MENSUAL';
+
+export interface AdminChecklistScheduleRow {
+  id: string;
+  property_id: string;
+  equipamento_id: string;
+  propertyName: string;
+  equipmentName: string;
+  systemName: string;
+  frequency: AdminChecklistScheduleFrequency;
+  occurrences_per_day: number;
+  window_start: string;
+  window_end: string;
+  timezone: string;
+  start_date: string | null;
+  end_date: string | null;
+  is_active: boolean;
+  updated_at: string | null;
+}
+
+export interface AdminChecklistScheduleUpsertInput {
+  propertyId: string;
+  equipamentoId: string;
+  frequency: AdminChecklistScheduleFrequency;
+  occurrencesPerDay: number;
+  windowStart: string;
+  windowEnd: string;
+  timezone?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  isActive: boolean;
+  userId: string;
+}
+
 export interface AdminChecklistAnswerItem {
   pregunta_id: string;
   pregunta: string;

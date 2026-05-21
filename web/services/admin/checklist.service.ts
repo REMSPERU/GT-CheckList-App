@@ -6,6 +6,9 @@ import type {
   AdminChecklistResponseFilterOptions,
   AdminChecklistResponseFilters,
   AdminChecklistResponseRow,
+  AdminChecklistScheduleFrequency,
+  AdminChecklistScheduleRow,
+  AdminChecklistScheduleUpsertInput,
   AdminPaginatedResult,
 } from '@/types/admin';
 
@@ -14,6 +17,22 @@ import {
   type ChecklistResponseQueryRow,
 } from './admin-query-helpers';
 import { listAdminEquipmentTypes } from './equipment-types.service';
+import { listAdminProperties } from './properties.service';
+
+interface ChecklistScheduleQueryRow {
+  id: string;
+  property_id: string;
+  equipamento_id: string;
+  frequency: AdminChecklistScheduleFrequency;
+  occurrences_per_day: number;
+  window_start: string;
+  window_end: string;
+  timezone: string;
+  start_date: string | null;
+  end_date: string | null;
+  is_active: boolean;
+  updated_at: string | null;
+}
 
 export async function listAdminChecklistQuestions(
   supabase: SupabaseClient,
@@ -139,6 +158,91 @@ export async function listAdminChecklistResponses(
     items,
     total: count ?? 0,
   };
+}
+
+export async function listAdminChecklistSchedules(
+  supabase: SupabaseClient,
+): Promise<AdminChecklistScheduleRow[]> {
+  const [properties, equipmentTypes, schedulesResult] = await Promise.all([
+    listAdminProperties(supabase),
+    listAdminEquipmentTypes(supabase),
+    supabase
+      .from('checklist_schedules')
+      .select(
+        `
+          id,
+          property_id,
+          equipamento_id,
+          frequency,
+          occurrences_per_day,
+          window_start,
+          window_end,
+          timezone,
+          start_date,
+          end_date,
+          is_active,
+          updated_at
+        `,
+      )
+      .order('updated_at', { ascending: false })
+      .limit(500),
+  ]);
+
+  const { data, error } = schedulesResult;
+  if (error) throw error;
+
+  const propertiesById = new Map(properties.map(item => [item.id, item]));
+  const equipmentTypesById = new Map(
+    equipmentTypes.map(item => [item.id, item]),
+  );
+
+  return ((data ?? []) as ChecklistScheduleQueryRow[]).map(item => {
+    const property = propertiesById.get(item.property_id);
+    const equipmentType = equipmentTypesById.get(item.equipamento_id);
+
+    return {
+      id: item.id,
+      property_id: item.property_id,
+      equipamento_id: item.equipamento_id,
+      propertyName: property?.name ?? 'Inmueble sin nombre',
+      equipmentName: equipmentType?.nombre ?? 'Tipo sin nombre',
+      systemName: equipmentType?.systemName ?? 'Sin sistema',
+      frequency: item.frequency,
+      occurrences_per_day: item.occurrences_per_day,
+      window_start: item.window_start,
+      window_end: item.window_end,
+      timezone: item.timezone,
+      start_date: item.start_date,
+      end_date: item.end_date,
+      is_active: item.is_active,
+      updated_at: item.updated_at,
+    };
+  });
+}
+
+export async function upsertAdminChecklistSchedule(
+  supabase: SupabaseClient,
+  input: AdminChecklistScheduleUpsertInput,
+): Promise<void> {
+  const { error } = await supabase.from('checklist_schedules').upsert(
+    {
+      property_id: input.propertyId,
+      equipamento_id: input.equipamentoId,
+      frequency: input.frequency,
+      occurrences_per_day: input.occurrencesPerDay,
+      window_start: input.windowStart,
+      window_end: input.windowEnd,
+      timezone: input.timezone ?? 'America/Lima',
+      start_date: input.startDate ?? null,
+      end_date: input.endDate ?? null,
+      is_active: input.isActive,
+      created_by: input.userId,
+      updated_by: input.userId,
+    },
+    { onConflict: 'property_id,equipamento_id' },
+  );
+
+  if (error) throw error;
 }
 
 export async function getAdminChecklistResponseById(

@@ -5,17 +5,24 @@ import {
   listAdminChecklistResponseFilterOptions,
   listAdminChecklistQuestions,
   listAdminChecklistResponses,
+  listAdminChecklistSchedules,
   updateAdminChecklistQuestion,
+  upsertAdminChecklistSchedule,
 } from '@/services/admin/checklist.service';
 import { listAdminEquipmentTypes } from '@/services/admin/equipment-types.service';
+import { listAdminProperties } from '@/services/admin/properties.service';
 import type {
   AdminChecklistQuestionRow,
   AdminChecklistResponseFilterOptions,
   AdminChecklistResponseRow,
+  AdminChecklistScheduleFrequency,
+  AdminChecklistScheduleRow,
   AdminEquipmentTypeRow,
+  AdminPropertyRow,
 } from '@/types/admin';
 
 const RESPONSE_PAGE_SIZE = 20;
+const DEFAULT_SCHEDULE_FREQUENCY: AdminChecklistScheduleFrequency = 'DIARIA';
 
 export type ChecklistReviewStatus = 'all' | 'observed' | 'photos';
 
@@ -27,12 +34,27 @@ export interface QuestionGroup {
 }
 
 export function useAdminChecklist() {
+  const [properties, setProperties] = useState<AdminPropertyRow[]>([]);
   const [equipmentTypes, setEquipmentTypes] = useState<AdminEquipmentTypeRow[]>(
     [],
   );
   const [selectedEquipmentType, setSelectedEquipmentType] = useState('');
   const [questions, setQuestions] = useState<AdminChecklistQuestionRow[]>([]);
   const [responses, setResponses] = useState<AdminChecklistResponseRow[]>([]);
+  const [schedules, setSchedules] = useState<AdminChecklistScheduleRow[]>([]);
+  const [selectedScheduleProperty, setSelectedScheduleProperty] = useState('');
+  const [selectedScheduleEquipmentType, setSelectedScheduleEquipmentType] =
+    useState('');
+  const [scheduleFrequency, setScheduleFrequency] =
+    useState<AdminChecklistScheduleFrequency>(DEFAULT_SCHEDULE_FREQUENCY);
+  const [scheduleOccurrencesPerDay, setScheduleOccurrencesPerDay] =
+    useState('1');
+  const [scheduleWindowStart, setScheduleWindowStart] = useState('08:00');
+  const [scheduleWindowEnd, setScheduleWindowEnd] = useState('18:00');
+  const [scheduleStartDate, setScheduleStartDate] = useState('');
+  const [scheduleEndDate, setScheduleEndDate] = useState('');
+  const [scheduleIsActive, setScheduleIsActive] = useState(true);
+  const [savingSchedule, setSavingSchedule] = useState(false);
   const [expandedResponseId, setExpandedResponseId] = useState<string | null>(
     null,
   );
@@ -58,28 +80,66 @@ export function useAdminChecklist() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadEquipmentTypes() {
+    async function loadCatalogs() {
       try {
         const supabase = getSupabaseClient();
-        const result = await listAdminEquipmentTypes(supabase);
-        if (isMounted) setEquipmentTypes(result);
+        const [propertyResult, equipmentResult, scheduleResult] =
+          await Promise.all([
+            listAdminProperties(supabase),
+            listAdminEquipmentTypes(supabase),
+            listAdminChecklistSchedules(supabase),
+          ]);
+
+        if (isMounted) {
+          setProperties(propertyResult);
+          setEquipmentTypes(equipmentResult);
+          setSchedules(scheduleResult);
+        }
       } catch (error) {
         if (isMounted) {
           setErrorMessage(
             error instanceof Error
               ? error.message
-              : 'No se pudieron cargar los tipos de equipo',
+              : 'No se pudieron cargar los catalogos de checklist',
           );
         }
       }
     }
 
-    void loadEquipmentTypes();
+    void loadCatalogs();
 
     return () => {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!selectedScheduleProperty || !selectedScheduleEquipmentType) {
+      return;
+    }
+
+    const currentSchedule = schedules.find(
+      item =>
+        item.property_id === selectedScheduleProperty &&
+        item.equipamento_id === selectedScheduleEquipmentType,
+    );
+
+    setScheduleFrequency(
+      currentSchedule?.frequency ?? DEFAULT_SCHEDULE_FREQUENCY,
+    );
+    setScheduleOccurrencesPerDay(
+      currentSchedule ? String(currentSchedule.occurrences_per_day) : '1',
+    );
+    setScheduleWindowStart(
+      (currentSchedule?.window_start ?? '08:00').slice(0, 5),
+    );
+    setScheduleWindowEnd(
+      (currentSchedule?.window_end ?? '18:00').slice(0, 5),
+    );
+    setScheduleStartDate(currentSchedule?.start_date ?? '');
+    setScheduleEndDate(currentSchedule?.end_date ?? '');
+    setScheduleIsActive(currentSchedule?.is_active ?? true);
+  }, [schedules, selectedScheduleEquipmentType, selectedScheduleProperty]);
 
   useEffect(() => {
     let isMounted = true;
@@ -216,6 +276,30 @@ export function useAdminChecklist() {
     };
   }, [questions, responseTotal, responses]);
 
+  const scheduleMetrics = useMemo(() => {
+    const activeSchedules = schedules.filter(item => item.is_active).length;
+
+    return {
+      total: schedules.length,
+      active: activeSchedules,
+      inactive: schedules.length - activeSchedules,
+      unconfiguredScopes: Math.max(
+        0,
+        properties.length * equipmentTypes.length - schedules.length,
+      ),
+    };
+  }, [equipmentTypes.length, properties.length, schedules]);
+
+  const selectedSchedule = useMemo(
+    () =>
+      schedules.find(
+        item =>
+          item.property_id === selectedScheduleProperty &&
+          item.equipamento_id === selectedScheduleEquipmentType,
+      ) ?? null,
+    [schedules, selectedScheduleEquipmentType, selectedScheduleProperty],
+  );
+
   function handleEquipmentTypeChange(value: string) {
     setSelectedEquipmentType(value);
     setResponsePage(1);
@@ -236,6 +320,85 @@ export function useAdminChecklist() {
   function handleResponseReviewStatusChange(value: string) {
     setResponseReviewStatus(value as ChecklistReviewStatus);
     setResponsePage(1);
+  }
+
+  function handleSelectSchedule(schedule: AdminChecklistScheduleRow) {
+    setSelectedScheduleProperty(schedule.property_id);
+    setSelectedScheduleEquipmentType(schedule.equipamento_id);
+    setSuccessMessage(null);
+  }
+
+  async function refreshSchedules() {
+    const supabase = getSupabaseClient();
+    const result = await listAdminChecklistSchedules(supabase);
+    setSchedules(result);
+  }
+
+  async function handleSaveSchedule() {
+    try {
+      setSavingSchedule(true);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+
+      if (!selectedScheduleProperty || !selectedScheduleEquipmentType) {
+        throw new Error('Selecciona un inmueble y un tipo de equipo.');
+      }
+
+      const occurrencesPerDay = Number(scheduleOccurrencesPerDay);
+      if (
+        !Number.isInteger(occurrencesPerDay) ||
+        occurrencesPerDay < 1 ||
+        occurrencesPerDay > 24
+      ) {
+        throw new Error('Las veces por dia deben ser entre 1 y 24.');
+      }
+
+      if (scheduleWindowStart >= scheduleWindowEnd) {
+        throw new Error('La hora de inicio debe ser menor que la hora final.');
+      }
+
+      if (
+        scheduleStartDate &&
+        scheduleEndDate &&
+        scheduleStartDate > scheduleEndDate
+      ) {
+        throw new Error('La fecha de inicio no puede ser mayor a la fecha fin.');
+      }
+
+      const supabase = getSupabaseClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user?.id) {
+        throw new Error('No se pudo identificar al usuario actual.');
+      }
+
+      await upsertAdminChecklistSchedule(supabase, {
+        propertyId: selectedScheduleProperty,
+        equipamentoId: selectedScheduleEquipmentType,
+        frequency: scheduleFrequency,
+        occurrencesPerDay,
+        windowStart: `${scheduleWindowStart}:00`,
+        windowEnd: `${scheduleWindowEnd}:00`,
+        timezone: 'America/Lima',
+        startDate: scheduleStartDate || null,
+        endDate: scheduleEndDate || null,
+        isActive: scheduleIsActive,
+        userId: user.id,
+      });
+
+      await refreshSchedules();
+      setSuccessMessage('Programacion de checklist guardada correctamente.');
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo guardar la programacion de checklist',
+      );
+    } finally {
+      setSavingSchedule(false);
+    }
   }
 
   function toggleQuestionGroup(groupKey: string) {
@@ -280,6 +443,7 @@ export function useAdminChecklist() {
   }
 
   return {
+    properties,
     equipmentTypes,
     selectedEquipmentType,
     handleEquipmentTypeChange,
@@ -296,6 +460,30 @@ export function useAdminChecklist() {
     responseTotal,
     responseTotalPages,
     checklistMetrics,
+    schedules,
+    scheduleMetrics,
+    selectedSchedule,
+    selectedScheduleProperty,
+    setSelectedScheduleProperty,
+    selectedScheduleEquipmentType,
+    setSelectedScheduleEquipmentType,
+    scheduleFrequency,
+    setScheduleFrequency,
+    scheduleOccurrencesPerDay,
+    setScheduleOccurrencesPerDay,
+    scheduleWindowStart,
+    setScheduleWindowStart,
+    scheduleWindowEnd,
+    setScheduleWindowEnd,
+    scheduleStartDate,
+    setScheduleStartDate,
+    scheduleEndDate,
+    setScheduleEndDate,
+    scheduleIsActive,
+    setScheduleIsActive,
+    savingSchedule,
+    handleSelectSchedule,
+    handleSaveSchedule,
     expandedResponseId,
     setExpandedResponseId,
     questions,
