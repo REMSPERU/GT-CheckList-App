@@ -27,6 +27,7 @@ interface ChecklistScheduleQueryRow {
   equipamento_id: string;
   frequency: AdminChecklistScheduleFrequency;
   occurrences_per_day: number;
+  execution_range_days: number;
   window_start: string;
   window_end: string;
   timezone: string;
@@ -189,6 +190,7 @@ export async function listAdminChecklistSchedules(
           equipamento_id,
           frequency,
           occurrences_per_day,
+          execution_range_days,
           window_start,
           window_end,
           timezone,
@@ -223,6 +225,7 @@ export async function listAdminChecklistSchedules(
       systemName: equipmentType?.systemName ?? 'Sin sistema',
       frequency: item.frequency,
       occurrences_per_day: item.occurrences_per_day,
+      execution_range_days: item.execution_range_days ?? 1,
       window_start: item.window_start,
       window_end: item.window_end,
       timezone: item.timezone,
@@ -244,6 +247,7 @@ export async function upsertAdminChecklistSchedule(
       equipamento_id: input.equipamentoId,
       frequency: input.frequency,
       occurrences_per_day: input.occurrencesPerDay,
+      execution_range_days: input.executionRangeDays ?? 1,
       window_start: input.windowStart,
       window_end: input.windowEnd,
       timezone: input.timezone ?? 'America/Lima',

@@ -68,6 +68,17 @@ function getPeriodFromFrequency(frequencyRaw: string) {
     start.setDate(now.getDate() - offset);
     start.setHours(0, 0, 0, 0);
     end.setTime(start.getTime() + 7 * 24 * 60 * 60 * 1000 - 1);
+  } else if (frequency === 'QUINCENAL') {
+    start.setDate(now.getDate() <= 15 ? 1 : 16);
+    start.setHours(0, 0, 0, 0);
+
+    if (now.getDate() <= 15) {
+      end.setDate(15);
+      end.setHours(23, 59, 59, 999);
+    } else {
+      end.setMonth(start.getMonth() + 1, 1);
+      end.setTime(end.getTime() - 1);
+    }
   } else {
     start.setDate(1);
     start.setHours(0, 0, 0, 0);
