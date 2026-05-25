@@ -184,6 +184,7 @@ export interface AdminPropertyRow {
   city: string | null;
   is_active: boolean | null;
   maintenance_priority: string | null;
+  image_url: string | null;
 }
 
 export interface AdminMaintenanceRow {

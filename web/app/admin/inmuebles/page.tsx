@@ -1,6 +1,6 @@
 'use client';
 
-import { PropertiesTable } from '@/components/admin/properties-table';
+import { PropertiesGrid } from '@/components/admin/properties-grid';
 import { Alert } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { useAdminProperties } from '@/hooks/admin/use-admin-properties';
@@ -18,7 +18,7 @@ export default function AdminPropertiesPage() {
         />
       </section>
       <Alert>{properties.errorMessage}</Alert>
-      <PropertiesTable
+      <PropertiesGrid
         items={properties.filteredItems}
         isLoading={properties.isLoading}
       />

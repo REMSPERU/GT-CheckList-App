@@ -64,11 +64,11 @@ export function ChecklistResponsesTable({
                   </td>
                   <td className={TD_CLASS}>{response.building_name ?? '-'}</td>
                   <td className={TD_CLASS}>
-                    <strong className="block">
-                      {response.equipo_codigo ?? '-'}
-                    </strong>
-                    <small className="mt-1 block text-slate-500">
+                    <strong className="block text-[0.95rem]">
                       {response.equipamento_nombre ?? '-'}
+                    </strong>
+                    <small className="mt-1 block text-slate-400">
+                      {response.equipo_codigo ?? '-'}
                     </small>
                   </td>
                   <td className={TD_CLASS}>
