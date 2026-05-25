@@ -7,7 +7,7 @@ export interface ChecklistWeightedScore {
   earned: number;
   lost: number;
   total: number;
-  percent: number;
+  percent: number | null;
 }
 
 export function getAnswerWeight(answer: AdminChecklistAnswerItem): number {
@@ -30,7 +30,7 @@ export function getChecklistWeightedScore(
     total,
     earned,
     lost: total - earned,
-    percent: total > 0 ? (earned / total) * 100 : 0,
+    percent: total > 0 ? (earned / total) * 100 : null,
   };
 }
 

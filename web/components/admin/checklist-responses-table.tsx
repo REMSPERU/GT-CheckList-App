@@ -107,7 +107,7 @@ function OperativityBadge({
 }) {
   const score = getChecklistWeightedScore(response);
 
-  if (score.total === 0) {
+  if (score.percent === null) {
     return (
       <span className="mb-2 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-600">
         Sin datos

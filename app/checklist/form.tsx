@@ -38,13 +38,14 @@ import { useUserRole } from '@/hooks/use-user-role';
 import { syncService } from '@/services/sync';
 
 type AnswerErrors = Record<string, { observation?: string; photos?: string }>;
+type EquipmentOperationalStatus = 'operativo' | 'stand_by' | 'inoperativo';
 
 interface ChecklistAnswerJsonItem {
   pregunta_id: string;
   pregunta: string;
   orden: number;
   ponderado: number | string | null;
-  status_ok: boolean;
+  status_ok: boolean | null;
   observacion: string | null;
   fotos: StoredPhotoRef[];
 }
@@ -57,8 +58,9 @@ interface ChecklistAnswersJson {
     total_ok: number;
     total_observadas: number;
     total_fotos: number;
-    puntaje_obtenido: number;
+    puntaje_obtenido: number | null;
     ponderado_total: number;
+    estado_operatividad: EquipmentOperationalStatus;
   };
 }
 
@@ -227,48 +229,76 @@ function buildChecklistAnswersJson(
   questions: PreguntaEquipamento[],
   answers: Record<string, ChecklistQuestionAnswer>,
   uploadedQuestionPhotos: Record<string, StoredPhotoRef[]>,
+  operationalStatus: EquipmentOperationalStatus,
 ): ChecklistAnswersJson {
   const questionMap = new Map(questions.map(item => [item.id, item]));
 
-  const respuestas = Object.values(answers).map(answer => ({
-    pregunta_id: answer.preguntaId,
-    pregunta: questionMap.get(answer.preguntaId)?.pregunta || '',
-    orden: questionMap.get(answer.preguntaId)?.orden || 0,
-    ponderado: questionMap.get(answer.preguntaId)?.ponderado ?? null,
-    status_ok: answer.status === true,
-    observacion: answer.status === false ? answer.observacion.trim() : null,
-    fotos:
-      answer.status === false
-        ? (uploadedQuestionPhotos[answer.preguntaId] ?? [])
-        : [],
-  }));
+  const respuestas = Object.values(answers).map(answer => {
+    const question = questionMap.get(answer.preguntaId);
+    const isStandBy = operationalStatus === 'stand_by';
+    const isInoperativo = operationalStatus === 'inoperativo';
+    const statusOk = isStandBy
+      ? null
+      : isInoperativo
+        ? false
+        : answer.status === true;
 
-  const totalObservadas = respuestas.filter(item => !item.status_ok).length;
-  const totalOk = respuestas.length - totalObservadas;
+    return {
+      pregunta_id: answer.preguntaId,
+      pregunta: question?.pregunta || '',
+      orden: question?.orden || 0,
+      ponderado: isStandBy ? null : (question?.ponderado ?? null),
+      status_ok: statusOk,
+      observacion: isInoperativo
+        ? 'Equipo inoperativo'
+        : isStandBy
+          ? 'Equipo en stand by'
+          : answer.status === false
+            ? answer.observacion.trim()
+            : null,
+      fotos:
+        operationalStatus === 'operativo' && answer.status === false
+          ? (uploadedQuestionPhotos[answer.preguntaId] ?? [])
+          : [],
+    };
+  });
+
+  const scorableResponses =
+    operationalStatus === 'stand_by' ? [] : respuestas;
+  const totalObservadas = scorableResponses.filter(
+    item => item.status_ok === false,
+  ).length;
+  const totalOk = scorableResponses.filter(
+    item => item.status_ok === true,
+  ).length;
   const totalFotos = respuestas.reduce(
     (acc, item) => acc + item.fotos.length,
     0,
   );
-  const ponderadoTotal = respuestas.reduce(
+  const ponderadoTotal = scorableResponses.reduce(
     (acc, item) => acc + parseQuestionWeight(item.ponderado),
     0,
   );
-  const puntajeObtenido = respuestas.reduce(
-    (acc, item) =>
-      acc + (item.status_ok ? parseQuestionWeight(item.ponderado) : 0),
-    0,
-  );
+  const puntajeObtenido =
+    operationalStatus === 'stand_by'
+      ? null
+      : scorableResponses.reduce(
+          (acc, item) =>
+            acc + (item.status_ok ? parseQuestionWeight(item.ponderado) : 0),
+          0,
+        );
 
   return {
     version: 1,
     respuestas,
     resumen: {
-      total_preguntas: respuestas.length,
+      total_preguntas: scorableResponses.length,
       total_ok: totalOk,
       total_observadas: totalObservadas,
       total_fotos: totalFotos,
       puntaje_obtenido: puntajeObtenido,
       ponderado_total: ponderadoTotal,
+      estado_operatividad: operationalStatus,
     },
   };
 }
@@ -368,6 +398,8 @@ export default function ChecklistFormScreen() {
   const [answers, setAnswers] = useState<
     Record<string, ChecklistQuestionAnswer>
   >({});
+  const [operationalStatus, setOperationalStatus] =
+    useState<EquipmentOperationalStatus>('operativo');
   const [errors, setErrors] = useState<AnswerErrors>({});
   const [generalPhotoUris, setGeneralPhotoUris] = useState<string[]>([]);
   const [generalPhotoError, setGeneralPhotoError] = useState('');
@@ -413,6 +445,8 @@ export default function ChecklistFormScreen() {
     () => formatDateToSpanish(periodEnd),
     [periodEnd],
   );
+  const isNormalChecklistFlow = operationalStatus === 'operativo';
+  const visibleQuestions = isNormalChecklistFlow ? questions : [];
 
   const showAppAlert = useCallback(
     (title: string, message: string, onClose?: () => void) => {
@@ -666,6 +700,16 @@ export default function ChecklistFormScreen() {
     [registerInteraction, updateAnswer],
   );
 
+  const handleOperationalStatusChange = useCallback(
+    (nextStatus: EquipmentOperationalStatus) => {
+      registerInteraction();
+      setOperationalStatus(nextStatus);
+      setErrors({});
+      setGeneralPhotoError('');
+    },
+    [registerInteraction],
+  );
+
   const handleObservationChange = useCallback(
     (questionId: string, text: string) => {
       registerInteraction();
@@ -722,7 +766,7 @@ export default function ChecklistFormScreen() {
       const answer = answers[question.id];
       if (!answer) return;
 
-      if (answer.status === false) {
+      if (operationalStatus === 'operativo' && answer.status === false) {
         const itemError: { observation?: string; photos?: string } = {};
 
         if (!answer.observacion.trim()) {
@@ -742,14 +786,18 @@ export default function ChecklistFormScreen() {
 
     if (generalPhotoUris.length === 0) {
       hasErrors = true;
-      setGeneralPhotoError('Agregue una foto general del checklist.');
+      setGeneralPhotoError(
+        operationalStatus === 'operativo'
+          ? 'Agregue una foto general del checklist.'
+          : 'Agregue una foto del equipo.',
+      );
     } else {
       setGeneralPhotoError('');
     }
 
     setErrors(nextErrors);
     return !hasErrors;
-  }, [answers, generalPhotoUris.length, questions]);
+  }, [answers, generalPhotoUris.length, operationalStatus, questions]);
 
   const checkAlreadySubmitted = useCallback(async () => {
     const { data, error } = await supabase
@@ -795,7 +843,9 @@ export default function ChecklistFormScreen() {
     if (!validate()) {
       showAppAlert(
         'Faltan datos',
-        'Complete observacion y foto donde aplique.',
+        operationalStatus === 'operativo'
+          ? 'Complete observacion y foto donde aplique.'
+          : 'Agregue la foto del equipo.',
       );
       return;
     }
@@ -928,7 +978,11 @@ export default function ChecklistFormScreen() {
       }));
 
       Object.values(answers).forEach(answer => {
-        if (answer.status !== false || answer.photoUris.length === 0) {
+        if (
+          operationalStatus !== 'operativo' ||
+          answer.status !== false ||
+          answer.photoUris.length === 0
+        ) {
           return;
         }
 
@@ -947,6 +1001,7 @@ export default function ChecklistFormScreen() {
         questions,
         answers,
         uploadedQuestionPhotos,
+        operationalStatus,
       );
       const hasObservation = respuestasJson.resumen.total_observadas > 0;
       const submittedAtMs = Date.now();
@@ -1026,6 +1081,7 @@ export default function ChecklistFormScreen() {
     checkAlreadySubmitted,
     frecuencia,
     generalPhotoUris,
+    operationalStatus,
     params.buildingName,
     params.buildingId,
     params.equipoCodigo,
@@ -1149,12 +1205,65 @@ export default function ChecklistFormScreen() {
   const listHeader = useMemo(
     () => (
       <>
+        <View style={styles.operationalStatusCard}>
+          <Text style={styles.generalPhotoTitle}>Estado del equipo</Text>
+          <Text style={styles.generalPhotoSubtitle}>
+            Seleccione la condicion antes de completar el checklist.
+          </Text>
+
+          <View style={styles.operationalStatusOptions}>
+            {([
+              ['operativo', 'Operativo'],
+              ['stand_by', 'Stand by'],
+              ['inoperativo', 'Inoperativo'],
+            ] as const).map(([value, label]) => {
+              const isSelected = operationalStatus === value;
+
+              return (
+                <Pressable
+                  key={value}
+                  onPress={() => handleOperationalStatusChange(value)}
+                  style={({ pressed }) => [
+                    styles.operationalStatusOption,
+                    isSelected && styles.operationalStatusOptionActive,
+                    pressed && styles.pressed,
+                  ]}
+                  disabled={isSaving}
+                  accessibilityRole="button">
+                  <Text
+                    style={[
+                      styles.operationalStatusOptionText,
+                      isSelected && styles.operationalStatusOptionTextActive,
+                    ]}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {operationalStatus === 'stand_by' ? (
+            <Text style={styles.operationalStatusHint}>
+              Stand by no suma ni resta en la operatividad ponderada.
+            </Text>
+          ) : null}
+          {operationalStatus === 'inoperativo' ? (
+            <Text style={styles.operationalStatusHint}>
+              Inoperativo registra evidencia y deja la operatividad en 0%.
+            </Text>
+          ) : null}
+        </View>
+
         <View style={styles.generalPhotoCard}>
           <Text style={styles.generalPhotoTitle}>
-            Foto general (obligatoria)
+            {operationalStatus === 'operativo'
+              ? 'Foto general (obligatoria)'
+              : 'Foto del equipo (obligatoria)'}
           </Text>
           <Text style={styles.generalPhotoSubtitle}>
-            Sirve como evidencia global del estado del equipo.
+            {operationalStatus === 'operativo'
+              ? 'Sirve como evidencia global del estado del equipo.'
+              : 'Sirve como evidencia del estado seleccionado.'}
           </Text>
 
           <ScrollView
@@ -1190,7 +1299,9 @@ export default function ChecklistFormScreen() {
       generalPhotoError,
       generalPhotoUris,
       handleAddGeneralPhoto,
+      handleOperationalStatusChange,
       isSaving,
+      operationalStatus,
       renderGeneralPhoto,
     ],
   );
@@ -1264,17 +1375,19 @@ export default function ChecklistFormScreen() {
       </View>
 
       <FlatList
-        data={questions}
+        data={visibleQuestions}
         keyExtractor={item => item.id}
         renderItem={renderQuestionItem}
         contentContainerStyle={styles.content}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>
-              No hay preguntas activas para este tipo de equipo.
-            </Text>
-          </View>
+          operationalStatus === 'operativo' ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>
+                No hay preguntas activas para este tipo de equipo.
+              </Text>
+            </View>
+          ) : null
         }
         ListFooterComponent={<View style={styles.listFooterSpace} />}
         showsVerticalScrollIndicator={false}
@@ -1443,6 +1556,48 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     padding: 14,
     marginBottom: 12,
+  },
+  operationalStatusCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    padding: 14,
+    marginBottom: 12,
+  },
+  operationalStatusOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  operationalStatusOption: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  operationalStatusOptionActive: {
+    borderColor: '#0891B2',
+    backgroundColor: '#ECFEFF',
+  },
+  operationalStatusOptionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    textAlign: 'center',
+  },
+  operationalStatusOptionTextActive: {
+    color: '#0E7490',
+  },
+  operationalStatusHint: {
+    marginTop: 10,
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 17,
   },
   generalPhotoTitle: {
     fontSize: 15,
