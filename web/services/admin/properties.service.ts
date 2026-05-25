@@ -7,7 +7,7 @@ export async function listAdminProperties(
 ): Promise<AdminPropertyRow[]> {
   const { data, error } = await supabase
     .from('properties')
-    .select('id, code, name, address, city, is_active, maintenance_priority')
+    .select('id, code, name, address, city, is_active, maintenance_priority, image_url')
     .order('name', { ascending: true })
     .limit(250);
 

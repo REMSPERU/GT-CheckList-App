@@ -30,6 +30,35 @@ import type {
 const RESPONSE_PAGE_SIZE = 20;
 const DEFAULT_SCHEDULE_FREQUENCY: AdminChecklistScheduleFrequency = 'DIARIA';
 
+function getTodayInLima() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const year = parts.find(part => part.type === 'year')?.value ?? '1970';
+  const month = parts.find(part => part.type === 'month')?.value ?? '01';
+  const day = parts.find(part => part.type === 'day')?.value ?? '01';
+
+  return `${year}-${month}-${day}`;
+}
+
+function getExecutionRangeLimit(frequency: AdminChecklistScheduleFrequency) {
+  switch (frequency) {
+    case 'DIARIA':
+      return 1;
+    case 'INTERDIARIA':
+      return 2;
+    case 'SEMANAL':
+      return 7;
+    case 'QUINCENAL':
+      return 15;
+    case 'MENSUAL':
+      return 31;
+  }
+}
+
 export type ChecklistReviewStatus = 'all' | 'observed' | 'photos';
 
 export interface QuestionGroup {
@@ -71,6 +100,8 @@ export function useAdminChecklist() {
   const [scheduleFrequency, setScheduleFrequency] =
     useState<AdminChecklistScheduleFrequency>(DEFAULT_SCHEDULE_FREQUENCY);
   const [scheduleOccurrencesPerDay, setScheduleOccurrencesPerDay] =
+    useState('1');
+  const [scheduleExecutionRangeDays, setScheduleExecutionRangeDays] =
     useState('1');
   const [scheduleWindowStart, setScheduleWindowStart] = useState('08:00');
   const [scheduleWindowEnd, setScheduleWindowEnd] = useState('18:00');
@@ -211,6 +242,9 @@ export function useAdminChecklist() {
     );
     setScheduleOccurrencesPerDay(
       currentSchedule ? String(currentSchedule.occurrences_per_day) : '1',
+    );
+    setScheduleExecutionRangeDays(
+      currentSchedule ? String(currentSchedule.execution_range_days ?? 1) : '1',
     );
     setScheduleWindowStart(
       (currentSchedule?.window_start ?? '08:00').slice(0, 5),
@@ -476,6 +510,7 @@ export function useAdminChecklist() {
           frequency: selectedSchedule.frequency,
           startDate: selectedSchedule.start_date,
           endDate: selectedSchedule.end_date,
+          executionRangeDays: selectedSchedule.execution_range_days,
         });
 
         if (isMounted) setScheduleProgress(result);
@@ -572,6 +607,18 @@ export function useAdminChecklist() {
         throw new Error('La hora de inicio debe ser menor que la hora final.');
       }
 
+      const executionRangeDays = Number(scheduleExecutionRangeDays);
+      const executionRangeLimit = getExecutionRangeLimit(scheduleFrequency);
+      if (
+        !Number.isInteger(executionRangeDays) ||
+        executionRangeDays < 1 ||
+        executionRangeDays > executionRangeLimit
+      ) {
+        throw new Error(
+          `El rango de ejecucion para ${scheduleFrequency.toLowerCase()} debe ser entre 1 y ${executionRangeLimit}.`,
+        );
+      }
+
       if (
         scheduleStartDate &&
         scheduleEndDate &&
@@ -610,10 +657,11 @@ export function useAdminChecklist() {
         equipamentoId: selectedScheduleEquipmentType,
         frequency: scheduleFrequency,
         occurrencesPerDay,
+        executionRangeDays,
         windowStart: `${scheduleWindowStart}:00`,
         windowEnd: `${scheduleWindowEnd}:00`,
         timezone: 'America/Lima',
-        startDate: scheduleStartDate || null,
+        startDate: scheduleStartDate || getTodayInLima(),
         endDate: scheduleEndDate || null,
         isActive: scheduleIsActive,
         userId: user.id,
@@ -712,8 +760,11 @@ export function useAdminChecklist() {
     },
     scheduleFrequency,
     setScheduleFrequency,
+    scheduleExecutionRangeLimit: getExecutionRangeLimit(scheduleFrequency),
     scheduleOccurrencesPerDay,
     setScheduleOccurrencesPerDay,
+    scheduleExecutionRangeDays,
+    setScheduleExecutionRangeDays,
     scheduleWindowStart,
     setScheduleWindowStart,
     scheduleWindowEnd,

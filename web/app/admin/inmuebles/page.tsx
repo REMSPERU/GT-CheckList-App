@@ -1,7 +1,8 @@
 'use client';
 
 import { Suspense } from 'react';
-import { PropertiesTable } from '@/components/admin/properties-table';
+
+import { PropertiesGrid } from '@/components/admin/properties-grid';
 import { Alert } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { useAdminProperties } from '@/hooks/admin/use-admin-properties';
@@ -19,7 +20,7 @@ function AdminPropertiesContent() {
         />
       </section>
       <Alert>{properties.errorMessage}</Alert>
-      <PropertiesTable
+      <PropertiesGrid
         items={properties.filteredItems}
         isLoading={properties.isLoading}
       />

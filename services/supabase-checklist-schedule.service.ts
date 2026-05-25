@@ -4,6 +4,7 @@ export type ChecklistScheduleFrequency =
   | 'DIARIA'
   | 'INTERDIARIA'
   | 'SEMANAL'
+  | 'QUINCENAL'
   | 'MENSUAL';
 
 export interface ChecklistSchedule {
@@ -13,6 +14,7 @@ export interface ChecklistSchedule {
   equipo_id: string | null;
   frequency: ChecklistScheduleFrequency;
   occurrences_per_day: number;
+  execution_range_days: number;
   window_start: string;
   window_end: string;
   timezone: string;
@@ -30,6 +32,7 @@ export interface ChecklistScheduleUpsertInput {
   equipamentoId: string;
   frequency: ChecklistScheduleFrequency;
   occurrencesPerDay: number;
+  executionRangeDays?: number;
   windowStart: string;
   windowEnd: string;
   timezone?: string;
@@ -88,6 +91,7 @@ class SupabaseChecklistScheduleService {
       equipamento_id: input.equipamentoId,
       frequency: input.frequency,
       occurrences_per_day: input.occurrencesPerDay,
+      execution_range_days: input.executionRangeDays ?? 1,
       window_start: input.windowStart,
       window_end: input.windowEnd,
       timezone: input.timezone || 'America/Lima',

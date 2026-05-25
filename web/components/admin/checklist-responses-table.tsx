@@ -64,11 +64,11 @@ export function ChecklistResponsesTable({
                   </td>
                   <td className={TD_CLASS}>{response.building_name ?? '-'}</td>
                   <td className={TD_CLASS}>
-                    <strong className="block">
-                      {response.equipo_codigo ?? '-'}
-                    </strong>
-                    <small className="mt-1 block text-slate-500">
+                    <strong className="block text-[0.95rem]">
                       {response.equipamento_nombre ?? '-'}
+                    </strong>
+                    <small className="mt-1 block text-slate-400">
+                      {response.equipo_codigo ?? '-'}
                     </small>
                   </td>
                   <td className={TD_CLASS}>
@@ -107,7 +107,7 @@ function OperativityBadge({
 }) {
   const score = getChecklistWeightedScore(response);
 
-  if (score.total === 0) {
+  if (score.percent === null) {
     return (
       <span className="mb-2 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-600">
         Sin datos

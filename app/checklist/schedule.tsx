@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -29,6 +30,7 @@ const FREQUENCY_OPTIONS: {
   { label: 'Diaria', value: 'DIARIA' },
   { label: 'Interdiaria', value: 'INTERDIARIA' },
   { label: 'Semanal', value: 'SEMANAL' },
+  { label: 'Quincenal', value: 'QUINCENAL' },
   { label: 'Mensual', value: 'MENSUAL' },
 ];
 
@@ -69,6 +71,35 @@ function formatDateValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function getExecutionRangeLimit(frequency: ChecklistScheduleFrequency) {
+  switch (frequency) {
+    case 'DIARIA':
+      return 1;
+    case 'INTERDIARIA':
+      return 2;
+    case 'SEMANAL':
+      return 7;
+    case 'QUINCENAL':
+      return 15;
+    case 'MENSUAL':
+      return 31;
+  }
+}
+
+function getTodayInLima() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const year = parts.find(part => part.type === 'year')?.value ?? '1970';
+  const month = parts.find(part => part.type === 'month')?.value ?? '01';
+  const day = parts.find(part => part.type === 'day')?.value ?? '01';
+
+  return `${year}-${month}-${day}`;
+}
+
 function parseDateValue(value: string) {
   if (!isValidDate(value)) {
     return new Date();
@@ -105,6 +136,7 @@ export default function ChecklistScheduleScreen() {
   const [frequency, setFrequency] =
     useState<ChecklistScheduleFrequency>('DIARIA');
   const [occurrencesPerDay, setOccurrencesPerDay] = useState('1');
+  const [executionRangeDays, setExecutionRangeDays] = useState('1');
   const [windowStart, setWindowStart] = useState('08:00');
   const [windowEnd, setWindowEnd] = useState('18:00');
   const [startDate, setStartDate] = useState('');
@@ -141,6 +173,7 @@ export default function ChecklistScheduleScreen() {
       if (schedule) {
         setFrequency(schedule.frequency);
         setOccurrencesPerDay(String(schedule.occurrences_per_day));
+        setExecutionRangeDays(String(schedule.execution_range_days ?? 1));
         setWindowStart(schedule.window_start.slice(0, 5));
         setWindowEnd(schedule.window_end.slice(0, 5));
         setStartDate(schedule.start_date || '');
@@ -176,22 +209,36 @@ export default function ChecklistScheduleScreen() {
     }
 
     const parsedOccurrences = Number(occurrencesPerDay);
-      if (
-        !Number.isInteger(parsedOccurrences) ||
-        parsedOccurrences < 1 ||
-        parsedOccurrences > 24
-      ) {
-        Alert.alert(
-          'Dato inválido',
-          'El maximo por equipo debe ser entre 1 y 24.',
-        );
-        return;
-      }
+    if (
+      !Number.isInteger(parsedOccurrences) ||
+      parsedOccurrences < 1 ||
+      parsedOccurrences > 24
+    ) {
+      Alert.alert(
+        'Dato inválido',
+        'El maximo por equipo debe ser entre 1 y 24.',
+      );
+      return;
+    }
 
     if (!isValidTime(windowStart) || !isValidTime(windowEnd)) {
       Alert.alert(
         'Dato inválido',
         'El rango horario debe tener formato HH:mm.',
+      );
+      return;
+    }
+
+    const parsedExecutionRangeDays = Number(executionRangeDays);
+    const executionRangeLimit = getExecutionRangeLimit(frequency);
+    if (
+      !Number.isInteger(parsedExecutionRangeDays) ||
+      parsedExecutionRangeDays < 1 ||
+      parsedExecutionRangeDays > executionRangeLimit
+    ) {
+      Alert.alert(
+        'Dato inválido',
+        `El rango de ejecución para ${frequency.toLowerCase()} debe ser entre 1 y ${executionRangeLimit}.`,
       );
       return;
     }
@@ -204,12 +251,12 @@ export default function ChecklistScheduleScreen() {
       return;
     }
 
-      if (!isValidDate(startDate) || !isValidDate(endDate)) {
-        Alert.alert(
-          'Dato inválido',
+    if (!isValidDate(startDate) || !isValidDate(endDate)) {
+      Alert.alert(
+        'Dato inválido',
         'Las fechas deben tener formato DD-MM-AAAA.',
       );
-        return;
+      return;
       }
 
     if (startDate && endDate && startDate > endDate) {
@@ -236,10 +283,11 @@ export default function ChecklistScheduleScreen() {
         equipamentoId: params.equipamentoId,
         frequency,
         occurrencesPerDay: parsedOccurrences,
+        executionRangeDays: parsedExecutionRangeDays,
         windowStart: `${windowStart}:00`,
         windowEnd: `${windowEnd}:00`,
         timezone: 'America/Lima',
-        startDate: startDate || null,
+        startDate: startDate || getTodayInLima(),
         endDate: endDate || null,
         isActive,
         userId: user.id,
@@ -256,6 +304,7 @@ export default function ChecklistScheduleScreen() {
     }
   }, [
     endDate,
+    executionRangeDays,
     frequency,
     isActive,
     occurrencesPerDay,
@@ -330,7 +379,9 @@ export default function ChecklistScheduleScreen() {
         <Text style={styles.subtitle}>{params.buildingName || 'Inmueble'}</Text>
       </View>
 
-      <View style={styles.formCard}>
+      <ScrollView
+        contentContainerStyle={[styles.formCard, styles.scrollContent]}
+        keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>Frecuencia</Text>
         <View style={styles.pickerWrap}>
           <Picker
@@ -357,6 +408,21 @@ export default function ChecklistScheduleScreen() {
           placeholder="1"
           placeholderTextColor="#94A3B8"
         />
+
+        <Text style={styles.label}>Rango de ejecución (días)</Text>
+        <TextInput
+          value={executionRangeDays}
+          onChangeText={setExecutionRangeDays}
+          keyboardType="number-pad"
+          style={styles.input}
+          placeholder="1"
+          placeholderTextColor="#94A3B8"
+        />
+        <Text style={styles.helperText}>
+          Máximo para esta frecuencia: {getExecutionRangeLimit(frequency)} día
+          {getExecutionRangeLimit(frequency) === 1 ? '' : 's'}. Si no eliges
+          fecha inicio, se usará hoy como fecha base.
+        </Text>
 
         <Text style={styles.label}>Rango horario</Text>
         <View style={styles.timeRow}>
@@ -467,7 +533,7 @@ export default function ChecklistScheduleScreen() {
             {isSaving ? 'Guardando...' : 'Guardar programación'}
           </Text>
         </Pressable>
-      </View>
+      </ScrollView>
 
       <DatePickerModal
         visible={datePickerField !== null}
@@ -543,6 +609,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
+  scrollContent: {
+    paddingBottom: 24,
+  },
   label: {
     fontSize: 13,
     fontWeight: '600',
@@ -566,6 +635,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#0F172A',
     backgroundColor: '#FFFFFF',
+  },
+  helperText: {
+    marginTop: 6,
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#64748B',
   },
   dateRow: {
     flexDirection: 'row',

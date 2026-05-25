@@ -115,8 +115,15 @@ export default function AdminChecklistResponseDetailPage() {
             Operatividad
           </span>
           <div className="flex items-baseline gap-2">
-            <span className={`text-4xl font-extrabold tracking-tight ${weightedScore.percent < 80 ? 'text-amber-600' : 'text-emerald-800'}`}>
-              {formatWeight(weightedScore.percent)}%
+            <span
+              className={`text-4xl font-extrabold tracking-tight ${
+                weightedScore.percent !== null && weightedScore.percent < 80
+                  ? 'text-amber-600'
+                  : 'text-emerald-800'
+              }`}>
+              {weightedScore.percent === null
+                ? 'No aplica'
+                : `${formatWeight(weightedScore.percent)}%`}
             </span>
             <span className="text-xs font-semibold text-slate-500">
               ({formatWeight(weightedScore.earned)} de {formatWeight(weightedScore.total)} ítems)

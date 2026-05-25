@@ -76,6 +76,7 @@ export type AdminChecklistScheduleFrequency =
   | 'DIARIA'
   | 'INTERDIARIA'
   | 'SEMANAL'
+  | 'QUINCENAL'
   | 'MENSUAL';
 
 export interface AdminChecklistScheduleRow {
@@ -87,6 +88,7 @@ export interface AdminChecklistScheduleRow {
   systemName: string;
   frequency: AdminChecklistScheduleFrequency;
   occurrences_per_day: number;
+  execution_range_days: number;
   window_start: string;
   window_end: string;
   timezone: string;
@@ -101,6 +103,7 @@ export interface AdminChecklistScheduleUpsertInput {
   equipamentoId: string;
   frequency: AdminChecklistScheduleFrequency;
   occurrencesPerDay: number;
+  executionRangeDays?: number;
   windowStart: string;
   windowEnd: string;
   timezone?: string;
@@ -181,6 +184,7 @@ export interface AdminPropertyRow {
   city: string | null;
   is_active: boolean | null;
   maintenance_priority: string | null;
+  image_url: string | null;
 }
 
 export interface AdminMaintenanceRow {

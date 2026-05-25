@@ -32,6 +32,7 @@ const FREQUENCY_OPTIONS: {
   { value: 'DIARIA', label: 'Diaria' },
   { value: 'INTERDIARIA', label: 'Interdiaria' },
   { value: 'SEMANAL', label: 'Semanal' },
+  { value: 'QUINCENAL', label: 'Quincenal' },
   { value: 'MENSUAL', label: 'Mensual' },
 ];
 
@@ -46,16 +47,6 @@ function formatDate(value: string | null) {
 
 function formatTime(value: string) {
   return value.slice(0, 5);
-}
-
-function formatScheduleRange(schedule: AdminChecklistScheduleRow) {
-  const canUseRange = ['SEMANAL', 'MENSUAL'].includes(schedule.frequency);
-
-  if (!canUseRange || !schedule.start_date || !schedule.end_date) {
-    return 'Sin rango: cuenta solo el dia actual';
-  }
-
-  return `${formatDate(schedule.start_date)} a ${formatDate(schedule.end_date)}`;
 }
 
 function formatDateTime(value: string | null) {
@@ -84,9 +75,8 @@ function AdminChecklistContent() {
     { value: '', label: 'Todos los equipos' },
     ...checklist.equipmentTypes.map(item => ({
       value: item.id,
-      label: `${item.systemName} · ${item.nombre}${
-        item.frecuencia ? ` · ${item.frecuencia}` : ''
-      }`,
+      label: `${item.systemName} · ${item.nombre}${item.frecuencia ? ` · ${item.frecuencia}` : ''
+        }`,
     })),
   ];
   const buildingOptions = [
@@ -220,8 +210,8 @@ function AdminChecklistContent() {
                   Define cuando se puede llenar
                 </h2>
                 <p className="mt-1.5 text-sm text-slate-500">
-                  Define horario, limite por equipo y, si aplica, un rango
-                  opcional para semanales o mensuales.
+                  Define una regla recurrente. Si no eliges fecha inicio, se
+                  usa hoy como fecha base y se repite automaticamente.
                 </p>
               </div>
 
@@ -299,6 +289,28 @@ function AdminChecklistContent() {
                     />
                   </label>
                 </div>
+
+                <label className="grid gap-1.5 text-sm font-bold text-slate-600">
+                  Rango de ejecucion (dias)
+                  <input
+                    className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                    type="number"
+                    min="1"
+                    max={checklist.scheduleExecutionRangeLimit}
+                    value={checklist.scheduleExecutionRangeDays}
+                    onChange={event =>
+                      checklist.setScheduleExecutionRangeDays(
+                        event.target.value,
+                      )
+                    }
+                  />
+                  <span className="text-xs font-semibold text-slate-500">
+                    Maximo para esta frecuencia:{' '}
+                    {checklist.scheduleExecutionRangeLimit} dia
+                    {checklist.scheduleExecutionRangeLimit === 1 ? '' : 's'}.
+                    1 significa solo el dia objetivo.
+                  </span>
+                </label>
 
                 <div className="grid grid-cols-2 gap-3 max-[640px]:grid-cols-1">
                   <label className="grid gap-1.5 text-sm font-bold text-slate-600">
@@ -585,11 +597,10 @@ interface ScheduleCardProps {
 function ScheduleCard({ schedule, selected, onSelect }: ScheduleCardProps) {
   return (
     <button
-      className={`grid gap-3 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(15,23,42,0.10)] ${
-        selected
+      className={`grid gap-3 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(15,23,42,0.10)] ${selected
           ? 'border-emerald-700 bg-emerald-50/90'
           : 'border-slate-200 bg-white'
-      }`}
+        }`}
       type="button"
       onClick={onSelect}>
       <div className="flex items-start justify-between gap-3">
@@ -602,22 +613,25 @@ function ScheduleCard({ schedule, selected, onSelect }: ScheduleCardProps) {
           </p>
         </div>
         <span
-          className={`rounded-full px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.12em] ${
-            schedule.is_active
+          className={`rounded-full px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.12em] ${schedule.is_active
               ? 'bg-emerald-100 text-emerald-900'
               : 'bg-slate-200 text-slate-600'
-          }`}>
+            }`}>
           {schedule.is_active ? 'Activa' : 'Pausada'}
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 max-[640px]:grid-cols-1">
+      <div className="grid grid-cols-4 gap-2 max-[820px]:grid-cols-2 max-[640px]:grid-cols-1">
         <ScheduleFact label="Frecuencia" value={schedule.frequency} />
         <ScheduleFact
           label="Limite por equipo"
-          value={`${schedule.occurrences_per_day} vez${
-            schedule.occurrences_per_day === 1 ? '' : 'es'
-          }`}
+          value={`${schedule.occurrences_per_day} vez${schedule.occurrences_per_day === 1 ? '' : 'es'
+            }`}
+        />
+        <ScheduleFact
+          label="Rango ejec."
+          value={`${schedule.execution_range_days} dia${schedule.execution_range_days === 1 ? '' : 's'
+            }`}
         />
         <ScheduleFact
           label="Horario"
@@ -628,7 +642,8 @@ function ScheduleCard({ schedule, selected, onSelect }: ScheduleCardProps) {
       </div>
 
       <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
-        Rango de ejecucion: {formatScheduleRange(schedule)} · Lima
+        Vigencia: {formatDate(schedule.start_date)} a{' '}
+        {formatDate(schedule.end_date)} · Lima
       </div>
     </button>
   );
@@ -661,11 +676,10 @@ interface TabButtonProps {
 function TabButton({ active, children, onClick }: TabButtonProps) {
   return (
     <button
-      className={`min-h-11 flex-1 rounded-[14px] px-4 text-sm font-black transition-colors ${
-        active
+      className={`min-h-11 flex-1 rounded-[14px] px-4 text-sm font-black transition-colors ${active
           ? 'bg-emerald-800 text-white shadow-[0_10px_24px_rgba(6,95,70,0.22)]'
           : 'bg-transparent text-slate-500 hover:bg-emerald-50 hover:text-emerald-900'
-      }`}
+        }`}
       type="button"
       onClick={onClick}
       aria-pressed={active}>
