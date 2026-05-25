@@ -49,6 +49,124 @@ interface ChecklistScheduleProgressResponseRow {
   submitted_at: string | null;
 }
 
+function parseLocalDate(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getTodayInLimaDate() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const year = parts.find(part => part.type === 'year')?.value ?? '1970';
+  const month = parts.find(part => part.type === 'month')?.value ?? '01';
+  const day = parts.find(part => part.type === 'day')?.value ?? '01';
+
+  return parseLocalDate(`${year}-${month}-${day}`);
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function diffDays(from: Date, to: Date) {
+  const fromUtc = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
+  const toUtc = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
+  return Math.floor((toUtc - fromUtc) / (24 * 60 * 60 * 1000));
+}
+
+function getMonthlyTarget(anchor: Date, reference: Date) {
+  const lastDay = new Date(
+    reference.getFullYear(),
+    reference.getMonth() + 1,
+    0,
+  ).getDate();
+  return new Date(
+    reference.getFullYear(),
+    reference.getMonth(),
+    Math.min(anchor.getDate(), lastDay),
+  );
+}
+
+function getSchedulePeriodForToday(input: {
+  frequency: AdminChecklistScheduleFrequency;
+  startDate: string | null;
+  executionRangeDays: number;
+}) {
+  const today = getTodayInLimaDate();
+  const anchor = input.startDate ? parseLocalDate(input.startDate) : today;
+  const rangeDays = input.executionRangeDays || 1;
+
+  if (today < anchor) {
+    return {
+      periodStart: formatLocalDate(anchor),
+      periodEnd: formatLocalDate(addDays(anchor, rangeDays - 1)),
+    };
+  }
+
+  if (input.frequency === 'DIARIA') {
+    return {
+      periodStart: formatLocalDate(today),
+      periodEnd: formatLocalDate(today),
+    };
+  }
+
+  if (input.frequency === 'MENSUAL') {
+    const candidates = [-1, 0, 1]
+      .map(offset =>
+        getMonthlyTarget(
+          anchor,
+          new Date(today.getFullYear(), today.getMonth() + offset, 1),
+        ),
+      )
+      .filter(target => target >= anchor)
+      .sort((a, b) => b.getTime() - a.getTime());
+    const currentTarget = candidates.find(target => {
+      const end = addDays(target, rangeDays - 1);
+      return today >= target && today <= end;
+    });
+    const fallbackTarget =
+      candidates.find(target => target <= today) ??
+      candidates[candidates.length - 1] ??
+      anchor;
+    const target = currentTarget ?? fallbackTarget;
+
+    return {
+      periodStart: formatLocalDate(target),
+      periodEnd: formatLocalDate(addDays(target, rangeDays - 1)),
+    };
+  }
+
+  const cycleDays =
+    input.frequency === 'INTERDIARIA'
+      ? 2
+      : input.frequency === 'SEMANAL'
+        ? 7
+        : 15;
+  const daysFromAnchor = Math.max(0, diffDays(anchor, today));
+  const target = addDays(
+    anchor,
+    Math.floor(daysFromAnchor / cycleDays) * cycleDays,
+  );
+
+  return {
+    periodStart: formatLocalDate(target),
+    periodEnd: formatLocalDate(addDays(target, rangeDays - 1)),
+  };
+}
+
 export async function listAdminChecklistQuestions(
   supabase: SupabaseClient,
   equipamentoId?: string,
@@ -313,17 +431,10 @@ export async function getAdminChecklistScheduleProgress(
     frequency: AdminChecklistScheduleFrequency;
     startDate: string | null;
     endDate: string | null;
+    executionRangeDays: number;
   },
 ): Promise<AdminChecklistScheduleProgress> {
-  const usesConfiguredRange =
-    ['SEMANAL', 'MENSUAL'].includes(input.frequency) &&
-    !!input.startDate &&
-    !!input.endDate;
-  const todayInLima = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Lima',
-  }).format(new Date());
-  const periodStart = usesConfiguredRange ? input.startDate : todayInLima;
-  const periodEnd = usesConfiguredRange ? input.endDate : todayInLima;
+  const { periodStart, periodEnd } = getSchedulePeriodForToday(input);
 
   const { data: equipmentData, error: equipmentError } = await supabase
     .from('equipos')

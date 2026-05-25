@@ -27,12 +27,12 @@ const FREQUENCY_OPTIONS: {
   value: AdminChecklistScheduleFrequency;
   label: string;
 }[] = [
-    { value: 'DIARIA', label: 'Diaria' },
-    { value: 'INTERDIARIA', label: 'Interdiaria' },
-    { value: 'SEMANAL', label: 'Semanal' },
-    { value: 'QUINCENAL', label: 'Quincenal' },
-    { value: 'MENSUAL', label: 'Mensual' },
-  ];
+  { value: 'DIARIA', label: 'Diaria' },
+  { value: 'INTERDIARIA', label: 'Interdiaria' },
+  { value: 'SEMANAL', label: 'Semanal' },
+  { value: 'QUINCENAL', label: 'Quincenal' },
+  { value: 'MENSUAL', label: 'Mensual' },
+];
 
 function formatDate(value: string | null) {
   if (!value) return 'Sin fecha';
@@ -45,16 +45,6 @@ function formatDate(value: string | null) {
 
 function formatTime(value: string) {
   return value.slice(0, 5);
-}
-
-function formatScheduleRange(schedule: AdminChecklistScheduleRow) {
-  const canUseRange = ['SEMANAL', 'MENSUAL'].includes(schedule.frequency);
-
-  if (!canUseRange || !schedule.start_date || !schedule.end_date) {
-    return 'Sin rango: cuenta solo el dia actual';
-  }
-
-  return `${formatDate(schedule.start_date)} a ${formatDate(schedule.end_date)}`;
 }
 
 function formatDateTime(value: string | null) {

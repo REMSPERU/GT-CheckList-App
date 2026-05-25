@@ -574,11 +574,11 @@ export default function ChecklistFormScreen() {
         }
         setSchedulePreview({
           isLoading: false,
-          hasSchedule: false,
-          allowed: true,
+          hasSchedule: true,
+          allowed: false,
           message:
-            'No se pudo validar la programacion. Se intentara validar al guardar.',
-          hint: null,
+            'No se pudo validar la programacion de este checklist.',
+          hint: 'Conectate a internet y vuelve a intentarlo para confirmar si corresponde llenar ahora.',
           frequency: '',
           currentCount: 0,
           occurrencesPerDay: null,
@@ -864,25 +864,14 @@ export default function ChecklistFormScreen() {
         }
       } catch (scheduleValidationError) {
         console.error(
-          'Schedule validation unavailable, fallback to period check:',
+          'Schedule validation unavailable, blocking checklist save:',
           scheduleValidationError,
         );
-
-        try {
-          const alreadyExists = await checkAlreadySubmitted();
-          if (alreadyExists) {
-            showAppAlert(
-              'Checklist ya registrado',
-              `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStartLabel} a ${periodEndLabel}.`,
-            );
-            return;
-          }
-        } catch (periodCheckError) {
-          console.log(
-            'Remote period check unavailable, saving offline first:',
-            periodCheckError,
-          );
-        }
+        showAppAlert(
+          'No se pudo validar la programacion',
+          'No se guardo el checklist porque no se pudo confirmar que corresponde llenarlo ahora. Revisa tu conexion e intenta nuevamente.',
+        );
+        return;
       }
 
       const fallbackPeriod = getPeriodFromFrequency(effectiveFrequency);

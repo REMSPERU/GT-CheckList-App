@@ -209,17 +209,17 @@ export default function ChecklistScheduleScreen() {
     }
 
     const parsedOccurrences = Number(occurrencesPerDay);
-      if (
-        !Number.isInteger(parsedOccurrences) ||
-        parsedOccurrences < 1 ||
-        parsedOccurrences > 24
-      ) {
-        Alert.alert(
-          'Dato inválido',
-          'El maximo por equipo debe ser entre 1 y 24.',
-        );
-        return;
-      }
+    if (
+      !Number.isInteger(parsedOccurrences) ||
+      parsedOccurrences < 1 ||
+      parsedOccurrences > 24
+    ) {
+      Alert.alert(
+        'Dato inválido',
+        'El maximo por equipo debe ser entre 1 y 24.',
+      );
+      return;
+    }
 
     if (!isValidTime(windowStart) || !isValidTime(windowEnd)) {
       Alert.alert(
@@ -251,12 +251,12 @@ export default function ChecklistScheduleScreen() {
       return;
     }
 
-      if (!isValidDate(startDate) || !isValidDate(endDate)) {
-        Alert.alert(
-          'Dato inválido',
+    if (!isValidDate(startDate) || !isValidDate(endDate)) {
+      Alert.alert(
+        'Dato inválido',
         'Las fechas deben tener formato DD-MM-AAAA.',
       );
-        return;
+      return;
       }
 
     if (startDate && endDate && startDate > endDate) {

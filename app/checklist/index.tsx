@@ -21,7 +21,10 @@ import type { BaseEquipment, EquipamentoResponse } from '@/types/api';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
 import { supabase } from '@/lib/supabase';
-import { supabaseChecklistScheduleService } from '@/services/supabase-checklist-schedule.service';
+import {
+  supabaseChecklistScheduleService,
+  type ChecklistSchedule,
+} from '@/services/supabase-checklist-schedule.service';
 
 interface BuildingParam {
   id: string;
@@ -99,8 +102,125 @@ function getPeriodFromFrequency(frequencyRaw: string) {
   };
 }
 
-function getTodayPeriodStart() {
-  return getPeriodFromFrequency('DIARIA').periodStart;
+function parseLocalDate(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getTodayInLimaDate() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const year = parts.find(part => part.type === 'year')?.value ?? '1970';
+  const month = parts.find(part => part.type === 'month')?.value ?? '01';
+  const day = parts.find(part => part.type === 'day')?.value ?? '01';
+
+  return parseLocalDate(`${year}-${month}-${day}`);
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function diffDays(from: Date, to: Date) {
+  const fromUtc = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
+  const toUtc = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
+  return Math.floor((toUtc - fromUtc) / (24 * 60 * 60 * 1000));
+}
+
+function getMonthlyTarget(anchor: Date, reference: Date) {
+  const lastDay = new Date(
+    reference.getFullYear(),
+    reference.getMonth() + 1,
+    0,
+  ).getDate();
+  return new Date(
+    reference.getFullYear(),
+    reference.getMonth(),
+    Math.min(anchor.getDate(), lastDay),
+  );
+}
+
+function getSchedulePeriodForToday(schedule: ChecklistSchedule) {
+  const today = getTodayInLimaDate();
+  const anchor = schedule.start_date
+    ? parseLocalDate(schedule.start_date)
+    : today;
+  const rangeDays = schedule.execution_range_days || 1;
+
+  if (today < anchor) {
+    return {
+      periodStart: formatLocalDate(anchor),
+      periodEnd: formatLocalDate(addDays(anchor, rangeDays - 1)),
+      isWithinWindow: false,
+    };
+  }
+
+  if (schedule.frequency === 'DIARIA') {
+    return {
+      periodStart: formatLocalDate(today),
+      periodEnd: formatLocalDate(today),
+      isWithinWindow: true,
+    };
+  }
+
+  if (schedule.frequency === 'MENSUAL') {
+    const candidates = [-1, 0, 1]
+      .map(offset =>
+        getMonthlyTarget(
+          anchor,
+          new Date(today.getFullYear(), today.getMonth() + offset, 1),
+        ),
+      )
+      .filter(target => target >= anchor)
+      .sort((a, b) => b.getTime() - a.getTime());
+    const currentTarget = candidates.find(target => {
+      const end = addDays(target, rangeDays - 1);
+      return today >= target && today <= end;
+    });
+    const fallbackTarget =
+      candidates.find(target => target <= today) ??
+      candidates[candidates.length - 1] ??
+      anchor;
+    const target = currentTarget ?? fallbackTarget;
+
+    return {
+      periodStart: formatLocalDate(target),
+      periodEnd: formatLocalDate(addDays(target, rangeDays - 1)),
+      isWithinWindow: !!currentTarget,
+    };
+  }
+
+  const cycleDays =
+    schedule.frequency === 'INTERDIARIA'
+      ? 2
+      : schedule.frequency === 'SEMANAL'
+        ? 7
+        : 15;
+  const daysFromAnchor = diffDays(anchor, today);
+  const target = addDays(
+    anchor,
+    Math.floor(daysFromAnchor / cycleDays) * cycleDays,
+  );
+  const periodEnd = addDays(target, rangeDays - 1);
+
+  return {
+    periodStart: formatLocalDate(target),
+    periodEnd: formatLocalDate(periodEnd),
+    isWithinWindow: today >= target && today <= periodEnd,
+  };
 }
 
 const EquipmentListItem = React.memo(function EquipmentListItem({
@@ -283,21 +403,18 @@ export default function EquipmentChecklistListScreen() {
           (isScheduleActive ? schedule?.frequency : equipamento.frecuencia)
             ?.toUpperCase()
             .trim() || 'MENSUAL';
-        const hasConfiguredRange =
-          isScheduleActive &&
-          ['SEMANAL', 'MENSUAL'].includes(effectiveFrequency) &&
-          !!schedule?.start_date &&
-          !!schedule?.end_date;
-        periodStart = hasConfiguredRange
-          ? schedule.start_date || getTodayPeriodStart()
-          : isScheduleActive
-            ? getTodayPeriodStart()
-            : getPeriodFromFrequency(effectiveFrequency).periodStart;
+        const schedulePeriod =
+          isScheduleActive && schedule
+            ? getSchedulePeriodForToday(schedule)
+            : null;
+        periodStart = schedulePeriod
+          ? schedulePeriod.periodStart
+          : getPeriodFromFrequency(effectiveFrequency).periodStart;
 
         const message = isScheduleActive
-          ? hasConfiguredRange
-            ? `Programacion activa ${effectiveFrequency} con rango configurado.`
-            : `Programacion activa ${effectiveFrequency}. Sin rango, cuenta solo hoy.`
+          ? schedulePeriod?.isWithinWindow
+            ? `Programacion activa ${effectiveFrequency}. Rango actual: ${schedulePeriod.periodStart} a ${schedulePeriod.periodEnd}.`
+            : `Programacion activa ${effectiveFrequency}. Hoy esta fuera del rango de ejecucion.`
           : 'Sin programacion activa. Se controla por periodo.';
 
         setScheduleState({

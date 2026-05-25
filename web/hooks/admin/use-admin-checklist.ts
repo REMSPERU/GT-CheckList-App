@@ -446,6 +446,7 @@ export function useAdminChecklist() {
           frequency: selectedSchedule.frequency,
           startDate: selectedSchedule.start_date,
           endDate: selectedSchedule.end_date,
+          executionRangeDays: selectedSchedule.execution_range_days,
         });
 
         if (isMounted) setScheduleProgress(result);
