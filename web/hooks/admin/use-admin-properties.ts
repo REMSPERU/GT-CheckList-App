@@ -4,9 +4,10 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useDebouncedValue } from './use-debounced-value';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
-import { listAdminProperties } from '@/services/admin/properties.service';
+import { listAdminProperties, updateAdminPropertyImage } from '@/services/admin/properties.service';
 import type { AdminPropertyRow } from '@/types/admin';
 import { normalizeSearchText } from '@/utils/search';
+import { uploadPropertyPhoto } from '@/utils/upload-image';
 
 export function useAdminProperties() {
   const searchParams = useSearchParams();
@@ -30,6 +31,7 @@ export function useAdminProperties() {
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search, 250);
 
   // Synchronize URL search params to React state (handles back/forward navigation)
@@ -85,5 +87,35 @@ export function useAdminProperties() {
     );
   }, [items, search]);
 
-  return { filteredItems, search, setSearch, isLoading, errorMessage };
+  const changePropertyImage = async (propertyId: string, file: File) => {
+    try {
+      setUploadingImageId(propertyId);
+      
+      const property = items.find(p => p.id === propertyId);
+      if (!property) throw new Error('Inmueble no encontrado en el estado local');
+
+      const supabase = getSupabaseClient();
+      const imageUrl = await uploadPropertyPhoto(supabase, file, property.name);
+      await updateAdminPropertyImage(supabase, propertyId, imageUrl);
+      
+      setItems(prev =>
+        prev.map(p => (p.id === propertyId ? { ...p, image_url: imageUrl } : p))
+      );
+    } catch (error) {
+      console.error('Error cambiando imagen:', error);
+      alert(error instanceof Error ? error.message : 'Error al cambiar imagen');
+    } finally {
+      setUploadingImageId(null);
+    }
+  };
+
+  return { 
+    filteredItems, 
+    search, 
+    setSearch, 
+    isLoading, 
+    errorMessage,
+    changePropertyImage,
+    uploadingImageId
+  };
 }

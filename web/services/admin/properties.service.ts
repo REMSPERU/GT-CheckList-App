@@ -15,3 +15,18 @@ export async function listAdminProperties(
 
   return (data ?? []) as AdminPropertyRow[];
 }
+
+export async function updateAdminPropertyImage(
+  supabase: SupabaseClient,
+  propertyId: string,
+  imageUrl: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('properties')
+    .update({ image_url: imageUrl })
+    .eq('id', propertyId);
+
+  if (error) {
+    throw new Error(`Error al actualizar la imagen del inmueble: ${error.message}`);
+  }
+}

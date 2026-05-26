@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import Image from 'next/image';
 
 import type { AdminPropertyRow } from '@/types/admin';
@@ -5,9 +6,11 @@ import type { AdminPropertyRow } from '@/types/admin';
 interface PropertiesGridProps {
   items: AdminPropertyRow[];
   isLoading: boolean;
+  onChangeImage?: (propertyId: string, file: File) => void;
+  uploadingImageId?: string | null;
 }
 
-export function PropertiesGrid({ items, isLoading }: PropertiesGridProps) {
+export function PropertiesGrid({ items, isLoading, onChangeImage, uploadingImageId }: PropertiesGridProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5 max-[640px]:grid-cols-1">
@@ -53,7 +56,12 @@ export function PropertiesGrid({ items, isLoading }: PropertiesGridProps) {
       </p>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5 max-[640px]:grid-cols-1">
         {items.map(item => (
-          <PropertyCard key={item.id} property={item} />
+          <PropertyCard 
+            key={item.id} 
+            property={item} 
+            onChangeImage={onChangeImage}
+            isUploading={uploadingImageId === item.id}
+          />
         ))}
       </div>
     </>
@@ -78,9 +86,29 @@ function isNextImageSafe(url: string): boolean {
   }
 }
 
-function PropertyCard({ property }: { property: AdminPropertyRow }) {
+function PropertyCard({ 
+  property, 
+  onChangeImage, 
+  isUploading 
+}: { 
+  property: AdminPropertyRow;
+  onChangeImage?: (propertyId: string, file: File) => void;
+  isUploading?: boolean;
+}) {
   const priorityConfig = getPriorityConfig(property.maintenance_priority);
   const useNextImage = property.image_url ? isNextImageSafe(property.image_url) : false;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onChangeImage) {
+      onChangeImage(property.id, file);
+    }
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   return (
     <article className="group relative grid overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_8px_32px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(15,23,42,0.12)]">
@@ -108,8 +136,32 @@ function PropertyCard({ property }: { property: AdminPropertyRow }) {
           </div>
         )}
 
+        {/* Upload Overlay */}
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          {isUploading ? (
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-white/30 border-t-emerald-400" />
+              <span className="text-sm font-semibold text-white shadow-sm">Subiendo...</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded-full bg-white/20 px-4 py-2.5 text-sm font-bold text-white backdrop-blur-md transition-all hover:bg-white/30 hover:scale-105 shadow-lg"
+            >
+              📷 Cambiar Foto
+            </button>
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={handleFileChange}
+          />
+        </div>
+
         {/* Status badge overlay */}
-        <div className="absolute left-3 top-3">
+        <div className="absolute left-3 top-3 z-20">
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.1em] backdrop-blur-md ${
               property.is_active
