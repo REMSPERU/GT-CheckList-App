@@ -48,6 +48,14 @@ function getSingleParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function formatDateToSpanish(value: string) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+  const [year, month, day] = value.split('-');
+  return `${day}-${month}-${year}`;
+}
+
 interface EquipmentListItemProps {
   item: BaseEquipment;
   onPress: (item: BaseEquipment) => void;
@@ -411,11 +419,17 @@ export default function EquipmentChecklistListScreen() {
           ? schedulePeriod.periodStart
           : getPeriodFromFrequency(effectiveFrequency).periodStart;
 
+        const frequencyFriendly =
+          effectiveFrequency.charAt(0).toUpperCase() +
+          effectiveFrequency.slice(1).toLowerCase();
+
         const message = isScheduleActive
           ? schedulePeriod?.isWithinWindow
-            ? `Programacion activa ${effectiveFrequency}. Rango actual: ${schedulePeriod.periodStart} a ${schedulePeriod.periodEnd}.`
-            : `Programacion activa ${effectiveFrequency}. Hoy esta fuera del rango de ejecucion.`
-          : 'Sin programacion activa. Se controla por periodo.';
+            ? schedulePeriod.periodStart === schedulePeriod.periodEnd
+              ? `Programación ${frequencyFriendly}: para el ${formatDateToSpanish(schedulePeriod.periodStart)}`
+              : `Programación ${frequencyFriendly}: del ${formatDateToSpanish(schedulePeriod.periodStart)} al ${formatDateToSpanish(schedulePeriod.periodEnd)}`
+            : `Programación ${frequencyFriendly}: hoy fuera de rango de ejecución`
+          : 'Sin programación activa (control por período)';
 
         setScheduleState({
           hasSchedule: !!schedule,
@@ -538,7 +552,7 @@ export default function EquipmentChecklistListScreen() {
         });
         setScheduleState(prev => ({
           ...prev,
-          message: 'No se pudo validar estado. Deslice para actualizar.',
+          message: 'No se pudo validar la programación. Deslice para actualizar.',
         }));
       }
     },
@@ -673,8 +687,7 @@ export default function EquipmentChecklistListScreen() {
           <Text style={styles.summaryTitle}>Estado del dia</Text>
           <Text style={styles.summaryText}>{scheduleState.message}</Text>
           <Text style={styles.summaryProgress}>
-            {progressSummary.completed}/{progressSummary.total} equipos
-            completos
+            Avance: {progressSummary.completed} de {progressSummary.total} equipos completados
           </Text>
         </View>
       ) : null}

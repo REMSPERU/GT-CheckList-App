@@ -214,14 +214,14 @@ function buildFriendlyRestrictionMessage(
 
   if (normalized.includes('maximo')) {
     return {
-      message: `Ya se completo el limite del rango programado (${limitLabel}).`,
+      message: 'Ya se completo el limite del rango programado.',
       hint: 'Ajusta el rango de programacion si necesitas reiniciar el avance.',
     };
   }
 
   return {
     message: 'Este checklist esta restringido en este momento.',
-    hint: `Horario configurado: ${windowLabel}. Limite del rango: ${limitLabel}.`,
+    hint: windowLabel !== '-' ? `Horario configurado: ${windowLabel}.` : 'Por favor verifique la programación.',
   };
 }
 
@@ -590,7 +590,9 @@ export default function ChecklistFormScreen() {
           hasSchedule: true,
           allowed: result.allowed,
           message: result.allowed
-            ? `Dentro de programacion (${limitLabel} en el rango ${periodLabel}). Horario ${windowLabel}.`
+            ? result.window_start && result.window_end
+              ? `Dentro de programacion. Horario ${windowLabel}.`
+              : 'Dentro de programacion.'
             : restrictionCopy.message,
           hint: result.allowed ? null : restrictionCopy.hint,
           frequency: result.frequency || '',
@@ -893,21 +895,26 @@ export default function ChecklistFormScreen() {
                 : '-';
             const rangeLabel =
               scheduleValidation.period_start && scheduleValidation.period_end
-                ? `${formatDateToSpanish(scheduleValidation.period_start)} a ${formatDateToSpanish(scheduleValidation.period_end)}`
+                ? scheduleValidation.period_start === scheduleValidation.period_end
+                  ? `${formatDateToSpanish(scheduleValidation.period_start)}`
+                  : `${formatDateToSpanish(scheduleValidation.period_start)} a ${formatDateToSpanish(scheduleValidation.period_end)}`
                 : '-';
 
             showAppAlert(
               'Checklist fuera de programación',
-              `${scheduleValidation.reason || 'No está permitido registrar el checklist en este momento.'}\nRango: ${rangeLabel}\nHorario: ${timeWindow}\nLímite del rango: ${scheduleValidation.current_count}/${scheduleValidation.occurrences_per_day ?? '-'} registros.`,
+              `${scheduleValidation.reason || 'No está permitido registrar el checklist en este momento.'}\nRango: ${rangeLabel}\nHorario: ${timeWindow}`,
             );
             return;
           }
         } else {
           const alreadyExists = await checkAlreadySubmitted();
           if (alreadyExists) {
+            const periodStr = periodStart === periodEnd
+              ? `para la fecha ${periodStartLabel}`
+              : `para el periodo ${periodStartLabel} a ${periodEndLabel}`;
             showAppAlert(
               'Checklist ya registrado',
-              `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} para el periodo ${periodStartLabel} a ${periodEndLabel}.`,
+              `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} ${periodStr}.`,
             );
             return;
           }
@@ -951,17 +958,23 @@ export default function ChecklistFormScreen() {
         effectiveOccurrencesLimit !== null &&
         existingLocalCount >= effectiveOccurrencesLimit
       ) {
+        const periodStr = schedulePeriod.periodStart === schedulePeriod.periodEnd
+          ? `para la fecha ${formatDateToSpanish(schedulePeriod.periodStart)}`
+          : `para el rango ${formatDateToSpanish(schedulePeriod.periodStart)} a ${formatDateToSpanish(schedulePeriod.periodEnd)}`;
         showAppAlert(
           'Checklist ya registrado',
-          `Este equipo ya alcanzo el limite local para el rango ${formatDateToSpanish(schedulePeriod.periodStart)} a ${formatDateToSpanish(schedulePeriod.periodEnd)}.`,
+          `Este equipo ya alcanzo el limite local ${periodStr}.`,
         );
         return;
       }
 
       if (!checklistScheduleId && existingLocalCount > 0) {
+        const periodStr = schedulePeriod.periodStart === schedulePeriod.periodEnd
+          ? `para la fecha ${formatDateToSpanish(schedulePeriod.periodStart)}`
+          : `para el periodo ${formatDateToSpanish(schedulePeriod.periodStart)} a ${formatDateToSpanish(schedulePeriod.periodEnd)}`;
         showAppAlert(
           'Checklist ya registrado',
-          `Este equipo ya tiene checklist ${effectiveFrequency.toLowerCase()} local para el periodo ${formatDateToSpanish(schedulePeriod.periodStart)} a ${formatDateToSpanish(schedulePeriod.periodEnd)}.`,
+          `Este equipo ya tiene checklist ${effectiveFrequency.toLowerCase()} local ${periodStr}.`,
         );
         return;
       }
@@ -1241,17 +1254,6 @@ export default function ChecklistFormScreen() {
               );
             })}
           </View>
-
-          {operationalStatus === 'stand_by' ? (
-            <Text style={styles.operationalStatusHint}>
-              Stand by no suma ni resta en la operatividad ponderada.
-            </Text>
-          ) : null}
-          {operationalStatus === 'inoperativo' ? (
-            <Text style={styles.operationalStatusHint}>
-              Inoperativo registra evidencia y deja la operatividad en 0%.
-            </Text>
-          ) : null}
         </View>
 
         <View style={styles.generalPhotoCard}>
