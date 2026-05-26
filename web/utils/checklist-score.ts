@@ -17,6 +17,26 @@ export function getAnswerWeight(answer: AdminChecklistAnswerItem): number {
 export function getChecklistWeightedScore(
   response: AdminChecklistResponseRow,
 ): ChecklistWeightedScore {
+  const estado = response.estado_operatividad;
+
+  if (estado === 'stand_by') {
+    return {
+      total: 0,
+      earned: 0,
+      lost: 0,
+      percent: null,
+    };
+  }
+
+  if (estado === 'inoperativo') {
+    return {
+      total: 0,
+      earned: 0,
+      lost: 0,
+      percent: 0,
+    };
+  }
+
   const total = response.answers.reduce(
     (sum, answer) => sum + getAnswerWeight(answer),
     0,

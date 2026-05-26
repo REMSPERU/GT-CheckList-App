@@ -52,7 +52,7 @@ export function ChecklistResponsesTable({
                 'Inmueble',
                 'Equipo',
                 'Frecuencia',
-                'Resumen',
+                'Operatividad',
                 'Detalle',
               ]}
             />
@@ -107,6 +107,14 @@ function OperativityBadge({
 }) {
   const score = getChecklistWeightedScore(response);
 
+  if (response.estado_operatividad === 'stand_by') {
+    return (
+      <span className="mb-2 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-600">
+        Stand by
+      </span>
+    );
+  }
+
   if (score.percent === null) {
     return (
       <span className="mb-2 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-600">
@@ -119,12 +127,11 @@ function OperativityBadge({
 
   return (
     <span
-      className={`mb-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${
-        isLowScore
+      className={`mb-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${isLowScore
           ? 'bg-orange-100 text-orange-900'
           : 'bg-emerald-100 text-emerald-900'
-      }`}>
-      {formatWeight(score.percent)}% operatividad
+        }`}>
+      {formatWeight(score.percent)}%
     </span>
   );
 }

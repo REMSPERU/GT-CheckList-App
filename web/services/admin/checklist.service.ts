@@ -591,6 +591,7 @@ function mapChecklistResponse(
     total_photos: item.total_photos,
     generalPhotos: item.evidencia_general_fotos ?? [],
     answers: item.respuestas_json?.respuestas ?? [],
+    estado_operatividad: (item.respuestas_json as any)?.resumen?.estado_operatividad ?? null,
   };
 }
 

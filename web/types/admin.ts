@@ -174,6 +174,7 @@ export interface AdminChecklistResponseRow {
   total_photos: number | null;
   generalPhotos: AdminChecklistPhotoRef[];
   answers: AdminChecklistAnswerItem[];
+  estado_operatividad?: string | null;
 }
 
 export interface AdminPropertyRow {
