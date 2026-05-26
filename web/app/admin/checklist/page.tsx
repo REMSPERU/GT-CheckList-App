@@ -36,15 +36,6 @@ const FREQUENCY_OPTIONS: {
   { value: 'MENSUAL', label: 'Mensual' },
 ];
 
-function formatDate(value: string | null) {
-  if (!value) return 'Sin fecha';
-
-  const [year, month, day] = value.split('-');
-  if (!year || !month || !day) return value;
-
-  return `${day}/${month}/${year}`;
-}
-
 function formatTime(value: string) {
   return value.slice(0, 5);
 }
@@ -210,8 +201,8 @@ function AdminChecklistContent() {
                   Define cuando se puede llenar
                 </h2>
                 <p className="mt-1.5 text-sm text-slate-500">
-                  Define una regla recurrente. Si no eliges fecha inicio, se
-                  usa hoy como fecha base y se repite automaticamente.
+                  Define una regla recurrente que se mantiene activa hasta que
+                  sea pausada o modificada.
                 </p>
               </div>
 
@@ -332,31 +323,6 @@ function AdminChecklistContent() {
                       value={checklist.scheduleWindowEnd}
                       onChange={event =>
                         checklist.setScheduleWindowEnd(event.target.value)
-                      }
-                    />
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 max-[640px]:grid-cols-1">
-                  <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-                    Inicio del rango opcional
-                    <input
-                      className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                      type="date"
-                      value={checklist.scheduleStartDate}
-                      onChange={event =>
-                        checklist.setScheduleStartDate(event.target.value)
-                      }
-                    />
-                  </label>
-                  <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-                    Fin del rango opcional
-                    <input
-                      className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                      type="date"
-                      value={checklist.scheduleEndDate}
-                      onChange={event =>
-                        checklist.setScheduleEndDate(event.target.value)
                       }
                     />
                   </label>
@@ -641,10 +607,6 @@ function ScheduleCard({ schedule, selected, onSelect }: ScheduleCardProps) {
         />
       </div>
 
-      <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
-        Vigencia: {formatDate(schedule.start_date)} a{' '}
-        {formatDate(schedule.end_date)} · Lima
-      </div>
     </button>
   );
 }
