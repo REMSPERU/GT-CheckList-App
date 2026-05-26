@@ -62,6 +62,7 @@ interface EquipmentListItemProps {
   submittedCount: number;
   pendingSyncCount: number;
   conflictCount: number;
+  limit: number;
 }
 
 function getPeriodFromFrequency(frequencyRaw: string) {
@@ -237,6 +238,7 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
   submittedCount,
   pendingSyncCount,
   conflictCount,
+  limit,
 }: EquipmentListItemProps) {
   const handlePress = useCallback(() => {
     onPress(item);
@@ -245,14 +247,30 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
   const locationText = [item.ubicacion, item.detalle_ubicacion]
     .filter(Boolean)
     .join(' - ');
-  const isCompleted = submittedCount > 0 || pendingSyncCount > 0;
-  const statusText = conflictCount
-    ? 'Conflicto sync'
-    : pendingSyncCount > 0
-      ? 'Completado · sync pendiente'
-      : isCompleted
-        ? 'Completado'
-        : 'Pendiente';
+
+  const totalCompleted = submittedCount + pendingSyncCount;
+  const isFullyCompleted = totalCompleted >= limit;
+
+  let statusText = '';
+  if (conflictCount) {
+    statusText = 'Conflicto sync';
+  } else if (limit > 1) {
+    if (isFullyCompleted) {
+      statusText = `Completado (${totalCompleted}/${limit})`;
+    } else if (totalCompleted > 0) {
+      statusText = `Avance (${totalCompleted}/${limit})`;
+    } else {
+      statusText = `Pendiente (0/${limit})`;
+    }
+  } else {
+    if (pendingSyncCount > 0) {
+      statusText = 'Completado · sync pendiente';
+    } else if (totalCompleted > 0) {
+      statusText = 'Completado';
+    } else {
+      statusText = 'Pendiente';
+    }
+  }
 
   return (
     <Pressable
@@ -272,14 +290,14 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
           <View
             style={[
               styles.statusBadge,
-              isCompleted
+              isFullyCompleted
                 ? styles.statusBadgeCompleted
                 : styles.statusBadgePending,
             ]}>
             <Text
               style={[
                 styles.statusBadgeText,
-                isCompleted
+                isFullyCompleted
                   ? styles.statusBadgeTextCompleted
                   : styles.statusBadgeTextPending,
               ]}>
@@ -491,10 +509,7 @@ export default function EquipmentChecklistListScreen() {
           },
           {},
         );
-        localCounts.forEach(row => {
-          counts[row.equipo_id] =
-            (counts[row.equipo_id] || 0) + Number(row.synced_count || 0);
-        });
+
 
         setSubmittedCountByEquipo(counts);
         setPendingSyncCountByEquipo(pendingCounts);
@@ -641,6 +656,7 @@ export default function EquipmentChecklistListScreen() {
         submittedCount={submittedCountByEquipo[item.id] || 0}
         pendingSyncCount={pendingSyncCountByEquipo[item.id] || 0}
         conflictCount={conflictCountByEquipo[item.id] || 0}
+        limit={scheduleState.occurrencesPerDay || 1}
       />
     ),
     [
@@ -648,6 +664,7 @@ export default function EquipmentChecklistListScreen() {
       handlePressEquipment,
       pendingSyncCountByEquipo,
       submittedCountByEquipo,
+      scheduleState.occurrencesPerDay,
     ],
   );
 
