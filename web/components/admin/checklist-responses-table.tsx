@@ -115,6 +115,14 @@ function OperativityBadge({
     );
   }
 
+  if (response.estado_operatividad === 'inoperativo') {
+    return (
+      <span className="mb-2 inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-xs font-extrabold text-red-900">
+        Inoperativo
+      </span>
+    );
+  }
+
   if (score.percent === null) {
     return (
       <span className="mb-2 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-600">
