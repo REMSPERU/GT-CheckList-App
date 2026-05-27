@@ -89,7 +89,7 @@ export async function listAdminMaintenanceSessions(
 ): Promise<AdminMaintenanceSessionRow[]> {
   let query = supabase
     .from('sesion_mantenimiento')
-    .select('id, nombre, descripcion, fecha_programada, estatus, id_property, created_at')
+    .select('id, nombre, descripcion, fecha_programada, estatus, id_property, created_at, properties!inner(id)')
     .order('fecha_programada', { ascending: false });
 
   if (filters.status && filters.status !== 'TODOS') {

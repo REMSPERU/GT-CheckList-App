@@ -54,7 +54,8 @@ export async function listAdminEquipments(
         ubicacion,
         detalle_ubicacion,
         estatus,
-        config
+        config,
+        properties!inner(id)
       `,
       { count: 'exact' },
     )
@@ -141,7 +142,7 @@ export async function getAdminEquipmentById(
 ): Promise<AdminEquipmentDetailRow | null> {
   const { data, error } = await supabase
     .from('equipos')
-    .select('*')
+    .select('*, properties!inner(id)')
     .eq('id', equipmentId)
     .maybeSingle();
 

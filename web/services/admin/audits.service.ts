@@ -99,7 +99,8 @@ export async function listAdminAuditSessions(
         submitted_at,
         audit_payload,
         summary,
-        created_at
+        created_at,
+        properties!inner(id)
       `,
       { count: 'exact' },
     )
@@ -146,7 +147,8 @@ export async function getAdminAuditSessionById(
         submitted_at,
         audit_payload,
         summary,
-        created_at
+        created_at,
+        properties!inner(id)
       `,
     )
     .eq('id', sessionId)
@@ -155,9 +157,9 @@ export async function getAdminAuditSessionById(
   if (error) throw error;
   if (!data) return null;
 
-  const [session] = await hydrateAuditRows(supabase, [
-    data as AuditSessionQueryRow,
-  ]);
+  const sessionRow = data as AuditSessionQueryRow;
+
+  const [session] = await hydrateAuditRows(supabase, [sessionRow]);
 
   return session ?? null;
 }
