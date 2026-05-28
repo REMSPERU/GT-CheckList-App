@@ -25,6 +25,7 @@ const NAV_ITEMS = [
     href: '/admin',
     label: 'Dashboard',
     icon: LayoutDashboard,
+    superadminOnly: true,
   },
   {
     href: '/admin/equipos',
