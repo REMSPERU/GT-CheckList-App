@@ -17,6 +17,7 @@ import {
   View,
   ActivityIndicator,
   Platform,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -61,6 +62,7 @@ interface ChecklistAnswersJson {
     puntaje_obtenido: number | null;
     ponderado_total: number;
     estado_operatividad: EquipmentOperationalStatus;
+    comentario_operatividad: string | null;
   };
 }
 
@@ -230,8 +232,10 @@ function buildChecklistAnswersJson(
   answers: Record<string, ChecklistQuestionAnswer>,
   uploadedQuestionPhotos: Record<string, StoredPhotoRef[]>,
   operationalStatus: EquipmentOperationalStatus,
+  operationalComment: string,
 ): ChecklistAnswersJson {
   const questionMap = new Map(questions.map(item => [item.id, item]));
+  const trimmedOperationalComment = operationalComment.trim();
 
   const respuestas = Object.values(answers).map(answer => {
     const question = questionMap.get(answer.preguntaId);
@@ -250,7 +254,9 @@ function buildChecklistAnswersJson(
       ponderado: isStandBy ? null : (question?.ponderado ?? null),
       status_ok: statusOk,
       observacion: isInoperativo
-        ? 'Equipo inoperativo'
+        ? trimmedOperationalComment
+          ? `Equipo inoperativo: ${trimmedOperationalComment}`
+          : 'Equipo inoperativo'
         : isStandBy
           ? 'Equipo en stand by'
           : answer.status === false
@@ -299,6 +305,7 @@ function buildChecklistAnswersJson(
       puntaje_obtenido: puntajeObtenido,
       ponderado_total: ponderadoTotal,
       estado_operatividad: operationalStatus,
+      comentario_operatividad: trimmedOperationalComment || null,
     },
   };
 }
@@ -400,6 +407,7 @@ export default function ChecklistFormScreen() {
   >({});
   const [operationalStatus, setOperationalStatus] =
     useState<EquipmentOperationalStatus>('operativo');
+  const [operationalComment, setOperationalComment] = useState('');
   const [errors, setErrors] = useState<AnswerErrors>({});
   const [generalPhotoUris, setGeneralPhotoUris] = useState<string[]>([]);
   const [generalPhotoError, setGeneralPhotoError] = useState('');
@@ -573,12 +581,6 @@ export default function ChecklistFormScreen() {
           typeof result.occurrences_per_day === 'number'
             ? `${result.current_count}/${result.occurrences_per_day}`
             : '-';
-        const periodLabel =
-          result.period_start && result.period_end
-            ? `${formatDateToSpanish(result.period_start)} a ${formatDateToSpanish(
-                result.period_end,
-              )}`
-            : 'rango configurado';
         const restrictionCopy = buildFriendlyRestrictionMessage(
           result.reason || 'Fuera de programacion.',
           windowLabel,
@@ -718,6 +720,14 @@ export default function ChecklistFormScreen() {
       updateAnswer(questionId, prev => ({ ...prev, observacion: text }));
     },
     [registerInteraction, updateAnswer],
+  );
+
+  const handleOperationalCommentChange = useCallback(
+    (text: string) => {
+      registerInteraction();
+      setOperationalComment(text);
+    },
+    [registerInteraction],
   );
 
   const handleAddQuestionPhoto = useCallback(
@@ -1015,6 +1025,7 @@ export default function ChecklistFormScreen() {
         answers,
         uploadedQuestionPhotos,
         operationalStatus,
+        operationalComment,
       );
       const hasObservation = respuestasJson.resumen.total_observadas > 0;
       const submittedAtMs = Date.now();
@@ -1095,6 +1106,7 @@ export default function ChecklistFormScreen() {
     frecuencia,
     generalPhotoUris,
     operationalStatus,
+    operationalComment,
     params.buildingName,
     params.buildingId,
     params.equipoCodigo,
@@ -1103,7 +1115,9 @@ export default function ChecklistFormScreen() {
     params.equipoUbicacion,
     params.equipamentoId,
     params.equipamentoNombre,
+    periodEnd,
     periodEndLabel,
+    periodStart,
     periodStartLabel,
     questions,
     router,
@@ -1254,6 +1268,27 @@ export default function ChecklistFormScreen() {
               );
             })}
           </View>
+
+          {operationalStatus === 'inoperativo' ? (
+            <View style={styles.operationalCommentWrap}>
+              <Text style={styles.generalPhotoTitle}>
+                Comentario de inoperatividad (opcional)
+              </Text>
+              <Text style={styles.generalPhotoSubtitle}>
+                Agregue un detalle adicional aparte de la foto del equipo.
+              </Text>
+              <TextInput
+                value={operationalComment}
+                onChangeText={handleOperationalCommentChange}
+                placeholder="Escriba el motivo o detalle observado"
+                placeholderTextColor="#94A3B8"
+                style={styles.operationalCommentInput}
+                multiline
+                editable={!isSaving}
+                textAlignVertical="top"
+              />
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.generalPhotoCard}>
@@ -1301,8 +1336,10 @@ export default function ChecklistFormScreen() {
       generalPhotoError,
       generalPhotoUris,
       handleAddGeneralPhoto,
+      handleOperationalCommentChange,
       handleOperationalStatusChange,
       isSaving,
+      operationalComment,
       operationalStatus,
       renderGeneralPhoto,
     ],
@@ -1600,6 +1637,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#475569',
     lineHeight: 17,
+  },
+  operationalCommentWrap: {
+    marginTop: 12,
+  },
+  operationalCommentInput: {
+    minHeight: 86,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#0F172A',
   },
   generalPhotoTitle: {
     fontSize: 15,
