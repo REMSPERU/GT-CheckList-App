@@ -1,15 +1,25 @@
 'use client';
 
+import { useState } from 'react';
 import { Building2, UserCog } from 'lucide-react';
 
 import { AdminTableShell } from '@/components/admin/admin-table-shell';
 import { Alert } from '@/components/ui/alert';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { SearchInput } from '@/components/ui/search-input';
 import { SearchableSelectField } from '@/components/ui/searchable-select-field';
 import { useAdminUsers } from '@/hooks/admin/use-admin-users';
 import { ADMIN_ROLE_OPTIONS } from '@/services/admin/users.service';
-import type { AdminUserRow } from '@/types/admin';
+import type { AdminUserPropertyAccessRow, AdminUserRow } from '@/types/admin';
 import type { AdminRole } from '@/types/auth';
+
+interface PendingConfirmation {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  variant?: 'default' | 'danger';
+  onConfirm: () => Promise<void>;
+}
 
 function getUserName(user: AdminUserRow) {
   const fullName = `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim();
@@ -27,13 +37,76 @@ function getUserInitials(user: AdminUserRow) {
 
 export default function AdminUsersPage() {
   const users = useAdminUsers();
+  const [confirmation, setConfirmation] = useState<PendingConfirmation | null>(
+    null,
+  );
   const propertyOptions = users.properties.map(property => ({
     value: property.id,
     label: property.name,
   }));
 
+  function requestRoleChange(role: AdminRole) {
+    if (!users.selectedUser || role === users.selectedUser.role) return;
+
+    const roleLabel =
+      ADMIN_ROLE_OPTIONS.find(option => option.value === role)?.label ?? role;
+
+    setConfirmation({
+      title: 'Confirmar cambio de rol',
+      description: `Estas seguro que quieres cambiar el rol de ${getUserName(users.selectedUser)} a ${roleLabel}?`,
+      confirmLabel: 'Cambiar rol',
+      onConfirm: () => users.updateRole(users.selectedUser!.id, role),
+    });
+  }
+
+  function requestAssignProperty() {
+    if (!users.selectedUser || !users.selectedPropertyId) return;
+
+    const property = users.properties.find(
+      item => item.id === users.selectedPropertyId,
+    );
+
+    setConfirmation({
+      title: 'Confirmar asignacion',
+      description: `Estas seguro que quieres asignar ${property?.name ?? 'este inmueble'} a ${getUserName(users.selectedUser)}?`,
+      confirmLabel: 'Asignar',
+      onConfirm: users.assignSelectedProperty,
+    });
+  }
+
+  function requestRemoveAccess(access: AdminUserPropertyAccessRow) {
+    if (!users.selectedUser) return;
+
+    setConfirmation({
+      title: 'Confirmar retiro de acceso',
+      description: `Estas seguro que quieres quitar ${access.propertyName} de ${getUserName(users.selectedUser)}?`,
+      confirmLabel: 'Quitar',
+      variant: 'danger',
+      onConfirm: () => users.removeAccess(access.property_id),
+    });
+  }
+
+  async function confirmPendingAction() {
+    const pendingConfirmation = confirmation;
+    if (!pendingConfirmation) return;
+
+    await pendingConfirmation.onConfirm();
+    setConfirmation(null);
+  }
+
   return (
     <main className="grid gap-3 px-8 pb-5 pt-3 max-[640px]:px-[14px]">
+      <ConfirmationDialog
+        open={confirmation !== null}
+        title={confirmation?.title ?? ''}
+        description={confirmation?.description ?? ''}
+        confirmLabel={confirmation?.confirmLabel ?? 'Confirmar'}
+        variant={confirmation?.variant}
+        isLoading={users.isSaving}
+        onConfirm={() => void confirmPendingAction()}
+        onCancel={() => setConfirmation(null)}
+      />
+
       <Alert>{users.errorMessage}</Alert>
 
       <section className="grid min-h-0 grid-cols-[minmax(360px,520px)_minmax(420px,1fr)] gap-3 max-[1080px]:grid-cols-1">
@@ -128,10 +201,7 @@ export default function AdminUsersPage() {
                       value={users.selectedUser.role}
                       disabled={users.isSaving}
                       onChange={event =>
-                        users.updateRole(
-                          users.selectedUser!.id,
-                          event.target.value as AdminRole,
-                        )
+                        requestRoleChange(event.target.value as AdminRole)
                       }>
                       {ADMIN_ROLE_OPTIONS.map(role => (
                         <option key={role.value} value={role.value}>
@@ -174,7 +244,7 @@ export default function AdminUsersPage() {
                     !users.selectedPropertyId ||
                     users.isSaving
                   }
-                  onClick={users.assignSelectedProperty}
+                  onClick={requestAssignProperty}
                   className="h-9 rounded-xl bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50">
                   Asignar inmueble
                 </button>
@@ -217,7 +287,7 @@ export default function AdminUsersPage() {
                         <button
                           type="button"
                           disabled={users.isSaving}
-                          onClick={() => users.removeAccess(access.property_id)}
+                          onClick={() => requestRemoveAccess(access)}
                           className="shrink-0 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100 disabled:opacity-50">
                           Quitar
                         </button>
