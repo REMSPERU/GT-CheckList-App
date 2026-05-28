@@ -5,6 +5,7 @@ import { Building2, UserCog } from 'lucide-react';
 import { AdminTableShell } from '@/components/admin/admin-table-shell';
 import { Alert } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
+import { SearchableSelectField } from '@/components/ui/searchable-select-field';
 import { useAdminUsers } from '@/hooks/admin/use-admin-users';
 import { ADMIN_ROLE_OPTIONS } from '@/services/admin/users.service';
 import type { AdminUserRow } from '@/types/admin';
@@ -26,6 +27,10 @@ function getUserInitials(user: AdminUserRow) {
 
 export default function AdminUsersPage() {
   const users = useAdminUsers();
+  const propertyOptions = users.properties.map(property => ({
+    value: property.id,
+    label: property.name,
+  }));
 
   return (
     <main className="grid gap-3 px-8 pb-5 pt-3 max-[640px]:px-[14px]">
@@ -149,20 +154,14 @@ export default function AdminUsersPage() {
                   </span>
                 </div>
                 <label className="grid gap-1 text-xs font-black uppercase tracking-wider text-slate-500">
-                  <select
-                    className="h-10 rounded-xl border border-emerald-900/10 bg-white px-3 text-sm font-bold text-slate-900 outline-none focus:border-emerald-600"
+                  <SearchableSelectField
                     value={users.selectedPropertyId}
+                    options={propertyOptions}
+                    placeholder="Buscar inmueble..."
+                    ariaLabel="Buscar inmueble para asignar"
                     disabled={!users.selectedUser || users.isSaving}
-                    onChange={event =>
-                      users.setSelectedPropertyId(event.target.value)
-                    }>
-                    <option value="">Seleccionar inmueble...</option>
-                    {users.properties.map(property => (
-                      <option key={property.id} value={property.id}>
-                        {property.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={users.setSelectedPropertyId}
+                  />
                 </label>
 
                 <label className="grid gap-1 text-[0.68rem] font-black uppercase tracking-wider text-slate-500">
