@@ -9,7 +9,23 @@ export async function getCurrentAdminUser(): Promise<AdminUser | null> {
 
   if (!session?.user) return null;
 
-  return { email: session.user.email ?? 'Usuario' };
+  const { data } = await supabase
+    .from('users')
+    .select('id, email, username, first_name, last_name, role, is_active')
+    .eq('id', session.user.id)
+    .single();
+
+  if (!data?.is_active) return null;
+
+  return {
+    id: data.id,
+    email: data.email ?? session.user.email ?? 'Usuario',
+    username: data.username,
+    first_name: data.first_name,
+    last_name: data.last_name,
+    role: data.role,
+    is_active: data.is_active,
+  };
 }
 
 export async function signInWithPassword(

@@ -1,7 +1,31 @@
+import type { AdminRole } from './auth';
+
 export interface AdminMetric {
   label: string;
   value: number;
   note: string;
+}
+
+export interface AdminUserRow {
+  id: string;
+  email: string;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  role: AdminRole;
+  is_active: boolean;
+}
+
+export interface AdminUserPropertyAccessRow {
+  id: string;
+  user_id: string;
+  property_id: string;
+  property_role: string | null;
+  expires_at: string | null;
+  assigned_at: string | null;
+  assignment_reason: string | null;
+  propertyName: string;
+  propertyCode: string | null;
 }
 
 export interface AdminEquipmentRow {
