@@ -97,9 +97,12 @@ export default function AdminUsersPage() {
           </div>
         </AdminTableShell>
 
-        <aside className="sticky top-3 grid max-h-[calc(100vh-130px)] content-start overflow-auto max-[1080px]:static max-[1080px]:max-h-none max-[1080px]:overflow-visible">
-          <AdminTableShell summary="Usuario, rol y accesos" accent>
-            <div className="grid gap-3 p-3">
+        <aside className="sticky top-3 grid h-[calc(100vh-130px)] min-h-0 content-start overflow-hidden max-[1080px]:static max-[1080px]:h-auto max-[1080px]:overflow-visible">
+          <AdminTableShell
+            summary="Usuario, rol y accesos"
+            accent
+            className="flex h-full min-h-0 flex-col max-[1080px]:h-auto">
+            <div className="grid min-h-0 flex-1 grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-3 p-3 max-[1080px]:flex-none max-[1080px]:grid-rows-none">
               {users.selectedUser ? (
                 <>
                   <div className="flex min-w-0 items-center gap-3 rounded-2xl bg-slate-950 p-2.5 text-white">
@@ -164,18 +167,6 @@ export default function AdminUsersPage() {
                   />
                 </label>
 
-                <label className="grid gap-1 text-[0.68rem] font-black uppercase tracking-wider text-slate-500">
-                  <input
-                    className="h-10 rounded-xl border border-emerald-900/10 bg-white px-3 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-600"
-                    value={users.assignmentReason}
-                    disabled={!users.selectedUser || users.isSaving}
-                    placeholder="Ej: Acceso operativo mensual"
-                    onChange={event =>
-                      users.setAssignmentReason(event.target.value)
-                    }
-                  />
-                </label>
-
                 <button
                   type="button"
                   disabled={
@@ -189,11 +180,11 @@ export default function AdminUsersPage() {
                 </button>
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
                 <p className="text-xs font-black uppercase tracking-wider text-slate-500">
                   Inmuebles asignados
                 </p>
-                <div className="grid max-h-[clamp(140px,28vh,260px)] min-h-[100px] gap-2 overflow-auto pr-1 max-[1080px]:max-h-none">
+                <div className="grid min-h-0 content-start gap-2 overflow-auto pr-1 max-[1080px]:max-h-none">
                   {users.isLoadingAccesses && (
                     <p className="text-sm font-semibold text-slate-500">
                       Cargando accesos...

@@ -46,7 +46,6 @@ export function useAdminUsers() {
   const [accesses, setAccesses] = useState<AdminUserPropertyAccessRow[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
-  const [assignmentReason, setAssignmentReason] = useState('');
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingAccesses, setIsLoadingAccesses] = useState(false);
@@ -92,7 +91,9 @@ export function useAdminUsers() {
       setSelectedUserId(current => current ?? data.users[0]?.id ?? null);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : 'No se pudieron cargar usuarios',
+        error instanceof Error
+          ? error.message
+          : 'No se pudieron cargar usuarios',
       );
     } finally {
       setIsLoading(false);
@@ -130,7 +131,6 @@ export function useAdminUsers() {
 
   useEffect(() => {
     setSelectedPropertyId('');
-    setAssignmentReason('');
     void loadAccesses(selectedUserId);
   }, [selectedUserId]);
 
@@ -170,13 +170,11 @@ export function useAdminUsers() {
         method: 'POST',
         body: JSON.stringify({
           propertyId: selectedPropertyId,
-          assignmentReason: assignmentReason.trim() || null,
         }),
       });
 
       setAccesses(data.accesses);
       setSelectedPropertyId('');
-      setAssignmentReason('');
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : 'No se pudo asignar inmueble',
@@ -192,9 +190,12 @@ export function useAdminUsers() {
     try {
       setErrorMessage(null);
       setIsSaving(true);
-      await fetchAdminApi(`/api/admin/users/${selectedUserId}/properties/${propertyId}`, {
-        method: 'DELETE',
-      });
+      await fetchAdminApi(
+        `/api/admin/users/${selectedUserId}/properties/${propertyId}`,
+        {
+          method: 'DELETE',
+        },
+      );
 
       setAccesses(current =>
         current.filter(item => item.property_id !== propertyId),
@@ -215,7 +216,6 @@ export function useAdminUsers() {
     selectedUser,
     selectedUserId,
     selectedPropertyId,
-    assignmentReason,
     search,
     isLoading,
     isLoadingAccesses,
@@ -223,7 +223,6 @@ export function useAdminUsers() {
     errorMessage,
     setSelectedUserId,
     setSelectedPropertyId,
-    setAssignmentReason,
     setSearch,
     updateRole,
     assignSelectedProperty,
