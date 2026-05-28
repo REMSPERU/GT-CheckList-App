@@ -1,23 +1,22 @@
 'use client';
 
-import { useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
-import { MetricCardGrid } from '@/components/admin/metric-card-grid';
-import { Alert } from '@/components/ui/alert';
-import { useAdminMetrics } from '@/hooks/admin/use-admin-metrics';
 import { useAdminSession } from '@/hooks/auth/use-admin-session';
 
-export default function AdminDashboardPage() {
+interface AdminUsersLayoutProps {
+  children: ReactNode;
+}
+
+export default function AdminUsersLayout({ children }: AdminUsersLayoutProps) {
   const router = useRouter();
   const { user, isCheckingSession } = useAdminSession();
-  const { metrics, isLoading, errorMessage } = useAdminMetrics(
-    user?.role === 'SUPERADMIN',
-  );
 
   useEffect(() => {
     if (!isCheckingSession && user?.role !== 'SUPERADMIN') {
-      router.replace('/admin/checklist');
+      router.replace('/admin');
     }
   }, [isCheckingSession, router, user?.role]);
 
@@ -32,10 +31,5 @@ export default function AdminDashboardPage() {
     );
   }
 
-  return (
-    <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
-      <Alert>{errorMessage}</Alert>
-      <MetricCardGrid metrics={metrics} isLoading={isLoading} />
-    </main>
-  );
+  return children;
 }

@@ -4,13 +4,20 @@ import { getSupabaseClient } from '@/lib/supabase-browser';
 import { getAdminMetrics } from '@/services/admin/metrics.service';
 import type { AdminMetric } from '@/types/admin';
 
-export function useAdminMetrics() {
+export function useAdminMetrics(enabled = true) {
   const [metrics, setMetrics] = useState<AdminMetric[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
+
+    if (!enabled) {
+      setIsLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
 
     async function loadMetrics() {
       try {
@@ -20,7 +27,9 @@ export function useAdminMetrics() {
       } catch (error) {
         if (isMounted) {
           setErrorMessage(
-            error instanceof Error ? error.message : 'No se pudo cargar el panel',
+            error instanceof Error
+              ? error.message
+              : 'No se pudo cargar el panel',
           );
         }
       } finally {
@@ -33,7 +42,7 @@ export function useAdminMetrics() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [enabled]);
 
   return { metrics, isLoading, errorMessage };
 }

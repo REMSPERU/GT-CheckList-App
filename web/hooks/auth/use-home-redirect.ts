@@ -14,7 +14,13 @@ export function useHomeRedirect() {
 
       if (!isMounted) return;
 
-      router.replace(user ? '/admin' : '/login');
+      router.replace(
+        user
+          ? user.role === 'SUPERADMIN'
+            ? '/admin'
+            : '/admin/checklist'
+          : '/login',
+      );
     }
 
     void routeBySession();

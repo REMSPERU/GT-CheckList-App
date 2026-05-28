@@ -11,6 +11,7 @@ import {
   ClipboardCheck,
   FileSearch,
   PanelLeftDashed,
+  Users,
 } from 'lucide-react';
 
 import { useAdminSession } from '@/hooks/auth/use-admin-session';
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
     href: '/admin',
     label: 'Dashboard',
     icon: LayoutDashboard,
+    superadminOnly: true,
   },
   {
     href: '/admin/equipos',
@@ -49,6 +51,12 @@ const NAV_ITEMS = [
     href: '/admin/auditorias',
     label: 'Auditorias',
     icon: FileSearch,
+  },
+  {
+    href: '/admin/usuarios',
+    label: 'Usuarios',
+    icon: Users,
+    superadminOnly: true,
   },
 ];
 
@@ -91,8 +99,13 @@ export function AdminShell({ children }: AdminShellProps) {
     if (pathname.startsWith('/admin/checklist')) return 'Monitoreo · Checklist';
     if (pathname.startsWith('/admin/auditorias'))
       return 'Monitoreo · Auditorias';
+    if (pathname.startsWith('/admin/usuarios')) return 'Sistema · Usuarios';
     return null;
   };
+
+  const visibleNavItems = NAV_ITEMS.filter(
+    item => !item.superadminOnly || user?.role === 'SUPERADMIN',
+  );
 
   return (
     <div
@@ -121,9 +134,9 @@ export function AdminShell({ children }: AdminShellProps) {
           </Link>
 
           <nav
-            className="mt-[34px] grid gap-2 max-[980px]:grid-cols-6 max-[640px]:grid-cols-1"
+            className="mt-[34px] grid gap-2 max-[980px]:grid-cols-7 max-[640px]:grid-cols-1"
             aria-label="Navegacion administrativa">
-            {NAV_ITEMS.map(item => {
+            {visibleNavItems.map(item => {
               const isActive =
                 pathname === item.href ||
                 (item.href !== '/admin' && pathname.startsWith(item.href));

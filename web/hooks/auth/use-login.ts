@@ -2,7 +2,10 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 
-import { getCurrentAdminUser, signInWithPassword } from '@/services/auth/auth.service';
+import {
+  getCurrentAdminUser,
+  signInWithPassword,
+} from '@/services/auth/auth.service';
 
 export function useLogin() {
   const router = useRouter();
@@ -17,7 +20,11 @@ export function useLogin() {
 
     async function redirectActiveSession() {
       const user = await getCurrentAdminUser();
-      if (isMounted && user) router.replace('/admin');
+      if (isMounted && user) {
+        router.replace(
+          user.role === 'SUPERADMIN' ? '/admin' : '/admin/checklist',
+        );
+      }
     }
 
     void redirectActiveSession();
@@ -40,8 +47,9 @@ export function useLogin() {
         return;
       }
 
+      const user = await getCurrentAdminUser();
       setMessage('Sesion iniciada correctamente. Redirigiendo...');
-      router.push('/admin');
+      router.push(user?.role === 'SUPERADMIN' ? '/admin' : '/admin/checklist');
     } finally {
       setIsSubmitting(false);
     }
