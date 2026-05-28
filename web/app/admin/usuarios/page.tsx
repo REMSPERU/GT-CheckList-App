@@ -97,16 +97,16 @@ export default function AdminUsersPage() {
           </div>
         </AdminTableShell>
 
-        <aside className="sticky top-3 grid h-[calc(100vh-130px)] min-h-0 content-start overflow-hidden max-[1080px]:static max-[1080px]:h-auto max-[1080px]:overflow-visible">
+        <aside className="sticky top-3 grid h-[calc(100vh-89px)] min-h-0 content-start overflow-hidden max-[1080px]:static max-[1080px]:h-auto max-[1080px]:overflow-visible">
           <AdminTableShell
             summary="Usuario, rol y accesos"
             accent
             className="flex h-full min-h-0 flex-col max-[1080px]:h-auto">
-            <div className="grid min-h-0 flex-1 grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-3 p-3 max-[1080px]:flex-none max-[1080px]:grid-rows-none">
+            <div className="grid min-h-0 flex-1 grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-2 p-2.5 max-[1080px]:flex-none max-[1080px]:grid-rows-none">
               {users.selectedUser ? (
                 <>
-                  <div className="flex min-w-0 items-center gap-3 rounded-2xl bg-slate-950 p-2.5 text-white">
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-lime-200 text-sm font-black text-emerald-950">
+                  <div className="flex min-w-0 items-center gap-2.5 rounded-2xl bg-slate-950 p-2 text-white">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-lime-200 text-xs font-black text-emerald-950">
                       {getUserInitials(users.selectedUser) || (
                         <UserCog size={18} />
                       )}
@@ -121,10 +121,10 @@ export default function AdminUsersPage() {
                     </div>
                   </div>
 
-                  <label className="grid gap-1 text-xs font-black uppercase tracking-wider text-slate-500">
+                  <label className="grid gap-1 text-[0.68rem] font-black uppercase tracking-wider text-slate-500">
                     Rol
                     <select
-                      className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none focus:border-emerald-600"
+                      className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none focus:border-emerald-600"
                       value={users.selectedUser.role}
                       disabled={users.isSaving}
                       onChange={event =>
@@ -147,7 +147,7 @@ export default function AdminUsersPage() {
                 </p>
               )}
 
-              <div className="grid gap-2 rounded-2xl bg-emerald-50/70 p-3">
+              <div className="grid gap-2 rounded-2xl bg-emerald-50/70 p-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-black uppercase tracking-wider text-emerald-900">
                     Agregar inmueble
@@ -175,16 +175,16 @@ export default function AdminUsersPage() {
                     users.isSaving
                   }
                   onClick={users.assignSelectedProperty}
-                  className="h-10 rounded-xl bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50">
+                  className="h-9 rounded-xl bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50">
                   Asignar inmueble
                 </button>
               </div>
 
-              <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
+              <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-1.5">
                 <p className="text-xs font-black uppercase tracking-wider text-slate-500">
                   Inmuebles asignados
                 </p>
-                <div className="grid min-h-0 content-start gap-2 overflow-auto pr-1 max-[1080px]:max-h-none">
+                <div className="grid min-h-0 content-start gap-1.5 overflow-auto pr-1 max-[1080px]:max-h-none">
                   {users.isLoadingAccesses && (
                     <p className="text-sm font-semibold text-slate-500">
                       Cargando accesos...
@@ -201,7 +201,7 @@ export default function AdminUsersPage() {
                     users.accesses.map(access => (
                       <div
                         key={access.id}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-2.5">
+                        className="flex items-center justify-between gap-2.5 rounded-xl border border-slate-200 bg-white p-2">
                         <Building2
                           size={17}
                           className="shrink-0 text-emerald-800"
@@ -218,7 +218,7 @@ export default function AdminUsersPage() {
                           type="button"
                           disabled={users.isSaving}
                           onClick={() => users.removeAccess(access.property_id)}
-                          className="shrink-0 rounded-lg bg-red-50 px-3 py-2 text-xs font-black text-red-700 hover:bg-red-100 disabled:opacity-50">
+                          className="shrink-0 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100 disabled:opacity-50">
                           Quitar
                         </button>
                       </div>
