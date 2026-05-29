@@ -42,6 +42,14 @@ export interface AdminEquipmentRow {
   equipmentAbbreviation: string | null;
 }
 
+export interface AdminEquipmentQrRow {
+  id: string;
+  codigo: string;
+  equipmentName: string;
+  ubicacion: string | null;
+  detalle_ubicacion: string | null;
+}
+
 export interface AdminEquipmentDetailRow extends AdminEquipmentRow {
   id_property: string | null;
   id_equipamento: string | null;

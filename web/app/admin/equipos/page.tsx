@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense } from 'react';
+import Link from 'next/link';
 import { AdminPagination } from '@/components/admin/admin-pagination';
 import { EquipmentTable } from '@/components/admin/equipment-table';
 import { Alert } from '@/components/ui/alert';
@@ -57,6 +58,21 @@ function AdminEquipmentsContent() {
 
   return (
     <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-slate-900/10 bg-white/80 px-4 py-3 shadow-sm">
+        <div>
+          <h1 className="m-0 text-xl font-black tracking-[-0.04em] text-[#0c1720]">
+            Equipos
+          </h1>
+          <p className="m-0 mt-1 text-sm font-semibold text-slate-500">
+            Consulta equipos y genera etiquetas QR imprimibles.
+          </p>
+        </div>
+        <Link
+          className="rounded-full bg-emerald-800 px-4 py-2.5 text-sm font-black text-white no-underline shadow-sm transition-colors hover:bg-[#0c1720]"
+          href="/admin/equipos/qr">
+          Imprimir QRs
+        </Link>
+      </section>
       <section className="grid grid-cols-[1.2fr_1fr_1fr_1.2fr_0.8fr] gap-2.5 max-[1200px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1">
         <SearchInput
           placeholder="Buscar codigo o ubicacion"

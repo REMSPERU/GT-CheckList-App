@@ -1,11 +1,14 @@
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { DatabaseService } from '@/services/database';
+import { syncService } from '@/services/sync';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useRouter } from 'expo-router';
 import {
   BarcodeScanningResult,
   CameraView,
   useCameraPermissions,
 } from 'expo-camera';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Alert,
   Linking,
@@ -15,8 +18,14 @@ import {
   View,
 } from 'react-native';
 
+function isValidEquipmentCode(value: string) {
+  return /^[A-Z0-9][A-Z0-9_-]{2,}$/i.test(value);
+}
+
 export default function QRScannerScreen() {
+  const router = useRouter();
   const [isActive, setIsActive] = useState(true);
+  const [isResolving, setIsResolving] = useState(false);
   const [scannedData, setScannedData] = useState<string | null>(null);
 
   const backgroundColor = useThemeColor({}, 'background');
@@ -25,33 +34,99 @@ export default function QRScannerScreen() {
 
   const [permission, requestPermission] = useCameraPermissions();
 
-  const handleBarcodeScanned = (result: BarcodeScanningResult) => {
-    if (isActive) {
-      setIsActive(false);
-      setScannedData(result.data || 'Código sin valor');
+  const reactivateScanner = useCallback(() => {
+    setScannedData(null);
+    setIsResolving(false);
+    setIsActive(true);
+  }, []);
 
-      Alert.alert(
-        'Código Escaneado',
-        `Tipo: ${result.type}\nValor: ${result.data}`,
-        [
-          {
-            text: 'Copiar',
-            onPress: () => {
-              // Aquí puedes implementar la lógica para copiar al portapapeles
-              console.log('Copiado:', result.data);
-            },
-          },
-          {
-            text: 'Escanear otro',
-            onPress: () => {
-              setScannedData(null);
-              setIsActive(true);
-            },
-          },
-        ],
-      );
+  const resolveChecklistLaunchData = useCallback(async (equipoCodigo: string) => {
+    const localResult =
+      await DatabaseService.getChecklistLaunchDataByEquipmentCode(equipoCodigo);
+
+    if (localResult) {
+      return localResult;
     }
-  };
+
+    try {
+      await syncService.triggerSync('qr-scan-equipment', { force: true });
+    } catch (error) {
+      console.log('[QR Scanner] Sync before lookup failed', error);
+    }
+
+    return await DatabaseService.getChecklistLaunchDataByEquipmentCode(
+      equipoCodigo,
+    );
+  }, []);
+
+  const handleBarcodeScanned = useCallback(
+    async (result: BarcodeScanningResult) => {
+      if (!isActive || isResolving) {
+        return;
+      }
+
+      const equipoCodigo = result.data?.trim() ?? '';
+      setIsActive(false);
+      setIsResolving(true);
+      setScannedData(equipoCodigo || 'Código sin valor');
+
+      if (!equipoCodigo || !isValidEquipmentCode(equipoCodigo)) {
+        setIsResolving(false);
+        Alert.alert(
+          'QR no válido',
+          'Este QR no contiene un código de equipo válido.',
+          [{ text: 'Escanear otro', onPress: reactivateScanner }],
+        );
+        return;
+      }
+
+      try {
+        const launchData = await resolveChecklistLaunchData(equipoCodigo);
+
+        if (!launchData) {
+          setIsResolving(false);
+          Alert.alert(
+            'Equipo no encontrado',
+            'No se encontró este equipo en la app. Sincroniza los datos e intenta nuevamente.',
+            [{ text: 'Escanear otro', onPress: reactivateScanner }],
+          );
+          return;
+        }
+
+        setIsResolving(false);
+        router.push({
+          pathname: '/checklist/form',
+          params: {
+            buildingId: launchData.buildingId,
+            buildingName: launchData.buildingName,
+            equipamentoId: launchData.equipamentoId,
+            equipamentoNombre: launchData.equipamentoNombre,
+            frecuencia: launchData.frecuencia,
+            equipoId: launchData.equipoId,
+            equipoCodigo: launchData.equipoCodigo,
+            equipoUbicacion: launchData.equipoUbicacion,
+            equipoDetalleUbicacion:
+              launchData.equipoDetalleUbicacion ?? '',
+          },
+        });
+      } catch (error) {
+        console.error('Error opening checklist from QR:', error);
+        setIsResolving(false);
+        Alert.alert(
+          'No se pudo abrir el checklist',
+          'Ocurrió un error al buscar el equipo escaneado.',
+          [{ text: 'Escanear otro', onPress: reactivateScanner }],
+        );
+      }
+    },
+    [
+      isActive,
+      isResolving,
+      reactivateScanner,
+      resolveChecklistLaunchData,
+      router,
+    ],
+  );
 
   const handleRequestPermission = async () => {
     const result = await requestPermission();
@@ -102,7 +177,7 @@ export default function QRScannerScreen() {
         style={StyleSheet.absoluteFill}
         facing="back"
         barcodeScannerSettings={{
-          barcodeTypes: ['qr', 'ean13', 'ean8', 'code128', 'code39', 'code93'],
+          barcodeTypes: ['qr'],
         }}
         onBarcodeScanned={handleBarcodeScanned}
       />
@@ -146,8 +221,13 @@ export default function QRScannerScreen() {
         </View>
         <View style={styles.bottomOverlay}>
           <Text style={styles.instructionText}>
-            Coloca el código QR dentro del marco
+            Coloca el QR del equipo dentro del marco
           </Text>
+          {isResolving && (
+            <View style={styles.resultContainer}>
+              <Text style={styles.resultText}>Buscando equipo...</Text>
+            </View>
+          )}
           {scannedData && (
             <View style={styles.resultContainer}>
               <Text style={styles.resultText}>Último escaneo:</Text>
@@ -167,10 +247,7 @@ export default function QRScannerScreen() {
             { backgroundColor: tintColor },
             pressed && styles.pressed,
           ]}
-          onPress={() => {
-            setScannedData(null);
-            setIsActive(true);
-          }}
+          onPress={reactivateScanner}
           accessibilityRole="button">
           <MaterialIcons name="qr-code-scanner" size={24} color="#fff" />
           <Text style={styles.scanButtonText}>Escanear Nuevo</Text>

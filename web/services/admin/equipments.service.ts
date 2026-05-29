@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   AdminEquipmentDetailRow,
   AdminEquipmentFilters,
+  AdminEquipmentQrRow,
   AdminEquipmentRow,
   AdminPaginatedResult,
 } from '@/types/admin';
@@ -34,6 +35,22 @@ type AdminPropertyDetailRow = {
   is_active?: boolean | null;
   maintenance_priority?: string | null;
 };
+
+const EMPTY_UUID = '00000000-0000-0000-0000-000000000000';
+
+async function getEquipmentTypeIdsBySystem(
+  supabase: SupabaseClient,
+  systemId: string,
+) {
+  const { data, error } = await supabase
+    .from('equipamentos')
+    .select('id')
+    .eq('id_sistema', systemId);
+
+  if (error) throw error;
+
+  return (data ?? []).map(item => item.id as string);
+}
 
 export async function listAdminEquipments(
   supabase: SupabaseClient,
@@ -70,17 +87,13 @@ export async function listAdminEquipments(
   }
 
   if (filters.systemId) {
-    const { data: matchedEquipamentos } = await supabase
-      .from('equipamentos')
-      .select('id')
-      .eq('id_sistema', filters.systemId);
-
-    const matchedIds = (matchedEquipamentos ?? []).map(item => item.id);
+    const matchedIds = await getEquipmentTypeIdsBySystem(
+      supabase,
+      filters.systemId,
+    );
     query = query.in(
       'id_equipamento',
-      matchedIds.length > 0
-        ? matchedIds
-        : ['00000000-0000-0000-0000-000000000000'],
+      matchedIds.length > 0 ? matchedIds : [EMPTY_UUID],
     );
   }
 
@@ -134,6 +147,89 @@ export async function listAdminEquipments(
     }),
     total: count ?? 0,
   };
+}
+
+export async function listAdminEquipmentsForQr(
+  supabase: SupabaseClient,
+  filters: Omit<AdminEquipmentFilters, 'page' | 'pageSize'>,
+): Promise<AdminEquipmentQrRow[]> {
+  const search = filters.search?.trim();
+  const equipmentTypes = await listAdminEquipmentTypes(supabase);
+  const equipmentTypesById = new Map(
+    equipmentTypes.map(item => [item.id, item]),
+  );
+  let query = supabase
+    .from('equipos')
+    .select('id, codigo, ubicacion, detalle_ubicacion, id_equipamento')
+    .order('codigo', {
+      ascending: true,
+    });
+
+  if (filters.status && filters.status !== 'TODOS') {
+    query = query.eq('estatus', filters.status);
+  }
+
+  if (filters.propertyId) {
+    query = query.eq('id_property', filters.propertyId);
+  }
+
+  if (filters.systemId) {
+    const matchedIds = await getEquipmentTypeIdsBySystem(
+      supabase,
+      filters.systemId,
+    );
+    query = query.in(
+      'id_equipamento',
+      matchedIds.length > 0 ? matchedIds : [EMPTY_UUID],
+    );
+  }
+
+  if (filters.equipmentTypeId) {
+    query = query.eq('id_equipamento', filters.equipmentTypeId);
+  }
+
+  if (search) {
+    query = query.or(
+      `codigo.ilike.%${search}%,ubicacion.ilike.%${search}%,detalle_ubicacion.ilike.%${search}%`,
+    );
+  }
+
+  const allRows: AdminEquipmentQrRow[] = [];
+  const batchSize = 1000;
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await query.range(from, from + batchSize - 1);
+    if (error) throw error;
+
+    const rawRows = (data ?? []) as {
+      id: string;
+      codigo: string | null;
+      ubicacion: string | null;
+      detalle_ubicacion: string | null;
+      id_equipamento: string | null;
+    }[];
+    const rows = rawRows
+      .filter(item => !!item.codigo)
+      .map(item => ({
+        id: item.id,
+        codigo: item.codigo as string,
+        equipmentName: item.id_equipamento
+          ? (equipmentTypesById.get(item.id_equipamento)?.nombre ?? 'Sin tipo')
+          : 'Sin tipo',
+        ubicacion: item.ubicacion,
+        detalle_ubicacion: item.detalle_ubicacion,
+      }));
+    allRows.push(...rows);
+
+    if (rawRows.length < batchSize) {
+      break;
+    }
+
+    from += batchSize;
+  }
+
+  return allRows;
 }
 
 export async function getAdminEquipmentById(

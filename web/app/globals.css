@@ -21,3 +21,51 @@
     color: inherit;
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  body {
+    background: #ffffff !important;
+  }
+
+  .qr-print-controls,
+  aside,
+  nav,
+  header:has(+ main) {
+    display: none !important;
+  }
+
+  .qr-print-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6mm !important;
+  }
+
+  .qr-print-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    min-height: 58mm;
+    border: 1px dashed #94a3b8 !important;
+    border-radius: 4mm !important;
+    box-shadow: none !important;
+    padding: 5mm !important;
+  }
+
+  .qr-print-code {
+    max-width: 34mm !important;
+  }
+
+  .qr-print-id {
+    color: #000000 !important;
+    font-size: 7pt !important;
+  }
+
+  .qr-print-meta {
+    color: #475569 !important;
+    font-size: 6.5pt !important;
+  }
+}

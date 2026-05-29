@@ -299,6 +299,85 @@ export async function getEquipmentByProperty(
   });
 }
 
+export interface ChecklistLaunchDataByEquipmentCode {
+  buildingId: string;
+  buildingName: string;
+  equipamentoId: string;
+  equipamentoNombre: string;
+  frecuencia: string;
+  equipoId: string;
+  equipoCodigo: string;
+  equipoUbicacion: string;
+  equipoDetalleUbicacion: string | null;
+}
+
+/**
+ * Resolve all checklist route params from a scanned equipment code.
+ * Reads only from the local mirror so QR scanning keeps working offline.
+ */
+export async function getChecklistLaunchDataByEquipmentCode(
+  equipoCodigo: string,
+): Promise<ChecklistLaunchDataByEquipmentCode | null> {
+  await ensureInitialized();
+
+  return withLock(async () => {
+    const db = await dbPromise;
+    const row = (await db.getFirstAsync(
+      `
+        SELECT
+          e.id as equipo_id,
+          e.codigo as equipo_codigo,
+          e.ubicacion as equipo_ubicacion,
+          e.detalle_ubicacion as equipo_detalle_ubicacion,
+          e.estatus as equipo_estatus,
+          p.id as building_id,
+          p.name as building_name,
+          eq.id as equipamento_id,
+          eq.nombre as equipamento_nombre,
+          eq.frecuencia as equipamento_frecuencia
+        FROM local_equipos e
+        LEFT JOIN local_properties p ON p.id = e.id_property
+        LEFT JOIN local_equipamentos eq ON eq.id = e.id_equipamento
+        WHERE UPPER(e.codigo) = UPPER(?)
+        LIMIT 1
+      `,
+      [equipoCodigo],
+    )) as {
+      equipo_id: string | null;
+      equipo_codigo: string | null;
+      equipo_ubicacion: string | null;
+      equipo_detalle_ubicacion: string | null;
+      equipo_estatus: string | null;
+      building_id: string | null;
+      building_name: string | null;
+      equipamento_id: string | null;
+      equipamento_nombre: string | null;
+      equipamento_frecuencia: string | null;
+    } | null;
+
+    if (
+      !row?.equipo_id ||
+      row.equipo_estatus === 'INACTIVO' ||
+      !row.building_id ||
+      !row.equipamento_id
+    ) {
+      return null;
+    }
+
+    return {
+      buildingId: row.building_id,
+      buildingName: row.building_name ?? '',
+      equipamentoId: row.equipamento_id,
+      equipamentoNombre: row.equipamento_nombre ?? '',
+      frecuencia: row.equipamento_frecuencia ?? 'MENSUAL',
+      equipoId: row.equipo_id,
+      equipoCodigo: row.equipo_codigo ?? '',
+      equipoUbicacion: row.equipo_ubicacion ?? '',
+      equipoDetalleUbicacion: row.equipo_detalle_ubicacion,
+    };
+  });
+}
+
 /**
  * Get scheduled maintenances from local mirror.
  * Joins with Equipos and Properties to match Supabase structure.
