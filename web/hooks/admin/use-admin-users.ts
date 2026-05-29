@@ -3,6 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import type {
   AdminPropertyRow,
+  AdminUserCreateInput,
+  AdminUserPasswordResult,
+  AdminUserPasswordUpdateInput,
   AdminUserPropertyAccessRow,
   AdminUserRow,
 } from '@/types/admin';
@@ -51,6 +54,9 @@ export function useAdminUsers() {
   const [isLoadingAccesses, setIsLoadingAccesses] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(
+    null,
+  );
 
   const selectedUser = useMemo(
     () => users.find(user => user.id === selectedUserId) ?? null,
@@ -158,6 +164,63 @@ export function useAdminUsers() {
     }
   }
 
+  async function createUser(input: AdminUserCreateInput) {
+    try {
+      setErrorMessage(null);
+      setGeneratedPassword(null);
+      setIsSaving(true);
+      const data = await fetchAdminApi<{
+        user: AdminUserRow;
+        generatedPassword: string | null;
+      }>('/api/admin/users', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      });
+
+      setUsers(current => [...current, data.user]);
+      setSelectedUserId(data.user.id);
+      setGeneratedPassword(data.generatedPassword);
+      return true;
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'No se pudo crear el usuario',
+      );
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function updatePassword(
+    userId: string,
+    input: AdminUserPasswordUpdateInput,
+  ) {
+    try {
+      setErrorMessage(null);
+      setGeneratedPassword(null);
+      setIsSaving(true);
+      const data = await fetchAdminApi<AdminUserPasswordResult>(
+        `/api/admin/users/${userId}/password`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(input),
+        },
+      );
+
+      setGeneratedPassword(data.generatedPassword);
+      return true;
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo cambiar la contraseña',
+      );
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function assignSelectedProperty() {
     if (!selectedUserId || !selectedPropertyId) return;
 
@@ -221,10 +284,13 @@ export function useAdminUsers() {
     isLoadingAccesses,
     isSaving,
     errorMessage,
+    generatedPassword,
     setSelectedUserId,
     setSelectedPropertyId,
     setSearch,
     updateRole,
+    createUser,
+    updatePassword,
     assignSelectedProperty,
     removeAccess,
   };

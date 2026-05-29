@@ -16,6 +16,26 @@ export interface AdminUserRow {
   is_active: boolean;
 }
 
+export interface AdminUserCreateInput {
+  email: string;
+  password?: string;
+  generatePassword?: boolean;
+  username?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  role: AdminRole;
+  isActive: boolean;
+}
+
+export interface AdminUserPasswordUpdateInput {
+  password?: string;
+  generatePassword?: boolean;
+}
+
+export interface AdminUserPasswordResult {
+  generatedPassword: string | null;
+}
+
 export interface AdminUserPropertyAccessRow {
   id: string;
   user_id: string;

@@ -22,6 +22,19 @@ function getEnvValues() {
   return { supabaseUrl, supabasePublishableKey };
 }
 
+function getServiceRoleEnvValues() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    throw new Error(
+      'Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY',
+    );
+  }
+
+  return { supabaseUrl, supabaseServiceRoleKey };
+}
+
 function getBearerToken(request: NextRequest) {
   const authorization = request.headers.get('authorization');
   if (!authorization?.startsWith('Bearer ')) return null;
@@ -44,6 +57,17 @@ export function createServerSupabaseClient(accessToken?: string | null) {
           },
         }
       : undefined,
+  });
+}
+
+export function createServiceRoleSupabaseClient() {
+  const { supabaseUrl, supabaseServiceRoleKey } = getServiceRoleEnvValues();
+
+  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
   });
 }
 

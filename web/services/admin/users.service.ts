@@ -2,6 +2,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type {
   AdminPropertyRow,
+  AdminUserCreateInput,
+  AdminUserPasswordResult,
+  AdminUserPasswordUpdateInput,
   AdminUserPropertyAccessRow,
   AdminUserRow,
 } from '@/types/admin';
@@ -17,6 +20,32 @@ export const ADMIN_ROLE_OPTIONS: { label: string; value: AdminRole }[] = [
   { label: 'Superadmin', value: 'SUPERADMIN' },
 ];
 
+const PASSWORD_CHARACTERS =
+  'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*?';
+
+export function generateRandomPassword(length = 16) {
+  const values = new Uint32Array(length);
+  crypto.getRandomValues(values);
+
+  return Array.from(values, value =>
+    PASSWORD_CHARACTERS.charAt(value % PASSWORD_CHARACTERS.length),
+  ).join('');
+}
+
+function emptyToNull(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function resolvePassword(input: AdminUserPasswordUpdateInput) {
+  if (input.generatePassword) return generateRandomPassword();
+
+  const password = input.password?.trim();
+  if (!password) throw new Error('PASSWORD_REQUIRED');
+
+  return password;
+}
+
 export async function listAdminUsers(
   supabase: SupabaseClient,
 ): Promise<AdminUserRow[]> {
@@ -29,6 +58,71 @@ export async function listAdminUsers(
   if (error) throw error;
 
   return (data ?? []) as AdminUserRow[];
+}
+
+export async function createAdminUser(
+  supabase: SupabaseClient,
+  input: AdminUserCreateInput,
+): Promise<{ user: AdminUserRow; generatedPassword: string | null }> {
+  const password = resolvePassword(input);
+  const email = input.email.trim().toLowerCase();
+  const now = new Date().toISOString();
+
+  const { data: authData, error: authError } =
+    await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        username: emptyToNull(input.username),
+        first_name: emptyToNull(input.firstName),
+        last_name: emptyToNull(input.lastName),
+        role: input.role,
+      },
+    });
+
+  if (authError) throw authError;
+  if (!authData.user) throw new Error('AUTH_USER_NOT_CREATED');
+
+  const { data, error } = await supabase
+    .from('users')
+    .upsert({
+      id: authData.user.id,
+      email,
+      username: emptyToNull(input.username),
+      first_name: emptyToNull(input.firstName),
+      last_name: emptyToNull(input.lastName),
+      role: input.role,
+      is_active: input.isActive,
+      updated_at: now,
+    })
+    .select(USER_SELECT)
+    .single();
+
+  if (error) {
+    await supabase.auth.admin.deleteUser(authData.user.id);
+    throw error;
+  }
+
+  return {
+    user: data as AdminUserRow,
+    generatedPassword: input.generatePassword ? password : null,
+  };
+}
+
+export async function updateAdminUserPassword(
+  supabase: SupabaseClient,
+  userId: string,
+  input: AdminUserPasswordUpdateInput,
+): Promise<AdminUserPasswordResult> {
+  const password = resolvePassword(input);
+  const { error } = await supabase.auth.admin.updateUserById(userId, {
+    password,
+  });
+
+  if (error) throw error;
+
+  return { generatedPassword: input.generatePassword ? password : null };
 }
 
 export async function updateAdminUserRole(
