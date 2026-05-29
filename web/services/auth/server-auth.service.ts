@@ -77,15 +77,15 @@ export async function requireSuperAdminSession(
   const accessToken = getBearerToken(request);
   if (!accessToken) throw new Error('UNAUTHENTICATED');
 
-  const authClient = createServerSupabaseClient();
+  const authSupabase = createServerSupabaseClient(accessToken);
   const {
     data: { user },
     error: userError,
-  } = await authClient.auth.getUser(accessToken);
+  } = await authSupabase.auth.getUser(accessToken);
 
   if (userError || !user) throw new Error('UNAUTHENTICATED');
 
-  const supabase = createServerSupabaseClient(accessToken);
+  const supabase = createServiceRoleSupabaseClient();
   const { data: profile, error: profileError } = await supabase
     .from('users')
     .select('id, email, username, first_name, last_name, role, is_active')
