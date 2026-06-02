@@ -40,24 +40,29 @@ export default function QRScannerScreen() {
     setIsActive(true);
   }, []);
 
-  const resolveChecklistLaunchData = useCallback(async (equipoCodigo: string) => {
-    const localResult =
-      await DatabaseService.getChecklistLaunchDataByEquipmentCode(equipoCodigo);
+  const resolveChecklistLaunchData = useCallback(
+    async (equipoCodigo: string) => {
+      const localResult =
+        await DatabaseService.getChecklistLaunchDataByEquipmentCode(
+          equipoCodigo,
+        );
 
-    if (localResult) {
-      return localResult;
-    }
+      if (localResult) {
+        return localResult;
+      }
 
-    try {
-      await syncService.triggerSync('qr-scan-equipment', { force: true });
-    } catch (error) {
-      console.log('[QR Scanner] Sync before lookup failed', error);
-    }
+      try {
+        await syncService.triggerSync('qr-scan-equipment', { force: true });
+      } catch (error) {
+        console.log('[QR Scanner] Sync before lookup failed', error);
+      }
 
-    return await DatabaseService.getChecklistLaunchDataByEquipmentCode(
-      equipoCodigo,
-    );
-  }, []);
+      return await DatabaseService.getChecklistLaunchDataByEquipmentCode(
+        equipoCodigo,
+      );
+    },
+    [],
+  );
 
   const handleBarcodeScanned = useCallback(
     async (result: BarcodeScanningResult) => {
@@ -95,7 +100,7 @@ export default function QRScannerScreen() {
 
         setIsResolving(false);
         router.push({
-          pathname: '/checklist/form',
+          pathname: '/qr-equipment/options',
           params: {
             buildingId: launchData.buildingId,
             buildingName: launchData.buildingName,
@@ -105,8 +110,7 @@ export default function QRScannerScreen() {
             equipoId: launchData.equipoId,
             equipoCodigo: launchData.equipoCodigo,
             equipoUbicacion: launchData.equipoUbicacion,
-            equipoDetalleUbicacion:
-              launchData.equipoDetalleUbicacion ?? '',
+            equipoDetalleUbicacion: launchData.equipoDetalleUbicacion ?? '',
           },
         });
       } catch (error) {
