@@ -1,32 +1,90 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useFocusEffect } from '@react-navigation/native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
+import type { BarcodeScanningResult } from 'expo-camera';
+
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { useRouter } from 'expo-router';
-import {
-  BarcodeScanningResult,
-  CameraView,
-  useCameraPermissions,
-} from 'expo-camera';
-import { useCallback, useState } from 'react';
-import {
-  Alert,
-  Linking,
-  StyleSheet,
-  Text,
-  Pressable,
-  View,
-} from 'react-native';
 
 function isValidEquipmentCode(value: string) {
   return /^[A-Z0-9][A-Z0-9_-]{2,}$/i.test(value);
 }
 
+function extractEquipmentCode(rawValue: string) {
+  const value = rawValue.trim();
+
+  if (!value) {
+    return '';
+  }
+
+  if (isValidEquipmentCode(value)) {
+    return value;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    const jsonCode =
+      parsed.equipoCodigo ?? parsed.codigo ?? parsed.code ?? parsed.equipo;
+
+    if (typeof jsonCode === 'string' && isValidEquipmentCode(jsonCode.trim())) {
+      return jsonCode.trim();
+    }
+  } catch {
+    // QR legacy puede venir como texto plano o URL, no siempre como JSON.
+  }
+
+  try {
+    const url = new URL(value);
+    const queryCode =
+      url.searchParams.get('equipoCodigo') ??
+      url.searchParams.get('codigo') ??
+      url.searchParams.get('code') ??
+      url.searchParams.get('equipo');
+
+    if (queryCode?.trim() && isValidEquipmentCode(queryCode.trim())) {
+      return queryCode.trim();
+    }
+
+    const pathSegments = url.pathname.split('/').filter(Boolean);
+    const pathCode = pathSegments[pathSegments.length - 1]?.trim();
+
+    if (pathCode && isValidEquipmentCode(pathCode)) {
+      return pathCode;
+    }
+  } catch {
+    return '';
+  }
+
+  return '';
+}
+
 export default function QRScannerScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const scanSize = Math.min(Math.max(width - 64, 240), 320);
+  const scanLockRef = useRef(false);
+  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isActive, setIsActive] = useState(true);
   const [isResolving, setIsResolving] = useState(false);
   const [scannedData, setScannedData] = useState<string | null>(null);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
 
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -34,10 +92,48 @@ export default function QRScannerScreen() {
 
   const [permission, requestPermission] = useCameraPermissions();
 
-  const reactivateScanner = useCallback(() => {
-    setScannedData(null);
-    setIsResolving(false);
+  useEffect(() => {
+    return () => {
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const resetScanner = useCallback(() => {
+    if (resetTimeoutRef.current) {
+      clearTimeout(resetTimeoutRef.current);
+      resetTimeoutRef.current = null;
+    }
+
+    scanLockRef.current = false;
     setIsActive(true);
+    setIsResolving(false);
+    setScannedData(null);
+    setScanMessage(null);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      resetScanner();
+    }, [resetScanner]),
+  );
+
+  const reactivateScannerSoon = useCallback((message: string) => {
+    setIsResolving(false);
+    setScanMessage(message);
+
+    if (resetTimeoutRef.current) {
+      clearTimeout(resetTimeoutRef.current);
+    }
+
+    resetTimeoutRef.current = setTimeout(() => {
+      scanLockRef.current = false;
+      setScannedData(null);
+      setScanMessage(null);
+      setIsActive(true);
+      resetTimeoutRef.current = null;
+    }, 1800);
   }, []);
 
   const resolveChecklistLaunchData = useCallback(
@@ -66,21 +162,22 @@ export default function QRScannerScreen() {
 
   const handleBarcodeScanned = useCallback(
     async (result: BarcodeScanningResult) => {
-      if (!isActive || isResolving) {
+      if (!isActive || isResolving || scanLockRef.current) {
         return;
       }
 
-      const equipoCodigo = result.data?.trim() ?? '';
+      scanLockRef.current = true;
+      const rawValue = result.data?.trim() ?? '';
+      const equipoCodigo = extractEquipmentCode(rawValue);
       setIsActive(false);
       setIsResolving(true);
-      setScannedData(equipoCodigo || 'Código sin valor');
+      setScannedData(equipoCodigo || rawValue || 'Código sin valor');
+      setScanMessage(null);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      if (!equipoCodigo || !isValidEquipmentCode(equipoCodigo)) {
-        setIsResolving(false);
-        Alert.alert(
-          'QR no válido',
-          'Este QR no contiene un código de equipo válido.',
-          [{ text: 'Escanear otro', onPress: reactivateScanner }],
+      if (!equipoCodigo) {
+        reactivateScannerSoon(
+          'QR no válido. Acerca la etiqueta generada para el equipo.',
         );
         return;
       }
@@ -89,11 +186,8 @@ export default function QRScannerScreen() {
         const launchData = await resolveChecklistLaunchData(equipoCodigo);
 
         if (!launchData) {
-          setIsResolving(false);
-          Alert.alert(
-            'Equipo no encontrado',
-            'No se encontró este equipo en la app. Sincroniza los datos e intenta nuevamente.',
-            [{ text: 'Escanear otro', onPress: reactivateScanner }],
+          reactivateScannerSoon(
+            'Equipo no encontrado en datos locales. Reintentando escaneo...',
           );
           return;
         }
@@ -115,18 +209,15 @@ export default function QRScannerScreen() {
         });
       } catch (error) {
         console.error('Error opening checklist from QR:', error);
-        setIsResolving(false);
-        Alert.alert(
-          'No se pudo abrir el checklist',
-          'Ocurrió un error al buscar el equipo escaneado.',
-          [{ text: 'Escanear otro', onPress: reactivateScanner }],
+        reactivateScannerSoon(
+          'No se pudo buscar el equipo. Reintentando escaneo...',
         );
       }
     },
     [
       isActive,
       isResolving,
-      reactivateScanner,
+      reactivateScannerSoon,
       resolveChecklistLaunchData,
       router,
     ],
@@ -161,6 +252,9 @@ export default function QRScannerScreen() {
         <Text style={[styles.permissionText, { color: textColor }]}>
           Se requiere permiso de cámara para escanear códigos QR
         </Text>
+        <Text style={styles.permissionHint}>
+          El escáner usa la cámara solo para leer la etiqueta del equipo.
+        </Text>
         <Pressable
           style={({ pressed }) => [
             styles.button,
@@ -186,12 +280,24 @@ export default function QRScannerScreen() {
         onBarcodeScanned={handleBarcodeScanned}
       />
 
-      {/* Overlay con marco de escaneo */}
       <View style={styles.overlay}>
-        <View style={styles.topOverlay} />
-        <View style={styles.middleRow}>
+        <SafeAreaView style={styles.topOverlay}>
+          <View style={styles.headerCard}>
+            <View style={styles.headerIcon}>
+              <MaterialIcons name="qr-code-2" size={22} color="#06B6D4" />
+            </View>
+            <View style={styles.headerCopy}>
+              <Text style={styles.headerTitle}>Escanear equipo</Text>
+              <Text style={styles.headerSubtitle}>
+                Lee el QR para abrir sus opciones
+              </Text>
+            </View>
+          </View>
+        </SafeAreaView>
+        <View style={[styles.middleRow, { height: scanSize }]}>
           <View style={styles.sideOverlay} />
-          <View style={styles.scanArea}>
+          <View
+            style={[styles.scanArea, { width: scanSize, height: scanSize }]}>
             <View
               style={[
                 styles.corner,
@@ -220,21 +326,52 @@ export default function QRScannerScreen() {
                 { borderColor: tintColor },
               ]}
             />
+            <View style={styles.centerMarker}>
+              {isResolving ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <MaterialIcons
+                  name="center-focus-strong"
+                  size={34}
+                  color="#fff"
+                />
+              )}
+            </View>
           </View>
           <View style={styles.sideOverlay} />
         </View>
         <View style={styles.bottomOverlay}>
+          <View style={styles.statusPill}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: isActive ? '#22C55E' : '#F59E0B' },
+              ]}
+            />
+            <Text style={styles.statusText}>
+              {isResolving
+                ? 'Validando equipo'
+                : scanMessage
+                  ? 'Reactivando escáner'
+                  : 'Listo para escanear'}
+            </Text>
+          </View>
           <Text style={styles.instructionText}>
-            Coloca el QR del equipo dentro del marco
+            Coloca el QR dentro del marco y mantén el teléfono estable.
           </Text>
           {isResolving && (
             <View style={styles.resultContainer}>
-              <Text style={styles.resultText}>Buscando equipo...</Text>
+              <ActivityIndicator color="#FFFFFF" />
+              <Text style={styles.resultText}>
+                Buscando en datos locales...
+              </Text>
             </View>
           )}
-          {scannedData && (
+          {scannedData && !isResolving && (
             <View style={styles.resultContainer}>
-              <Text style={styles.resultText}>Último escaneo:</Text>
+              <Text style={styles.resultText}>
+                {scanMessage ?? 'Último escaneo:'}
+              </Text>
               <Text style={styles.resultValue} numberOfLines={2}>
                 {scannedData}
               </Text>
@@ -242,21 +379,6 @@ export default function QRScannerScreen() {
           )}
         </View>
       </View>
-
-      {/* Botón para reactivar el escáner */}
-      {!isActive && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.scanButton,
-            { backgroundColor: tintColor },
-            pressed && styles.pressed,
-          ]}
-          onPress={reactivateScanner}
-          accessibilityRole="button">
-          <MaterialIcons name="qr-code-scanner" size={24} color="#fff" />
-          <Text style={styles.scanButtonText}>Escanear Nuevo</Text>
-        </Pressable>
-      )}
     </View>
   );
 }
@@ -272,6 +394,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     marginHorizontal: 40,
+  },
+  permissionHint: {
+    color: '#6B7280',
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 10,
+    marginHorizontal: 44,
+    textAlign: 'center',
   },
   button: {
     marginTop: 20,
@@ -294,19 +424,64 @@ const styles = StyleSheet.create({
   topOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 18,
+    paddingTop: 12,
+  },
+  headerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
+  },
+  headerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(236, 254, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  headerCopy: {
+    flex: 1,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  headerSubtitle: {
+    color: '#CBD5E1',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
   },
   middleRow: {
     flexDirection: 'row',
-    height: 300,
   },
   sideOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   scanArea: {
-    width: 300,
-    height: 300,
     position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerMarker: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: 'rgba(15, 23, 42, 0.34)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   corner: {
     position: 'absolute',
@@ -352,8 +527,30 @@ const styles = StyleSheet.create({
   instructionText: {
     color: '#fff',
     fontSize: 16,
+    lineHeight: 22,
     textAlign: 'center',
-    marginTop: 20,
+    marginTop: 14,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  statusText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   resultContainer: {
     marginTop: 20,
@@ -361,11 +558,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 8,
     maxWidth: '90%',
+    alignItems: 'center',
   },
   resultText: {
     color: '#fff',
     fontSize: 14,
-    marginBottom: 5,
+    marginTop: 8,
   },
   resultValue: {
     color: '#fff',
