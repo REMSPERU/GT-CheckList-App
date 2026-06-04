@@ -1,5 +1,5 @@
 import { QuestionChecklistItem } from '@/components/maintenance/checklist/question-checklist-item';
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import type {
   AnswerErrors,
   AuditAnswer,
@@ -14,11 +14,15 @@ interface AuditQuestionRowProps {
   index: number;
   systemLabel: string;
   equipmentLabel: string | null;
+  systemKey: string;
+  equipmentCollapseKey: string;
   isFirstInSystem: boolean;
   isFirstInEquipment: boolean;
   isLastInEquipment: boolean;
   isSystemCollapsed: boolean;
   isEquipmentCollapsed: boolean;
+  systemPendingCount: number;
+  equipmentPendingCount: number;
   hideChecklist?: boolean;
   selectionHint?: string | null;
   systemSelector?: ReactNode;
@@ -27,8 +31,8 @@ interface AuditQuestionRowProps {
   answer: AuditAnswer | undefined;
   error: AnswerErrors[string] | undefined;
   isSaving: boolean;
-  onToggleSystem: () => void;
-  onToggleEquipment: () => void;
+  onToggleSystem: (systemKey: string) => void;
+  onToggleEquipment: (equipmentCollapseKey: string) => void;
   onChangeApplicable: (questionId: string, isApplicable: boolean) => void;
   onChangeStatus: (questionId: string, status: boolean) => void;
   onChangeObservation: (questionId: string, text: string) => void;
@@ -36,16 +40,20 @@ interface AuditQuestionRowProps {
   onRemovePhoto: (questionId: string, photoIndex: number) => void;
 }
 
-export function AuditQuestionRow({
+export const AuditQuestionRow = memo(function AuditQuestionRow({
   question,
   index,
   systemLabel,
   equipmentLabel,
+  systemKey,
+  equipmentCollapseKey,
   isFirstInSystem,
   isFirstInEquipment,
   isLastInEquipment,
   isSystemCollapsed,
   isEquipmentCollapsed,
+  systemPendingCount,
+  equipmentPendingCount,
   hideChecklist = false,
   selectionHint = null,
   systemSelector,
@@ -74,15 +82,23 @@ export function AuditQuestionRow({
             sessionScreenStyles.sectionHeader,
             pressed && sessionScreenStyles.pressed,
           ]}
-          onPress={onToggleSystem}
+          onPress={() => onToggleSystem(systemKey)}
           accessibilityRole="button">
           <Text style={sessionScreenStyles.sectionTitle}>{systemLabel}</Text>
-          <Ionicons
-            name={isSystemCollapsed ? 'chevron-down' : 'chevron-up'}
-            size={18}
-            color="#0F766E"
-            style={sessionScreenStyles.hierarchyChevron}
-          />
+          <View style={sessionScreenStyles.headerMetaRow}>
+            {systemPendingCount > 0 ? (
+              <Text style={sessionScreenStyles.pendingBadge}>
+                {systemPendingCount} pendiente
+                {systemPendingCount === 1 ? '' : 's'}
+              </Text>
+            ) : null}
+            <Ionicons
+              name={isSystemCollapsed ? 'chevron-down' : 'chevron-up'}
+              size={18}
+              color="#0F766E"
+              style={sessionScreenStyles.hierarchyChevron}
+            />
+          </View>
         </Pressable>
       ) : null}
 
@@ -104,17 +120,25 @@ export function AuditQuestionRow({
             sessionScreenStyles.equipmentHeader,
             pressed && sessionScreenStyles.pressed,
           ]}
-          onPress={onToggleEquipment}
+          onPress={() => onToggleEquipment(equipmentCollapseKey)}
           accessibilityRole="button">
           <Text style={sessionScreenStyles.equipmentTitle}>
             {equipmentLabel}
           </Text>
-          <Ionicons
-            name={isEquipmentCollapsed ? 'chevron-down' : 'chevron-up'}
-            size={16}
-            color="#0E7490"
-            style={sessionScreenStyles.hierarchyChevron}
-          />
+          <View style={sessionScreenStyles.headerMetaRow}>
+            {equipmentPendingCount > 0 ? (
+              <Text style={sessionScreenStyles.pendingBadgeSecondary}>
+                {equipmentPendingCount} pendiente
+                {equipmentPendingCount === 1 ? '' : 's'}
+              </Text>
+            ) : null}
+            <Ionicons
+              name={isEquipmentCollapsed ? 'chevron-down' : 'chevron-up'}
+              size={16}
+              color="#0E7490"
+              style={sessionScreenStyles.hierarchyChevron}
+            />
+          </View>
         </Pressable>
       ) : null}
 
@@ -148,7 +172,7 @@ export function AuditQuestionRow({
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   equipmentContent: {
