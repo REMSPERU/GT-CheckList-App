@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 
 import { Alert } from '@/components/ui/alert';
 import { getSupabaseClient } from '@/lib/supabase-browser';
@@ -21,8 +21,13 @@ import { formatDateTime } from '@/utils/date';
 
 type AnswerFilter = 'all' | 'observed' | 'photos';
 
-export default function AdminChecklistResponseDetailPage() {
+function AdminChecklistResponseDetailContent() {
   const params = useParams<{ responseId: string }>();
+  const searchParams = useSearchParams();
+  const returnToParam = searchParams.get('returnTo');
+  const returnHref = returnToParam?.startsWith('/admin/checklist')
+    ? returnToParam
+    : '/admin/checklist/respuestas';
   const [response, setResponse] = useState<AdminChecklistResponseRow | null>(
     null,
   );
@@ -81,7 +86,7 @@ export default function AdminChecklistResponseDetailPage() {
   if (isLoading) {
     return (
       <main className="grid gap-5 px-8 pb-11 pt-7 max-[640px]:px-[18px]">
-        <DetailHeader />
+        <DetailHeader returnHref={returnHref} />
         <section className="grid min-h-[320px] place-items-center rounded-[24px] border border-slate-900/10 bg-white/80 text-slate-500 shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
           Cargando detalle de auditoria...
         </section>
@@ -92,7 +97,7 @@ export default function AdminChecklistResponseDetailPage() {
   if (!response) {
     return (
       <main className="grid gap-5 px-8 pb-11 pt-7 max-[640px]:px-[18px]">
-        <DetailHeader />
+        <DetailHeader returnHref={returnHref} />
         <Alert>{errorMessage}</Alert>
         <section className="rounded-[24px] border border-slate-900/10 bg-white/80 p-8 text-slate-500 shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
           No se encontro este checklist sincronizado.
@@ -105,7 +110,7 @@ export default function AdminChecklistResponseDetailPage() {
 
   return (
     <main className="grid gap-5 px-8 pb-11 pt-7 max-[640px]:px-[18px]">
-      <DetailHeader response={response} />
+      <DetailHeader response={response} returnHref={returnHref} />
       <Alert>{errorMessage}</Alert>
 
       <section className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-3">
@@ -126,25 +131,42 @@ export default function AdminChecklistResponseDetailPage() {
                 : `${formatWeight(weightedScore.percent)}%`}
             </span>
             <span className="text-xs font-semibold text-slate-500">
-              ({formatWeight(weightedScore.earned)} de {formatWeight(weightedScore.total)} ítems)
+              ({formatWeight(weightedScore.earned)} de{' '}
+              {formatWeight(weightedScore.total)} ítems)
             </span>
           </div>
           <div className="grid grid-cols-4 gap-2 pt-1 text-center">
             <div className="rounded-lg bg-slate-50 py-1 px-0.5">
-              <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-500">Preg.</span>
-              <strong className="text-xs text-slate-800">{response.total_questions ?? 0}</strong>
+              <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                Preg.
+              </span>
+              <strong className="text-xs text-slate-800">
+                {response.total_questions ?? 0}
+              </strong>
             </div>
             <div className="rounded-lg bg-emerald-50 py-1 px-0.5 text-emerald-950">
-              <span className="block text-[9px] font-bold uppercase tracking-wider text-emerald-700">Conf.</span>
-              <strong className="text-xs text-emerald-800">{response.total_ok ?? 0}</strong>
+              <span className="block text-[9px] font-bold uppercase tracking-wider text-emerald-700">
+                Conf.
+              </span>
+              <strong className="text-xs text-emerald-800">
+                {response.total_ok ?? 0}
+              </strong>
             </div>
             <div className="rounded-lg bg-amber-50 py-1 px-0.5 text-amber-950">
-              <span className="block text-[9px] font-bold uppercase tracking-wider text-amber-700">Obs.</span>
-              <strong className="text-xs text-amber-700">{response.total_observed ?? 0}</strong>
+              <span className="block text-[9px] font-bold uppercase tracking-wider text-amber-700">
+                Obs.
+              </span>
+              <strong className="text-xs text-amber-700">
+                {response.total_observed ?? 0}
+              </strong>
             </div>
             <div className="rounded-lg bg-slate-50 py-1 px-0.5">
-              <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-500">Fotos</span>
-              <strong className="text-xs text-slate-800">{response.total_photos ?? 0}</strong>
+              <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                Fotos
+              </span>
+              <strong className="text-xs text-slate-800">
+                {response.total_photos ?? 0}
+              </strong>
             </div>
           </div>
         </div>
@@ -156,28 +178,47 @@ export default function AdminChecklistResponseDetailPage() {
           </span>
           <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
             <div className="flex flex-col">
-              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Llenado por</span>
-              <span className="font-semibold text-[#0c1720] truncate" title={response.user_created_name ?? '-'}>
+              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">
+                Llenado por
+              </span>
+              <span
+                className="font-semibold text-[#0c1720] truncate"
+                title={response.user_created_name ?? '-'}>
                 {response.user_created_name ?? '-'}
               </span>
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Duración / Interacciones</span>
+              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">
+                Duración / Interacciones
+              </span>
               <span className="font-semibold text-[#0c1720]">
-                {formatDuration(response.duration_seconds)} ({response.interaction_count ?? 0} clics)
+                {formatDuration(response.duration_seconds)} (
+                {response.interaction_count ?? 0} clics)
               </span>
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Inicio</span>
-              <span className="font-semibold text-slate-700">{formatDateTime(response.form_started_at)}</span>
+              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">
+                Inicio
+              </span>
+              <span className="font-semibold text-slate-700">
+                {formatDateTime(response.form_started_at)}
+              </span>
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Término</span>
-              <span className="font-semibold text-slate-700">{formatDateTime(response.submitted_at)}</span>
+              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">
+                Término
+              </span>
+              <span className="font-semibold text-slate-700">
+                {formatDateTime(response.submitted_at)}
+              </span>
             </div>
             <div className="flex flex-col col-span-2">
-              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Primera interacción</span>
-              <span className="font-semibold text-slate-700">{formatDateTime(response.first_interaction_at)}</span>
+              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">
+                Primera interacción
+              </span>
+              <span className="font-semibold text-slate-700">
+                {formatDateTime(response.first_interaction_at)}
+              </span>
             </div>
           </div>
         </div>
@@ -246,16 +287,32 @@ export default function AdminChecklistResponseDetailPage() {
   );
 }
 
-interface DetailHeaderProps {
-  response?: AdminChecklistResponseRow;
+export default function AdminChecklistResponseDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="grid gap-5 px-8 pb-11 pt-7 max-[640px]:px-[18px]">
+          <section className="grid min-h-[320px] place-items-center rounded-[24px] border border-slate-900/10 bg-white/80 text-slate-500 shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
+            Cargando detalle de auditoria...
+          </section>
+        </main>
+      }>
+      <AdminChecklistResponseDetailContent />
+    </Suspense>
+  );
 }
 
-function DetailHeader({ response }: DetailHeaderProps) {
+interface DetailHeaderProps {
+  response?: AdminChecklistResponseRow;
+  returnHref: string;
+}
+
+function DetailHeader({ response, returnHref }: DetailHeaderProps) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
       <Link
         className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3.5 py-2 text-sm font-bold text-[#0c1720] no-underline hover:bg-slate-200 transition-colors"
-        href="/admin/checklist">
+        href={returnHref}>
         ← Volver a checklist
       </Link>
       {response ? (
@@ -264,7 +321,8 @@ function DetailHeader({ response }: DetailHeaderProps) {
             {response.equipo_codigo}
           </span>
           <span className="block text-xs font-semibold text-slate-500">
-            {response.building_name} · {response.equipamento_nombre} · {formatDateTime(response.submitted_at)}
+            {response.building_name} · {response.equipamento_nombre} ·{' '}
+            {formatDateTime(response.submitted_at)}
           </span>
         </div>
       ) : (

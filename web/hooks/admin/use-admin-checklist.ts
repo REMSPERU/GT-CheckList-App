@@ -30,6 +30,8 @@ import type {
 const RESPONSE_PAGE_SIZE = 20;
 const DEFAULT_SCHEDULE_FREQUENCY: AdminChecklistScheduleFrequency = 'DIARIA';
 
+export type AdminChecklistTab = 'responses' | 'questions' | 'schedule';
+
 function getTodayInLima() {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Lima',
@@ -68,7 +70,7 @@ export interface QuestionGroup {
   questions: AdminChecklistQuestionRow[];
 }
 
-export function useAdminChecklist() {
+export function useAdminChecklist(activeTab: AdminChecklistTab) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -91,6 +93,8 @@ export function useAdminChecklist() {
     [],
   );
   const [selectedEquipmentType, setSelectedEquipmentType] = useState('');
+  const [selectedQuestionEquipmentType, setSelectedQuestionEquipmentType] =
+    useState('');
   const [questions, setQuestions] = useState<AdminChecklistQuestionRow[]>([]);
   const [responses, setResponses] = useState<AdminChecklistResponseRow[]>([]);
   const [schedules, setSchedules] = useState<AdminChecklistScheduleRow[]>([]);
@@ -100,8 +104,6 @@ export function useAdminChecklist() {
   const [scheduleFrequency, setScheduleFrequency] =
     useState<AdminChecklistScheduleFrequency>(DEFAULT_SCHEDULE_FREQUENCY);
   const [scheduleOccurrencesPerDay, setScheduleOccurrencesPerDay] =
-    useState('1');
-  const [scheduleExecutionRangeDays, setScheduleExecutionRangeDays] =
     useState('1');
   const [scheduleWindowStart, setScheduleWindowStart] = useState('08:00');
   const [scheduleWindowEnd, setScheduleWindowEnd] = useState('18:00');
@@ -151,7 +153,14 @@ export function useAdminChecklist() {
       setSelectedEquipmentType(eqType);
     }
 
-    const pageVal = Number(searchParams.get('page') || '1');
+    const questionEqType = searchParams.get('questionEqType') || '';
+    if (questionEqType !== selectedQuestionEquipmentType) {
+      setSelectedQuestionEquipmentType(questionEqType);
+    }
+
+    const rawPageVal = Number(searchParams.get('page') || '1');
+    const pageVal =
+      Number.isInteger(rawPageVal) && rawPageVal > 0 ? rawPageVal : 1;
     if (pageVal !== responsePage) {
       setResponsePage(pageVal);
     }
@@ -166,7 +175,8 @@ export function useAdminChecklist() {
       setSelectedBuildingName(buildingVal);
     }
 
-    const reviewStatusVal = (searchParams.get('status') as ChecklistReviewStatus) || 'all';
+    const reviewStatusVal =
+      (searchParams.get('status') as ChecklistReviewStatus) || 'all';
     if (reviewStatusVal !== responseReviewStatus) {
       setResponseReviewStatus(reviewStatusVal);
     }
@@ -184,11 +194,13 @@ export function useAdminChecklist() {
 
   // Synchronize debounced search text back to URL
   useEffect(() => {
+    if (activeTab !== 'responses') return;
+
     const urlSearch = searchParams.get('search') || '';
     if (deferredResponseSearch !== urlSearch) {
       updateUrlParams({ search: deferredResponseSearch, page: 1 });
     }
-  }, [deferredResponseSearch]);
+  }, [activeTab, deferredResponseSearch]);
 
   useEffect(() => {
     let isMounted = true;
@@ -243,9 +255,6 @@ export function useAdminChecklist() {
     setScheduleOccurrencesPerDay(
       currentSchedule ? String(currentSchedule.occurrences_per_day) : '1',
     );
-    setScheduleExecutionRangeDays(
-      currentSchedule ? String(currentSchedule.execution_range_days ?? 1) : '1',
-    );
     setScheduleWindowStart(
       (currentSchedule?.window_start ?? '08:00').slice(0, 5),
     );
@@ -259,6 +268,8 @@ export function useAdminChecklist() {
     let isMounted = true;
 
     async function loadResponseFilterOptions() {
+      if (activeTab !== 'responses') return;
+
       try {
         const supabase = getSupabaseClient();
         const result = await listAdminChecklistResponseFilterOptions(supabase, {
@@ -282,35 +293,44 @@ export function useAdminChecklist() {
     return () => {
       isMounted = false;
     };
-  }, [selectedEquipmentType]);
+  }, [activeTab, selectedEquipmentType]);
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadChecklistData() {
+      if (activeTab === 'schedule') {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         setIsLoading(true);
         setErrorMessage(null);
         setSuccessMessage(null);
         const supabase = getSupabaseClient();
-        const [questionResult, responseResult] = await Promise.all([
-          listAdminChecklistQuestions(
+
+        if (activeTab === 'questions') {
+          const questionResult = await listAdminChecklistQuestions(
             supabase,
-            selectedEquipmentType || undefined,
-          ),
-          listAdminChecklistResponses(supabase, {
-            page: responsePage,
-            pageSize: RESPONSE_PAGE_SIZE,
-            equipamentoId: selectedEquipmentType || undefined,
-            buildingName: selectedBuildingName || undefined,
-            search: deferredResponseSearch || undefined,
-            reviewStatus:
-              responseReviewStatus === 'all' ? undefined : responseReviewStatus,
-          }),
-        ]);
+            selectedQuestionEquipmentType || undefined,
+          );
+
+          if (isMounted) setQuestions(questionResult);
+          return;
+        }
+
+        const responseResult = await listAdminChecklistResponses(supabase, {
+          page: responsePage,
+          pageSize: RESPONSE_PAGE_SIZE,
+          equipamentoId: selectedEquipmentType || undefined,
+          buildingName: selectedBuildingName || undefined,
+          search: deferredResponseSearch || undefined,
+          reviewStatus:
+            responseReviewStatus === 'all' ? undefined : responseReviewStatus,
+        });
 
         if (isMounted) {
-          setQuestions(questionResult);
           setResponses(responseResult.items);
           setResponseTotal(responseResult.total);
           setExpandedResponseId(null);
@@ -334,7 +354,9 @@ export function useAdminChecklist() {
       isMounted = false;
     };
   }, [
+    activeTab,
     deferredResponseSearch,
+    selectedQuestionEquipmentType,
     responsePage,
     responseReviewStatus,
     selectedBuildingName,
@@ -510,7 +532,9 @@ export function useAdminChecklist() {
           frequency: selectedSchedule.frequency,
           startDate: selectedSchedule.start_date,
           endDate: selectedSchedule.end_date,
-          executionRangeDays: selectedSchedule.execution_range_days,
+          executionRangeDays: getExecutionRangeLimit(
+            selectedSchedule.frequency,
+          ),
         });
 
         if (isMounted) setScheduleProgress(result);
@@ -542,6 +566,13 @@ export function useAdminChecklist() {
     updateUrlParams({ eqType: value, page: 1 });
   }
 
+  function handleQuestionEquipmentTypeChange(value: string) {
+    setSelectedQuestionEquipmentType(value);
+    setExpandedQuestionGroups({});
+    setSuccessMessage(null);
+    updateUrlParams({ questionEqType: value });
+  }
+
   function handleBuildingNameChange(value: string) {
     setSelectedBuildingName(value);
     setResponsePage(1);
@@ -567,6 +598,31 @@ export function useAdminChecklist() {
       schedProp: schedule.property_id,
       schedEqType: schedule.equipamento_id,
     });
+  }
+
+  function handleCreateScheduleDraft() {
+    setSelectedScheduleProperty('');
+    setSelectedScheduleEquipmentType('');
+    setScheduleFrequency(DEFAULT_SCHEDULE_FREQUENCY);
+    setScheduleOccurrencesPerDay('1');
+    setScheduleWindowStart('08:00');
+    setScheduleWindowEnd('18:00');
+    setScheduleStartDate('');
+    setScheduleEndDate('');
+    setScheduleIsActive(true);
+    setScheduleEquipments([]);
+    setScheduleProgress(null);
+    setSuccessMessage(null);
+    updateUrlParams({ schedProp: '', schedEqType: '' });
+  }
+
+  function handleClearScheduleSelection() {
+    setSelectedScheduleProperty('');
+    setSelectedScheduleEquipmentType('');
+    setScheduleEquipments([]);
+    setScheduleProgress(null);
+    setSuccessMessage(null);
+    updateUrlParams({ schedProp: '', schedEqType: '' });
   }
 
   function handleSchedulePropertyChange(value: string) {
@@ -600,24 +656,14 @@ export function useAdminChecklist() {
         occurrencesPerDay < 1 ||
         occurrencesPerDay > 24
       ) {
-        throw new Error('El maximo por equipo debe ser entre 1 y 24.');
+        throw new Error('Las veces maximas por equipo deben ser entre 1 y 24.');
       }
 
       if (scheduleWindowStart >= scheduleWindowEnd) {
         throw new Error('La hora de inicio debe ser menor que la hora final.');
       }
 
-      const executionRangeDays = Number(scheduleExecutionRangeDays);
-      const executionRangeLimit = getExecutionRangeLimit(scheduleFrequency);
-      if (
-        !Number.isInteger(executionRangeDays) ||
-        executionRangeDays < 1 ||
-        executionRangeDays > executionRangeLimit
-      ) {
-        throw new Error(
-          `El rango de ejecucion para ${scheduleFrequency.toLowerCase()} debe ser entre 1 y ${executionRangeLimit}.`,
-        );
-      }
+      const executionRangeDays = getExecutionRangeLimit(scheduleFrequency);
 
       if (
         scheduleStartDate &&
@@ -726,6 +772,8 @@ export function useAdminChecklist() {
     equipmentTypes,
     selectedEquipmentType,
     handleEquipmentTypeChange,
+    selectedQuestionEquipmentType,
+    handleQuestionEquipmentTypeChange,
     responses,
     responseSearch,
     handleResponseSearchChange,
@@ -763,8 +811,9 @@ export function useAdminChecklist() {
     scheduleExecutionRangeLimit: getExecutionRangeLimit(scheduleFrequency),
     scheduleOccurrencesPerDay,
     setScheduleOccurrencesPerDay,
-    scheduleExecutionRangeDays,
-    setScheduleExecutionRangeDays,
+    scheduleExecutionRangeDays: String(
+      getExecutionRangeLimit(scheduleFrequency),
+    ),
     scheduleWindowStart,
     setScheduleWindowStart,
     scheduleWindowEnd,
@@ -777,6 +826,8 @@ export function useAdminChecklist() {
     setScheduleIsActive,
     savingSchedule,
     handleSelectSchedule,
+    handleCreateScheduleDraft,
+    handleClearScheduleSelection,
     handleSaveSchedule,
     expandedResponseId,
     setExpandedResponseId,
