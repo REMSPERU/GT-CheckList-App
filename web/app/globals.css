@@ -59,6 +59,15 @@
     max-width: 34mm !important;
   }
 
+  .qr-print-logo {
+    width: 9mm !important;
+    height: 9mm !important;
+    border-radius: 2mm !important;
+    color: #065f46 !important;
+    font-size: 5.5pt !important;
+    box-shadow: 0 0 0 1.2mm #ffffff !important;
+  }
+
   .qr-print-id {
     color: #000000 !important;
     font-size: 7pt !important;

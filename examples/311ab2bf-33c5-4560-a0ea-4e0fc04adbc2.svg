@@ -1,0 +1,35 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 780 230"
+  role="img"
+  aria-labelledby="title desc">
+  <title id="title">REMS GT logo</title>
+  <desc id="desc">Transparent vector recreation of the REMS GT logo.</desc>
+  <g>
+    <text
+      x="0"
+      y="165"
+      fill="#101818"
+      font-family="Arial Black, Impact, Helvetica Neue, Arial, sans-serif"
+      font-size="222"
+      font-weight="900"
+      letter-spacing="-9">
+      REMS
+    </text>
+    <text
+      x="595"
+      y="210"
+      fill="#f47624"
+      stroke="#101818"
+      stroke-width="1.5"
+      paint-order="stroke fill"
+      font-family="Arial Black, Impact, Helvetica Neue, Arial, sans-serif"
+      font-size="126"
+      font-weight="900"
+      font-style="italic"
+      letter-spacing="-8"
+      transform="skewX(-10)">
+      GT
+    </text>
+  </g>
+</svg>

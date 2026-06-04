@@ -44,10 +44,20 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ users, properties });
   } catch (error) {
-    const status =
-      error instanceof Error && error.message === 'UNAUTHENTICATED' ? 401 : 403;
+    if (error instanceof Error && error.message === 'UNAUTHENTICATED') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
 
-    return NextResponse.json({ error: 'No autorizado' }, { status });
+    if (error instanceof Error && error.message === 'FORBIDDEN') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+    }
+
+    console.error('[admin-users] Failed to load users', error);
+
+    return NextResponse.json(
+      { error: 'Error de configuracion del servidor' },
+      { status: 500 },
+    );
   }
 }
 
