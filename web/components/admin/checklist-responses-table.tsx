@@ -22,6 +22,7 @@ interface ChecklistResponsesTableProps {
   page: number;
   totalPages: number;
   isLoading: boolean;
+  returnTo: string;
   footer: ReactNode;
 }
 
@@ -31,6 +32,7 @@ export function ChecklistResponsesTable({
   page,
   totalPages,
   isLoading,
+  returnTo,
   footer,
 }: ChecklistResponsesTableProps) {
   return (
@@ -85,7 +87,7 @@ export function ChecklistResponsesTable({
                   <td className={TD_CLASS}>
                     <Link
                       className="inline-flex h-[34px] items-center rounded-[10px] bg-teal-100 px-3 text-[0.84rem] font-bold text-teal-950 no-underline hover:bg-teal-200"
-                      href={`/admin/checklist/${response.id}`}>
+                      href={`/admin/checklist/${response.id}?returnTo=${encodeURIComponent(returnTo)}`}>
                       Revisar
                     </Link>
                   </td>
@@ -135,10 +137,11 @@ function OperativityBadge({
 
   return (
     <span
-      className={`mb-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${isLowScore
+      className={`mb-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${
+        isLowScore
           ? 'bg-orange-100 text-orange-900'
           : 'bg-emerald-100 text-emerald-900'
-        }`}>
+      }`}>
       {formatWeight(score.percent)}%
     </span>
   );

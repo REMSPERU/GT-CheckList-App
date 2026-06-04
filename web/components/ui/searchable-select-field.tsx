@@ -79,7 +79,13 @@ export function SearchableSelectField({
         value={search}
         onChange={event => handleSearchChange(event.target.value)}
         onFocus={() => {
-          if (!disabled) setIsOpen(true);
+          if (disabled) return;
+
+          if (selectedOption?.value === '') {
+            setSearch('');
+          }
+
+          setIsOpen(true);
         }}
         onBlur={() => window.setTimeout(() => setIsOpen(false), 120)}
         placeholder={placeholder}
