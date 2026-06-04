@@ -20,6 +20,7 @@ import type {
   AnswerErrors,
   ApplicableAnswerEntry,
   AuditAnswer,
+  AuditSessionDraft,
   EquipmentFeedback,
   StoredEquipmentFeedback,
   AuditQuestion,
@@ -55,6 +56,23 @@ interface AuditValidationResult {
   missingStatusLocations: string[];
   missingObservationLocations: string[];
   missingPhotosLocations: string[];
+  totalPendingActivities: number;
+  firstMissing: AuditMissingItem | null;
+}
+
+interface AuditMissingItem {
+  questionId: string;
+  systemKey: string;
+  equipmentCollapseKey: string;
+  message: string;
+}
+
+interface CompletionSummary {
+  totalRequired: number;
+  completed: number;
+  pending: number;
+  systemPendingCounts: Record<string, number>;
+  equipmentPendingCounts: Record<string, number>;
 }
 
 interface SystemEquipmentOption {
@@ -211,51 +229,14 @@ function matchesEquipment(
 }
 
 function buildValidationMessage(result: AuditValidationResult) {
-  const summarizeLocations = (locations: string[]) => {
-    const counter = new Map<string, number>();
+  const pendingText =
+    result.totalPendingActivities === 1
+      ? 'Falta 1 pendiente'
+      : `Faltan ${result.totalPendingActivities} pendientes`;
 
-    locations.forEach(location => {
-      counter.set(location, (counter.get(location) ?? 0) + 1);
-    });
-
-    return [...counter.entries()]
-      .slice(0, 4)
-      .map(([location, count]) =>
-        count > 1 ? `${location} (${count})` : location,
-      )
-      .join(', ');
-  };
-
-  const lines: string[] = ['Revise los datos antes de guardar la auditoria:'];
-
-  if (result.missingStatusLocations.length > 0) {
-    lines.push(
-      `- Falta marcar OK/OBS en ${result.missingStatusLocations.length} actividad(es).`,
-    );
-    lines.push(
-      `  Revisar en: ${summarizeLocations(result.missingStatusLocations)}.`,
-    );
-  }
-
-  if (result.missingObservationLocations.length > 0) {
-    lines.push(
-      `- Hay ${result.missingObservationLocations.length} actividad(es) en OBS sin observacion.`,
-    );
-    lines.push(
-      `  Revisar en: ${summarizeLocations(result.missingObservationLocations)}.`,
-    );
-  }
-
-  if (result.missingPhotosLocations.length > 0) {
-    lines.push(
-      `- Hay ${result.missingPhotosLocations.length} actividad(es) en OBS sin evidencia fotografica.`,
-    );
-    lines.push(
-      `  Revisar en: ${summarizeLocations(result.missingPhotosLocations)}.`,
-    );
-  }
-
-  return lines.join('\n');
+  return `${pendingText}. Te llevamos al primero: ${
+    result.firstMissing?.message ?? 'revise la auditoria'
+  }.`;
 }
 
 export default function AuditoriaSessionScreen() {
@@ -273,6 +254,7 @@ export default function AuditoriaSessionScreen() {
 
   const startedAtRef = useRef(new Date().toISOString());
   const onPhotoSelectedRef = useRef<((uri: string) => void) | null>(null);
+  const listRef = useRef<FlatList<PreparedAuditQuestionRow> | null>(null);
 
   // Ref mirrors so schedulePersist always reads the latest state
   const answersRef = useRef<Record<string, AuditAnswer>>({});
@@ -299,6 +281,9 @@ export default function AuditoriaSessionScreen() {
   const [selectedFireSystemOption, setSelectedFireSystemOption] = useState<
     string | null
   >(null);
+  const [pendingScrollQuestionId, setPendingScrollQuestionId] = useState<
+    string | null
+  >(null);
   const [isCameraSheetVisible, setIsCameraSheetVisible] = useState(false);
   const [isExitModalVisible, setIsExitModalVisible] = useState(false);
   const [alert, setAlert] = useState({
@@ -315,18 +300,34 @@ export default function AuditoriaSessionScreen() {
   airOptionRef.current = selectedAirConditioningOption;
   fireOptionRef.current = selectedFireSystemOption;
 
-  /** Queue a debounced draft write using current ref snapshots. */
-  const persistCurrentDraft = useCallback(() => {
-    schedulePersist({
-      buildingId: params.buildingId,
-      startedAt: startedAtRef.current,
-      answers: answersRef.current,
-      equipmentFeedbacks: feedbacksRef.current,
-      selectedAirConditioningOption: airOptionRef.current,
-      selectedFireSystemOption: fireOptionRef.current,
-      lastUpdatedAt: new Date().toISOString(),
-    });
-  }, [params.buildingId, schedulePersist]);
+  /** Queue a debounced draft write using the freshest available snapshots. */
+  const queueDraftPersist = useCallback(
+    (
+      overrides: Partial<
+        Pick<
+          AuditSessionDraft,
+          | 'answers'
+          | 'equipmentFeedbacks'
+          | 'selectedAirConditioningOption'
+          | 'selectedFireSystemOption'
+        >
+      > = {},
+    ) => {
+      schedulePersist({
+        buildingId: params.buildingId,
+        startedAt: startedAtRef.current,
+        answers: overrides.answers ?? answersRef.current,
+        equipmentFeedbacks:
+          overrides.equipmentFeedbacks ?? feedbacksRef.current,
+        selectedAirConditioningOption:
+          overrides.selectedAirConditioningOption ?? airOptionRef.current,
+        selectedFireSystemOption:
+          overrides.selectedFireSystemOption ?? fireOptionRef.current,
+        lastUpdatedAt: new Date().toISOString(),
+      });
+    },
+    [params.buildingId, schedulePersist],
+  );
 
   const showAlert = useCallback((title: string, message: string) => {
     setAlert({ visible: true, title, message });
@@ -378,11 +379,19 @@ export default function AuditoriaSessionScreen() {
           }
         }
         startedAtRef.current = draft.startedAt;
+        answersRef.current = initialAnswers;
+        feedbacksRef.current = draft.equipmentFeedbacks;
+        airOptionRef.current = draft.selectedAirConditioningOption;
+        fireOptionRef.current = draft.selectedFireSystemOption;
         setAnswers(initialAnswers);
         setEquipmentFeedbacks(draft.equipmentFeedbacks);
         setSelectedAirConditioningOption(draft.selectedAirConditioningOption);
         setSelectedFireSystemOption(draft.selectedFireSystemOption);
       } else {
+        answersRef.current = initialAnswers;
+        feedbacksRef.current = {};
+        airOptionRef.current = null;
+        fireOptionRef.current = null;
         setAnswers(initialAnswers);
         setEquipmentFeedbacks({});
         setSelectedAirConditioningOption(null);
@@ -410,6 +419,52 @@ export default function AuditoriaSessionScreen() {
       return next;
     });
   }, []);
+
+  const updateAnswers = useCallback(
+    (
+      buildNext: (
+        currentAnswers: Record<string, AuditAnswer>,
+      ) => Record<string, AuditAnswer>,
+    ) => {
+      const nextAnswers = buildNext(answersRef.current);
+      answersRef.current = nextAnswers;
+      setAnswers(nextAnswers);
+      queueDraftPersist({ answers: nextAnswers });
+    },
+    [queueDraftPersist],
+  );
+
+  const updateEquipmentFeedbacks = useCallback(
+    (
+      buildNext: (
+        currentFeedbacks: Record<string, EquipmentFeedback>,
+      ) => Record<string, EquipmentFeedback>,
+    ) => {
+      const nextFeedbacks = buildNext(feedbacksRef.current);
+      feedbacksRef.current = nextFeedbacks;
+      setEquipmentFeedbacks(nextFeedbacks);
+      queueDraftPersist({ equipmentFeedbacks: nextFeedbacks });
+    },
+    [queueDraftPersist],
+  );
+
+  const handleSelectAirConditioningOption = useCallback(
+    (optionId: string) => {
+      airOptionRef.current = optionId;
+      setSelectedAirConditioningOption(optionId);
+      queueDraftPersist({ selectedAirConditioningOption: optionId });
+    },
+    [queueDraftPersist],
+  );
+
+  const handleSelectFireSystemOption = useCallback(
+    (optionId: string) => {
+      fireOptionRef.current = optionId;
+      setSelectedFireSystemOption(optionId);
+      queueDraftPersist({ selectedFireSystemOption: optionId });
+    },
+    [queueDraftPersist],
+  );
 
   useEffect(() => {
     void loadQuestions();
@@ -554,10 +609,93 @@ export default function AuditoriaSessionScreen() {
     );
   }, [answers, displayQuestions]);
 
+  const completionSummary = useMemo<CompletionSummary>(() => {
+    const summary: CompletionSummary = {
+      totalRequired: filteredQuestions.length,
+      completed: 0,
+      pending: 0,
+      systemPendingCounts: {},
+      equipmentPendingCounts: {},
+    };
+
+    const addPending = (systemKey: string, equipmentCollapseKey?: string) => {
+      summary.pending += 1;
+      summary.systemPendingCounts[systemKey] =
+        (summary.systemPendingCounts[systemKey] ?? 0) + 1;
+      if (equipmentCollapseKey) {
+        summary.equipmentPendingCounts[equipmentCollapseKey] =
+          (summary.equipmentPendingCounts[equipmentCollapseKey] ?? 0) + 1;
+      }
+    };
+
+    for (const question of filteredQuestions) {
+      const systemKey =
+        normalizeAuditLabel(question.section_name) || '__GENERAL__';
+      const equipmentKey =
+        normalizeAuditLabel(question.equipment_name) || '__WITHOUT_EQUIPMENT__';
+      const equipmentCollapseKey = `${systemKey}::${equipmentKey}`;
+      const answer = answers[question.id];
+
+      if (!answer) {
+        addPending(systemKey, equipmentCollapseKey);
+        continue;
+      }
+
+      if (answer.isApplicable === false) {
+        summary.completed += 1;
+        continue;
+      }
+
+      const isAnswered =
+        answer.status === true ||
+        (answer.status === false &&
+          answer.observation.trim().length > 0 &&
+          answer.photoUris.length > 0);
+
+      if (isAnswered) {
+        summary.completed += 1;
+      } else {
+        addPending(systemKey, equipmentCollapseKey);
+      }
+    }
+
+    const addMissingSelection = (sectionAliases: string[]) => {
+      const firstQuestion = displayQuestions.find(question =>
+        matchesSection(question.section_name, sectionAliases),
+      );
+      if (!firstQuestion) {
+        return;
+      }
+
+      const systemKey =
+        normalizeAuditLabel(firstQuestion.section_name) || '__GENERAL__';
+      summary.totalRequired += 1;
+      addPending(systemKey);
+    };
+
+    if (hasAirConditioningQuestions && !selectedAirConditioningOption) {
+      addMissingSelection(AIR_CONDITIONING_SECTION_ALIASES);
+    }
+
+    if (hasFireSystemQuestions && !selectedFireSystemOption) {
+      addMissingSelection(FIRE_SYSTEM_SECTION_ALIASES);
+    }
+
+    return summary;
+  }, [
+    answers,
+    displayQuestions,
+    filteredQuestions,
+    hasAirConditioningQuestions,
+    hasFireSystemQuestions,
+    selectedAirConditioningOption,
+    selectedFireSystemOption,
+  ]);
+
   const handleOpenCameraSheet = useCallback(
     (questionId: string) => {
       onPhotoSelectedRef.current = (uri: string) => {
-        setAnswers(prev => {
+        updateAnswers(prev => {
           const current = prev[questionId];
           if (!current) return prev;
 
@@ -570,16 +708,15 @@ export default function AuditoriaSessionScreen() {
           };
         });
         clearQuestionErrors(questionId);
-        persistCurrentDraft();
       };
       setIsCameraSheetVisible(true);
     },
-    [clearQuestionErrors, persistCurrentDraft],
+    [clearQuestionErrors, updateAnswers],
   );
 
   const handleChangeApplicable = useCallback(
     (questionId: string, isApplicable: boolean) => {
-      setAnswers(prev => {
+      updateAnswers(prev => {
         const current = prev[questionId] ?? createEmptyAuditAnswer();
 
         return {
@@ -594,9 +731,8 @@ export default function AuditoriaSessionScreen() {
         };
       });
       clearQuestionErrors(questionId);
-      persistCurrentDraft();
     },
-    [clearQuestionErrors, persistCurrentDraft],
+    [clearQuestionErrors, updateAnswers],
   );
 
   const handleChangeSystemApplicable = useCallback(
@@ -611,7 +747,7 @@ export default function AuditoriaSessionScreen() {
         return;
       }
 
-      const nextAnswers = { ...answers };
+      const nextAnswers = { ...answersRef.current };
       const targetIds = new Set<string>();
 
       targetQuestions.forEach(question => {
@@ -636,22 +772,14 @@ export default function AuditoriaSessionScreen() {
         return next;
       });
 
-      schedulePersist({
-        buildingId: params.buildingId,
-        startedAt: startedAtRef.current,
-        answers: nextAnswers,
-        equipmentFeedbacks: feedbacksRef.current,
-        selectedAirConditioningOption: airOptionRef.current,
-        selectedFireSystemOption: fireOptionRef.current,
-        lastUpdatedAt: new Date().toISOString(),
-      });
+      queueDraftPersist({ answers: nextAnswers });
     },
-    [answers, displayQuestions, params.buildingId, schedulePersist],
+    [displayQuestions, queueDraftPersist],
   );
 
   const handleChangeStatus = useCallback(
     (questionId: string, status: boolean) => {
-      setAnswers(prev => {
+      updateAnswers(prev => {
         const current = prev[questionId] ?? createEmptyAuditAnswer();
 
         return {
@@ -665,14 +793,13 @@ export default function AuditoriaSessionScreen() {
         };
       });
       clearQuestionErrors(questionId);
-      persistCurrentDraft();
     },
-    [clearQuestionErrors, persistCurrentDraft],
+    [clearQuestionErrors, updateAnswers],
   );
 
   const handleChangeObservation = useCallback(
     (questionId: string, text: string) => {
-      setAnswers(prev => {
+      updateAnswers(prev => {
         const current = prev[questionId] ?? createEmptyAuditAnswer();
 
         return {
@@ -684,14 +811,13 @@ export default function AuditoriaSessionScreen() {
         };
       });
       clearQuestionErrors(questionId);
-      persistCurrentDraft();
     },
-    [clearQuestionErrors, persistCurrentDraft],
+    [clearQuestionErrors, updateAnswers],
   );
 
   const handleRemovePhoto = useCallback(
     (questionId: string, photoIndex: number) => {
-      setAnswers(prev => {
+      updateAnswers(prev => {
         const current = prev[questionId] ?? createEmptyAuditAnswer();
 
         return {
@@ -705,9 +831,8 @@ export default function AuditoriaSessionScreen() {
         };
       });
       clearQuestionErrors(questionId);
-      persistCurrentDraft();
     },
-    [clearQuestionErrors, persistCurrentDraft],
+    [clearQuestionErrors, updateAnswers],
   );
 
   const ensureEquipmentFeedback = useCallback(
@@ -741,7 +866,7 @@ export default function AuditoriaSessionScreen() {
         equipmentLabel,
       );
 
-      setEquipmentFeedbacks(prev => {
+      updateEquipmentFeedbacks(prev => {
         const current = prev[feedbackEntry.key] ?? feedbackEntry.buildDefault();
 
         return {
@@ -752,9 +877,8 @@ export default function AuditoriaSessionScreen() {
           },
         };
       });
-      persistCurrentDraft();
     },
-    [ensureEquipmentFeedback, persistCurrentDraft],
+    [ensureEquipmentFeedback, updateEquipmentFeedbacks],
   );
 
   const handleOpenEquipmentFeedbackPhotoSheet = useCallback(
@@ -769,7 +893,7 @@ export default function AuditoriaSessionScreen() {
       );
 
       onPhotoSelectedRef.current = (uri: string) => {
-        setEquipmentFeedbacks(prev => {
+        updateEquipmentFeedbacks(prev => {
           const current =
             prev[feedbackEntry.key] ?? feedbackEntry.buildDefault();
 
@@ -781,12 +905,11 @@ export default function AuditoriaSessionScreen() {
             },
           };
         });
-        persistCurrentDraft();
       };
 
       setIsCameraSheetVisible(true);
     },
-    [ensureEquipmentFeedback, persistCurrentDraft],
+    [ensureEquipmentFeedback, updateEquipmentFeedbacks],
   );
 
   const handleRemoveEquipmentFeedbackPhoto = useCallback(
@@ -801,7 +924,7 @@ export default function AuditoriaSessionScreen() {
         equipmentLabel,
       );
 
-      setEquipmentFeedbacks(prev => {
+      updateEquipmentFeedbacks(prev => {
         const current = prev[feedbackEntry.key] ?? feedbackEntry.buildDefault();
 
         return {
@@ -812,9 +935,8 @@ export default function AuditoriaSessionScreen() {
           },
         };
       });
-      persistCurrentDraft();
     },
-    [ensureEquipmentFeedback, persistCurrentDraft],
+    [ensureEquipmentFeedback, updateEquipmentFeedbacks],
   );
 
   const takePhoto = useCallback(async () => {
@@ -869,22 +991,43 @@ export default function AuditoriaSessionScreen() {
     const missingStatusLocations: string[] = [];
     const missingObservationLocations: string[] = [];
     const missingPhotosLocations: string[] = [];
+    const pendingActivityIds = new Set<string>();
+    let firstMissing: AuditMissingItem | null = null;
 
     for (const question of filteredQuestions) {
       const answer = answers[question.id];
       const systemLabel =
         normalizeAuditLabel(question.section_name) || 'General';
       const equipmentLabel = normalizeAuditLabel(question.equipment_name);
+      const systemKey =
+        normalizeAuditLabel(question.section_name) || '__GENERAL__';
+      const equipmentKey = equipmentLabel || '__WITHOUT_EQUIPMENT__';
+      const equipmentCollapseKey = `${systemKey}::${equipmentKey}`;
       const locationLabel = equipmentLabel
         ? `${systemLabel} - ${equipmentLabel}`
         : systemLabel;
 
-      if (!answer || !answer.isApplicable) {
+      const setFirstMissing = (message: string) => {
+        if (firstMissing) {
+          return;
+        }
+
+        firstMissing = {
+          questionId: question.id,
+          systemKey,
+          equipmentCollapseKey,
+          message,
+        };
+      };
+
+      if (answer?.isApplicable === false) {
         continue;
       }
 
-      if (answer.status === null) {
+      if (!answer || answer.status === null) {
         missingStatusLocations.push(locationLabel);
+        pendingActivityIds.add(question.id);
+        setFirstMissing('marcar OK/OBS');
         nextErrors[question.id] = {
           status: 'Seleccione OK u OBS para continuar.',
         };
@@ -895,6 +1038,8 @@ export default function AuditoriaSessionScreen() {
         const obs = answer.observation.trim();
         if (!obs) {
           missingObservationLocations.push(locationLabel);
+          pendingActivityIds.add(question.id);
+          setFirstMissing('agregar observacion');
           nextErrors[question.id] = {
             ...nextErrors[question.id],
             observation: 'Ingrese una observacion.',
@@ -903,6 +1048,8 @@ export default function AuditoriaSessionScreen() {
 
         if (answer.photoUris.length === 0) {
           missingPhotosLocations.push(locationLabel);
+          pendingActivityIds.add(question.id);
+          setFirstMissing('agregar foto');
           nextErrors[question.id] = {
             ...nextErrors[question.id],
             photos: 'Adjunte al menos una foto para OBS.',
@@ -917,8 +1064,44 @@ export default function AuditoriaSessionScreen() {
       missingStatusLocations,
       missingObservationLocations,
       missingPhotosLocations,
+      totalPendingActivities: pendingActivityIds.size,
+      firstMissing,
     };
   }, [answers, filteredQuestions]);
+
+  const focusMissingItem = useCallback((missing: AuditMissingItem) => {
+    setCollapsedSystems(prev => ({
+      ...prev,
+      [missing.systemKey]: false,
+    }));
+    setCollapsedEquipments(prev => ({
+      ...prev,
+      [missing.equipmentCollapseKey]: false,
+    }));
+    setPendingScrollQuestionId(missing.questionId);
+  }, []);
+
+  const focusMissingSelection = useCallback(
+    (sectionAliases: string[]) => {
+      const firstQuestion = displayQuestions.find(question =>
+        matchesSection(question.section_name, sectionAliases),
+      );
+
+      if (!firstQuestion) {
+        return;
+      }
+
+      const systemKey =
+        normalizeAuditLabel(firstQuestion.section_name) || '__GENERAL__';
+
+      setCollapsedSystems(prev => ({
+        ...prev,
+        [systemKey]: false,
+      }));
+      setPendingScrollQuestionId(firstQuestion.id);
+    },
+    [displayQuestions],
+  );
 
   const handleSubmit = useCallback(async () => {
     if (!canAudit || !user?.id || !params.buildingId) {
@@ -935,9 +1118,14 @@ export default function AuditoriaSessionScreen() {
     }
 
     if (missingSelections.length > 0) {
+      focusMissingSelection(
+        !selectedAirConditioningOption && hasAirConditioningQuestions
+          ? AIR_CONDITIONING_SECTION_ALIASES
+          : FIRE_SYSTEM_SECTION_ALIASES,
+      );
       showAlert(
         'Seleccion requerida',
-        `Debe elegir una opcion en: ${missingSelections.join(', ')}.`,
+        `Falta seleccionar: ${missingSelections.join(', ')}.`,
       );
       return;
     }
@@ -952,6 +1140,9 @@ export default function AuditoriaSessionScreen() {
 
     const validationResult = validateAnswers();
     if (!validationResult.isValid) {
+      if (validationResult.firstMissing) {
+        focusMissingItem(validationResult.firstMissing);
+      }
       showAlert(
         'Validacion incompleta',
         buildValidationMessage(validationResult),
@@ -1097,6 +1288,8 @@ export default function AuditoriaSessionScreen() {
     isAuditor,
     params.buildingId,
     filteredQuestions,
+    focusMissingItem,
+    focusMissingSelection,
     hasAirConditioningQuestions,
     hasFireSystemQuestions,
     scheduledFor,
@@ -1224,6 +1417,45 @@ export default function AuditoriaSessionScreen() {
     });
   }, [collapsedEquipments, collapsedSystems, preparedQuestions]);
 
+  const handleToggleSystem = useCallback((systemKey: string) => {
+    setCollapsedSystems(prev => ({
+      ...prev,
+      [systemKey]: !prev[systemKey],
+    }));
+  }, []);
+
+  const handleToggleEquipment = useCallback((equipmentCollapseKey: string) => {
+    setCollapsedEquipments(prev => ({
+      ...prev,
+      [equipmentCollapseKey]: !prev[equipmentCollapseKey],
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (!pendingScrollQuestionId) {
+      return;
+    }
+
+    const index = visibleQuestions.findIndex(
+      item => item.question.id === pendingScrollQuestionId,
+    );
+
+    if (index < 0) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      listRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.18,
+      });
+      setPendingScrollQuestionId(null);
+    }, 120);
+
+    return () => clearTimeout(timeout);
+  }, [pendingScrollQuestionId, visibleQuestions]);
+
   const renderQuestionItem = useCallback(
     ({ item }: { item: PreparedAuditQuestionRow }) => {
       const isSystemCollapsed = collapsedSystems[item.systemKey] ?? false;
@@ -1303,7 +1535,7 @@ export default function AuditoriaSessionScreen() {
                       isSelected && styles.selectorChipSelected,
                       pressed && styles.pressed,
                     ]}
-                    onPress={() => setSelectedAirConditioningOption(option.id)}
+                    onPress={() => handleSelectAirConditioningOption(option.id)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: isSelected }}>
                     <Text
@@ -1336,7 +1568,7 @@ export default function AuditoriaSessionScreen() {
                       isSelected && styles.selectorChipSelected,
                       pressed && styles.pressed,
                     ]}
-                    onPress={() => setSelectedFireSystemOption(option.id)}
+                    onPress={() => handleSelectFireSystemOption(option.id)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: isSelected }}>
                     <Text
@@ -1424,11 +1656,21 @@ export default function AuditoriaSessionScreen() {
           index={item.index}
           systemLabel={item.systemLabel}
           equipmentLabel={item.equipmentLabel}
+          systemKey={item.systemKey}
+          equipmentCollapseKey={item.equipmentCollapseKey}
           isFirstInSystem={item.isFirstInSystem}
           isFirstInEquipment={item.isFirstInEquipment}
           isLastInEquipment={item.isLastInEquipment}
           isSystemCollapsed={isSystemCollapsed}
           isEquipmentCollapsed={isEquipmentCollapsed}
+          systemPendingCount={
+            completionSummary.systemPendingCounts[item.systemKey] ?? 0
+          }
+          equipmentPendingCount={
+            completionSummary.equipmentPendingCounts[
+              item.equipmentCollapseKey
+            ] ?? 0
+          }
           hideChecklist={hideChecklist}
           selectionHint={selectionHint}
           systemSelector={systemSelector}
@@ -1437,18 +1679,8 @@ export default function AuditoriaSessionScreen() {
           answer={answers[item.question.id]}
           error={errors[item.question.id]}
           isSaving={isSaving}
-          onToggleSystem={() => {
-            setCollapsedSystems(prev => ({
-              ...prev,
-              [item.systemKey]: !prev[item.systemKey],
-            }));
-          }}
-          onToggleEquipment={() => {
-            setCollapsedEquipments(prev => ({
-              ...prev,
-              [item.equipmentCollapseKey]: !prev[item.equipmentCollapseKey],
-            }));
-          }}
+          onToggleSystem={handleToggleSystem}
+          onToggleEquipment={handleToggleEquipment}
           onChangeApplicable={handleChangeApplicable}
           onChangeStatus={handleChangeStatus}
           onChangeObservation={handleChangeObservation}
@@ -1461,6 +1693,7 @@ export default function AuditoriaSessionScreen() {
       answers,
       collapsedEquipments,
       collapsedSystems,
+      completionSummary,
       errors,
       handleChangeApplicable,
       handleChangeSystemApplicable,
@@ -1469,8 +1702,12 @@ export default function AuditoriaSessionScreen() {
       handleEquipmentFeedbackCommentChange,
       handleOpenCameraSheet,
       handleOpenEquipmentFeedbackPhotoSheet,
+      handleSelectAirConditioningOption,
+      handleSelectFireSystemOption,
       handleRemovePhoto,
       handleRemoveEquipmentFeedbackPhoto,
+      handleToggleEquipment,
+      handleToggleSystem,
       isSaving,
       equipmentFeedbacks,
       selectedAirConditioningOption,
@@ -1510,15 +1747,54 @@ export default function AuditoriaSessionScreen() {
       />
 
       <FlatList
+        ref={listRef}
         data={visibleQuestions}
         keyExtractor={item => item.question.id}
         contentContainerStyle={styles.listContent}
         renderItem={renderQuestionItem}
+        ListHeaderComponent={
+          <View style={styles.progressCard}>
+            <View style={styles.progressTextWrap}>
+              <Text style={styles.progressTitle}>
+                {completionSummary.completed}/{completionSummary.totalRequired}{' '}
+                completadas
+              </Text>
+              <Text style={styles.progressSubtitle} numberOfLines={2}>
+                Complete los pendientes antes de guardar.
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.progressPendingPill,
+                completionSummary.pending === 0 && styles.progressDonePill,
+              ]}>
+              <Text
+                style={[
+                  styles.progressPendingText,
+                  completionSummary.pending === 0 && styles.progressDoneText,
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit>
+                {completionSummary.pending === 0
+                  ? 'Listo'
+                  : `${completionSummary.pending} pendiente${
+                      completionSummary.pending === 1 ? '' : 's'
+                    }`}
+              </Text>
+            </View>
+          </View>
+        }
         ListEmptyComponent={
           <Text style={styles.emptyStateText}>
             No hay actividades para esta auditoria.
           </Text>
         }
+        onScrollToIndexFailed={info => {
+          listRef.current?.scrollToOffset({
+            offset: Math.max(0, info.averageItemLength * info.index),
+            animated: true,
+          });
+        }}
         initialNumToRender={8}
         maxToRenderPerBatch={8}
         windowSize={7}

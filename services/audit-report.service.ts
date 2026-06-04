@@ -197,7 +197,7 @@ class AuditReportService {
         const systemLabel = [photo.sectionName, photo.equipmentName]
           .filter(Boolean)
           .join(' - ');
-        const metaParts = [`Pregunta ${photo.order}`];
+        const metaParts = [`Actividad ${photo.order}`];
         if (systemLabel) {
           metaParts.push(systemLabel);
         }
