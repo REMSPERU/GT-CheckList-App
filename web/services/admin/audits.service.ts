@@ -129,6 +129,135 @@ export async function listAdminAuditSessions(
   };
 }
 
+export interface AuditAnswerPatch {
+  question_id: string;
+  status: 'OK' | 'OBS';
+  comment: string | null;
+  new_photos?: { bucket: string; path: string; public_url?: string }[];
+  kept_existing_photo_urls?: string[];
+}
+
+/**
+ * Updates specific answers inside the audit_payload JSONB column.
+ * Merges patches by question_id, preserving all other payload fields.
+ */
+export async function updateAdminAuditAnswers(
+  supabase: SupabaseClient,
+  sessionId: string,
+  patches: AuditAnswerPatch[],
+): Promise<void> {
+  const { data, error: fetchError } = await supabase
+    .from('audit_sessions')
+    .select('audit_payload')
+    .eq('id', sessionId)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  const payload = isRecord(data?.audit_payload)
+    ? (data.audit_payload as AuditPayload & { answers?: AuditPayloadAnswer[] })
+    : {};
+
+  const currentAnswers = Array.isArray(payload.answers)
+    ? [...(payload.answers as AuditPayloadAnswer[])]
+    : [];
+
+  const patchMap = new Map(patches.map(p => [p.question_id, p]));
+
+  const updatedAnswers = currentAnswers.map(answer => {
+    const id = asString(answer.question_id);
+    const patch = id ? patchMap.get(id) : undefined;
+    if (!patch) return answer;
+
+    let currentPhotos = Array.isArray(answer.photos) ? answer.photos : [];
+
+    if (patch.kept_existing_photo_urls) {
+      currentPhotos = currentPhotos.filter(photo => {
+        const photoObj = photo as Record<string, unknown>;
+        const publicUrl =
+          asString(photoObj.publicUrl) ??
+          asString(photoObj.public_url) ??
+          asString(photoObj.url);
+        return publicUrl && patch.kept_existing_photo_urls!.includes(publicUrl);
+      });
+    }
+
+    const mergedPhotos =
+      patch.new_photos && patch.new_photos.length > 0
+        ? [...currentPhotos, ...patch.new_photos]
+        : currentPhotos;
+
+    return {
+      ...answer,
+      status: patch.status,
+      comment: patch.comment,
+      photos: mergedPhotos,
+    };
+  });
+
+  const updatedPayload = { ...payload, answers: updatedAnswers };
+
+  const { error: updateError } = await supabase
+    .from('audit_sessions')
+    .update({ audit_payload: updatedPayload })
+    .eq('id', sessionId);
+
+  if (updateError) throw updateError;
+}
+
+export interface AuditFeedbackPatch {
+  equipment_key: string;
+  good_practices_comment: string | null;
+  improvement_opportunity_comment: string | null;
+}
+
+/**
+ * Updates the comment fields of a single equipment_feedback entry inside audit_payload.
+ * Matched by equipment_key; photos are preserved.
+ */
+export async function updateAdminAuditFeedback(
+  supabase: SupabaseClient,
+  sessionId: string,
+  patch: AuditFeedbackPatch,
+): Promise<void> {
+  const { data, error: fetchError } = await supabase
+    .from('audit_sessions')
+    .select('audit_payload')
+    .eq('id', sessionId)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  const payload = isRecord(data?.audit_payload)
+    ? (data.audit_payload as AuditPayload & {
+        equipment_feedback?: AuditPayloadFeedback[];
+      })
+    : {};
+
+  const currentFeedback = Array.isArray(payload.equipment_feedback)
+    ? [...(payload.equipment_feedback as AuditPayloadFeedback[])]
+    : [];
+
+  const updatedFeedback = currentFeedback.map(item => {
+    const key = asString(item.equipment_key);
+    if (key !== patch.equipment_key) return item;
+    return {
+      ...item,
+      good_practices_comment: patch.good_practices_comment,
+      improvement_opportunity_comment: patch.improvement_opportunity_comment,
+    };
+  });
+
+  const updatedPayload = { ...payload, equipment_feedback: updatedFeedback };
+
+  const { error: updateError } = await supabase
+    .from('audit_sessions')
+    .update({ audit_payload: updatedPayload })
+    .eq('id', sessionId);
+
+  if (updateError) throw updateError;
+}
+
 export async function getAdminAuditSessionById(
   supabase: SupabaseClient,
   sessionId: string,
