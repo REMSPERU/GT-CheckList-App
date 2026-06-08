@@ -174,11 +174,25 @@ export async function updateAdminAuditAnswers(
     if (patch.kept_existing_photo_urls) {
       currentPhotos = currentPhotos.filter(photo => {
         const photoObj = photo as Record<string, unknown>;
-        const publicUrl =
+
+        // Photos from the mobile app only store { path, bucket } without a
+        // pre-computed public URL. Resolve the public URL the same way
+        // mapPhotoRefs() does so the comparison is consistent.
+        const directUrl =
           asString(photoObj.publicUrl) ??
           asString(photoObj.public_url) ??
           asString(photoObj.url);
-        return publicUrl && patch.kept_existing_photo_urls!.includes(publicUrl);
+
+        if (directUrl) {
+          return patch.kept_existing_photo_urls!.includes(directUrl);
+        }
+
+        // Fallback: derive public URL from path + bucket
+        const path = asString(photoObj.path);
+        if (!path) return false;
+        const bucket = asString(photoObj.bucket) ?? 'maintenance';
+        const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+        return patch.kept_existing_photo_urls!.includes(data.publicUrl);
       });
     }
 
