@@ -56,6 +56,7 @@ function HomeScreen() {
     handleExecuteMaintenancePress,
     handleAuditPress,
     handleReportsPress,
+    handleInventoryPress,
     handleAccountPress,
     handleLogoutConfirm,
   } = useHomeScreen();
@@ -112,6 +113,14 @@ function HomeScreen() {
       });
     }
 
+    cards.push({
+      key: 'inventory',
+      title: 'Inventario',
+      description: 'Explore sistemas y equipos del inmueble',
+      icon: <Feather name="archive" size={24} color="#06B6D4" />,
+      onPress: handleInventoryPress,
+    });
+
     if (canSeeReports) {
       cards.push({
         key: 'reports',
@@ -131,6 +140,7 @@ function HomeScreen() {
     handleChecklistPress,
     handleAuditPress,
     handleExecuteMaintenancePress,
+    handleInventoryPress,
     handleReportsPress,
     handleScheduleMaintenancePress,
   ]);

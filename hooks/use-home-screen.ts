@@ -304,6 +304,20 @@ export function useHomeScreen() {
     });
   }, [ensureBuildingIsSelected, router, selectedBuilding]);
 
+  const handleInventoryPress = useCallback(() => {
+    if (!ensureBuildingIsSelected() || !selectedBuilding) return;
+
+    router.push({
+      pathname: '/inventory/systems' as never,
+      params: {
+        propertyId: String(selectedBuilding.id),
+        propertyName: selectedBuilding.name,
+        propertyAddress: selectedBuilding.address ?? '',
+        propertyImageUrl: selectedBuilding.image_url ?? '',
+      },
+    });
+  }, [ensureBuildingIsSelected, router, selectedBuilding]);
+
   const handleAccountPress = useCallback(() => {
     router.push(resetPasswordHref);
   }, [resetPasswordHref, router]);
@@ -333,6 +347,7 @@ export function useHomeScreen() {
     handleExecuteMaintenancePress,
     handleAuditPress,
     handleReportsPress,
+    handleInventoryPress,
     handleAccountPress,
     handleLogoutConfirm,
   };

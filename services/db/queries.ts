@@ -703,3 +703,246 @@ export async function getChecklistQuestionsByEquipamento(
     }));
   });
 }
+
+// ─── Inventory Flow Queries ───────────────────────────────────────────────────
+
+/**
+ * Get all systems for a property, with counts of equipamentos and active equipos.
+ * Includes a virtual "SIN SISTEMA" group for equipamentos without a system.
+ */
+export async function getInventorySystemsByProperty(propertyId: string) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+
+    const rows = (await db.getAllAsync(
+      `
+        SELECT
+          COALESCE(s.id, 'sin-sistema') as sistema_id,
+          COALESCE(s.nombre, 'Sin Sistema') as sistema_nombre,
+          COALESCE(s.activo, 1) as sistema_activo,
+          COUNT(DISTINCT e.id) as equipamentos_count,
+          COUNT(DISTINCT eq.id) as equipos_count
+        FROM local_equipamentos e
+        JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
+        LEFT JOIN local_equipos eq ON eq.id_equipamento = e.id
+          AND eq.id_property = ?
+          AND (eq.estatus IS NULL OR eq.estatus != 'INACTIVO')
+        LEFT JOIN local_sistemas s ON s.id = e.id_sistema
+        WHERE ep.id_property = ?
+        GROUP BY sistema_id, sistema_nombre, sistema_activo
+        ORDER BY sistema_nombre ASC
+      `,
+      [propertyId, propertyId],
+    )) as any[];
+
+    return rows.map(row => ({
+      id: String(row.sistema_id),
+      nombre: String(row.sistema_nombre),
+      activo: row.sistema_activo === 1,
+      equipamentos_count: Number(row.equipamentos_count || 0),
+      equipos_count: Number(row.equipos_count || 0),
+    }));
+  });
+}
+
+/**
+ * Get all equipamentos belonging to a specific system for a property,
+ * with count of equipos of each type.
+ * Pass sistemaId = 'sin-sistema' for equipamentos without a system.
+ */
+export async function getInventoryEquipamentosBySystem(
+  propertyId: string,
+  sistemaId: string,
+) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+
+    const isSinSistema = sistemaId === 'sin-sistema';
+
+    const rows = (await db.getAllAsync(
+      isSinSistema
+        ? `
+          SELECT
+            e.id,
+            e.nombre,
+            e.abreviatura,
+            e.frecuencia,
+            e.id_sistema,
+            COUNT(eq.id) as equipos_count
+          FROM local_equipamentos e
+          JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
+          LEFT JOIN local_equipos eq ON eq.id_equipamento = e.id
+            AND eq.id_property = ?
+            AND (eq.estatus IS NULL OR eq.estatus != 'INACTIVO')
+          WHERE ep.id_property = ?
+            AND (e.id_sistema IS NULL OR e.id_sistema = '')
+          GROUP BY e.id, e.nombre, e.abreviatura, e.frecuencia, e.id_sistema
+          ORDER BY e.nombre ASC
+        `
+        : `
+          SELECT
+            e.id,
+            e.nombre,
+            e.abreviatura,
+            e.frecuencia,
+            e.id_sistema,
+            COUNT(eq.id) as equipos_count
+          FROM local_equipamentos e
+          JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
+          LEFT JOIN local_equipos eq ON eq.id_equipamento = e.id
+            AND eq.id_property = ?
+            AND (eq.estatus IS NULL OR eq.estatus != 'INACTIVO')
+          WHERE ep.id_property = ?
+            AND e.id_sistema = ?
+          GROUP BY e.id, e.nombre, e.abreviatura, e.frecuencia, e.id_sistema
+          ORDER BY e.nombre ASC
+        `,
+      isSinSistema
+        ? [propertyId, propertyId]
+        : [propertyId, propertyId, sistemaId],
+    )) as any[];
+
+    return rows.map(row => ({
+      id: String(row.id),
+      nombre: String(row.nombre),
+      abreviatura: String(row.abreviatura || ''),
+      frecuencia: row.frecuencia || null,
+      id_sistema: row.id_sistema || null,
+      equipos_count: Number(row.equipos_count || 0),
+    }));
+  });
+}
+
+/**
+ * Get all equipos for a specific equipamento type within a property.
+ * Returns equipment_detail parsed from JSON.
+ * Includes all statuses (ACTIVO and INACTIVO) for the inventory view.
+ */
+export async function getInventoryEquiposByEquipamento(
+  propertyId: string,
+  equipamentoId: string,
+) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+
+    const rows = (await db.getAllAsync(
+      `
+        SELECT
+          eq.id,
+          eq.id_property,
+          eq.id_equipamento,
+          eq.codigo,
+          eq.ubicacion,
+          eq.detalle_ubicacion,
+          eq.estatus,
+          eq.equipment_detail,
+          eq.config,
+          e.nombre as equipamento_nombre,
+          e.abreviatura as equipamento_abreviatura,
+          s.nombre as sistema_nombre
+        FROM local_equipos eq
+        JOIN local_equipamentos e ON e.id = eq.id_equipamento
+        LEFT JOIN local_sistemas s ON s.id = e.id_sistema
+        WHERE eq.id_property = ?
+          AND eq.id_equipamento = ?
+        ORDER BY eq.codigo ASC
+      `,
+      [propertyId, equipamentoId],
+    )) as any[];
+
+    return rows.map(row => {
+      let equipment_detail: Record<string, unknown> | null = null;
+      try {
+        equipment_detail = row.equipment_detail
+          ? JSON.parse(row.equipment_detail)
+          : null;
+      } catch {
+        equipment_detail = null;
+      }
+
+      return {
+        id: String(row.id),
+        id_property: String(row.id_property),
+        id_equipamento: String(row.id_equipamento),
+        codigo: String(row.codigo || ''),
+        ubicacion: String(row.ubicacion || ''),
+        detalle_ubicacion: row.detalle_ubicacion || null,
+        estatus: String(row.estatus || 'ACTIVO'),
+        equipment_detail,
+        config: row.config === 1,
+        equipamento_nombre: row.equipamento_nombre || null,
+        equipamento_abreviatura: row.equipamento_abreviatura || null,
+        sistema_nombre: row.sistema_nombre || null,
+      };
+    });
+  });
+}
+
+/**
+ * Get a single equipo by ID from local mirror, with all detail parsed.
+ * Used by the equipment hub screen.
+ */
+export async function getInventoryEquipoById(equipoId: string) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+
+    const row = (await db.getFirstAsync(
+      `
+        SELECT
+          eq.id,
+          eq.id_property,
+          eq.id_equipamento,
+          eq.codigo,
+          eq.ubicacion,
+          eq.detalle_ubicacion,
+          eq.estatus,
+          eq.equipment_detail,
+          eq.config,
+          e.nombre as equipamento_nombre,
+          e.abreviatura as equipamento_abreviatura,
+          e.frecuencia as equipamento_frecuencia,
+          s.nombre as sistema_nombre,
+          p.name as property_name
+        FROM local_equipos eq
+        JOIN local_equipamentos e ON e.id = eq.id_equipamento
+        LEFT JOIN local_sistemas s ON s.id = e.id_sistema
+        LEFT JOIN local_properties p ON p.id = eq.id_property
+        WHERE eq.id = ?
+        LIMIT 1
+      `,
+      [equipoId],
+    )) as any | null;
+
+    if (!row) return null;
+
+    let equipment_detail: Record<string, unknown> | null = null;
+    try {
+      equipment_detail = row.equipment_detail
+        ? JSON.parse(row.equipment_detail)
+        : null;
+    } catch {
+      equipment_detail = null;
+    }
+
+    return {
+      id: String(row.id),
+      id_property: String(row.id_property),
+      id_equipamento: String(row.id_equipamento),
+      codigo: String(row.codigo || ''),
+      ubicacion: String(row.ubicacion || ''),
+      detalle_ubicacion: row.detalle_ubicacion || null,
+      estatus: String(row.estatus || 'ACTIVO'),
+      equipment_detail,
+      config: row.config === 1,
+      equipamento_nombre: row.equipamento_nombre || null,
+      equipamento_abreviatura: row.equipamento_abreviatura || null,
+      equipamento_frecuencia: row.equipamento_frecuencia || null,
+      sistema_nombre: row.sistema_nombre || null,
+      property_name: row.property_name || null,
+    };
+  });
+}

@@ -108,6 +108,7 @@ export default Sentry.wrap(function RootLayout() {
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="auth" />
                 <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="inventory" />
               </Stack>
             </ErrorBoundary>
             <StatusBar style="dark" />
