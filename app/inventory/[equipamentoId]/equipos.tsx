@@ -158,11 +158,7 @@ export default function InventoryEquiposScreen() {
       {/* Stats bar */}
       <View style={styles.statsBar}>
         <Text style={styles.statsText}>
-          <Text style={styles.statsNumber}>{activeCount}</Text> activos
-        </Text>
-        <Text style={styles.statsSep}>·</Text>
-        <Text style={styles.statsText}>
-          <Text style={styles.statsNumber}>{equipos?.length ?? 0}</Text> total
+          <Text style={styles.statsNumber}>{equipos?.length ?? 0}</Text> equipos
         </Text>
       </View>
 

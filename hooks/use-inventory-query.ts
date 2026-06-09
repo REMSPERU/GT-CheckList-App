@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DatabaseService } from '@/services/db';
 import { updateEquipment, createEquipment } from '@/services/db/equipment';
 import { syncService } from '@/services/sync';
+import type { SistemaChecklistResponse } from '@/types/api';
 import type {
   InventoryEquipo,
   InventorySistema,
@@ -18,6 +19,8 @@ export const inventoryKeys = {
   all: ['inventory'] as const,
   systems: (propertyId: string) =>
     [...inventoryKeys.all, 'systems', propertyId] as const,
+  checklistSystems: (propertyId: string) =>
+    [...inventoryKeys.all, 'checklist-systems', propertyId] as const,
   equipamentos: (propertyId: string, sistemaId: string) =>
     [...inventoryKeys.all, 'equipamentos', propertyId, sistemaId] as const,
   equipos: (propertyId: string, equipamentoId: string) =>
@@ -38,6 +41,22 @@ export function useInventorySystems(propertyId: string) {
     queryFn: () =>
       DatabaseService.getInventorySystemsByProperty(propertyId) as Promise<
         InventorySistema[]
+      >,
+    enabled: !!propertyId,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Hook to get systems and their equipment types grouped (like in checklist flow).
+ * Reads from local SQLite mirror (offline-first).
+ */
+export function useInventoryChecklistSystems(propertyId: string) {
+  return useQuery<SistemaChecklistResponse[], Error>({
+    queryKey: inventoryKeys.checklistSystems(propertyId),
+    queryFn: () =>
+      DatabaseService.getChecklistSystemsByProperty(propertyId) as Promise<
+        SistemaChecklistResponse[]
       >,
     enabled: !!propertyId,
     staleTime: 30_000,
