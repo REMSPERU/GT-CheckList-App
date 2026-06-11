@@ -11,8 +11,8 @@ export async function saveOfflineSessionPhotos(
   await ensureInitialized();
   return withLock(async () => {
     const db = await dbPromise;
-    await db.withExclusiveTransactionAsync(async tx => {
-      const existingRows = await tx.getAllAsync<{ count: number }>(
+    await db.withTransactionAsync(async () => {
+      const existingRows = await db.getAllAsync<{ count: number }>(
         `SELECT COUNT(*) as count
          FROM offline_sesion_fotos
          WHERE id_sesion = ? AND status != 'error'`,
@@ -31,7 +31,7 @@ export async function saveOfflineSessionPhotos(
         .slice(0, remainingSlots);
 
       for (const uri of photosToInsert) {
-        await tx.runAsync(
+        await db.runAsync(
           `INSERT INTO offline_sesion_fotos (id_sesion, local_uri, tipo, created_by, status)
            VALUES (?, ?, 'inicio', ?, 'pending')`,
           [sessionId, uri, userId],

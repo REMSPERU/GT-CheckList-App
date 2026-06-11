@@ -8,9 +8,9 @@ export async function saveOfflinePanelConfiguration(
   return withLock(async () => {
     const db = await dbPromise;
     const jsonConfig = JSON.stringify(configurationData);
-    await db.withExclusiveTransactionAsync(async tx => {
+    await db.withTransactionAsync(async () => {
       // 1. Queue configuration for sync
-      await tx.runAsync(
+      await db.runAsync(
         `INSERT INTO offline_panel_configurations (panel_id, configuration_data, status)
          VALUES (?, ?, 'pending')`,
         [panelId, jsonConfig],
@@ -18,7 +18,7 @@ export async function saveOfflinePanelConfiguration(
 
       // 2. Update local mirror immediately aka "optimistic update"
       // This ensures the user sees the panel as configured even if offline
-      const updateResult = await tx.runAsync(
+      const updateResult = await db.runAsync(
         `UPDATE local_equipos
          SET equipment_detail = ?, config = 1, last_synced_at = ?
          WHERE id = ?`,

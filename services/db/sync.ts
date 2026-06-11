@@ -76,6 +76,54 @@ export async function hasUsableLocalMirror() {
 const INSERT_BATCH_SIZE = 50;
 
 /**
+ * Executes a batched insert using a dynamically constructed multi-row VALUES clause.
+ * This reduces bridge calls and avoids SQLite lock contention.
+ */
+async function executeBatchInsert<T>(
+  db: any,
+  insertQuery: string,
+  batch: T[],
+  paramsFn: (item: T) => any[],
+) {
+  if (batch.length === 0) return;
+
+  const valuesIndex = insertQuery.toLowerCase().indexOf('values');
+  if (valuesIndex === -1) {
+    // Fallback if no VALUES keyword found
+    for (const item of batch) {
+      await db.runAsync(insertQuery, paramsFn(item));
+    }
+    return;
+  }
+
+  const baseQuery = insertQuery.substring(0, valuesIndex).trim();
+  const valuesPart = insertQuery.substring(valuesIndex).trim();
+
+  const openParen = valuesPart.indexOf('(');
+  const closeParen = valuesPart.lastIndexOf(')');
+  if (openParen === -1 || closeParen === -1) {
+    // Fallback if parentheses structure not found
+    for (const item of batch) {
+      await db.runAsync(insertQuery, paramsFn(item));
+    }
+    return;
+  }
+
+  const singleRowPlaceholders = valuesPart.substring(openParen, closeParen + 1);
+  const batchPlaceholders = Array(batch.length)
+    .fill(singleRowPlaceholders)
+    .join(', ');
+  const finalQuery = `${baseQuery} VALUES ${batchPlaceholders}`;
+
+  const flatParams: any[] = [];
+  for (const item of batch) {
+    flatParams.push(...paramsFn(item));
+  }
+
+  await db.runAsync(finalQuery, flatParams);
+}
+
+/**
  * Smart sync helper that performs differential updates.
  * Only deletes records that no longer exist remotely, then upserts the rest.
  * This prevents UI flicker during sync.
@@ -134,9 +182,7 @@ async function smartSyncTable<T extends { id?: string }>(
   // 4. Upsert all remote data in batches (INSERT OR REPLACE handles updates)
   for (let i = 0; i < remoteData.length; i += INSERT_BATCH_SIZE) {
     const batch = remoteData.slice(i, i + INSERT_BATCH_SIZE);
-    for (const item of batch) {
-      await db.runAsync(insertQuery, paramsFn(item));
-    }
+    await executeBatchInsert(db, insertQuery, batch, paramsFn);
   }
 
   const elapsedMs = Date.now() - startedAt;
@@ -151,13 +197,15 @@ async function smartSyncTable<T extends { id?: string }>(
 
 async function runMirrorStep(
   label: string,
-  operation: (tx: any) => Promise<void>,
+  operation: (db: any) => Promise<void>,
 ) {
   await withLock(
     async () => {
       const db = await dbPromise;
-      await db.withExclusiveTransactionAsync(async tx => {
-        await operation(tx);
+      console.log(`[DEBUG] runMirrorStep (${label}) db before tx:`, db, typeof db);
+      await db.withTransactionAsync(async () => {
+        console.log(`[DEBUG] runMirrorStep (${label}) db inside tx:`, db, typeof db);
+        await operation(db);
       });
     },
     `bulkInsertMirrorData:${label}`,
@@ -176,9 +224,7 @@ async function replaceCompositeRows<T>(
 
   for (let i = 0; i < rows.length; i += INSERT_BATCH_SIZE) {
     const batch = rows.slice(i, i + INSERT_BATCH_SIZE);
-    for (const item of batch) {
-      await tx.runAsync(insertQuery, paramsFn(item));
-    }
+    await executeBatchInsert(tx, insertQuery, batch, paramsFn);
   }
 }
 
@@ -519,8 +565,8 @@ export async function upsertCreatedMaintenanceLocally(
   return withLock(async () => {
     const db = await dbPromise;
 
-    await db.withExclusiveTransactionAsync(async tx => {
-      await tx.runAsync(
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
         'INSERT OR REPLACE INTO local_sesion_mantenimiento (id, nombre, descripcion, fecha_programada, estatus, id_property, created_by, created_at, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [
           session.id,
@@ -536,7 +582,7 @@ export async function upsertCreatedMaintenanceLocally(
       );
 
       for (const item of maintenances) {
-        await tx.runAsync(
+        await db.runAsync(
           'INSERT OR REPLACE INTO local_scheduled_maintenances (id, dia_programado, tipo_mantenimiento, observations, id_equipo, estatus, codigo, id_sesion, assigned_technicians, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
           [
             item.id,
@@ -553,13 +599,13 @@ export async function upsertCreatedMaintenanceLocally(
         );
       }
 
-      await tx.runAsync(
+      await db.runAsync(
         'DELETE FROM local_user_sesion_mantenimiento WHERE id_sesion = ?',
         [session.id],
       );
 
       for (const userId of assignedTechnicians) {
-        await tx.runAsync(
+        await db.runAsync(
           'INSERT OR REPLACE INTO local_user_sesion_mantenimiento (id_user, id_sesion) VALUES (?, ?)',
           [userId, session.id],
         );
@@ -580,13 +626,13 @@ export async function cleanupOfflineQueue() {
   return withLock(async () => {
     const db = await dbPromise;
 
-    await db.withExclusiveTransactionAsync(async tx => {
-      await tx.runAsync(`
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(`
         DELETE FROM offline_photos
         WHERE status = 'synced'
       `);
 
-      await tx.runAsync(`
+      await db.runAsync(`
         DELETE FROM offline_sesion_fotos
         WHERE status = 'synced'
           AND id_sesion IN (
@@ -597,7 +643,7 @@ export async function cleanupOfflineQueue() {
           )
       `);
 
-      await tx.runAsync(`
+      await db.runAsync(`
         DELETE FROM offline_panel_configurations
         WHERE status = 'synced'
       `);

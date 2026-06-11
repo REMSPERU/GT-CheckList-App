@@ -56,14 +56,15 @@ export async function getLocalProperties() {
 export async function getEquipamentosByProperty(propertyId: string) {
   await ensureInitialized();
   const db = await dbPromise;
-  // Join local_equipamentos and local_equipamentos_property
+  // Get unique equipments associated with active equipments of this property
   const rows = await db.getAllAsync(
     `
-        SELECT e.id, e.nombre, e.abreviatura
-             , e.frecuencia
+        SELECT DISTINCT e.id, e.nombre, e.abreviatura, e.frecuencia
         FROM local_equipamentos e
-        JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
-        WHERE ep.id_property = ?
+        JOIN local_equipos eq ON e.id = eq.id_equipamento
+        WHERE eq.id_property = ?
+          AND (eq.estatus IS NULL OR eq.estatus != 'INACTIVO')
+        ORDER BY e.nombre ASC
         `,
     [propertyId],
   );
@@ -723,17 +724,15 @@ export async function getInventorySystemsByProperty(propertyId: string) {
           COALESCE(s.activo, 1) as sistema_activo,
           COUNT(DISTINCT e.id) as equipamentos_count,
           COUNT(DISTINCT eq.id) as equipos_count
-        FROM local_equipamentos e
-        JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
-        LEFT JOIN local_equipos eq ON eq.id_equipamento = e.id
-          AND eq.id_property = ?
-          AND (eq.estatus IS NULL OR eq.estatus != 'INACTIVO')
+        FROM local_equipos eq
+        JOIN local_equipamentos e ON e.id = eq.id_equipamento
         LEFT JOIN local_sistemas s ON s.id = e.id_sistema
-        WHERE ep.id_property = ?
+        WHERE eq.id_property = ?
+          AND (eq.estatus IS NULL OR eq.estatus != 'INACTIVO')
         GROUP BY sistema_id, sistema_nombre, sistema_activo
         ORDER BY sistema_nombre ASC
       `,
-      [propertyId, propertyId],
+      [propertyId],
     )) as any[];
 
     return rows.map(row => ({
@@ -771,12 +770,10 @@ export async function getInventoryEquipamentosBySystem(
             e.frecuencia,
             e.id_sistema,
             COUNT(eq.id) as equipos_count
-          FROM local_equipamentos e
-          JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
-          LEFT JOIN local_equipos eq ON eq.id_equipamento = e.id
-            AND eq.id_property = ?
+          FROM local_equipos eq
+          JOIN local_equipamentos e ON e.id = eq.id_equipamento
+          WHERE eq.id_property = ?
             AND (eq.estatus IS NULL OR eq.estatus != 'INACTIVO')
-          WHERE ep.id_property = ?
             AND (e.id_sistema IS NULL OR e.id_sistema = '')
           GROUP BY e.id, e.nombre, e.abreviatura, e.frecuencia, e.id_sistema
           ORDER BY e.nombre ASC
@@ -789,19 +786,17 @@ export async function getInventoryEquipamentosBySystem(
             e.frecuencia,
             e.id_sistema,
             COUNT(eq.id) as equipos_count
-          FROM local_equipamentos e
-          JOIN local_equipamentos_property ep ON e.id = ep.id_equipamentos
-          LEFT JOIN local_equipos eq ON eq.id_equipamento = e.id
-            AND eq.id_property = ?
+          FROM local_equipos eq
+          JOIN local_equipamentos e ON e.id = eq.id_equipamento
+          WHERE eq.id_property = ?
             AND (eq.estatus IS NULL OR eq.estatus != 'INACTIVO')
-          WHERE ep.id_property = ?
             AND e.id_sistema = ?
           GROUP BY e.id, e.nombre, e.abreviatura, e.frecuencia, e.id_sistema
           ORDER BY e.nombre ASC
         `,
       isSinSistema
-        ? [propertyId, propertyId]
-        : [propertyId, propertyId, sistemaId],
+        ? [propertyId]
+        : [propertyId, sistemaId],
     )) as any[];
 
     return rows.map(row => ({
