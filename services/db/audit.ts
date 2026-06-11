@@ -270,9 +270,9 @@ export async function upsertSyncedAuditSessions(
     const db = await dbPromise;
     const syncedAt = new Date().toISOString();
 
-    await db.withExclusiveTransactionAsync(async tx => {
+    await db.withTransactionAsync(async () => {
       for (const session of sessions) {
-        await tx.runAsync(
+        await db.runAsync(
           `INSERT INTO offline_audit_sessions (
             client_submission_id,
             property_id,

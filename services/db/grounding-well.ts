@@ -11,9 +11,9 @@ export async function saveOfflineGroundingWellChecklist(
     const db = await dbPromise;
     let localId: number | null = null;
 
-    await db.withExclusiveTransactionAsync(async tx => {
+    await db.withTransactionAsync(async () => {
       // 1. Insert Checklist Record
-      const result = await tx.runAsync(
+      const result = await db.runAsync(
         `INSERT INTO offline_grounding_well_checklist (panel_id, maintenance_id, checklist_data, user_created, status)
          VALUES (?, ?, ?, ?, 'pending')`,
         [panelId, maintenanceId, JSON.stringify(checklistData), userId],
@@ -22,7 +22,7 @@ export async function saveOfflineGroundingWellChecklist(
 
       // 2. Insert Photos
       for (const photo of photos) {
-        await tx.runAsync(
+        await db.runAsync(
           `INSERT INTO offline_grounding_well_photos (checklist_local_id, item_key, local_uri, status)
            VALUES (?, ?, ?, 'pending')`,
           [localId, photo.itemKey, photo.uri],

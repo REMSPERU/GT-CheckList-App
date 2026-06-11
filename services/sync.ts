@@ -239,6 +239,44 @@ async function safeFetch<T = any>(
   }
 }
 
+async function fetchEquiposPaginated(): Promise<{ data: any[] | null; failed: boolean }> {
+  try {
+    let allEquipos: any[] = [];
+    let from = 0;
+    const limit = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const to = from + limit - 1;
+      const { data, error } = await supabase
+        .from('equipos')
+        .select('*')
+        .range(from, to);
+
+      if (error) {
+        console.error('[SYNC] Error fetching equipos page:', error.message || error);
+        return { data: null, failed: true };
+      }
+
+      if (!data || data.length === 0) {
+        hasMore = false;
+      } else {
+        allEquipos = allEquipos.concat(data);
+        if (data.length < limit) {
+          hasMore = false;
+        } else {
+          from += limit;
+        }
+      }
+    }
+
+    return { data: allEquipos, failed: false };
+  } catch (err) {
+    console.error('[SYNC] Exception fetching equipos paginated:', err);
+    return { data: null, failed: true };
+  }
+}
+
 // --- Class Definition ---
 /** Options for triggerSync calls */
 export interface TriggerSyncOptions {
@@ -1589,9 +1627,7 @@ class SyncService {
           sessionPhotosResult,
           auditSessionsResult,
         ] = await Promise.all([
-          safeFetch(() =>
-            supabase.from('equipos').select('*').limit(SYNC_ROW_LIMIT),
-          ),
+          fetchEquiposPaginated(),
           safeFetch(() =>
             supabase.from('properties').select('*').limit(SYNC_ROW_LIMIT),
           ),

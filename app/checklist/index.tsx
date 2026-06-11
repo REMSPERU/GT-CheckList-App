@@ -276,13 +276,22 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
     <Pressable
       style={({ pressed }) => [
         styles.itemCard,
+        !isFullyCompleted && styles.itemCardPending,
         pressed && styles.itemCardPressed,
       ]}
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={`Equipo ${item.codigo || 'sin codigo'}`}>
-      <View style={styles.itemIconWrap}>
-        <Ionicons name="checkmark-done" size={22} color="#0891B2" />
+      <View
+        style={[
+          styles.itemIconWrap,
+          !isFullyCompleted && styles.itemIconWrapPending,
+        ]}>
+        <Ionicons
+          name={isFullyCompleted ? 'checkmark-done' : 'alert-circle-outline'}
+          size={22}
+          color={isFullyCompleted ? '#0891B2' : '#EF4444'}
+        />
       </View>
       <View style={styles.itemBody}>
         <View style={styles.itemTitleRow}>
@@ -510,7 +519,6 @@ export default function EquipmentChecklistListScreen() {
           {},
         );
 
-
         setSubmittedCountByEquipo(counts);
         setPendingSyncCountByEquipo(pendingCounts);
         setConflictCountByEquipo(conflictCounts);
@@ -567,7 +575,8 @@ export default function EquipmentChecklistListScreen() {
         });
         setScheduleState(prev => ({
           ...prev,
-          message: 'No se pudo validar la programación. Deslice para actualizar.',
+          message:
+            'No se pudo validar la programación. Deslice para actualizar.',
         }));
       }
     },
@@ -616,7 +625,12 @@ export default function EquipmentChecklistListScreen() {
   }, [loadData]);
 
   const frequencyLabel = useMemo(
-    () => (scheduleState.frequency || equipamento?.frecuencia || 'MENSUAL').toUpperCase(),
+    () =>
+      (
+        scheduleState.frequency ||
+        equipamento?.frecuencia ||
+        'MENSUAL'
+      ).toUpperCase(),
     [equipamento?.frecuencia, scheduleState.frequency],
   );
 
@@ -631,7 +645,8 @@ export default function EquipmentChecklistListScreen() {
           buildingName: building?.name || '',
           equipamentoId: equipamento.id,
           equipamentoNombre: equipamento.nombre,
-          frecuencia: scheduleState.frequency || equipamento.frecuencia || 'MENSUAL',
+          frecuencia:
+            scheduleState.frequency || equipamento.frecuencia || 'MENSUAL',
           equipoId: equipo.id,
           equipoCodigo: equipo.codigo,
           equipoUbicacion: equipo.ubicacion,
@@ -704,7 +719,8 @@ export default function EquipmentChecklistListScreen() {
           <Text style={styles.summaryTitle}>Estado del dia</Text>
           <Text style={styles.summaryText}>{scheduleState.message}</Text>
           <Text style={styles.summaryProgress}>
-            Avance: {progressSummary.completed} de {progressSummary.total} equipos completados
+            Avance: {progressSummary.completed} de {progressSummary.total}{' '}
+            equipos completados
           </Text>
         </View>
       ) : null}
@@ -811,6 +827,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  itemCardPending: {
+    borderColor: '#EF4444',
+    borderWidth: 1.5,
+  },
   itemCardPressed: {
     opacity: 0.8,
   },
@@ -851,6 +871,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0F2FE',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  itemIconWrapPending: {
+    backgroundColor: '#FEE2E2',
   },
   itemTitle: {
     fontSize: 15,

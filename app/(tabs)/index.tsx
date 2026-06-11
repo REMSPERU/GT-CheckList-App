@@ -56,12 +56,21 @@ function HomeScreen() {
     handleExecuteMaintenancePress,
     handleAuditPress,
     handleReportsPress,
+    handleInventoryPress,
     handleAccountPress,
     handleLogoutConfirm,
   } = useHomeScreen();
 
   const actionCards = useMemo<HomeActionCard[]>(() => {
     const cards: HomeActionCard[] = [];
+
+    cards.push({
+      key: 'inventory',
+      title: 'Inventario',
+      description: 'Explore sistemas y equipos del inmueble',
+      icon: <Feather name="archive" size={24} color="#06B6D4" />,
+      onPress: handleInventoryPress,
+    });
 
     const canSeeChecklist = isAdmin;
     const canSeeSchedule = isTechnician || isSupervisor;
@@ -131,6 +140,7 @@ function HomeScreen() {
     handleChecklistPress,
     handleAuditPress,
     handleExecuteMaintenancePress,
+    handleInventoryPress,
     handleReportsPress,
     handleScheduleMaintenancePress,
   ]);

@@ -61,6 +61,10 @@ import {
   getLocalSessionsByProperty,
   getInstrumentsByEquipmentType,
   getChecklistQuestionsByEquipamento,
+  getInventorySystemsByProperty,
+  getInventoryEquipamentosBySystem,
+  getInventoryEquiposByEquipamento,
+  getInventoryEquipoById,
 } from './queries';
 import {
   getAuditQuestions,
@@ -171,6 +175,12 @@ export const DatabaseService = {
   getLocalSessionsByProperty,
   getInstrumentsByEquipmentType,
   getChecklistQuestionsByEquipamento,
+
+  // Inventory Queries
+  getInventorySystemsByProperty,
+  getInventoryEquipamentosBySystem,
+  getInventoryEquiposByEquipamento,
+  getInventoryEquipoById,
 
   // Audit
   getAuditQuestions,

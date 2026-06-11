@@ -16,9 +16,9 @@ export async function saveOfflineMaintenance(
     const db = await dbPromise;
     let localId: number | null = null;
 
-    await db.withExclusiveTransactionAsync(async tx => {
+    await db.withTransactionAsync(async () => {
       // 1. Insert Maintenance Record
-      const result = await tx.runAsync(
+      const result = await db.runAsync(
         `INSERT INTO offline_maintenance_response (id_mantenimiento, user_created, detail_maintenance, protocol, status)
          VALUES (?, ?, ?, ?, 'pending')`,
         [
@@ -32,7 +32,7 @@ export async function saveOfflineMaintenance(
 
       // 2. Insert Photos
       for (const photo of photos) {
-        await tx.runAsync(
+        await db.runAsync(
           `INSERT INTO offline_photos (maintenance_local_id, local_uri, type, category, observation_key, status)
            VALUES (?, ?, ?, ?, ?, 'pending')`,
           [
