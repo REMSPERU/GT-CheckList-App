@@ -7,7 +7,7 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
-import { Controller } from 'react-hook-form';
+import { Controller, useWatch } from 'react-hook-form';
 import type { Control, FieldValues, Path } from 'react-hook-form';
 import type { TechnicalFieldConfig } from '@/types/inventory';
 
@@ -25,10 +25,77 @@ interface DynamicFieldRendererProps<T extends FieldValues> {
 export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
   T extends FieldValues,
 >({ fields, fieldPrefix, control }: DynamicFieldRendererProps<T>) {
+  const detailValue = useWatch({
+    control,
+    name: fieldPrefix as Path<T>,
+  }) as Record<string, unknown> | undefined;
+
   return (
     <View style={styles.wrap}>
       {fields.map(field => {
+        if (field.visibleWhen) {
+          const currentValue = detailValue?.[field.visibleWhen.key];
+          if (currentValue !== field.visibleWhen.equals) return null;
+        }
+
         const fieldPath = `${fieldPrefix}.${field.key}` as Path<T>;
+
+        if (field.type === 'collection') {
+          return (
+            <Controller
+              key={field.key}
+              control={control}
+              name={fieldPath}
+              render={({ field: { value, onChange } }) => {
+                const items = Array.isArray(value) ? value : [];
+
+                return (
+                  <View style={styles.collectionWrap}>
+                    <View style={styles.collectionHeader}>
+                      <Text style={styles.collectionTitle}>{field.label}</Text>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.addItemButton,
+                          pressed && styles.pressed,
+                        ]}
+                        onPress={() =>
+                          onChange([...items, buildEmptyItem(field.fields)])
+                        }>
+                        <Text style={styles.addItemText}>Agregar</Text>
+                      </Pressable>
+                    </View>
+
+                    {items.length === 0 ? (
+                      <Text style={styles.emptyCollectionText}>
+                        Sin registros agregados.
+                      </Text>
+                    ) : (
+                      items.map((_, index) => (
+                        <View key={`${field.key}-${index}`} style={styles.itemCard}>
+                          <View style={styles.itemHeader}>
+                            <Text style={styles.itemTitle}>Registro #{index + 1}</Text>
+                            <Pressable
+                              onPress={() =>
+                                onChange(items.filter((__, i) => i !== index))
+                              }
+                              hitSlop={8}>
+                              <Text style={styles.removeText}>Eliminar</Text>
+                            </Pressable>
+                          </View>
+                          <DynamicFieldRenderer
+                            fields={field.fields ?? []}
+                            fieldPrefix={`${fieldPrefix}.${field.key}.${index}`}
+                            control={control}
+                          />
+                        </View>
+                      ))
+                    )}
+                  </View>
+                );
+              }}
+            />
+          );
+        }
 
         if (field.type === 'boolean') {
           return (
@@ -131,6 +198,9 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
                   }
                   placeholder={`Ingresa ${field.label.toLowerCase()}`}
                   placeholderTextColor="#94A3B8"
+                  multiline={field.multiline}
+                  numberOfLines={field.multiline ? 4 : 1}
+                  textAlignVertical={field.multiline ? 'top' : 'center'}
                 />
                 {fieldState.error && (
                   <Text style={styles.error}>{fieldState.error.message}</Text>
@@ -145,6 +215,14 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
 }) as <T extends FieldValues>(
   props: DynamicFieldRendererProps<T>,
 ) => ReactElement;
+
+function buildEmptyItem(fields: TechnicalFieldConfig[] | undefined) {
+  return (fields ?? []).reduce<Record<string, unknown>>((item, field) => {
+    if (field.type === 'collection') return item;
+    item[field.key] = field.defaultValue ?? (field.type === 'boolean' ? false : '');
+    return item;
+  }, {});
+}
 
 const styles = StyleSheet.create({
   wrap: {
@@ -183,6 +261,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#EF4444',
   },
+  pressed: { opacity: 0.75 },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -219,5 +298,65 @@ const styles = StyleSheet.create({
   optionChipTextSelected: {
     color: '#0891B2',
     fontWeight: '700',
+  },
+  collectionWrap: {
+    gap: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    padding: 12,
+  },
+  collectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  collectionTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  addItemButton: {
+    borderRadius: 8,
+    backgroundColor: '#ECFEFF',
+    borderWidth: 1,
+    borderColor: '#67E8F9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  addItemText: {
+    color: '#0891B2',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  emptyCollectionText: {
+    fontSize: 13,
+    color: '#94A3B8',
+  },
+  itemCard: {
+    gap: 10,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 10,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  itemTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  removeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#DC2626',
   },
 });
