@@ -66,7 +66,9 @@ function isFieldVisible(
   data: Record<string, unknown>,
 ) {
   if (!field.visibleWhen) return true;
-  return data[field.visibleWhen.key] === field.visibleWhen.equals;
+  return (
+    getValueByPath(data, field.visibleWhen.key) === field.visibleWhen.equals
+  );
 }
 
 function renderFieldGrid(
@@ -111,7 +113,7 @@ function renderScalarCell(
     <View key={field.key} style={styles.cell}>
       <Text style={styles.label}>{field.label}</Text>
       <Text style={styles.value} numberOfLines={field.multiline ? 5 : 2}>
-        {formatFieldValue(data[field.key], field)}
+        {formatFieldValue(getValueByPath(data, field.key), field, data)}
       </Text>
     </View>
   );
@@ -146,7 +148,11 @@ function renderCollection(value: unknown, field: TechnicalFieldConfig) {
             <View key={child.key} style={styles.collectionCell}>
               <Text style={styles.label}>{child.label}</Text>
               <Text style={styles.value} numberOfLines={2}>
-                {formatFieldValue(itemData[child.key], child)}
+                {formatFieldValue(
+                  getValueByPath(itemData, child.key),
+                  child,
+                  itemData,
+                )}
               </Text>
             </View>
           ))}
@@ -160,7 +166,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function formatFieldValue(value: unknown, field: TechnicalFieldConfig): string {
+function getValueByPath(data: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce<unknown>((current, key) => {
+    if (!isRecord(current)) return undefined;
+    return current[key];
+  }, data);
+}
+
+function formatFieldValue(
+  value: unknown,
+  field: TechnicalFieldConfig,
+  data: Record<string, unknown>,
+): string {
   if (value === null || value === undefined || value === '') {
     return '—';
   }
@@ -170,9 +187,13 @@ function formatFieldValue(value: unknown, field: TechnicalFieldConfig): string {
   }
 
   const strVal = String(value);
+  const dynamicSuffix = field.suffixFrom
+    ? getValueByPath(data, field.suffixFrom)
+    : null;
+  const suffix = field.suffix ?? dynamicSuffix;
 
-  if (field.suffix && strVal !== '—') {
-    return `${strVal} ${field.suffix}`;
+  if (suffix && strVal !== '—') {
+    return `${strVal} ${String(suffix)}`;
   }
 
   return strVal;

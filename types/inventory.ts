@@ -66,6 +66,8 @@ export interface TechnicalFieldConfig {
   required?: boolean;
   /** Sufijo que se muestra junto al valor (ej. "TR", "V", "HP") */
   suffix?: string;
+  /** Clave de otro campo que contiene la unidad/sufijo dinámico */
+  suffixFrom?: string;
   /** Opciones para campos tipo "select" */
   options?: { label: string; value: string }[];
   /** Valor por defecto */
@@ -100,6 +102,43 @@ const COMMON_VDF_FIELDS: TechnicalFieldConfig[] = [
   { key: 'voltaje_vdf', label: 'Voltaje VDF', type: 'number', suffix: 'V', section: 'VDF' },
   { key: 'capacidad_vdf', label: 'Capacidad VDF', type: 'text', section: 'VDF' },
   { key: 'ano_operacion_vdf', label: 'Año VDF', type: 'number', section: 'VDF' },
+];
+
+const CHILLER_PUMP_FIELDS: TechnicalFieldConfig[] = [
+  { key: 'numero_unidad', label: 'Número de Unidad', type: 'number' },
+  { key: 'tipo', label: 'Tipo de Bomba', type: 'text' },
+  { key: 'marca', label: 'Marca', type: 'text', required: true },
+  { key: 'modelo', label: 'Modelo', type: 'text', required: true },
+  { key: 'ano_operacion', label: 'Año de Operación', type: 'number' },
+  {
+    key: 'vdf.tiene_vdf',
+    label: 'Tiene VDF',
+    type: 'boolean',
+    defaultValue: false,
+    section: 'VDF',
+  },
+  {
+    key: 'vdf.marca',
+    label: 'Marca VDF',
+    type: 'text',
+    section: 'VDF',
+    visibleWhen: { key: 'vdf.tiene_vdf', equals: true },
+  },
+  {
+    key: 'vdf.modelo',
+    label: 'Modelo VDF',
+    type: 'text',
+    section: 'VDF',
+    visibleWhen: { key: 'vdf.tiene_vdf', equals: true },
+  },
+  {
+    key: 'vdf.capacidad',
+    label: 'Capacidad VDF',
+    type: 'number',
+    section: 'VDF',
+    suffixFrom: 'vdf.unidad',
+    visibleWhen: { key: 'vdf.tiene_vdf', equals: true },
+  },
 ];
 
 const ACCESS_DEVICE_FIELDS: TechnicalFieldConfig[] = [
@@ -291,6 +330,10 @@ export const EQUIPMENT_TECHNICAL_FIELDS: Record<
     { key: 'modelo_vdf', label: 'Modelo VDF', type: 'text' },
     { key: 'cap_vdf', label: 'Capacidad VDF', type: 'number', suffix: 'kW' },
   ],
+
+  BACHC: CHILLER_PUMP_FIELDS,
+  BACHP: CHILLER_PUMP_FIELDS,
+  BACHS: CHILLER_PUMP_FIELDS,
 
   // 2.10 — Splits (Patrón A)
   SPLIT: [

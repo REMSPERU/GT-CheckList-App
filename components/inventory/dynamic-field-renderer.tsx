@@ -34,7 +34,9 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
     <View style={styles.wrap}>
       {fields.map(field => {
         if (field.visibleWhen) {
-          const currentValue = detailValue?.[field.visibleWhen.key];
+          const currentValue = detailValue
+            ? getValueByPath(detailValue, field.visibleWhen.key)
+            : undefined;
           if (currentValue !== field.visibleWhen.equals) return null;
         }
 
@@ -222,6 +224,17 @@ function buildEmptyItem(fields: TechnicalFieldConfig[] | undefined) {
     item[field.key] = field.defaultValue ?? (field.type === 'boolean' ? false : '');
     return item;
   }, {});
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getValueByPath(data: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce<unknown>((current, key) => {
+    if (!isRecord(current)) return undefined;
+    return current[key];
+  }, data);
 }
 
 const styles = StyleSheet.create({
