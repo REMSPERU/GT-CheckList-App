@@ -7,10 +7,11 @@ import {
   Text,
   Alert,
   Pressable,
+  TextInput,
   type ListRenderItem,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { memo, useState, useEffect, useCallback, useRef } from 'react';
+import { memo, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import MaintenanceCard from '@/components/maintenance-card';
@@ -31,6 +32,14 @@ interface BuildingParam {
 
 function getSingleParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizeSearch(val: string) {
+  return val
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 }
 
 function parseJsonParam<T>(value: string | string[] | undefined): T | null {
@@ -247,10 +256,55 @@ export default function SelectDeviceScreen() {
     SistemaChecklistResponse[]
   >([]);
   const [expandedSystemId, setExpandedSystemId] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasLoadedLocalDataRef = useRef(false);
+
+  const filteredChecklistSystems = useMemo(() => {
+    if (!checklistSystems) return [];
+    const q = normalizeSearch(searchText);
+    if (!q) return checklistSystems;
+
+    return checklistSystems
+      .map(system => {
+        const systemNombreMatches = normalizeSearch(system.nombre).includes(q);
+        const filteredEquipamentos = system.equipamentos.filter(
+          eq =>
+            normalizeSearch(eq.nombre).includes(q) ||
+            normalizeSearch(eq.abreviatura).includes(q)
+        );
+
+        if (systemNombreMatches || filteredEquipamentos.length > 0) {
+          const equipmentsToUse = filteredEquipamentos.length > 0
+            ? filteredEquipamentos
+            : system.equipamentos;
+
+          const sumEquipos = equipmentsToUse.reduce((acc, eq) => acc + (eq.equipos_count ?? 0), 0);
+
+          return {
+            ...system,
+            equipamentos: equipmentsToUse,
+            equipos_count: sumEquipos,
+          };
+        }
+        return null;
+      })
+      .filter((sys): sys is SistemaChecklistResponse => sys !== null);
+  }, [checklistSystems, searchText]);
+
+  const filteredEquipamentos = useMemo(() => {
+    if (!equipamentos) return [];
+    const q = normalizeSearch(searchText);
+    if (!q) return equipamentos;
+
+    return equipamentos.filter(
+      eq =>
+        normalizeSearch(eq.nombre).includes(q) ||
+        normalizeSearch(eq.abreviatura).includes(q)
+    );
+  }, [equipamentos, searchText]);
 
   const loadData = useCallback(async () => {
     if (!building?.id) {
@@ -268,7 +322,8 @@ export default function SelectDeviceScreen() {
         const systems = data as SistemaChecklistResponse[];
         setChecklistSystems(systems);
         setEquipamentos([]);
-        setExpandedSystemId(current => current ?? systems[0]?.id ?? null);
+        // Do not auto-expand the first system card by default
+        setExpandedSystemId(current => current ?? null);
         hasLoadedLocalDataRef.current = true;
       } else {
         const data = await DatabaseService.getEquipamentosByProperty(
@@ -423,7 +478,7 @@ export default function SelectDeviceScreen() {
     ({ item }) => (
       <ChecklistSystemCard
         item={item}
-        isExpanded={expandedSystemId === item.id}
+        isExpanded={searchText.trim().length > 0 ? true : expandedSystemId === item.id}
         onToggle={handleToggleSystem}
         onPressEquipamento={handleEquipamentoPress}
         onSchedulePress={handleChecklistSchedulePress}
@@ -434,6 +489,7 @@ export default function SelectDeviceScreen() {
       handleChecklistSchedulePress,
       handleEquipamentoPress,
       handleToggleSystem,
+      searchText,
     ],
   );
 
@@ -543,11 +599,34 @@ export default function SelectDeviceScreen() {
         </SafeAreaView>
       </View>
 
-      {!paramsResolved ||
-      (isLoading &&
+      {/* Search */}
+      {!isLoading && (
+        (flowType === 'checklist' && checklistSystems && checklistSystems.length > 0) ||
+        (flowType !== 'checklist' && equipamentos && equipamentos.length > 0)
+      ) && (
+        <View style={[styles.searchWrap, flowType !== 'checklist' && { marginHorizontal: 24, marginTop: 20 }]}>
+          <Ionicons name="search-outline" size={16} color="#94A3B8" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar por nombre..."
+            placeholderTextColor="#94A3B8"
+            value={searchText}
+            onChangeText={setSearchText}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchText.length > 0 && (
+            <Pressable onPress={() => setSearchText('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color="#94A3B8" />
+            </Pressable>
+          )}
+        </View>
+      )}
+
+      {isLoading &&
         !isRefreshing &&
         equipamentos.length === 0 &&
-        checklistSystems.length === 0) ? (
+        checklistSystems.length === 0 ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Cargando localmente...</Text>
@@ -558,41 +637,45 @@ export default function SelectDeviceScreen() {
         </View>
       ) : flowType === 'checklist' ? (
         <FlatList
-          data={checklistSystems}
+          data={filteredChecklistSystems}
           keyExtractor={item => String(item.id)}
           renderItem={renderChecklistSystemItem}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.listWrapper,
             styles.checklistListWrapper,
-            checklistSystems.length === 0 && styles.listWrapperEmpty,
+            (!filteredChecklistSystems || filteredChecklistSystems.length === 0) && styles.listWrapperEmpty,
           ]}
           refreshing={isRefreshing}
           onRefresh={onRefresh}
           ListEmptyComponent={
             <View style={styles.centerContainer}>
               <Text style={styles.emptyText}>
-                No hay sistemas con equipos activos para este inmueble.
+                {searchText
+                  ? `Sin resultados para "${searchText}"`
+                  : 'No hay sistemas con equipos activos para este inmueble.'}
               </Text>
             </View>
           }
         />
       ) : (
         <FlatList
-          data={equipamentos}
+          data={filteredEquipamentos}
           keyExtractor={item => String(item.id)}
           renderItem={renderEquipamentoItem}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.listWrapper,
-            equipamentos.length === 0 && styles.listWrapperEmpty,
+            (!filteredEquipamentos || filteredEquipamentos.length === 0) && styles.listWrapperEmpty,
           ]}
           refreshing={isRefreshing}
           onRefresh={onRefresh}
           ListEmptyComponent={
             <View style={styles.centerContainer}>
               <Text style={styles.emptyText}>
-                No hay equipamientos disponibles para este inmueble
+                {searchText
+                  ? `Sin resultados para "${searchText}"`
+                  : 'No hay equipamientos disponibles para este inmueble.'}
               </Text>
             </View>
           }
@@ -852,5 +935,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 18,
+    marginTop: 14,
+    marginBottom: 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#0F172A',
+    paddingVertical: 0,
   },
 });

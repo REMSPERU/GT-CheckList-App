@@ -7,14 +7,18 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  TextInput,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useCallback, useState, useEffect, memo } from 'react';
+import { useCallback, useState, useEffect, memo, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import {
   inventoryKeys,
   useInventoryChecklistSystems,
+  useAllInventoryEquipamentos,
 } from '@/hooks/use-inventory-query';
 import { syncService } from '@/services/sync';
 import { useQueryClient } from '@tanstack/react-query';
@@ -54,6 +58,14 @@ function getEquipamentoStyle(abreviatura: string) {
 
 function getSingleParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : (value ?? '');
+}
+
+function normalizeSearch(val: string) {
+  return val
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 }
 
 interface InventoryEquipamentoRowProps {
@@ -175,6 +187,9 @@ export default function InventorySystemsScreen() {
   const propertyImageUrl = getSingleParam(params.propertyImageUrl);
 
   const [expandedSystemId, setExpandedSystemId] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalSearchText, setModalSearchText] = useState('');
 
   const {
     data: systems,
@@ -182,6 +197,68 @@ export default function InventorySystemsScreen() {
     isRefetching,
     error,
   } = useInventoryChecklistSystems(propertyId);
+
+  const { data: allEquipamentos } = useAllInventoryEquipamentos();
+
+  const groupedAllEquipamentos = useMemo(() => {
+    if (!allEquipamentos) return [];
+
+    const q = normalizeSearch(modalSearchText);
+    const filtered = allEquipamentos.filter(
+      eq =>
+        normalizeSearch(eq.nombre).includes(q) ||
+        normalizeSearch(eq.abreviatura).includes(q) ||
+        normalizeSearch(eq.sistema_nombre).includes(q)
+    );
+
+    const groups: Record<string, typeof filtered> = {};
+    for (const eq of filtered) {
+      const sysName = eq.sistema_nombre || 'Sin Sistema';
+      if (!groups[sysName]) {
+        groups[sysName] = [];
+      }
+      groups[sysName].push(eq);
+    }
+
+    return Object.entries(groups)
+      .map(([name, items]) => ({
+        sistema_nombre: name,
+        items,
+      }))
+      .sort((a, b) => a.sistema_nombre.localeCompare(b.sistema_nombre));
+  }, [allEquipamentos, modalSearchText]);
+
+  const filteredSystems = useMemo(() => {
+    if (!systems) return [];
+    const q = normalizeSearch(searchText);
+    if (!q) return systems;
+
+    return systems
+      .map(system => {
+        const systemNombreMatches = normalizeSearch(system.nombre).includes(q);
+        const filteredEquipamentos = system.equipamentos.filter(
+          eq =>
+            normalizeSearch(eq.nombre).includes(q) ||
+            normalizeSearch(eq.abreviatura).includes(q)
+        );
+
+        if (systemNombreMatches || filteredEquipamentos.length > 0) {
+          const equipmentsToUse = filteredEquipamentos.length > 0
+            ? filteredEquipamentos
+            : system.equipamentos;
+
+          const sumEquipos = equipmentsToUse.reduce((acc, eq) => acc + (eq.equipos_count ?? 0), 0);
+
+          return {
+            ...system,
+            equipamentos: equipmentsToUse,
+            equipos_count: sumEquipos,
+          };
+        }
+        return null;
+      })
+      .filter((sys): sys is SistemaChecklistResponse => sys !== null);
+  }, [systems, searchText]);
 
   const handleEquipamentoPress = useCallback(
     (equipamento: EquipamentoResponse, systemNombre: string) => {
@@ -200,6 +277,22 @@ export default function InventorySystemsScreen() {
       });
     },
     [router, propertyId, propertyName, propertyAddress, propertyImageUrl],
+  );
+
+  const handleAddNewEquipamentoPress = useCallback(
+    (equipamento: EquipamentoResponse) => {
+      router.push({
+        pathname: '/inventory/[equipamentoId]/add-equipo' as never,
+        params: {
+          equipamentoId: equipamento.id,
+          equipamentoNombre: equipamento.nombre,
+          equipamentoAbreviatura: equipamento.abreviatura,
+          propertyId,
+          propertyName,
+        },
+      });
+    },
+    [router, propertyId, propertyName],
   );
 
   const handleToggleSystem = useCallback((systemId: string) => {
@@ -221,12 +314,12 @@ export default function InventorySystemsScreen() {
     ({ item }) => (
       <InventorySystemCard
         item={item}
-        isExpanded={expandedSystemId === item.id}
+        isExpanded={searchText.trim().length > 0 ? true : expandedSystemId === item.id}
         onToggle={handleToggleSystem}
         onPressEquipamento={handleEquipamentoPress}
       />
     ),
-    [expandedSystemId, handleToggleSystem, handleEquipamentoPress],
+    [expandedSystemId, handleToggleSystem, handleEquipamentoPress, searchText],
   );
 
   return (
@@ -280,8 +373,33 @@ export default function InventorySystemsScreen() {
       <View style={styles.sectionHeader}>
         <Ionicons name="layers-outline" size={18} color="#0891B2" />
         <Text style={styles.sectionTitle}>Sistemas</Text>
-        {systems && <Text style={styles.sectionCount}>({systems.length})</Text>}
+        {systems && (
+          <Text style={styles.sectionCount}>
+            ({filteredSystems.length})
+          </Text>
+        )}
       </View>
+
+      {/* Search */}
+      {systems && systems.length > 0 && (
+        <View style={styles.searchWrap}>
+          <Ionicons name="search-outline" size={16} color="#94A3B8" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar sistema o tipo..."
+            placeholderTextColor="#94A3B8"
+            value={searchText}
+            onChangeText={setSearchText}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchText.length > 0 && (
+            <Pressable onPress={() => setSearchText('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color="#94A3B8" />
+            </Pressable>
+          )}
+        </View>
+      )}
 
       {/* Content */}
       {isLoading && !systems ? (
@@ -296,12 +414,12 @@ export default function InventorySystemsScreen() {
         </View>
       ) : (
         <FlatList
-          data={systems ?? []}
+          data={filteredSystems}
           keyExtractor={item => item.id}
           renderItem={renderItem}
           contentContainerStyle={[
             styles.list,
-            (!systems || systems.length === 0) && styles.listEmpty,
+            (!filteredSystems || filteredSystems.length === 0) && styles.listEmpty,
           ]}
           showsVerticalScrollIndicator={false}
           refreshing={isRefetching}
@@ -310,15 +428,145 @@ export default function InventorySystemsScreen() {
             <View style={styles.centered}>
               <Ionicons name="layers-outline" size={48} color="#CBD5E1" />
               <Text style={styles.emptyText}>
-                No hay sistemas registrados para este inmueble.
+                {searchText
+                  ? `Sin resultados para "${searchText}"`
+                  : 'No hay sistemas registrados para este inmueble.'}
               </Text>
-              <Text style={styles.emptyHint}>
-                Verifica que el inmueble tenga equipamentos asignados.
-              </Text>
+              {!searchText && (
+                <Text style={styles.emptyHint}>
+                  Verifica que el inmueble tenga equipamentos asignados.
+                </Text>
+              )}
             </View>
           }
         />
       )}
+
+      {/* FAB - Agregar tipo de equipo */}
+      <Pressable
+        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+        onPress={() => {
+          setModalSearchText('');
+          setModalVisible(true);
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Agregar tipo de equipo">
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </Pressable>
+
+      {/* Modal para seleccionar tipo de equipo */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Agregar Tipo de Equipo</Text>
+              <Pressable
+                style={({ pressed }) => [styles.modalCloseButton, pressed && styles.pressed]}
+                onPress={() => setModalVisible(false)}
+                accessibilityLabel="Cerrar modal">
+                <Ionicons name="close" size={22} color="#0F172A" />
+              </Pressable>
+            </View>
+
+            {/* Modal Search */}
+            <View style={styles.modalSearchWrap}>
+              <Ionicons name="search-outline" size={16} color="#94A3B8" />
+              <TextInput
+                style={styles.modalSearchInput}
+                placeholder="Buscar tipo de equipo..."
+                placeholderTextColor="#94A3B8"
+                value={modalSearchText}
+                onChangeText={setModalSearchText}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {modalSearchText.length > 0 && (
+                <Pressable onPress={() => setModalSearchText('')} hitSlop={8}>
+                  <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                </Pressable>
+              )}
+            </View>
+
+            {/* Modal List */}
+            <ScrollView
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled">
+              {groupedAllEquipamentos.length === 0 ? (
+                <View style={styles.modalEmptyState}>
+                  <Ionicons name="cube-outline" size={40} color="#CBD5E1" />
+                  <Text style={styles.modalEmptyText}>No se encontraron tipos de equipo</Text>
+                </View>
+              ) : (
+                groupedAllEquipamentos.map(group => (
+                  <View key={group.sistema_nombre} style={styles.modalSystemGroup}>
+                    <View style={styles.modalSystemHeader}>
+                      <Ionicons name="layers-outline" size={14} color="#0891B2" />
+                      <Text style={styles.modalSystemTitle}>
+                        {group.sistema_nombre.toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.modalEquipmentList}>
+                      {group.items.map(eq => {
+                        const styleConfig = getEquipamentoStyle(eq.abreviatura);
+                        return (
+                          <Pressable
+                            key={eq.id}
+                            style={({ pressed }) => [
+                              styles.modalEquipmentRow,
+                              pressed && styles.pressed,
+                            ]}
+                            onPress={() => {
+                              setModalVisible(false);
+                              handleAddNewEquipamentoPress({
+                                id: eq.id,
+                                nombre: eq.nombre,
+                                abreviatura: eq.abreviatura,
+                                frecuencia: eq.frecuencia,
+                              });
+                            }}>
+                            <View
+                              style={[
+                                styles.modalEquipmentIconWrap,
+                                { backgroundColor: styleConfig.bg },
+                              ]}>
+                              <Ionicons
+                                name={styleConfig.icon}
+                                size={18}
+                                color={styleConfig.color}
+                              />
+                            </View>
+                            <View style={styles.modalEquipmentRowBody}>
+                              <Text style={styles.modalEquipmentRowTitle}>
+                                {eq.nombre}
+                              </Text>
+                              {eq.abreviatura ? (
+                                <Text style={styles.modalEquipmentRowSubtitle}>
+                                  {eq.abreviatura}
+                                </Text>
+                              ) : null}
+                            </View>
+                            <Ionicons
+                              name="chevron-forward"
+                              size={18}
+                              color="#94A3B8"
+                            />
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -554,5 +802,166 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
     fontWeight: '600',
+  },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#0F172A',
+    paddingVertical: 0,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 32,
+    right: 24,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#06B6D4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#06B6D4',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  fabPressed: { transform: [{ scale: 0.92 }], opacity: 0.9 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '80%',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 24,
+    paddingTop: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  modalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSearchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 8,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  modalSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#0F172A',
+    paddingVertical: 0,
+  },
+  modalScrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    paddingTop: 8,
+  },
+  modalEmptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    gap: 12,
+  },
+  modalEmptyText: {
+    fontSize: 14,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  modalSystemGroup: {
+    marginBottom: 20,
+  },
+  modalSystemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  modalSystemTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 1,
+  },
+  modalEquipmentList: {
+    gap: 8,
+  },
+  modalEquipmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  modalEquipmentIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalEquipmentRowBody: {
+    flex: 1,
+  },
+  modalEquipmentRowTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  modalEquipmentRowSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#0891B2',
+    marginTop: 1,
   },
 });

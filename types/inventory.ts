@@ -260,6 +260,16 @@ export const EQUIPMENT_TECHNICAL_FIELDS: Record<
 
   // 2.3 / 2.4 — Torres de Enfriamiento (Patrón B)
   TOE: [
+    { key: 'numero_unidad', label: 'Número de Unidad', type: 'number' },
+    {
+      key: 'tipo',
+      label: 'Tipo Torre',
+      type: 'select',
+      options: [
+        { label: 'Data Center', value: 'datacenter' },
+        { label: 'Chiller', value: 'chiller' },
+      ],
+    },
     { key: 'marca', label: 'Marca', type: 'text', required: true },
     { key: 'modelo', label: 'Modelo', type: 'text', required: true },
     { key: 'ano_operacion', label: 'Año de Inicio', type: 'number' },
@@ -267,27 +277,50 @@ export const EQUIPMENT_TECHNICAL_FIELDS: Record<
       key: 'cap_motor',
       label: 'Capacidad Motor',
       type: 'number',
-      suffix: 'HP',
+      suffixFrom: 'unidad_motor',
     },
     {
-      key: 'tipo_torre',
-      label: 'Tipo Torre',
-      type: 'select',
-      options: [
-        { label: 'Data Center', value: 'Data Center' },
-        { label: 'Chiller', value: 'Chiller' },
-      ],
+      key: 'cantidad_total',
+      label: 'Cantidad Total',
+      type: 'number',
     },
     {
-      key: 'tiene_vdf',
+      key: 'vdf.tiene_vdf',
       label: 'Tiene Variador (VDF)',
       type: 'boolean',
       defaultValue: false,
+      section: 'VDF',
     },
-    { key: 'marca_vdf', label: 'Marca VDF', type: 'text' },
-    { key: 'modelo_vdf', label: 'Modelo VDF', type: 'text' },
-    { key: 'voltaje_vdf', label: 'Voltaje VDF', type: 'number', suffix: 'V' },
-    { key: 'cap_vdf', label: 'Capacidad VDF', type: 'number', suffix: 'kW' },
+    {
+      key: 'vdf.marca',
+      label: 'Marca VDF',
+      type: 'text',
+      section: 'VDF',
+      visibleWhen: { key: 'vdf.tiene_vdf', equals: true },
+    },
+    {
+      key: 'vdf.modelo',
+      label: 'Modelo VDF',
+      type: 'text',
+      section: 'VDF',
+      visibleWhen: { key: 'vdf.tiene_vdf', equals: true },
+    },
+    {
+      key: 'vdf.voltaje',
+      label: 'Voltaje VDF',
+      type: 'number',
+      suffix: 'V',
+      section: 'VDF',
+      visibleWhen: { key: 'vdf.tiene_vdf', equals: true },
+    },
+    {
+      key: 'vdf.capacidad',
+      label: 'Capacidad VDF',
+      type: 'number',
+      suffixFrom: 'vdf.unidad',
+      section: 'VDF',
+      visibleWhen: { key: 'vdf.tiene_vdf', equals: true },
+    },
   ],
 
   // 2.5 — Ablandador de Agua (Patrón B)
@@ -334,6 +367,8 @@ export const EQUIPMENT_TECHNICAL_FIELDS: Record<
   BACHC: CHILLER_PUMP_FIELDS,
   BACHP: CHILLER_PUMP_FIELDS,
   BACHS: CHILLER_PUMP_FIELDS,
+  BADC: CHILLER_PUMP_FIELDS,
+  BADP: CHILLER_PUMP_FIELDS,
 
   // 2.10 — Splits (Patrón A)
   SPLIT: [
@@ -375,6 +410,7 @@ export const EQUIPMENT_TECHNICAL_FIELDS: Record<
       label: 'Refrigerante',
       type: 'select',
       options: [
+        { label: 'AGUA', value: 'AGUA' },
         { label: 'R134A', value: 'R134A' },
         { label: 'R410A', value: 'R410A' },
         { label: 'R22', value: 'R22' },
@@ -959,56 +995,113 @@ export const EQUIPMENT_TECHNICAL_FIELDS: Record<
 };
 
 const EQUIPMENT_TECHNICAL_FIELD_ALIASES: Record<string, string> = {
+  // Chillers
   CHILLER: 'CHAI',
   CHILLER_AIRE: 'CHAI',
   CHILLER_AGUA: 'CHAG',
+  // Fan Coils
   FANCOIL: 'FCU',
   FCOIL: 'FCU',
+  FACO: 'FCU',
+  // Torres de Enfriamiento
   TORRE_ENFRIAMIENTO: 'TOE',
   TORRE: 'TOE',
-  AUTOCONTENIDO: 'AUTOC',
-  VENTILACION_FORZADA: 'VFOR',
+  TOEDC: 'TOE',
+  TOECH: 'TOE',
+  TE: 'TOE',
+  TE_DC: 'TOE',
+  TOE_DC: 'TOE',
+  TE_CH: 'TOE',
+  TOE_CH: 'TOE',
+  TORRES_DE_ENFRIAMIENTO: 'TOE',
+  // Ablandadores
+  AGU: 'ABL',
+  // Splits
+  SP: 'SPLIT',
+  // Ventilación
+  VENT: 'VFOR',
   VF: 'VFOR',
+  VENTILACION_FORZADA: 'VFOR',
+  // Autocontenidos
+  AUTO: 'AUTOC',
+  AUTOCONTENIDO: 'AUTOC',
+  // VRV
   VRV: 'VRF',
   VRF_SISTEMA: 'VRF',
+  // Tableros
+  TABLERO_DISTRIBUCION: 'TBDIST',
+  TBAUT: 'TBAUTO',
+  TABLERO_AUTOSOPORTADO: 'TBAUTO',
+  TTA: 'TTA',
+  TABLERO_TRANSFERENCIA: 'TTA',
+  // Grupos
+  GELEC: 'GE',
   GRUPO_ELECTROGENO: 'GE',
   GEE: 'GE',
-  SUBESTACION_ELECTRICA: 'SUBE',
+  // Subestaciones
+  SUBEST: 'SUBE',
   SUBESTACION: 'SUBE',
-  TABLERO_DISTRIBUCION: 'TBDIST',
-  TABLERO_AUTOSOPORTADO: 'TBAUTO',
-  BUSBAR: 'BUSBAR',
-  TABLERO_TRANSFERENCIA: 'TTA',
+  SUBESTACION_ELECTRICA: 'SUBE',
+  // Transformadores
   TRANSFORMADOR_DE_AISLAMIENTO: 'TRAIS',
   TRANSFORMADOR_AISLAMIENTO: 'TRAIS',
+  // Busbars
+  BBAR: 'BUSBAR',
+  // Cisternas
   CIS: 'CISTPTAG',
   CISTERNA_PTAG: 'CISTPTAG',
   CISTERNA_AGUA_POTABLE: 'CISTPTAG',
+  CISPTAG: 'CISTPTAG',
   CISTERNA_BCI: 'CISTBCI',
+  CISBCI: 'CISTBCI',
+  // Tanques
   TANQUE_ELEVADO: 'TELEV',
+  TANQUELE: 'TELEV',
+  TFILT: 'TFIL',
+  TANQUE_FILTRADO: 'TFIL',
+  THIDRO: 'THID',
+  TANQUE_HIDRONEUMATICO: 'THID',
+  // Red Húmeda
   RED_HUMEDA: 'RH',
+  RHUM: 'RH',
+  // Bombas
   BOMBA_DOSIFICADORA: 'BDOS',
   BOMBA_ELECTRICA: 'BELEC',
   BOMBA_ELECTRICA_PTAG: 'BELEC',
-  TANQUE_FILTRADO: 'TFIL',
-  TANQUE_HIDRONEUMATICO: 'THID',
+  BDESG: 'BDS',
+  BOMBA_DESAGUE_SUMIDERO: 'BDS',
+  // Válvulas
+  REGUL: 'VREG',
   REGULADORA: 'VREG',
   VALVULA_REGULADORA: 'VREG',
+  // Incendio / Alarmas
+  SINC: 'SIN',
   SISTEMA_INCENDIO: 'SIN',
-  SIS_CCTV: 'CCTV',
   PUERTA_CORTAFUEGO: 'PCF',
-  BOMBA_JOCKEY: 'BJOCK',
-  BOMBA_INCENDIO: 'BINC',
+  PCORT: 'PCF',
+  // Seguridad
+  SEGPEAT: 'SEGP',
   SEGURIDAD_PEATONAL: 'SEGP',
+  SEGVEH: 'SEGV',
   SEGURIDAD_VEHICULAR: 'SEGV',
+  // Ascensores
   ASCENSOR: 'ASC',
-  MAMPARAS: 'MAMP',
+  // Mamparas
   MAMPARA: 'MAMP',
+  MAMPARAS: 'MAMP',
+  // Servidores / Data Center
   DATACENTER: 'DC',
   DATA_CENTER: 'DC',
-  BOMBA_DESAGUE_SUMIDERO: 'BDS',
+  SRVDC: 'DC',
+  // Plataformas
+  PLATDISC: 'PDISC',
   PLATAFORMA_DISCAPACITADOS: 'PDISC',
+  // Centrales
+  CENTTEL: 'CTELEF',
   CENTRAL_TELEFONICA: 'CTELEF',
+  SIS_CCTV: 'CCTV',
+  BOMBA_JOCKEY: 'BJOCK',
+  BOMBA_INCENDIO: 'BINC',
 };
 
 /**

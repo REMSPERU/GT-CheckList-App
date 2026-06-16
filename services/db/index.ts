@@ -65,6 +65,7 @@ import {
   getInventoryEquipamentosBySystem,
   getInventoryEquiposByEquipamento,
   getInventoryEquipoById,
+  getAllInventoryEquipamentos,
 } from './queries';
 import {
   getAuditQuestions,
@@ -181,6 +182,7 @@ export const DatabaseService = {
   getInventoryEquipamentosBySystem,
   getInventoryEquiposByEquipamento,
   getInventoryEquipoById,
+  getAllInventoryEquipamentos,
 
   // Audit
   getAuditQuestions,

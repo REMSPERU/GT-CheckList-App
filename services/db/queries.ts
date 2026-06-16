@@ -811,6 +811,40 @@ export async function getInventoryEquipamentosBySystem(
 }
 
 /**
+ * Get all available equipment types (equipamentos) from local mirror,
+ * with their associated system name.
+ */
+export async function getAllInventoryEquipamentos() {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+    const rows = (await db.getAllAsync(`
+      SELECT 
+        e.id as equipamento_id,
+        e.nombre as equipamento_nombre,
+        e.abreviatura as equipamento_abreviatura,
+        e.frecuencia as equipamento_frecuencia,
+        e.id_sistema,
+        COALESCE(s.nombre, 'Sin Sistema') as sistema_nombre,
+        COALESCE(s.activo, 1) as sistema_activo
+      FROM local_equipamentos e
+      LEFT JOIN local_sistemas s ON s.id = e.id_sistema
+      ORDER BY sistema_nombre ASC, e.nombre ASC
+    `)) as any[];
+
+    return rows.map(row => ({
+      id: String(row.equipamento_id),
+      nombre: String(row.equipamento_nombre),
+      abreviatura: String(row.equipamento_abreviatura || ''),
+      frecuencia: row.equipamento_frecuencia || null,
+      id_sistema: row.id_sistema || null,
+      sistema_nombre: String(row.sistema_nombre),
+      sistema_activo: row.sistema_activo === 1,
+    }));
+  });
+}
+
+/**
  * Get all equipos for a specific equipamento type within a property.
  * Returns equipment_detail parsed from JSON.
  * Includes all statuses (ACTIVO and INACTIVO) for the inventory view.
