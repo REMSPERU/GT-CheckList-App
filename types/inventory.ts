@@ -410,6 +410,7 @@ export const EQUIPMENT_TECHNICAL_FIELDS: Record<
       label: 'Refrigerante',
       type: 'select',
       options: [
+        { label: 'AGUA', value: 'AGUA' },
         { label: 'R134A', value: 'R134A' },
         { label: 'R410A', value: 'R410A' },
         { label: 'R22', value: 'R22' },
