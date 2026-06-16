@@ -1,4 +1,16 @@
-# Informe Técnico y Funcional del Sistema GEMA
+import os
+import re
+
+def main():
+    # Dynamically find the project root
+    # Since this script lives in <root>/scripts/generate_docs.py, the root is the parent directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.abspath(os.path.join(script_dir, '..'))
+    
+    print(f"Project Root Directory: {root_dir}")
+    
+    # Read the markdown template content with relative paths from the docs/ folder
+    markdown_content = r"""# Informe Técnico y Funcional del Sistema GEMA
 
 Este documento presenta una descripción exhaustiva y detallada de todas las funcionalidades, requisitos, arquitectura técnica y flujos de trabajo desarrollados para el sistema de checklists y gestión de mantenimiento de equipos en edificios, compuesto por una **aplicación móvil offline-first (React Native + Expo)** y un **panel de administración web (Next.js)**.
 
@@ -208,3 +220,53 @@ sequenceDiagram
 ### Resolución de Conflictos y Validación
 * **Filtro Horario de Programaciones:** La base de datos central ejecuta una función PostgreSQL `validate_checklist_schedule` que evalúa si el checklist ha sido enviado dentro del rango horario permitido (ej. solo de 08:00 AM a 06:00 PM) y según la periodicidad contratada (diaria, interdiaria, semanal, mensual, quincenal), rechazando duplicados si el técnico excede el límite de ocurrencias configurado por día.
 * **Integridad de Datos JSONB:** Las respuestas se validan estructuralmente tanto a nivel de cliente (Zod + React Hook Form) como a nivel de motor de base de datos remoto (mediante la función PG `validate_audit_payload` y restricciones CHECK en las tablas), garantizando que ningún registro incompleto o mal formateado sea procesado por la nube.
+"""
+    
+    # -------------------------------------------------------------
+    # Integrity Check: Find all links referencing local file system 
+    # (they are now relative paths starting with "../")
+    # -------------------------------------------------------------
+    # Pattern to match standard markdown links pointing to relative paths, supporting parentheses
+    link_pattern = r'\[.*?\]\(((?:\.\./)+[^\s\(\)]*(?:\([^\s\(\)]*\)[^\s\(\)]*)*)\)'
+    links = re.findall(link_pattern, markdown_content)
+    
+    print("\n--- Integrity Check: Verifying relative paths exist ---")
+    all_ok = True
+    
+    # Since the file will be located at docs/informe_funcionalidades.md,
+    # paths starting with ../ are relative to the docs/ directory.
+    docs_dir = os.path.join(root_dir, 'docs')
+    
+    for link in links:
+        # Resolve the link relative to docs_dir
+        local_path = os.path.abspath(os.path.join(docs_dir, link))
+        
+        # Check if the path exists locally
+        exists = os.path.exists(local_path)
+        status = "OK" if exists else "NOT FOUND"
+        print(f"[{status}] Path: {link} -> {local_path}")
+        if not exists:
+            # Check if this is a directory route and does not have extension
+            if os.path.isdir(local_path):
+                print(f"  -> Path found as directory: {local_path}")
+            else:
+                all_ok = False
+                print(f"  -> WARNING: Relative path does not exist: {local_path}")
+                
+    if all_ok:
+        print("All relative links verified successfully!")
+    else:
+        print("Completed with warnings: Some paths could not be verified.")
+        
+    # Write the output file
+    if not os.path.exists(docs_dir):
+        os.makedirs(docs_dir)
+        
+    output_file = os.path.join(docs_dir, 'informe_funcionalidades.md')
+    with open(output_file, 'w', encoding='utf-8') as f:
+        f.write(markdown_content)
+        
+    print(f"\nDocument generated successfully at: {output_file}")
+
+if __name__ == "__main__":
+    main()
