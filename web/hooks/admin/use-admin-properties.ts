@@ -109,6 +109,14 @@ export function useAdminProperties() {
     }
   };
 
+  const addPropertyToList = (newProperty: AdminPropertyRow) => {
+    setItems(prev => [newProperty, ...prev].sort((a, b) => a.name.localeCompare(b.name)));
+  };
+
+  const updatePropertyInList = (updatedProperty: AdminPropertyRow) => {
+    setItems(prev => prev.map(p => p.id === updatedProperty.id ? updatedProperty : p).sort((a, b) => a.name.localeCompare(b.name)));
+  };
+
   return { 
     filteredItems, 
     search, 
@@ -116,6 +124,8 @@ export function useAdminProperties() {
     isLoading, 
     errorMessage,
     changePropertyImage,
-    uploadingImageId
+    uploadingImageId,
+    addPropertyToList,
+    updatePropertyInList,
   };
 }

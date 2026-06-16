@@ -16,6 +16,67 @@ export async function listAdminProperties(
   return (data ?? []) as AdminPropertyRow[];
 }
 
+export async function getAdminProperty(
+  supabase: SupabaseClient,
+  propertyId: string,
+): Promise<AdminPropertyRow | null> {
+  const { data, error } = await supabase
+    .from('properties')
+    .select('id, code, name, address, city, is_active, maintenance_priority, image_url')
+    .eq('id', propertyId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as AdminPropertyRow | null;
+}
+
+export async function createAdminProperty(
+  supabase: SupabaseClient,
+  property: Omit<AdminPropertyRow, 'id'>,
+): Promise<AdminPropertyRow> {
+  const { data, error } = await supabase
+    .from('properties')
+    .insert({
+      id: crypto.randomUUID(),
+      name: property.name,
+      address: property.address,
+      city: property.city,
+      code: property.code || null,
+      is_active: property.is_active ?? true,
+      maintenance_priority: property.maintenance_priority || null,
+      image_url: property.image_url || null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as AdminPropertyRow;
+}
+
+export async function updateAdminProperty(
+  supabase: SupabaseClient,
+  propertyId: string,
+  property: Partial<Omit<AdminPropertyRow, 'id'>>,
+): Promise<AdminPropertyRow> {
+  const { data, error } = await supabase
+    .from('properties')
+    .update({
+      name: property.name,
+      address: property.address,
+      city: property.city,
+      code: property.code !== undefined ? (property.code || null) : undefined,
+      is_active: property.is_active,
+      maintenance_priority: property.maintenance_priority !== undefined ? (property.maintenance_priority || null) : undefined,
+      image_url: property.image_url,
+    })
+    .eq('id', propertyId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as AdminPropertyRow;
+}
+
 export async function updateAdminPropertyImage(
   supabase: SupabaseClient,
   propertyId: string,

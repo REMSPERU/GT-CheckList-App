@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 import type { AdminPropertyRow } from '@/types/admin';
 
@@ -113,27 +114,29 @@ function PropertyCard({
     <article className="group relative grid overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_8px_32px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(15,23,42,0.12)]">
       {/* Image section */}
       <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
-        {property.image_url ? (
-          useNextImage ? (
-            <Image
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              src={property.image_url}
-              alt={property.name}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            />
+        <Link href={`/admin/inmuebles/${property.id}`} className="absolute inset-0 block">
+          {property.image_url ? (
+            useNextImage ? (
+              <Image
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                src={property.image_url}
+                alt={property.name}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              />
+            ) : (
+              <img
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                src={property.image_url}
+                alt={property.name}
+              />
+            )
           ) : (
-            <img
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              src={property.image_url}
-              alt={property.name}
-            />
-          )
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-emerald-50">
-            <span className="text-5xl opacity-40">🏢</span>
-          </div>
-        )}
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-emerald-50">
+              <span className="text-5xl opacity-40">🏢</span>
+            </div>
+          )}
+        </Link>
 
         {/* Upload Overlay */}
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
@@ -163,9 +166,11 @@ function PropertyCard({
       {/* Content section */}
       <div className="grid gap-3 p-5">
         <div>
-          <h3 className="m-0 text-[1.05rem] font-black leading-tight tracking-[-0.02em] text-slate-950">
-            {property.name}
-          </h3>
+          <Link href={`/admin/inmuebles/${property.id}`} className="no-underline group/title">
+            <h3 className="m-0 text-[1.05rem] font-black leading-tight tracking-[-0.02em] text-slate-950 hover:text-emerald-800 transition-colors">
+              {property.name}
+            </h3>
+          </Link>
         </div>
 
         <div className="grid gap-1.5">
