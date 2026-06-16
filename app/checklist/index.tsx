@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  TextInput,
 } from 'react-native';
 import {
   SafeAreaView,
@@ -54,6 +55,14 @@ function formatDateToSpanish(value: string) {
   }
   const [year, month, day] = value.split('-');
   return `${day}-${month}-${year}`;
+}
+
+function normalizeSearch(val: string) {
+  return val
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 }
 
 interface EquipmentListItemProps {
@@ -381,6 +390,7 @@ export default function EquipmentChecklistListScreen() {
   ]);
 
   const [equipos, setEquipos] = useState<BaseEquipment[]>([]);
+  const [searchText, setSearchText] = useState('');
   const [submittedCountByEquipo, setSubmittedCountByEquipo] = useState<
     Record<string, number>
   >({});
@@ -409,6 +419,19 @@ export default function EquipmentChecklistListScreen() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const filteredEquipos = useMemo(() => {
+    if (!equipos) return [];
+    const q = normalizeSearch(searchText);
+    if (!q) return equipos;
+
+    return equipos.filter(
+      e =>
+        normalizeSearch(e.codigo || '').includes(q) ||
+        normalizeSearch(e.ubicacion || '').includes(q) ||
+        normalizeSearch(e.detalle_ubicacion || '').includes(q)
+    );
+  }, [equipos, searchText]);
 
   useEffect(() => {
     if (!building?.id || !equipamento?.id) {
@@ -725,13 +748,34 @@ export default function EquipmentChecklistListScreen() {
         </View>
       ) : null}
 
+      {/* Search */}
+      {!isLoading && equipos && equipos.length > 0 && (
+        <View style={styles.searchWrap}>
+          <Ionicons name="search-outline" size={16} color="#94A3B8" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar por código o ubicación..."
+            placeholderTextColor="#94A3B8"
+            value={searchText}
+            onChangeText={setSearchText}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchText.length > 0 && (
+            <Pressable onPress={() => setSearchText('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color="#94A3B8" />
+            </Pressable>
+          )}
+        </View>
+      )}
+
       {isLoading ? (
         <View style={styles.centerState}>
           <ActivityIndicator size="large" color="#0891B2" />
         </View>
       ) : (
         <FlatList
-          data={equipos}
+          data={filteredEquipos}
           keyExtractor={item => item.id}
           renderItem={renderEquipmentItem}
           initialNumToRender={8}
@@ -745,7 +789,9 @@ export default function EquipmentChecklistListScreen() {
           ListEmptyComponent={
             <View style={styles.centerState}>
               <Text style={styles.emptyText}>
-                No hay equipos para este tipo.
+                {searchText
+                  ? `Sin resultados para "${searchText}"`
+                  : 'No hay equipos para este tipo.'}
               </Text>
             </View>
           }
@@ -920,5 +966,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#0369A1',
+  },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#0F172A',
+    paddingVertical: 0,
   },
 });
