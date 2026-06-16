@@ -117,6 +117,18 @@ export function useInventoryEquipoDetail(equipoId: string) {
   });
 }
 
+/**
+ * Hook to get all available equipment types (equipamentos) from local mirror,
+ * grouped by their system name.
+ */
+export function useAllInventoryEquipamentos() {
+  return useQuery({
+    queryKey: [...inventoryKeys.all, 'all-equipamentos'] as const,
+    queryFn: () => DatabaseService.getAllInventoryEquipamentos(),
+    staleTime: 5 * 60_000,
+  });
+}
+
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 /**
