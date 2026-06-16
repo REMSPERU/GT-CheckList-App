@@ -95,7 +95,6 @@ function PropertyCard({
   onChangeImage?: (propertyId: string, file: File) => void;
   isUploading?: boolean;
 }) {
-  const priorityConfig = getPriorityConfig(property.maintenance_priority);
   const useNextImage = property.image_url ? isNextImageSafe(property.image_url) : false;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -159,35 +158,6 @@ function PropertyCard({
             onChange={handleFileChange}
           />
         </div>
-
-        {/* Status badge overlay */}
-        <div className="absolute left-3 top-3 z-20">
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.1em] backdrop-blur-md ${
-              property.is_active
-                ? 'bg-emerald-500/90 text-white'
-                : 'bg-slate-800/80 text-slate-300'
-            }`}
-          >
-            <span
-              className={`inline-block h-1.5 w-1.5 rounded-full ${
-                property.is_active ? 'bg-emerald-200' : 'bg-slate-500'
-              }`}
-            />
-            {property.is_active ? 'Activo' : 'Inactivo'}
-          </span>
-        </div>
-
-        {/* Priority badge overlay */}
-        {property.maintenance_priority ? (
-          <div className="absolute right-3 top-3">
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.1em] backdrop-blur-md ${priorityConfig.className}`}
-            >
-              {priorityConfig.label}
-            </span>
-          </div>
-        ) : null}
       </div>
 
       {/* Content section */}
@@ -196,11 +166,6 @@ function PropertyCard({
           <h3 className="m-0 text-[1.05rem] font-black leading-tight tracking-[-0.02em] text-slate-950">
             {property.name}
           </h3>
-          {property.code ? (
-            <p className="m-0 mt-1 text-xs font-bold text-slate-400">
-              {property.code}
-            </p>
-          ) : null}
         </div>
 
         <div className="grid gap-1.5">
@@ -219,29 +184,4 @@ function PropertyCard({
       </div>
     </article>
   );
-}
-
-function getPriorityConfig(priority: string | null) {
-  switch (priority?.toUpperCase()) {
-    case 'ALTA':
-      return {
-        label: 'Alta',
-        className: 'bg-red-500/90 text-white',
-      };
-    case 'MEDIA':
-      return {
-        label: 'Media',
-        className: 'bg-amber-400/90 text-amber-950',
-      };
-    case 'BAJA':
-      return {
-        label: 'Baja',
-        className: 'bg-sky-400/90 text-sky-950',
-      };
-    default:
-      return {
-        label: priority ?? '-',
-        className: 'bg-slate-600/80 text-white',
-      };
-  }
 }

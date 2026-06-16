@@ -14,7 +14,7 @@ function AdminPropertiesContent() {
     <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
       <section className="flex items-center gap-3 max-[640px]:flex-col max-[640px]:items-stretch">
         <SearchInput
-          placeholder="Buscar nombre, codigo, ciudad o direccion"
+          placeholder="Buscar nombre, ciudad o direccion"
           value={properties.search}
           onChange={properties.setSearch}
         />
