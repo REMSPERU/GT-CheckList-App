@@ -7,9 +7,10 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useCallback, useState, useEffect, memo } from 'react';
+import { useCallback, useState, useEffect, memo, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import {
@@ -54,6 +55,14 @@ function getEquipamentoStyle(abreviatura: string) {
 
 function getSingleParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : (value ?? '');
+}
+
+function normalizeSearch(val: string) {
+  return val
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 }
 
 interface InventoryEquipamentoRowProps {
@@ -175,6 +184,7 @@ export default function InventorySystemsScreen() {
   const propertyImageUrl = getSingleParam(params.propertyImageUrl);
 
   const [expandedSystemId, setExpandedSystemId] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState('');
 
   const {
     data: systems,
@@ -182,6 +192,38 @@ export default function InventorySystemsScreen() {
     isRefetching,
     error,
   } = useInventoryChecklistSystems(propertyId);
+
+  const filteredSystems = useMemo(() => {
+    if (!systems) return [];
+    const q = normalizeSearch(searchText);
+    if (!q) return systems;
+
+    return systems
+      .map(system => {
+        const systemNombreMatches = normalizeSearch(system.nombre).includes(q);
+        const filteredEquipamentos = system.equipamentos.filter(
+          eq =>
+            normalizeSearch(eq.nombre).includes(q) ||
+            normalizeSearch(eq.abreviatura).includes(q)
+        );
+
+        if (systemNombreMatches || filteredEquipamentos.length > 0) {
+          const equipmentsToUse = filteredEquipamentos.length > 0
+            ? filteredEquipamentos
+            : system.equipamentos;
+
+          const sumEquipos = equipmentsToUse.reduce((acc, eq) => acc + (eq.equipos_count ?? 0), 0);
+
+          return {
+            ...system,
+            equipamentos: equipmentsToUse,
+            equipos_count: sumEquipos,
+          };
+        }
+        return null;
+      })
+      .filter((sys): sys is SistemaChecklistResponse => sys !== null);
+  }, [systems, searchText]);
 
   const handleEquipamentoPress = useCallback(
     (equipamento: EquipamentoResponse, systemNombre: string) => {
@@ -221,12 +263,12 @@ export default function InventorySystemsScreen() {
     ({ item }) => (
       <InventorySystemCard
         item={item}
-        isExpanded={expandedSystemId === item.id}
+        isExpanded={searchText.trim().length > 0 ? true : expandedSystemId === item.id}
         onToggle={handleToggleSystem}
         onPressEquipamento={handleEquipamentoPress}
       />
     ),
-    [expandedSystemId, handleToggleSystem, handleEquipamentoPress],
+    [expandedSystemId, handleToggleSystem, handleEquipamentoPress, searchText],
   );
 
   return (
@@ -280,8 +322,33 @@ export default function InventorySystemsScreen() {
       <View style={styles.sectionHeader}>
         <Ionicons name="layers-outline" size={18} color="#0891B2" />
         <Text style={styles.sectionTitle}>Sistemas</Text>
-        {systems && <Text style={styles.sectionCount}>({systems.length})</Text>}
+        {systems && (
+          <Text style={styles.sectionCount}>
+            ({filteredSystems.length})
+          </Text>
+        )}
       </View>
+
+      {/* Search */}
+      {systems && systems.length > 0 && (
+        <View style={styles.searchWrap}>
+          <Ionicons name="search-outline" size={16} color="#94A3B8" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar sistema o tipo..."
+            placeholderTextColor="#94A3B8"
+            value={searchText}
+            onChangeText={setSearchText}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchText.length > 0 && (
+            <Pressable onPress={() => setSearchText('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color="#94A3B8" />
+            </Pressable>
+          )}
+        </View>
+      )}
 
       {/* Content */}
       {isLoading && !systems ? (
@@ -296,12 +363,12 @@ export default function InventorySystemsScreen() {
         </View>
       ) : (
         <FlatList
-          data={systems ?? []}
+          data={filteredSystems}
           keyExtractor={item => item.id}
           renderItem={renderItem}
           contentContainerStyle={[
             styles.list,
-            (!systems || systems.length === 0) && styles.listEmpty,
+            (!filteredSystems || filteredSystems.length === 0) && styles.listEmpty,
           ]}
           showsVerticalScrollIndicator={false}
           refreshing={isRefetching}
@@ -310,11 +377,15 @@ export default function InventorySystemsScreen() {
             <View style={styles.centered}>
               <Ionicons name="layers-outline" size={48} color="#CBD5E1" />
               <Text style={styles.emptyText}>
-                No hay sistemas registrados para este inmueble.
+                {searchText
+                  ? `Sin resultados para "${searchText}"`
+                  : 'No hay sistemas registrados para este inmueble.'}
               </Text>
-              <Text style={styles.emptyHint}>
-                Verifica que el inmueble tenga equipamentos asignados.
-              </Text>
+              {!searchText && (
+                <Text style={styles.emptyHint}>
+                  Verifica que el inmueble tenga equipamentos asignados.
+                </Text>
+              )}
             </View>
           }
         />
@@ -554,5 +625,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
     fontWeight: '600',
+  },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#0F172A',
+    paddingVertical: 0,
   },
 });
