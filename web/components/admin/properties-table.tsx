@@ -15,7 +15,7 @@ export function PropertiesTable({ items, isLoading }: PropertiesTableProps) {
       <ResponsiveTable>
         <table className={TABLE_CLASS}>
           <TableHeaders
-            headers={['Codigo', 'Nombre', 'Ciudad', 'Direccion', 'Prioridad', 'Activo']}
+            headers={['Codigo', 'Nombre', 'Ciudad', 'Direccion']}
           />
           <tbody>
             {items.map(item => (
@@ -25,8 +25,6 @@ export function PropertiesTable({ items, isLoading }: PropertiesTableProps) {
                   item.name,
                   item.city ?? '-',
                   item.address ?? '-',
-                  item.maintenance_priority ?? '-',
-                  item.is_active ? 'Si' : 'No',
                 ].map((value, index) => (
                   <td className={TD_CLASS} key={`${item.id}-${index}`}>
                     {value}
