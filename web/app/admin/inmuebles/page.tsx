@@ -1,23 +1,34 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 
 import { PropertiesGrid } from '@/components/admin/properties-grid';
+import { PropertyDrawer } from '@/components/admin/property-drawer';
 import { Alert } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { useAdminProperties } from '@/hooks/admin/use-admin-properties';
 
 function AdminPropertiesContent() {
   const properties = useAdminProperties();
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   return (
     <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
-      <section className="flex items-center gap-3 max-[640px]:flex-col max-[640px]:items-stretch">
-        <SearchInput
-          placeholder="Buscar nombre, codigo, ciudad o direccion"
-          value={properties.search}
-          onChange={properties.setSearch}
-        />
+      <section className="flex items-center justify-between gap-3 max-[640px]:flex-col max-[640px]:items-stretch">
+        <div className="flex-1 max-w-lg">
+          <SearchInput
+            placeholder="Buscar nombre, ciudad o direccion"
+            value={properties.search}
+            onChange={properties.setSearch}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsDrawerOpen(true)}
+          className="rounded-full bg-emerald-800 px-5 py-2.5 text-sm font-black text-white hover:bg-emerald-950 transition shadow-sm max-[640px]:w-full text-center shrink-0"
+        >
+          ➕ Nuevo Inmueble
+        </button>
       </section>
       <Alert>{properties.errorMessage}</Alert>
       <PropertiesGrid
@@ -25,6 +36,12 @@ function AdminPropertiesContent() {
         isLoading={properties.isLoading}
         onChangeImage={properties.changePropertyImage}
         uploadingImageId={properties.uploadingImageId}
+      />
+      
+      <PropertyDrawer
+        open={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onSaveSuccess={(prop) => properties.addPropertyToList(prop)}
       />
     </main>
   );

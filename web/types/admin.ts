@@ -110,6 +110,7 @@ export interface AdminEquipmentTypeRow {
   frecuencia: string | null;
   systemName: string;
   systemId: string | null;
+  image_url?: string | null;
 }
 
 export interface AdminChecklistQuestionRow {
@@ -235,9 +236,9 @@ export interface AdminPropertyRow {
   name: string;
   address: string | null;
   city: string | null;
-  is_active: boolean | null;
-  maintenance_priority: string | null;
   image_url: string | null;
+  floor: number | null;
+  basement: number | null;
 }
 
 export interface AdminMaintenanceRow {

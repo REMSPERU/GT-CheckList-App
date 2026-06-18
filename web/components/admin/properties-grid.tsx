@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 import type { AdminPropertyRow } from '@/types/admin';
 
@@ -56,9 +57,9 @@ export function PropertiesGrid({ items, isLoading, onChangeImage, uploadingImage
       </p>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5 max-[640px]:grid-cols-1">
         {items.map(item => (
-          <PropertyCard 
-            key={item.id} 
-            property={item} 
+          <PropertyCard
+            key={item.id}
+            property={item}
             onChangeImage={onChangeImage}
             isUploading={uploadingImageId === item.id}
           />
@@ -86,16 +87,15 @@ function isNextImageSafe(url: string): boolean {
   }
 }
 
-function PropertyCard({ 
-  property, 
-  onChangeImage, 
-  isUploading 
-}: { 
+function PropertyCard({
+  property,
+  onChangeImage,
+  isUploading
+}: {
   property: AdminPropertyRow;
   onChangeImage?: (propertyId: string, file: File) => void;
   isUploading?: boolean;
 }) {
-  const priorityConfig = getPriorityConfig(property.maintenance_priority);
   const useNextImage = property.image_url ? isNextImageSafe(property.image_url) : false;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -114,27 +114,29 @@ function PropertyCard({
     <article className="group relative grid overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_8px_32px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(15,23,42,0.12)]">
       {/* Image section */}
       <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
-        {property.image_url ? (
-          useNextImage ? (
-            <Image
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              src={property.image_url}
-              alt={property.name}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            />
+        <Link href={`/admin/inmuebles/${property.id}`} className="absolute inset-0 block">
+          {property.image_url ? (
+            useNextImage ? (
+              <Image
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                src={property.image_url}
+                alt={property.name}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              />
+            ) : (
+              <img
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                src={property.image_url}
+                alt={property.name}
+              />
+            )
           ) : (
-            <img
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              src={property.image_url}
-              alt={property.name}
-            />
-          )
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-emerald-50">
-            <span className="text-5xl opacity-40">🏢</span>
-          </div>
-        )}
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-emerald-50">
+              <span className="text-5xl opacity-40">🏢</span>
+            </div>
+          )}
+        </Link>
 
         {/* Upload Overlay */}
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
@@ -159,48 +161,16 @@ function PropertyCard({
             onChange={handleFileChange}
           />
         </div>
-
-        {/* Status badge overlay */}
-        <div className="absolute left-3 top-3 z-20">
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.1em] backdrop-blur-md ${
-              property.is_active
-                ? 'bg-emerald-500/90 text-white'
-                : 'bg-slate-800/80 text-slate-300'
-            }`}
-          >
-            <span
-              className={`inline-block h-1.5 w-1.5 rounded-full ${
-                property.is_active ? 'bg-emerald-200' : 'bg-slate-500'
-              }`}
-            />
-            {property.is_active ? 'Activo' : 'Inactivo'}
-          </span>
-        </div>
-
-        {/* Priority badge overlay */}
-        {property.maintenance_priority ? (
-          <div className="absolute right-3 top-3">
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.1em] backdrop-blur-md ${priorityConfig.className}`}
-            >
-              {priorityConfig.label}
-            </span>
-          </div>
-        ) : null}
       </div>
 
       {/* Content section */}
       <div className="grid gap-3 p-5">
         <div>
-          <h3 className="m-0 text-[1.05rem] font-black leading-tight tracking-[-0.02em] text-slate-950">
-            {property.name}
-          </h3>
-          {property.code ? (
-            <p className="m-0 mt-1 text-xs font-bold text-slate-400">
-              {property.code}
-            </p>
-          ) : null}
+          <Link href={`/admin/inmuebles/${property.id}`} className="no-underline group/title">
+            <h3 className="m-0 text-[1.05rem] font-black leading-tight tracking-[-0.02em] text-slate-950 hover:text-emerald-800 transition-colors">
+              {property.name}
+            </h3>
+          </Link>
         </div>
 
         <div className="grid gap-1.5">
@@ -219,29 +189,4 @@ function PropertyCard({
       </div>
     </article>
   );
-}
-
-function getPriorityConfig(priority: string | null) {
-  switch (priority?.toUpperCase()) {
-    case 'ALTA':
-      return {
-        label: 'Alta',
-        className: 'bg-red-500/90 text-white',
-      };
-    case 'MEDIA':
-      return {
-        label: 'Media',
-        className: 'bg-amber-400/90 text-amber-950',
-      };
-    case 'BAJA':
-      return {
-        label: 'Baja',
-        className: 'bg-sky-400/90 text-sky-950',
-      };
-    default:
-      return {
-        label: priority ?? '-',
-        className: 'bg-slate-600/80 text-white',
-      };
-  }
 }
