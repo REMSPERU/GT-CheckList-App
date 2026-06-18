@@ -168,7 +168,7 @@ export async function listAssignableProperties(
 
   if (error) throw error;
 
-  return (data ?? []) as AdminPropertyRow[];
+  return (data ?? []) as unknown as AdminPropertyRow[];
 }
 
 export async function listUserPropertyAccess(

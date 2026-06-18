@@ -107,11 +107,6 @@ export default function AdminEquipmentDetailPage() {
           <KeyValue label="Codigo inmueble" value={equipment.propertyCode} />
           <KeyValue label="Ciudad" value={equipment.propertyCity} />
           <KeyValue label="Direccion" value={equipment.propertyAddress} />
-          <KeyValue label="Prioridad" value={equipment.propertyPriority} />
-          <KeyValue
-            label="Inmueble activo"
-            value={formatBoolean(equipment.propertyIsActive)}
-          />
           <KeyValue label="Zona" value={equipment.ubicacion} />
           <KeyValue label="Detalle" value={equipment.detalle_ubicacion} />
         </CompactCard>
