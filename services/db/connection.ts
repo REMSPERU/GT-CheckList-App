@@ -167,7 +167,9 @@ export async function initDatabase() {
           code TEXT,
           address TEXT,
           city TEXT,
-          image_url TEXT
+          image_url TEXT,
+          floor INTEGER,
+          basement INTEGER
         );
         
         CREATE TABLE IF NOT EXISTS local_users (
@@ -710,6 +712,25 @@ export async function initDatabase() {
       console.log(
         'Migration: Added upload_progress_message to offline_audit_sessions',
       );
+    } catch {
+      // Column already exists
+    }
+
+    // Migration v1.11: Add floor and basement columns to local_properties
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_properties ADD COLUMN floor INTEGER;`,
+      );
+      console.log('Migration: Added floor column to local_properties');
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_properties ADD COLUMN basement INTEGER;`,
+      );
+      console.log('Migration: Added basement column to local_properties');
     } catch {
       // Column already exists
     }

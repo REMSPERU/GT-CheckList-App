@@ -87,7 +87,9 @@ export interface PropertyResponse {
   longitude?: number | null;
   property_type: string;
   total_area_sqm?: number | null;
+  floor?: number | null;
   floors?: number | null;
+  basement?: number | null;
   construction_year?: number | null;
   manager_name?: string | null;
   manager_email?: string | null;
@@ -117,7 +119,9 @@ export interface PropertyCreateRequest {
   longitude?: number | null;
   property_type?: string;
   total_area_sqm?: number | null;
+  floor?: number | null;
   floors?: number | null;
+  basement?: number | null;
   construction_year?: number | null;
   manager_name?: string | null;
   manager_email?: string | null;
