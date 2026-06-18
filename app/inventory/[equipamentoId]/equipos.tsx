@@ -9,7 +9,7 @@ import {
   Pressable,
   TextInput,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCallback, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { EquipoCard } from '@/components/inventory/equipo-card';
@@ -38,6 +38,7 @@ export default function InventoryEquiposScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   const equipamentoId = getSingleParam(params.equipamentoId);
   const equipamentoNombre = getSingleParam(params.equipamentoNombre);
@@ -221,7 +222,11 @@ export default function InventoryEquiposScreen() {
 
       {/* FAB - Agregar equipo */}
       <Pressable
-        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+        style={({ pressed }) => [
+          styles.fab,
+          { bottom: insets.bottom + 32 },
+          pressed && styles.fabPressed,
+        ]}
         onPress={handleAddEquipo}
         accessibilityRole="button"
         accessibilityLabel="Agregar nuevo equipo">
