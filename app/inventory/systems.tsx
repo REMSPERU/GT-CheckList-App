@@ -11,7 +11,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCallback, useState, useEffect, memo, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -180,6 +180,7 @@ export default function InventorySystemsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   const propertyId = getSingleParam(params.propertyId);
   const propertyName = getSingleParam(params.propertyName);
@@ -444,7 +445,11 @@ export default function InventorySystemsScreen() {
 
       {/* FAB - Agregar tipo de equipo */}
       <Pressable
-        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+        style={({ pressed }) => [
+          styles.fab,
+          { bottom: insets.bottom + 32 },
+          pressed && styles.fabPressed,
+        ]}
         onPress={() => {
           setModalSearchText('');
           setModalVisible(true);
@@ -671,7 +676,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingBottom: 100,
     gap: 12,
   },
   listEmpty: {

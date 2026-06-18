@@ -38,6 +38,7 @@ export const inventoryKeys = {
 export function useInventorySystems(propertyId: string) {
   return useQuery<InventorySistema[], Error>({
     queryKey: inventoryKeys.systems(propertyId),
+    networkMode: 'always',
     queryFn: () =>
       DatabaseService.getInventorySystemsByProperty(propertyId) as Promise<
         InventorySistema[]
@@ -54,6 +55,7 @@ export function useInventorySystems(propertyId: string) {
 export function useInventoryChecklistSystems(propertyId: string) {
   return useQuery<SistemaChecklistResponse[], Error>({
     queryKey: inventoryKeys.checklistSystems(propertyId),
+    networkMode: 'always',
     queryFn: () =>
       DatabaseService.getChecklistSystemsByProperty(propertyId) as Promise<
         SistemaChecklistResponse[]
@@ -73,6 +75,7 @@ export function useInventoryEquipamentos(
 ) {
   return useQuery<InventoryEquipamento[], Error>({
     queryKey: inventoryKeys.equipamentos(propertyId, sistemaId),
+    networkMode: 'always',
     queryFn: () =>
       DatabaseService.getInventoryEquipamentosBySystem(
         propertyId,
@@ -91,6 +94,7 @@ export function useInventoryEquipamentos(
 export function useInventoryEquipos(propertyId: string, equipamentoId: string) {
   return useQuery<InventoryEquipo[], Error>({
     queryKey: inventoryKeys.equipos(propertyId, equipamentoId),
+    networkMode: 'always',
     queryFn: () =>
       DatabaseService.getInventoryEquiposByEquipamento(
         propertyId,
@@ -108,6 +112,7 @@ export function useInventoryEquipos(propertyId: string, equipamentoId: string) {
 export function useInventoryEquipoDetail(equipoId: string) {
   return useQuery<InventoryEquipo | null, Error>({
     queryKey: inventoryKeys.equipo(equipoId),
+    networkMode: 'always',
     queryFn: () =>
       DatabaseService.getInventoryEquipoById(
         equipoId,
@@ -124,6 +129,7 @@ export function useInventoryEquipoDetail(equipoId: string) {
 export function useAllInventoryEquipamentos() {
   return useQuery({
     queryKey: [...inventoryKeys.all, 'all-equipamentos'] as const,
+    networkMode: 'always',
     queryFn: () => DatabaseService.getAllInventoryEquipamentos(),
     staleTime: 5 * 60_000,
   });
