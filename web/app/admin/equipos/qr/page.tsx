@@ -1,6 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  startTransition,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ChangeEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -34,9 +41,11 @@ const STATUS_OPTIONS = [
 const QR_LOGO_STORAGE_KEY = 'admin-equipment-qr-logo';
 const QR_LOGO_SIZE_STORAGE_KEY = 'admin-equipment-qr-logo-size';
 const QR_LOGO_RADIUS_STORAGE_KEY = 'admin-equipment-qr-logo-radius';
+const QR_PRINT_SIZE_STORAGE_KEY = 'admin-equipment-qr-print-size';
 
 type QrLogoSize = 'normal' | 'large';
 type QrLogoRadius = 'soft' | 'square';
+type QrPrintSize = 'mini' | 'extra-compact' | 'compact' | 'normal' | 'large';
 
 const QR_LOGO_SIZE_OPTIONS: { value: QrLogoSize; label: string }[] = [
   { value: 'normal', label: 'Normal' },
@@ -46,6 +55,18 @@ const QR_LOGO_SIZE_OPTIONS: { value: QrLogoSize; label: string }[] = [
 const QR_LOGO_RADIUS_OPTIONS: { value: QrLogoRadius; label: string }[] = [
   { value: 'square', label: 'Recto' },
   { value: 'soft', label: 'Suave' },
+];
+
+const QR_PRINT_SIZE_OPTIONS: {
+  value: QrPrintSize;
+  label: string;
+  reference: string;
+}[] = [
+  { value: 'mini', label: 'Mini', reference: '5 x 7' },
+  { value: 'extra-compact', label: 'Muy compacto', reference: '5 x 6' },
+  { value: 'compact', label: 'Compacto', reference: '4 x 5' },
+  { value: 'normal', label: 'Normal', reference: '3 x 4' },
+  { value: 'large', label: 'Grande', reference: '2 x 3' },
 ];
 
 const QR_LOGO_PRINT_SIZE: Record<QrLogoSize, number> = {
@@ -73,9 +94,11 @@ interface QrConfigModalProps {
   logoDataUrl: string | null;
   logoSize: QrLogoSize;
   logoRadius: QrLogoRadius;
+  printSize: QrPrintSize;
   onShowLogoChange: (value: boolean) => void;
   onLogoSizeChange: (value: QrLogoSize) => void;
   onLogoRadiusChange: (value: QrLogoRadius) => void;
+  onPrintSizeChange: (value: QrPrintSize) => void;
   onLogoChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onRemoveLogo: () => void;
   onClose: () => void;
@@ -87,9 +110,11 @@ function QrConfigModal({
   logoDataUrl,
   logoSize,
   logoRadius,
+  printSize,
   onShowLogoChange,
   onLogoSizeChange,
   onLogoRadiusChange,
+  onPrintSizeChange,
   onLogoChange,
   onRemoveLogo,
   onClose,
@@ -275,6 +300,38 @@ function QrConfigModal({
                 }}
               />
             </button>
+          </div>
+
+          <div className="grid gap-3 rounded-[20px] border border-slate-200/80 bg-white/75 p-3.5 shadow-sm">
+            <div>
+              <p className="m-0 text-sm font-black text-[#0c1720]">
+                Tamaño de impresión
+              </p>
+              <p className="m-0 mt-0.5 text-xs font-semibold text-slate-500">
+                El número indica columnas x filas aproximadas en hoja A4.
+              </p>
+            </div>
+            <div className="grid grid-cols-5 gap-2 max-[620px]:grid-cols-2 max-[420px]:grid-cols-1">
+              {QR_PRINT_SIZE_OPTIONS.map(option => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => onPrintSizeChange(option.value)}
+                  className="rounded-xl border px-3 py-2 text-xs font-black transition-colors"
+                  style={{
+                    background:
+                      printSize === option.value ? '#dcfce7' : '#ffffff',
+                    borderColor:
+                      printSize === option.value ? '#86efac' : '#e2e8f0',
+                    color: printSize === option.value ? '#166534' : '#475569',
+                  }}>
+                  <span className="block">{option.label}</span>
+                  <span className="mt-0.5 block text-[0.64rem] opacity-75">
+                    {option.reference}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid gap-3 rounded-[20px] border border-slate-200/80 bg-white/75 p-3.5 shadow-sm">
@@ -472,6 +529,75 @@ function GearIcon() {
   );
 }
 
+interface QrPrintCardProps {
+  item: AdminEquipmentQrRow;
+  shouldShowLogo: boolean;
+  qrLogoDataUrl: string | null;
+  qrLogoSize: QrLogoSize;
+  printLogoSize: number;
+  logoBorderRadius: number;
+}
+
+const QrPrintCard = memo(function QrPrintCard({
+  item,
+  shouldShowLogo,
+  qrLogoDataUrl,
+  qrLogoSize,
+  printLogoSize,
+  logoBorderRadius,
+}: QrPrintCardProps) {
+  return (
+    <article className="qr-print-card grid justify-items-center gap-3 rounded-[18px] border border-dashed border-slate-300 bg-white p-4 text-center shadow-sm">
+      <div className="qr-print-code relative h-auto w-full max-w-[150px]">
+        <QRCode
+          className="h-auto w-full"
+          level={shouldShowLogo ? 'H' : 'M'}
+          value={item.codigo}
+          viewBox="0 0 256 256"
+        />
+        {shouldShowLogo ? (
+          <span
+            className={`qr-print-logo qr-logo-size-${qrLogoSize} absolute left-1/2 top-1/2 grid -translate-x-1/2 -translate-y-1/2 place-items-center overflow-hidden text-[0.58rem] font-black tracking-[-0.04em] text-emerald-800`}
+            style={{
+              width: printLogoSize,
+              height: printLogoSize,
+              borderRadius: logoBorderRadius,
+              background: qrLogoDataUrl ? 'transparent' : '#ffffff',
+              boxShadow: qrLogoDataUrl
+                ? '0 2px 7px rgba(15,23,42,0.10)'
+                : '0 0 0 5px #ffffff, 0 2px 8px rgba(15,23,42,0.10)',
+              padding: qrLogoDataUrl ? 0 : 3,
+            }}>
+            {qrLogoDataUrl ? (
+              <Image
+                className="h-full w-full object-contain"
+                src={qrLogoDataUrl}
+                width={printLogoSize}
+                height={printLogoSize}
+                alt="Logo"
+                style={{ borderRadius: logoBorderRadius }}
+              />
+            ) : (
+              'GEMA'
+            )}
+          </span>
+        ) : null}
+      </div>
+      <span className="qr-print-id break-all font-mono text-[0.68rem] font-black leading-snug text-[#0c1720]">
+        {item.codigo}
+      </span>
+      <div className="qr-print-meta grid gap-1 text-center text-[0.62rem] font-semibold leading-tight text-slate-500">
+        <span>{item.equipmentName}</span>
+        <span>
+          {[item.ubicacion, item.detalle_ubicacion]
+            .filter(Boolean)
+            .join(' · ') || '-'}
+        </span>
+      </div>
+    </article>
+  );
+});
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -494,6 +620,7 @@ export default function AdminEquipmentQrPage() {
   const [qrLogoDataUrl, setQrLogoDataUrl] = useState<string | null>(null);
   const [qrLogoSize, setQrLogoSize] = useState<QrLogoSize>('large');
   const [qrLogoRadius, setQrLogoRadius] = useState<QrLogoRadius>('square');
+  const [qrPrintSize, setQrPrintSize] = useState<QrPrintSize>('normal');
   const [configOpen, setConfigOpen] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -511,6 +638,20 @@ export default function AdminEquipmentQrPage() {
     const storedLogoRadius = localStorage.getItem(QR_LOGO_RADIUS_STORAGE_KEY);
     if (storedLogoRadius === 'soft' || storedLogoRadius === 'square') {
       setQrLogoRadius(storedLogoRadius);
+    }
+
+    const storedPrintSize = localStorage.getItem(QR_PRINT_SIZE_STORAGE_KEY);
+    if (
+      storedPrintSize === 'mini' ||
+      storedPrintSize === 'extra-compact' ||
+      storedPrintSize === 'compact' ||
+      storedPrintSize === 'normal' ||
+      storedPrintSize === 'large'
+    ) {
+      setQrPrintSize(storedPrintSize);
+    } else if (storedPrintSize === 'extraCompact') {
+      setQrPrintSize('extra-compact');
+      localStorage.setItem(QR_PRINT_SIZE_STORAGE_KEY, 'extra-compact');
     }
   }, []);
 
@@ -674,12 +815,19 @@ export default function AdminEquipmentQrPage() {
     localStorage.setItem(QR_LOGO_RADIUS_STORAGE_KEY, nextLogoRadius);
   }
 
+  function handlePrintSizeChange(nextPrintSize: QrPrintSize) {
+    startTransition(() => {
+      setQrPrintSize(nextPrintSize);
+    });
+    localStorage.setItem(QR_PRINT_SIZE_STORAGE_KEY, nextPrintSize);
+  }
+
   const shouldShowLogo = showLogo;
   const printLogoSize = QR_LOGO_PRINT_SIZE[qrLogoSize];
   const logoBorderRadius = QR_LOGO_RADIUS[qrLogoRadius];
 
   return (
-    <main className="grid gap-4 px-8 pb-8 pt-4 max-[640px]:px-[14px]">
+    <main className="qr-print-page grid gap-4 px-8 pb-8 pt-4 max-[640px]:px-[14px]">
       {/* ------------------------------------------------------------------ */}
       {/* Header                                                              */}
       {/* ------------------------------------------------------------------ */}
@@ -786,58 +934,18 @@ export default function AdminEquipmentQrPage() {
       {/* ------------------------------------------------------------------ */}
       {/* QR Grid                                                             */}
       {/* ------------------------------------------------------------------ */}
-      <section className="qr-print-grid grid grid-cols-4 gap-3 max-[1100px]:grid-cols-3 max-[820px]:grid-cols-2 max-[520px]:grid-cols-1">
+      <section
+        className={`qr-print-grid qr-print-size-${qrPrintSize} grid grid-cols-4 gap-3 max-[1100px]:grid-cols-3 max-[820px]:grid-cols-2 max-[520px]:grid-cols-1`}>
         {items.map(item => (
-          <article
-            className="qr-print-card grid justify-items-center gap-3 rounded-[18px] border border-dashed border-slate-300 bg-white p-4 text-center shadow-sm"
-            key={item.id}>
-            <div className="qr-print-code relative h-auto w-full max-w-[150px]">
-              <QRCode
-                className="h-auto w-full"
-                level={shouldShowLogo ? 'H' : 'M'}
-                value={item.codigo}
-                viewBox="0 0 256 256"
-              />
-              {shouldShowLogo ? (
-                <span
-                  className="qr-print-logo absolute left-1/2 top-1/2 grid -translate-x-1/2 -translate-y-1/2 place-items-center overflow-hidden text-[0.58rem] font-black tracking-[-0.04em] text-emerald-800"
-                  style={{
-                    width: printLogoSize,
-                    height: printLogoSize,
-                    borderRadius: logoBorderRadius,
-                    background: qrLogoDataUrl ? 'transparent' : '#ffffff',
-                    boxShadow: qrLogoDataUrl
-                      ? '0 2px 7px rgba(15,23,42,0.10)'
-                      : '0 0 0 5px #ffffff, 0 2px 8px rgba(15,23,42,0.10)',
-                    padding: qrLogoDataUrl ? 0 : 3,
-                  }}>
-                  {qrLogoDataUrl ? (
-                    <Image
-                      className="h-full w-full object-contain"
-                      src={qrLogoDataUrl}
-                      width={printLogoSize}
-                      height={printLogoSize}
-                      alt="Logo"
-                      style={{ borderRadius: logoBorderRadius }}
-                    />
-                  ) : (
-                    'GEMA'
-                  )}
-                </span>
-              ) : null}
-            </div>
-            <span className="qr-print-id break-all font-mono text-[0.68rem] font-black leading-snug text-[#0c1720]">
-              {item.codigo}
-            </span>
-            <div className="qr-print-meta grid gap-1 text-center text-[0.62rem] font-semibold leading-tight text-slate-500">
-              <span>{item.equipmentName}</span>
-              <span>
-                {[item.ubicacion, item.detalle_ubicacion]
-                  .filter(Boolean)
-                  .join(' · ') || '-'}
-              </span>
-            </div>
-          </article>
+          <QrPrintCard
+            key={item.id}
+            item={item}
+            shouldShowLogo={shouldShowLogo}
+            qrLogoDataUrl={qrLogoDataUrl}
+            qrLogoSize={qrLogoSize}
+            printLogoSize={printLogoSize}
+            logoBorderRadius={logoBorderRadius}
+          />
         ))}
       </section>
 
@@ -850,9 +958,11 @@ export default function AdminEquipmentQrPage() {
         logoDataUrl={qrLogoDataUrl}
         logoSize={qrLogoSize}
         logoRadius={qrLogoRadius}
+        printSize={qrPrintSize}
         onShowLogoChange={setShowLogo}
         onLogoSizeChange={handleLogoSizeChange}
         onLogoRadiusChange={handleLogoRadiusChange}
+        onPrintSizeChange={handlePrintSizeChange}
         onLogoChange={handleQrLogoChange}
         onRemoveLogo={handleRemoveQrLogo}
         onClose={() => setConfigOpen(false)}

@@ -32,6 +32,13 @@
     background: #ffffff !important;
   }
 
+  .qr-print-page {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   .qr-print-controls,
   aside,
   nav,
@@ -43,20 +50,88 @@
     display: grid !important;
     grid-template-columns: repeat(3, 1fr) !important;
     gap: 6mm !important;
+    width: 100% !important;
+    align-items: start !important;
+  }
+
+  .qr-print-grid.qr-print-size-mini {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 2.5mm !important;
+  }
+
+  .qr-print-grid.qr-print-size-extra-compact {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 3mm !important;
+  }
+
+  .qr-print-grid.qr-print-size-compact {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 4mm !important;
+  }
+
+  .qr-print-grid.qr-print-size-large {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8mm !important;
   }
 
   .qr-print-card {
     break-inside: avoid;
     page-break-inside: avoid;
-    min-height: 58mm;
+    height: 58mm;
     border: 1px dashed #94a3b8 !important;
     border-radius: 4mm !important;
     box-shadow: none !important;
+    gap: 2mm !important;
+    overflow: hidden !important;
     padding: 5mm !important;
+  }
+
+  .qr-print-size-mini .qr-print-card {
+    height: 35mm;
+    border-radius: 2.5mm !important;
+    gap: 0.8mm !important;
+    padding: 2mm !important;
+  }
+
+  .qr-print-size-extra-compact .qr-print-card {
+    height: 40mm;
+    border-radius: 2.8mm !important;
+    gap: 1mm !important;
+    padding: 2.5mm !important;
+  }
+
+  .qr-print-size-compact .qr-print-card {
+    height: 48mm;
+    border-radius: 3mm !important;
+    gap: 1.4mm !important;
+    padding: 3mm !important;
+  }
+
+  .qr-print-size-large .qr-print-card {
+    height: 78mm;
+    border-radius: 5mm !important;
+    gap: 3mm !important;
+    padding: 7mm !important;
   }
 
   .qr-print-code {
     max-width: 34mm !important;
+  }
+
+  .qr-print-size-mini .qr-print-code {
+    max-width: 19mm !important;
+  }
+
+  .qr-print-size-extra-compact .qr-print-code {
+    max-width: 22mm !important;
+  }
+
+  .qr-print-size-compact .qr-print-code {
+    max-width: 27mm !important;
+  }
+
+  .qr-print-size-large .qr-print-code {
+    max-width: 52mm !important;
   }
 
   .qr-print-logo {
@@ -68,13 +143,88 @@
     box-shadow: 0 0 0 1.2mm #ffffff !important;
   }
 
+  .qr-print-size-mini .qr-print-logo {
+    width: 5mm !important;
+    height: 5mm !important;
+    border-radius: 1.2mm !important;
+    font-size: 3.6pt !important;
+    box-shadow: 0 0 0 0.7mm #ffffff !important;
+  }
+
+  .qr-print-size-extra-compact .qr-print-logo {
+    width: 5.8mm !important;
+    height: 5.8mm !important;
+    border-radius: 1.4mm !important;
+    font-size: 4pt !important;
+    box-shadow: 0 0 0 0.8mm #ffffff !important;
+  }
+
+  .qr-print-size-compact .qr-print-logo {
+    width: 6.5mm !important;
+    height: 6.5mm !important;
+    border-radius: 1.5mm !important;
+    font-size: 4.5pt !important;
+    box-shadow: 0 0 0 0.9mm #ffffff !important;
+  }
+
+  .qr-print-size-large .qr-print-logo {
+    width: 13mm !important;
+    height: 13mm !important;
+    border-radius: 2.5mm !important;
+    font-size: 7pt !important;
+    box-shadow: 0 0 0 1.6mm #ffffff !important;
+  }
+
+  .qr-print-logo.qr-logo-size-normal {
+    transform: translate(-50%, -50%) scale(0.86) !important;
+  }
+
+  .qr-print-logo.qr-logo-size-large {
+    transform: translate(-50%, -50%) scale(1) !important;
+  }
+
   .qr-print-id {
     color: #000000 !important;
     font-size: 7pt !important;
+    line-height: 1.05 !important;
+  }
+
+  .qr-print-size-mini .qr-print-id {
+    font-size: 4.8pt !important;
+  }
+
+  .qr-print-size-extra-compact .qr-print-id {
+    font-size: 5.3pt !important;
+  }
+
+  .qr-print-size-compact .qr-print-id {
+    font-size: 5.8pt !important;
+  }
+
+  .qr-print-size-large .qr-print-id {
+    font-size: 8.5pt !important;
   }
 
   .qr-print-meta {
     color: #475569 !important;
     font-size: 6.5pt !important;
+    gap: 1mm !important;
+    line-height: 1.05 !important;
+  }
+
+  .qr-print-size-mini .qr-print-meta {
+    font-size: 4.4pt !important;
+  }
+
+  .qr-print-size-extra-compact .qr-print-meta {
+    font-size: 4.9pt !important;
+  }
+
+  .qr-print-size-compact .qr-print-meta {
+    font-size: 5.3pt !important;
+  }
+
+  .qr-print-size-large .qr-print-meta {
+    font-size: 8pt !important;
   }
 }
