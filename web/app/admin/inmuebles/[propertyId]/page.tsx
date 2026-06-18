@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import { listAdminEquipmentTypes, updateAdminEquipmentTypeImage } from '@/services/admin/equipment-types.service';
-import { getAdminProperty, updateAdminProperty } from '@/services/admin/properties.service';
+import { getAdminProperty, updateAdminProperty, updateAdminPropertyImage } from '@/services/admin/properties.service';
 import type { AdminEquipmentTypeRow, AdminPropertyRow } from '@/types/admin';
 import { uploadPropertyPhoto, uploadEquipmentTypePhoto } from '@/utils/upload-image';
 
@@ -70,7 +70,8 @@ function PropertyDetailContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'systems' | 'edit'>('systems');
+  const [activeTab, setActiveTab] = useState<'systems' | 'info'>('systems');
+  const [isEditing, setIsEditing] = useState(false);
 
   // Form states
   const [editName, setEditName] = useState('');
@@ -84,6 +85,7 @@ function PropertyDetailContent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bannerFileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedEqType, setSelectedEqType] = useState<AdminEquipmentTypeRow | null>(null);
   const [uploadingTypeId, setUploadingTypeId] = useState<string | null>(null);
@@ -202,6 +204,51 @@ function PropertyDetailContent() {
     }
   };
 
+  const handleBannerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && property) {
+      try {
+        setIsSaving(true);
+        const supabase = getSupabaseClient();
+        
+        // 1. Upload to Supabase Storage
+        const finalImageUrl = await uploadPropertyPhoto(supabase, file, property.name);
+        
+        // 2. Update column in database
+        await updateAdminPropertyImage(supabase, params.propertyId, finalImageUrl);
+        
+        // 3. Update local state
+        setProperty(prev => prev ? { ...prev, image_url: finalImageUrl } : null);
+        setEditImageUrl(finalImageUrl);
+        setImagePreview(finalImageUrl);
+        alert('Foto de portada actualizada con éxito');
+      } catch (error) {
+        console.error('Error updating property image:', error);
+        alert(error instanceof Error ? error.message : 'Error al actualizar la foto de portada');
+      } finally {
+        setIsSaving(false);
+        if (bannerFileInputRef.current) {
+          bannerFileInputRef.current.value = '';
+        }
+      }
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    if (property) {
+      setEditName(property.name || '');
+      setEditCode(property.code || '');
+      setEditCity(property.city || '');
+      setEditAddress(property.address || '');
+      setEditFloor(property.floor !== null && property.floor !== undefined ? String(property.floor) : '');
+      setEditBasement(property.basement !== null && property.basement !== undefined ? String(property.basement) : '');
+      setEditImageUrl(property.image_url || '');
+      setImagePreview(property.image_url || null);
+      setSelectedFile(null);
+    }
+  };
+
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editName.trim()) {
@@ -231,6 +278,7 @@ function PropertyDetailContent() {
       setProperty(updated);
       setEditImageUrl(updated.image_url || '');
       setSelectedFile(null);
+      setIsEditing(false);
       alert('Cambios guardados con éxito');
     } catch (error) {
       console.error('Error updating property:', error);
@@ -336,6 +384,26 @@ function PropertyDetailContent() {
             </div>
           )}
 
+          {/* Banner Photo Upload Button */}
+          <button
+            type="button"
+            onClick={() => bannerFileInputRef.current?.click()}
+            disabled={isSaving}
+            className="absolute top-6 right-6 z-20 flex items-center gap-1.5 rounded-full bg-black/60 px-4 py-2.5 text-xs font-black text-white hover:bg-black/80 transition-colors shadow-lg border border-white/10 backdrop-blur-sm"
+          >
+            {isSaving ? (
+              <>
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                <span>Subiendo...</span>
+              </>
+            ) : (
+              <>
+                <span>📷</span>
+                <span>Cambiar Portada</span>
+              </>
+            )}
+          </button>
+
           {/* Glassmorphic Title Plate */}
           <div className="absolute bottom-6 left-6 right-6 flex flex-wrap items-end justify-between gap-4 rounded-2xl bg-black/35 p-5 text-white backdrop-blur-md border border-white/10">
             <div>
@@ -377,7 +445,11 @@ function PropertyDetailContent() {
       {/* Tabs Control */}
       <section className="flex border-b border-slate-200">
         <button
-          onClick={() => setActiveTab('systems')}
+          type="button"
+          onClick={() => {
+            setActiveTab('systems');
+            setIsEditing(false);
+          }}
           className={`border-b-2 px-6 py-3 text-sm font-bold transition-all ${activeTab === 'systems'
             ? 'border-emerald-800 text-emerald-800'
             : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -386,13 +458,17 @@ function PropertyDetailContent() {
           🗂️ Sistemas y Equipos
         </button>
         <button
-          onClick={() => setActiveTab('edit')}
-          className={`border-b-2 px-6 py-3 text-sm font-bold transition-all ${activeTab === 'edit'
+          type="button"
+          onClick={() => {
+            setActiveTab('info');
+            setIsEditing(false);
+          }}
+          className={`border-b-2 px-6 py-3 text-sm font-bold transition-all ${activeTab === 'info'
             ? 'border-emerald-800 text-emerald-800'
             : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
         >
-          ⚙️ Editar Información
+          ℹ️ Información del Inmueble
         </button>
       </section>
 
@@ -483,146 +559,294 @@ function PropertyDetailContent() {
             ))
           )}
 
-          {/* Hidden File Input for Equipment Type Photo */}
-          <input
-            type="file"
-            ref={eqFileInputRef}
-            onChange={handleEqFileChange}
-            accept="image/*"
-            className="hidden"
-          />
         </section>
       ) : (
         <section className="rounded-[22px] border border-slate-200 bg-white p-6 shadow-sm max-w-2xl">
-          <form onSubmit={handleEditSubmit} className="grid gap-5">
-            {/* Cover Image */}
-            <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                Foto de Portada
-              </label>
-              {imagePreview ? (
-                <div className="relative aspect-[16/6] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
-                  <img src={imagePreview} alt="Portada" className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-red-600 font-bold text-white shadow hover:bg-red-700"
-                  >
-                    🗑️
-                  </button>
+          {!isEditing ? (
+            <div className="grid gap-6">
+              {/* Header with Edit Button */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div>
+                  <h2 className="m-0 text-base font-black text-slate-900">Datos Generales</h2>
+                  <p className="m-0 mt-0.5 text-[11px] text-slate-500 font-semibold">
+                    Información registrada del inmueble
+                  </p>
                 </div>
-              ) : (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex aspect-[16/6] w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 text-center transition hover:border-emerald-600 hover:bg-white"
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-800 border border-emerald-200 transition-colors hover:bg-emerald-100 shadow-sm"
                 >
-                  <span className="text-3xl mb-1">📷</span>
-                  <strong className="text-xs text-slate-700">Subir una nueva imagen</strong>
-                </div>
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                ref={fileInputRef}
-                className="hidden"
-                onChange={handleFileChange}
-              />
-            </div>
-
-            {/* Basic Info */}
-            <div className="grid gap-4">
-              <div>
-                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Nombre del Inmueble *
-                </label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
-                  required
-                />
+                  ✏️ Editar Datos
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* Grid with Details */}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4 max-[480px]:grid-cols-1">
                 <div>
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Nombre del Inmueble
+                  </span>
+                  <strong className="mt-1 block text-sm font-semibold text-slate-800">
+                    {property.name}
+                  </strong>
+                </div>
+
+                <div>
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
                     Código Interno
-                  </label>
-                  <input
-                    type="text"
-                    value={editCode}
-                    onChange={(e) => setEditCode(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
-                  />
+                  </span>
+                  <strong className="mt-1 block text-sm font-semibold text-slate-800">
+                    {property.code || (
+                      <span className="text-slate-400 font-medium italic">No especificado</span>
+                    )}
+                  </strong>
                 </div>
+
                 <div>
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
                     Ciudad
-                  </label>
-                  <input
-                    type="text"
-                    value={editCity}
-                    onChange={(e) => setEditCity(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
-                  />
+                  </span>
+                  <strong className="mt-1 block text-sm font-semibold text-slate-800">
+                    {property.city || (
+                      <span className="text-slate-400 font-medium italic">No especificada</span>
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Dirección
+                  </span>
+                  <strong className="mt-1 block text-sm font-semibold text-slate-800">
+                    {property.address || (
+                      <span className="text-slate-400 font-medium italic">No especificada</span>
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Número de Pisos
+                  </span>
+                  <strong className="mt-1 block text-sm font-semibold text-slate-800">
+                    {property.floor !== null && property.floor !== undefined ? property.floor : 0}
+                  </strong>
+                </div>
+
+                <div>
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Número de Sótanos
+                  </span>
+                  <strong className="mt-1 block text-sm font-semibold text-slate-800">
+                    {property.basement !== null && property.basement !== undefined ? property.basement : 0}
+                  </strong>
                 </div>
               </div>
 
+              {/* Cover Image preview and change action */}
+              <div className="border-t border-slate-100 pt-5">
+                <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Foto de Portada
+                </span>
+                <div className="relative aspect-[16/6] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                  {property.image_url ? (
+                    <>
+                      <img src={property.image_url} alt="Portada" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => bannerFileInputRef.current?.click()}
+                        disabled={isSaving}
+                        className="absolute right-3 bottom-3 flex items-center gap-1 rounded-full bg-black/60 px-3.5 py-1.5 text-xs font-black text-white hover:bg-black/80 transition-colors border border-white/20 backdrop-blur-sm shadow-md"
+                      >
+                        📷 Cambiar Imagen
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex h-full w-full flex-col items-center justify-center p-4">
+                      <span className="text-2xl mb-1">📷</span>
+                      <p className="text-xs text-slate-500 mb-2 font-medium">Sin imagen de portada asignada</p>
+                      <button
+                        type="button"
+                        onClick={() => bannerFileInputRef.current?.click()}
+                        disabled={isSaving}
+                        className="rounded-full bg-emerald-800 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-950 transition shadow-sm"
+                      >
+                        Subir Imagen
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleEditSubmit} className="grid gap-5">
+              {/* Cover Image */}
               <div>
                 <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Dirección
+                  Foto de Portada
                 </label>
+                {imagePreview ? (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="group relative aspect-[16/6] w-full cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
+                  >
+                    <img src={imagePreview} alt="Portada" className="h-full w-full object-cover" />
+                    {/* Hover Overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <span className="text-white font-bold text-sm bg-black/60 px-4 py-2 rounded-full border border-white/20 backdrop-blur-sm">
+                        📷 Seleccionar otra imagen
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Evitar abrir selector de archivos
+                        handleRemoveImage();
+                      }}
+                      className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-red-600 font-bold text-white shadow hover:bg-red-700"
+                      title="Eliminar portada"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex aspect-[16/6] w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 text-center transition hover:border-emerald-600 hover:bg-white"
+                  >
+                    <span className="text-3xl mb-1">📷</span>
+                    <strong className="text-xs text-slate-700">Subir una nueva imagen</strong>
+                  </div>
+                )}
                 <input
-                  type="text"
-                  value={editAddress}
-                  onChange={(e) => setEditAddress(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  className="hidden"
+                  onChange={handleFileChange}
                 />
               </div>
 
-              {/* Floors and Basements inputs */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Basic Info */}
+              <div className="grid gap-4">
                 <div>
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Número de Pisos
+                    Nombre del Inmueble *
                   </label>
                   <input
-                    type="number"
-                    min="0"
-                    value={editFloor}
-                    onChange={(e) => setEditFloor(e.target.value)}
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Código Interno
+                    </label>
+                    <input
+                      type="text"
+                      value={editCode}
+                      onChange={(e) => setEditCode(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Ciudad
+                    </label>
+                    <input
+                      type="text"
+                      value={editCity}
+                      onChange={(e) => setEditCity(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Dirección
+                  </label>
+                  <input
+                    type="text"
+                    value={editAddress}
+                    onChange={(e) => setEditAddress(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
                   />
                 </div>
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Número de Sótanos
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editBasement}
-                    onChange={(e) => setEditBasement(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
-                  />
+
+                {/* Floors and Basements inputs */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Número de Pisos
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editFloor}
+                      onChange={(e) => setEditFloor(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Número de Sótanos
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editBasement}
+                      onChange={(e) => setEditBasement(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="rounded-full bg-emerald-800 px-6 py-2.5 text-sm font-bold text-white hover:bg-emerald-950 transition flex items-center justify-center gap-2"
-              >
-                {isSaving ? 'Guardando...' : 'Guardar Cambios'}
-              </button>
-            </div>
-          </form>
+              {/* Actions */}
+              <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  disabled={isSaving}
+                  className="rounded-full bg-slate-100 px-6 py-2.5 text-sm font-bold text-[#0c1720] hover:bg-slate-200 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="rounded-full bg-emerald-800 px-6 py-2.5 text-sm font-bold text-white hover:bg-emerald-950 transition flex items-center justify-center gap-2 shadow-sm"
+                >
+                  {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+            </form>
+          )}
         </section>
       )}
+
+      {/* Hidden file inputs always mounted on the DOM */}
+      <input
+        type="file"
+        ref={eqFileInputRef}
+        onChange={handleEqFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={bannerFileInputRef}
+        onChange={handleBannerFileChange}
+        accept="image/*"
+        className="hidden"
+      />
     </main>
   );
 }

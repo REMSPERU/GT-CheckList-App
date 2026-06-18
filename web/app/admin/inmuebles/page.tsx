@@ -34,8 +34,6 @@ function AdminPropertiesContent() {
       <PropertiesGrid
         items={properties.filteredItems}
         isLoading={properties.isLoading}
-        onChangeImage={properties.changePropertyImage}
-        uploadingImageId={properties.uploadingImageId}
       />
       
       <PropertyDrawer
