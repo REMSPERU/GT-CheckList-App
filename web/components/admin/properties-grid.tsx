@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -7,11 +6,9 @@ import type { AdminPropertyRow } from '@/types/admin';
 interface PropertiesGridProps {
   items: AdminPropertyRow[];
   isLoading: boolean;
-  onChangeImage?: (propertyId: string, file: File) => void;
-  uploadingImageId?: string | null;
 }
 
-export function PropertiesGrid({ items, isLoading, onChangeImage, uploadingImageId }: PropertiesGridProps) {
+export function PropertiesGrid({ items, isLoading }: PropertiesGridProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5 max-[640px]:grid-cols-1">
@@ -60,8 +57,6 @@ export function PropertiesGrid({ items, isLoading, onChangeImage, uploadingImage
           <PropertyCard
             key={item.id}
             property={item}
-            onChangeImage={onChangeImage}
-            isUploading={uploadingImageId === item.id}
           />
         ))}
       </div>
@@ -87,90 +82,45 @@ function isNextImageSafe(url: string): boolean {
   }
 }
 
-function PropertyCard({
-  property,
-  onChangeImage,
-  isUploading
-}: {
-  property: AdminPropertyRow;
-  onChangeImage?: (propertyId: string, file: File) => void;
-  isUploading?: boolean;
-}) {
+function PropertyCard({ property }: { property: AdminPropertyRow }) {
   const useNextImage = property.image_url ? isNextImageSafe(property.image_url) : false;
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && onChangeImage) {
-      onChangeImage(property.id, file);
-    }
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
 
   return (
-    <article className="group relative grid overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_8px_32px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(15,23,42,0.12)]">
+    <Link
+      href={`/admin/inmuebles/${property.id}`}
+      className="group block overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_8px_32px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(15,23,42,0.12)] no-underline text-inherit"
+    >
       {/* Image section */}
       <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
-        <Link href={`/admin/inmuebles/${property.id}`} className="absolute inset-0 block">
-          {property.image_url ? (
-            useNextImage ? (
-              <Image
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
-                src={property.image_url}
-                alt={property.name}
-                fill
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              />
-            ) : (
-              <img
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                src={property.image_url}
-                alt={property.name}
-              />
-            )
+        {property.image_url ? (
+          useNextImage ? (
+            <Image
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              src={property.image_url}
+              alt={property.name}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-emerald-50">
-              <span className="text-5xl opacity-40">🏢</span>
-            </div>
-          )}
-        </Link>
-
-        {/* Upload Overlay */}
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-          {isUploading ? (
-            <div className="flex flex-col items-center gap-2">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-white/30 border-t-emerald-400" />
-              <span className="text-sm font-semibold text-white shadow-sm">Subiendo...</span>
-            </div>
-          ) : (
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="rounded-full bg-white/20 px-4 py-2.5 text-sm font-bold text-white backdrop-blur-md transition-all hover:bg-white/30 hover:scale-105 shadow-lg"
-            >
-              📷 Cambiar Foto
-            </button>
-          )}
-          <input
-            type="file"
-            accept="image/*"
-            ref={fileInputRef}
-            className="hidden"
-            onChange={handleFileChange}
-          />
-        </div>
+            <img
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              src={property.image_url}
+              alt={property.name}
+            />
+          )
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-emerald-50">
+            <span className="text-5xl opacity-40">🏢</span>
+          </div>
+        )}
       </div>
 
       {/* Content section */}
       <div className="grid gap-3 p-5">
         <div>
-          <Link href={`/admin/inmuebles/${property.id}`} className="no-underline group/title">
-            <h3 className="m-0 text-[1.05rem] font-black leading-tight tracking-[-0.02em] text-slate-950 hover:text-emerald-800 transition-colors">
-              {property.name}
-            </h3>
-          </Link>
+          <h3 className="m-0 text-[1.05rem] font-black leading-tight tracking-[-0.02em] text-slate-950 group-hover:text-emerald-800 transition-colors">
+            {property.name}
+          </h3>
         </div>
 
         <div className="grid gap-1.5">
@@ -187,6 +137,6 @@ function PropertyCard({
           ) : null}
         </div>
       </div>
-    </article>
+    </Link>
   );
 }
