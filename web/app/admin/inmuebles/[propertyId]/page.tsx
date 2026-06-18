@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
-import { listAdminEquipmentTypes } from '@/services/admin/equipment-types.service';
+import { listAdminEquipmentTypes, updateAdminEquipmentTypeImage } from '@/services/admin/equipment-types.service';
 import { getAdminProperty, updateAdminProperty } from '@/services/admin/properties.service';
 import type { AdminEquipmentTypeRow, AdminPropertyRow } from '@/types/admin';
-import { uploadPropertyPhoto } from '@/utils/upload-image';
+import { uploadPropertyPhoto, uploadEquipmentTypePhoto } from '@/utils/upload-image';
 
 // Curated system images mapping function
 function getSystemImage(systemName: string): string {
@@ -17,16 +17,16 @@ function getSystemImage(systemName: string): string {
     return 'https://images.unsplash.com/photo-1558346490-a72e53ae2d4f?auto=format&fit=crop&w=400&q=80';
   }
   if (normalized.includes('agua') || normalized.includes('bomb') || normalized.includes('hidro') || normalized.includes('sanit')) {
-    return 'https://images.unsplash.com/photo-1585338114002-9595561a7a36?auto=format&fit=crop&w=400&q=80';
+    return 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80';
   }
   if (normalized.includes('incendio') || normalized.includes('fuego') || normalized.includes('extintor') || normalized.includes('aci')) {
-    return 'https://images.unsplash.com/photo-1606206591513-0c53743b59df?auto=format&fit=crop&w=400&q=80';
+    return 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80';
   }
   if (normalized.includes('ascensor') || normalized.includes('elevad') || normalized.includes('vertical')) {
     return 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=400&q=80';
   }
   if (normalized.includes('aire') || normalized.includes('acondicion') || normalized.includes('hvac') || normalized.includes('ventilac') || normalized.includes('chiller')) {
-    return 'https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&w=400&q=80';
+    return 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80';
   }
   if (normalized.includes('grupo') || normalized.includes('generad') || normalized.includes('electrog')) {
     return 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?auto=format&fit=crop&w=400&q=80';
@@ -50,11 +50,7 @@ function getSystemEmoji(systemName: string): string {
 }
 
 interface DBEquipo {
-  id: string;
   id_equipamento: string | null;
-  codigo: string | null;
-  ubicacion: string | null;
-  estatus: string | null;
 }
 
 interface DBSystem {
@@ -65,12 +61,12 @@ interface DBSystem {
 function PropertyDetailContent() {
   const params = useParams<{ propertyId: string }>();
   const router = useRouter();
-  
+
   const [property, setProperty] = useState<AdminPropertyRow | null>(null);
   const [systems, setSystems] = useState<DBSystem[]>([]);
   const [equipmentTypes, setEquipmentTypes] = useState<AdminEquipmentTypeRow[]>([]);
   const [equipos, setEquipos] = useState<DBEquipo[]>([]);
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -81,13 +77,17 @@ function PropertyDetailContent() {
   const [editCode, setEditCode] = useState('');
   const [editCity, setEditCity] = useState('');
   const [editAddress, setEditAddress] = useState('');
-  const [editIsActive, setEditIsActive] = useState(true);
-  const [editPriority, setEditPriority] = useState('');
+  const [editFloor, setEditFloor] = useState('');
+  const [editBasement, setEditBasement] = useState('');
   const [editImageUrl, setEditImageUrl] = useState('');
-  
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [selectedEqType, setSelectedEqType] = useState<AdminEquipmentTypeRow | null>(null);
+  const [uploadingTypeId, setUploadingTypeId] = useState<string | null>(null);
+  const eqFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -99,11 +99,16 @@ function PropertyDetailContent() {
         setErrorMessage(null);
         const supabase = getSupabaseClient();
 
+        // Query property, systems catalog, equipment types catalog and direct equipments list
         const [propRes, sysRes, typesRes, equiposRes] = await Promise.all([
           getAdminProperty(supabase, params.propertyId),
           supabase.from('sistemas').select('id, nombre').order('nombre', { ascending: true }),
           listAdminEquipmentTypes(supabase),
-          supabase.from('equipos').select('id, id_equipamento, codigo, ubicacion, estatus').eq('id_property', params.propertyId)
+          // Direct distinct-oriented query selecting only equipment type from equipments table by property ID
+          supabase
+            .from('equipos')
+            .select('id_equipamento')
+            .eq('id_property', params.propertyId)
         ]);
 
         if (!isMounted) return;
@@ -122,8 +127,8 @@ function PropertyDetailContent() {
         setEditCode(propRes.code || '');
         setEditCity(propRes.city || '');
         setEditAddress(propRes.address || '');
-        setEditIsActive(propRes.is_active ?? true);
-        setEditPriority(propRes.maintenance_priority || '');
+        setEditFloor(propRes.floor !== null && propRes.floor !== undefined ? String(propRes.floor) : '');
+        setEditBasement(propRes.basement !== null && propRes.basement !== undefined ? String(propRes.basement) : '');
         setEditImageUrl(propRes.image_url || '');
         setImagePreview(propRes.image_url || null);
 
@@ -158,7 +163,7 @@ function PropertyDetailContent() {
     return systems.map(system => {
       // Find equipment types under this system
       const typesUnderSystem = equipmentTypes.filter(t => t.systemId === system.id);
-      
+
       // Filter types that have at least 1 equipo in this property
       const activeTypes = typesUnderSystem
         .map(type => ({
@@ -218,9 +223,9 @@ function PropertyDetailContent() {
         code: editCode.trim() || null,
         city: editCity.trim() || null,
         address: editAddress.trim() || null,
-        is_active: editIsActive,
-        maintenance_priority: editPriority || null,
         image_url: finalImageUrl || null,
+        floor: editFloor.trim() ? parseInt(editFloor.trim(), 10) : null,
+        basement: editBasement.trim() ? parseInt(editBasement.trim(), 10) : null,
       });
 
       setProperty(updated);
@@ -233,6 +238,45 @@ function PropertyDetailContent() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleEqFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && selectedEqType) {
+      try {
+        setUploadingTypeId(selectedEqType.id);
+        const supabase = getSupabaseClient();
+        
+        // 1. Upload to Supabase Storage
+        const publicUrl = await uploadEquipmentTypePhoto(supabase, file, selectedEqType.nombre);
+        
+        // 2. Update column in database
+        await updateAdminEquipmentTypeImage(supabase, selectedEqType.id, publicUrl);
+        
+        // 3. Update local state
+        setEquipmentTypes(prev =>
+          prev.map(t => (t.id === selectedEqType.id ? { ...t, image_url: publicUrl } : t))
+        );
+        
+        alert(`Imagen de ${selectedEqType.nombre} actualizada con éxito`);
+      } catch (error) {
+        console.error('Error updating equipment type image:', error);
+        alert(error instanceof Error ? error.message : 'Error al actualizar la imagen');
+      } finally {
+        setUploadingTypeId(null);
+        setSelectedEqType(null);
+        if (eqFileInputRef.current) {
+          eqFileInputRef.current.value = '';
+        }
+      }
+    }
+  };
+
+  const triggerEqImageUpload = (type: AdminEquipmentTypeRow) => {
+    setSelectedEqType(type);
+    setTimeout(() => {
+      eqFileInputRef.current?.click();
+    }, 0);
   };
 
   if (isLoading) {
@@ -291,7 +335,7 @@ function PropertyDetailContent() {
               <span className="text-8xl">🏢</span>
             </div>
           )}
-          
+
           {/* Glassmorphic Title Plate */}
           <div className="absolute bottom-6 left-6 right-6 flex flex-wrap items-end justify-between gap-4 rounded-2xl bg-black/35 p-5 text-white backdrop-blur-md border border-white/10">
             <div>
@@ -302,21 +346,11 @@ function PropertyDetailContent() {
                 📍 {property.address ? `${property.address}, ` : ''}{property.city || ''}
               </p>
             </div>
-            <div className="flex gap-2">
-              <span className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-wider ${property.is_active ? 'bg-emerald-500/90 text-white' : 'bg-slate-700/90 text-slate-300'}`}>
-                {property.is_active ? 'Activo' : 'Inactivo'}
-              </span>
-              {property.maintenance_priority && (
-                <span className="rounded-full bg-amber-500/90 px-3 py-1 text-xs font-black uppercase tracking-wider text-amber-950">
-                  ⚠️ Prioridad {property.maintenance_priority}
-                </span>
-              )}
-            </div>
           </div>
         </div>
 
         {/* Quick Stats Panel */}
-        <div className="grid grid-cols-3 divide-x divide-slate-100 bg-slate-50 px-6 py-4 text-center text-xs font-bold text-slate-600">
+        <div className="grid grid-cols-4 divide-x divide-slate-100 bg-slate-50 px-6 py-4 text-center text-xs font-bold text-slate-600">
           <div>
             <strong className="block text-xl font-black text-slate-900">{systemsWithCounts.length}</strong>
             <span>Sistemas Activos</span>
@@ -327,9 +361,15 @@ function PropertyDetailContent() {
           </div>
           <div>
             <strong className="block text-xl font-black text-slate-900">
-              {property.code || '-'}
+              {property.floor !== null && property.floor !== undefined ? property.floor : '0'}
             </strong>
-            <span>Código Interno</span>
+            <span>Pisos</span>
+          </div>
+          <div>
+            <strong className="block text-xl font-black text-slate-900">
+              {property.basement !== null && property.basement !== undefined ? property.basement : '0'}
+            </strong>
+            <span>Sótanos</span>
           </div>
         </div>
       </section>
@@ -338,21 +378,19 @@ function PropertyDetailContent() {
       <section className="flex border-b border-slate-200">
         <button
           onClick={() => setActiveTab('systems')}
-          className={`border-b-2 px-6 py-3 text-sm font-bold transition-all ${
-            activeTab === 'systems'
-              ? 'border-emerald-800 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+          className={`border-b-2 px-6 py-3 text-sm font-bold transition-all ${activeTab === 'systems'
+            ? 'border-emerald-800 text-emerald-800'
+            : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
         >
           🗂️ Sistemas y Equipos
         </button>
         <button
           onClick={() => setActiveTab('edit')}
-          className={`border-b-2 px-6 py-3 text-sm font-bold transition-all ${
-            activeTab === 'edit'
-              ? 'border-emerald-800 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+          className={`border-b-2 px-6 py-3 text-sm font-bold transition-all ${activeTab === 'edit'
+            ? 'border-emerald-800 text-emerald-800'
+            : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
         >
           ⚙️ Editar Información
         </button>
@@ -390,13 +428,32 @@ function PropertyDetailContent() {
                 {/* Grid of Equipment Type Cards */}
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4 max-[480px]:grid-cols-1">
                   {system.types.map(type => {
-                    const bgImage = getSystemImage(system.nombre);
+                    const bgImage = type.image_url || getSystemImage(system.nombre);
                     return (
                       <Link
                         key={type.id}
                         href={`/admin/equipos?property=${property.id}&system=${system.id}&eqType=${type.id}`}
                         className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 no-underline flex flex-col"
                       >
+                        {/* Edit Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            triggerEqImageUpload(type);
+                          }}
+                          disabled={uploadingTypeId !== null}
+                          className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/65 text-white backdrop-blur-sm border border-white/20 transition-all hover:bg-black/85 hover:scale-105"
+                          title="Cambiar imagen de portada"
+                        >
+                          {uploadingTypeId === type.id ? (
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          ) : (
+                            '✏️'
+                          )}
+                        </button>
+
                         {/* Card Background image */}
                         <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100">
                           <img
@@ -425,6 +482,15 @@ function PropertyDetailContent() {
               </div>
             ))
           )}
+
+          {/* Hidden File Input for Equipment Type Photo */}
+          <input
+            type="file"
+            ref={eqFileInputRef}
+            onChange={handleEqFileChange}
+            accept="image/*"
+            className="hidden"
+          />
         </section>
       ) : (
         <section className="rounded-[22px] border border-slate-200 bg-white p-6 shadow-sm max-w-2xl">
@@ -492,24 +558,6 @@ function PropertyDetailContent() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Prioridad
-                  </label>
-                  <select
-                    value={editPriority}
-                    onChange={(e) => setEditPriority(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
-                  >
-                    <option value="">Sin prioridad</option>
-                    <option value="ALTA">Alta</option>
-                    <option value="MEDIA">Media</option>
-                    <option value="BAJA">Baja</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
                     Ciudad
                   </label>
                   <input
@@ -519,41 +567,46 @@ function PropertyDetailContent() {
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Dirección
+                </label>
+                <input
+                  type="text"
+                  value={editAddress}
+                  onChange={(e) => setEditAddress(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
+                />
+              </div>
+
+              {/* Floors and Basements inputs */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Dirección
+                    Número de Pisos
                   </label>
                   <input
-                    type="text"
-                    value={editAddress}
-                    onChange={(e) => setEditAddress(e.target.value)}
+                    type="number"
+                    min="0"
+                    value={editFloor}
+                    onChange={(e) => setEditFloor(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
                   />
                 </div>
-              </div>
-
-              {/* Status Switch */}
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm">
                 <div>
-                  <strong className="block text-xs font-bold uppercase tracking-wider text-slate-700">Estado del Inmueble</strong>
-                  <span className="text-[0.68rem] text-slate-400 font-medium font-semibold">Los inmuebles inactivos no se muestran en el app móvil</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditIsActive(!editIsActive)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    editIsActive ? 'bg-emerald-600' : 'bg-slate-300'
-                  }`}
-                  role="switch"
-                  aria-checked={editIsActive}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      editIsActive ? 'translate-x-5' : 'translate-x-0'
-                    }`}
+                  <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Número de Sótanos
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editBasement}
+                    onChange={(e) => setEditBasement(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
                   />
-                </button>
+                </div>
               </div>
             </div>
 

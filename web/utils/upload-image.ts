@@ -117,3 +117,50 @@ export async function uploadPropertyPhoto(
 
   return publicData.publicUrl;
 }
+
+/**
+ * Optimiza una imagen de tipo de equipo y la sube a Supabase Storage en el bucket 'properties'.
+ * Retorna la URL pública de la imagen.
+ */
+export async function uploadEquipmentTypePhoto(
+  supabase: SupabaseClient,
+  file: File,
+  typeName: string,
+): Promise<string> {
+  // 1. Optimizar imagen
+  const optimizedBlob = await optimizeImageWebp(file, { maxWidth: 800, maxHeight: 800, quality: 0.85 });
+
+  // 2. Generar nombre de archivo único
+  const safeName = typeName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]/g, '_')
+    .replace(/_+/g, '_')
+    .toLowerCase();
+
+  const timestamp = new Date().getTime();
+  const filePath = `equipment_types/${safeName}_${timestamp}.webp`;
+  const bucketName = 'properties';
+
+  // 3. Subir archivo
+  const { data, error } = await supabase.storage
+    .from(bucketName)
+    .upload(filePath, optimizedBlob, {
+      contentType: 'image/webp',
+      upsert: true,
+    });
+
+  if (error) {
+    if (error.message?.includes('bucket') && error.message?.includes('not found')) {
+      throw new Error(`El bucket '${bucketName}' no existe en Supabase. Debes crearlo en el panel de Storage y hacerlo público.`);
+    }
+    throw new Error(`Error al subir imagen de equipo: ${error.message}`);
+  }
+
+  // 4. Obtener URL pública
+  const { data: publicData } = supabase.storage
+    .from(bucketName)
+    .getPublicUrl(data.path);
+
+  return publicData.publicUrl;
+}

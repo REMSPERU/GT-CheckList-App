@@ -57,9 +57,9 @@ export function PropertiesGrid({ items, isLoading, onChangeImage, uploadingImage
       </p>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5 max-[640px]:grid-cols-1">
         {items.map(item => (
-          <PropertyCard 
-            key={item.id} 
-            property={item} 
+          <PropertyCard
+            key={item.id}
+            property={item}
             onChangeImage={onChangeImage}
             isUploading={uploadingImageId === item.id}
           />
@@ -87,11 +87,11 @@ function isNextImageSafe(url: string): boolean {
   }
 }
 
-function PropertyCard({ 
-  property, 
-  onChangeImage, 
-  isUploading 
-}: { 
+function PropertyCard({
+  property,
+  onChangeImage,
+  isUploading
+}: {
   property: AdminPropertyRow;
   onChangeImage?: (propertyId: string, file: File) => void;
   isUploading?: boolean;

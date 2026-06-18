@@ -29,6 +29,7 @@ export interface EquipmentTypeQueryRow {
   abreviatura: string | null;
   Frecuencia: string | null;
   id_sistema: string | null;
+  image_url?: string | null;
 }
 
 export interface ChecklistQuestionQueryRow {

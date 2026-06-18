@@ -11,7 +11,7 @@ export async function listAdminEquipmentTypes(
     getSystemNameById(supabase),
     supabase
       .from('equipamentos')
-      .select('id, nombre, abreviatura, Frecuencia, id_sistema')
+      .select('id, nombre, abreviatura, Frecuencia, id_sistema, image_url')
       .order('nombre', { ascending: true }),
   ]);
 
@@ -27,5 +27,19 @@ export async function listAdminEquipmentTypes(
       ? (systemsById.get(item.id_sistema) ?? 'Sin sistema')
       : 'Sin sistema',
     systemId: item.id_sistema,
+    image_url: item.image_url ?? null,
   }));
+}
+
+export async function updateAdminEquipmentTypeImage(
+  supabase: SupabaseClient,
+  typeId: string,
+  imageUrl: string | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('equipamentos')
+    .update({ image_url: imageUrl })
+    .eq('id', typeId);
+
+  if (error) throw error;
 }

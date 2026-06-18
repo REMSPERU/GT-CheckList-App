@@ -22,8 +22,8 @@ export function PropertyDrawer({
   const [code, setCode] = useState('');
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
-  const [isActive, setIsActive] = useState(true);
-  const [priority, setPriority] = useState('');
+  const [floor, setFloor] = useState('');
+  const [basement, setBasement] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -41,8 +41,8 @@ export function PropertyDrawer({
         setCode(propertyToEdit.code || '');
         setCity(propertyToEdit.city || '');
         setAddress(propertyToEdit.address || '');
-        setIsActive(propertyToEdit.is_active ?? true);
-        setPriority(propertyToEdit.maintenance_priority || '');
+        setFloor(propertyToEdit.floor !== null && propertyToEdit.floor !== undefined ? String(propertyToEdit.floor) : '');
+        setBasement(propertyToEdit.basement !== null && propertyToEdit.basement !== undefined ? String(propertyToEdit.basement) : '');
         setImageUrl(propertyToEdit.image_url || '');
         setImagePreview(propertyToEdit.image_url || null);
       } else {
@@ -51,8 +51,8 @@ export function PropertyDrawer({
         setCode('');
         setCity('');
         setAddress('');
-        setIsActive(true);
-        setPriority('');
+        setFloor('');
+        setBasement('');
         setImageUrl('');
         setImagePreview(null);
       }
@@ -126,9 +126,9 @@ export function PropertyDrawer({
         code: code.trim() || null,
         city: city.trim() || null,
         address: address.trim() || null,
-        is_active: isActive,
-        maintenance_priority: priority || null,
         image_url: finalImageUrl || null,
+        floor: floor.trim() ? parseInt(floor.trim(), 10) : null,
+        basement: basement.trim() ? parseInt(basement.trim(), 10) : null,
       };
 
       let result: AdminPropertyRow;
@@ -252,23 +252,21 @@ export function PropertyDrawer({
                 />
               </div>
 
-              {/* Inmueble Code */}
-              <div>
-                <label htmlFor="property-code" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Código del Inmueble (Opcional)
-                </label>
-                <input
-                  id="property-code"
-                  type="text"
-                  placeholder="Ej. EP-SI"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
-                />
-              </div>
-
-              {/* City and Address */}
+              {/* Code and City */}
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="property-code" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Código (Opcional)
+                  </label>
+                  <input
+                    id="property-code"
+                    type="text"
+                    placeholder="Ej. EP-SI"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                  />
+                </div>
                 <div>
                   <label htmlFor="property-city" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
                     Ciudad
@@ -281,22 +279,6 @@ export function PropertyDrawer({
                     onChange={(e) => setCity(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                   />
-                </div>
-                <div>
-                  <label htmlFor="property-priority" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Prioridad
-                  </label>
-                  <select
-                    id="property-priority"
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
-                  >
-                    <option value="">Sin prioridad</option>
-                    <option value="ALTA">Alta</option>
-                    <option value="MEDIA">Media</option>
-                    <option value="BAJA">Baja</option>
-                  </select>
                 </div>
               </div>
 
@@ -315,28 +297,36 @@ export function PropertyDrawer({
                 />
               </div>
 
-              {/* Status Switch */}
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              {/* Floors and Basements */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <strong className="block text-xs font-bold uppercase tracking-wider text-slate-700">Estado del Inmueble</strong>
-                  <span className="text-[0.68rem] text-slate-400 font-medium">Los inmuebles inactivos no se muestran en el app móvil</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsActive(!isActive)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isActive ? 'bg-emerald-600' : 'bg-slate-300'
-                  }`}
-                  role="switch"
-                  aria-checked={isActive}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      isActive ? 'translate-x-5' : 'translate-x-0'
-                    }`}
+                  <label htmlFor="property-floor" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Número de Pisos
+                  </label>
+                  <input
+                    id="property-floor"
+                    type="number"
+                    min="0"
+                    placeholder="Ej. 10"
+                    value={floor}
+                    onChange={(e) => setFloor(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                   />
-                </button>
+                </div>
+                <div>
+                  <label htmlFor="property-basement" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Número de Sótanos
+                  </label>
+                  <input
+                    id="property-basement"
+                    type="number"
+                    min="0"
+                    placeholder="Ej. 3"
+                    value={basement}
+                    onChange={(e) => setBasement(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                  />
+                </div>
               </div>
             </div>
           </div>

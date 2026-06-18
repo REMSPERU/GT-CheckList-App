@@ -7,7 +7,7 @@ export async function listAdminProperties(
 ): Promise<AdminPropertyRow[]> {
   const { data, error } = await supabase
     .from('properties')
-    .select('id, code, name, address, city, is_active, maintenance_priority, image_url')
+    .select('id, code, name, address, city, image_url, floor, basement')
     .order('name', { ascending: true })
     .limit(250);
 
@@ -22,7 +22,7 @@ export async function getAdminProperty(
 ): Promise<AdminPropertyRow | null> {
   const { data, error } = await supabase
     .from('properties')
-    .select('id, code, name, address, city, is_active, maintenance_priority, image_url')
+    .select('id, code, name, address, city, image_url, floor, basement')
     .eq('id', propertyId)
     .maybeSingle();
 
@@ -42,9 +42,9 @@ export async function createAdminProperty(
       address: property.address,
       city: property.city,
       code: property.code || null,
-      is_active: property.is_active ?? true,
-      maintenance_priority: property.maintenance_priority || null,
       image_url: property.image_url || null,
+      floor: property.floor !== undefined ? property.floor : null,
+      basement: property.basement !== undefined ? property.basement : null,
     })
     .select()
     .single();
@@ -65,9 +65,9 @@ export async function updateAdminProperty(
       address: property.address,
       city: property.city,
       code: property.code !== undefined ? (property.code || null) : undefined,
-      is_active: property.is_active,
-      maintenance_priority: property.maintenance_priority !== undefined ? (property.maintenance_priority || null) : undefined,
       image_url: property.image_url,
+      floor: property.floor !== undefined ? property.floor : undefined,
+      basement: property.basement !== undefined ? property.basement : undefined,
     })
     .eq('id', propertyId)
     .select()
