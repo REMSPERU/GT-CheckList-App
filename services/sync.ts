@@ -468,6 +468,10 @@ class SyncService {
         console.log('[SYNC-HANDLER] Triggered for:', panelId);
         await this.pushData();
       });
+      syncQueue.registerHandler('equipo', async (idEquipo: string) => {
+        console.log('[SYNC-HANDLER] Triggered for equipo:', idEquipo);
+        await this.pushData();
+      });
     }
   }
 
@@ -741,6 +745,9 @@ class SyncService {
 
         // 2. Sync Panel Configurations
         await this.syncPendingPanelConfigs();
+
+        // 2b. Sync Pending Equipos
+        await this.syncPendingEquipos();
 
         // 3. Sync Grounding Wells
         await this.syncPendingGroundingWells();
@@ -1380,6 +1387,63 @@ class SyncService {
           config.id,
           'error',
           this.getErrorMessage(error),
+        );
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // SUB-ROUTINE 2B: INVENTORY EQUIPOS
+  // ----------------------------------------------------------------
+  private async syncPendingEquipos(specificEquipoId?: string) {
+    const pendingItems =
+      (await DatabaseService.getPendingEquipos()) as any[];
+
+    const itemsToSync = specificEquipoId
+      ? pendingItems.filter(e => e.id_equipo === specificEquipoId)
+      : pendingItems;
+
+    if (itemsToSync.length === 0) return;
+
+    log(`[SYNC-EQUIPO] Syncing ${itemsToSync.length} equipos`);
+
+    for (const item of itemsToSync) {
+      try {
+        await DatabaseService.updateOfflineEquipmentStatus(
+          item.local_id,
+          'syncing'
+        );
+
+        const detail = JSON.parse(item.equipment_detail || '{}');
+
+        // B. Reconstruct/Upsert to Supabase
+        const { error } = await supabase.from('equipos').upsert({
+          id: item.id_equipo,
+          id_property: item.id_property,
+          id_equipamento: item.id_equipamento,
+          codigo: item.codigo,
+          ubicacion: item.ubicacion,
+          detalle_ubicacion: item.detalle_ubicacion,
+          estatus: item.estatus,
+          equipment_detail: detail,
+          config: item.config === 1,
+        }, {
+          onConflict: 'id'
+        });
+
+        if (error) throw error;
+
+        await DatabaseService.updateOfflineEquipmentStatus(
+          item.local_id,
+          'synced'
+        );
+        log(`[SYNC-EQUIPO] Equipo ${item.id_equipo} synced successfully`);
+      } catch (error) {
+        console.error(`[SYNC-EQUIPO] Failed for ${item.id_equipo}:`, error);
+        await DatabaseService.updateOfflineEquipmentStatus(
+          item.local_id,
+          'error',
+          this.getErrorMessage(error)
         );
       }
     }

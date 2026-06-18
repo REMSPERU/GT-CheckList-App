@@ -53,6 +53,35 @@ export async function getLocalProperties() {
   );
 }
 
+export async function getLocalPropertyById(id: string) {
+  await ensureInitialized();
+  return withLock(async () => {
+    const db = await dbPromise;
+    const row = await db.getFirstAsync(
+      'SELECT * FROM local_properties WHERE id = ?',
+      [id],
+    ) as any;
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      address: row.address,
+      city: row.city,
+      image_url: row.image_url,
+      floor: row.floor,
+      basement: row.basement,
+      // Map other default values for compatibility with PropertyResponse
+      property_type: 'Unknown',
+      is_active: true,
+      maintenance_priority: 'Low',
+      country: '',
+      created_at: '',
+    };
+  });
+}
+
+
 export async function getEquipamentosByProperty(propertyId: string) {
   await ensureInitialized();
   const db = await dbPromise;

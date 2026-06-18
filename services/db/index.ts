@@ -20,6 +20,11 @@ import {
   updatePanelConfigurationStatus,
 } from './panel-configuration';
 import {
+  saveOfflineEquipment,
+  getPendingEquipos,
+  updateOfflineEquipmentStatus,
+} from './equipment-offline';
+import {
   saveOfflineGroundingWellChecklist,
   getPendingGroundingWellChecklists,
   updateGroundingWellChecklistStatus,
@@ -49,6 +54,7 @@ import {
   getLocalEquipments,
   getEquipmentById,
   getLocalProperties,
+  getLocalPropertyById,
   getEquipamentosByProperty,
   getChecklistSystemsByProperty,
   getElectricalPanelsByProperty,
@@ -98,6 +104,7 @@ export * from './connection';
 export * from './sync';
 export * from './maintenance';
 export * from './panel-configuration';
+export * from './equipment-offline';
 export * from './grounding-well';
 export * from './photos';
 export * from './users';
@@ -134,6 +141,11 @@ export const DatabaseService = {
   getPendingPanelConfigurations,
   updatePanelConfigurationStatus,
 
+  // Equipment Offline
+  saveOfflineEquipment,
+  getPendingEquipos,
+  updateOfflineEquipmentStatus,
+
   // Grounding Well
   saveOfflineGroundingWellChecklist,
   getPendingGroundingWellChecklists,
@@ -164,6 +176,7 @@ export const DatabaseService = {
   getLocalEquipments,
   getEquipmentById,
   getLocalProperties,
+  getLocalPropertyById,
   getEquipamentosByProperty,
   getChecklistSystemsByProperty,
   getElectricalPanelsByProperty,

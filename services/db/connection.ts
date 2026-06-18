@@ -167,7 +167,9 @@ export async function initDatabase() {
           code TEXT,
           address TEXT,
           city TEXT,
-          image_url TEXT
+          image_url TEXT,
+          floor INTEGER,
+          basement INTEGER
         );
         
         CREATE TABLE IF NOT EXISTS local_users (
@@ -317,6 +319,24 @@ export async function initDatabase() {
           synced_at TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS offline_equipos (
+          local_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          id_equipo TEXT NOT NULL,
+          action TEXT NOT NULL,
+          id_property TEXT NOT NULL,
+          id_equipamento TEXT NOT NULL,
+          codigo TEXT NOT NULL,
+          ubicacion TEXT,
+          detalle_ubicacion TEXT,
+          estatus TEXT,
+          equipment_detail TEXT,
+          config INTEGER,
+          status TEXT DEFAULT 'pending',
+          error_message TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          synced_at TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS offline_grounding_well_checklist (
           local_id INTEGER PRIMARY KEY AUTOINCREMENT,
           panel_id TEXT,
@@ -440,13 +460,16 @@ export async function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_activa ON local_preguntas_equipamento(activa);
         CREATE INDEX IF NOT EXISTS idx_local_user_properties_user ON local_user_properties(user_id);
         CREATE INDEX IF NOT EXISTS idx_local_user_properties_property ON local_user_properties(property_id);
-
         CREATE INDEX IF NOT EXISTS idx_offline_maint_status ON offline_maintenance_response(status);
         CREATE INDEX IF NOT EXISTS idx_offline_maint_created ON offline_maintenance_response(created_at);
         CREATE INDEX IF NOT EXISTS idx_offline_photo_maint_status ON offline_photos(maintenance_local_id, status);
 
         CREATE INDEX IF NOT EXISTS idx_offline_panel_status ON offline_panel_configurations(status);
         CREATE INDEX IF NOT EXISTS idx_offline_panel_panel_status ON offline_panel_configurations(panel_id, status);
+
+        CREATE INDEX IF NOT EXISTS idx_offline_equipos_status ON offline_equipos(status);
+        CREATE INDEX IF NOT EXISTS idx_offline_equipos_id_property ON offline_equipos(id_property);
+
         CREATE INDEX IF NOT EXISTS idx_offline_audit_sync_status ON offline_audit_sessions(sync_status);
         CREATE INDEX IF NOT EXISTS idx_offline_audit_property_date ON offline_audit_sessions(property_id, scheduled_for);
 
@@ -712,6 +735,61 @@ export async function initDatabase() {
       );
     } catch {
       // Column already exists
+    }
+
+    // Migration v1.11: Add floor and basement columns to local_properties
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_properties ADD COLUMN floor INTEGER;`,
+      );
+      console.log('Migration: Added floor column to local_properties');
+    } catch {
+      // Column already exists
+    }
+
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_properties ADD COLUMN basement INTEGER;`,
+      );
+      console.log('Migration: Added basement column to local_properties');
+    } catch {
+      // Column already exists
+    }
+
+    // Migration v1.12: Add offline_equipos table and indexes for offline inventory writes
+    try {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS offline_equipos (
+          local_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          id_equipo TEXT NOT NULL,
+          action TEXT NOT NULL,
+          id_property TEXT NOT NULL,
+          id_equipamento TEXT NOT NULL,
+          codigo TEXT NOT NULL,
+          ubicacion TEXT,
+          detalle_ubicacion TEXT,
+          estatus TEXT,
+          equipment_detail TEXT,
+          config INTEGER,
+          status TEXT DEFAULT 'pending',
+          error_message TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          synced_at TEXT
+        );
+      `);
+      console.log('Migration: Created offline_equipos table');
+    } catch (error) {
+      // Table already exists
+    }
+
+    try {
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_offline_equipos_status ON offline_equipos(status);
+        CREATE INDEX IF NOT EXISTS idx_offline_equipos_id_property ON offline_equipos(id_property);
+      `);
+      console.log('Migration: Created indexes for offline_equipos');
+    } catch (error) {
+      // Indexes already exist
     }
 
     console.log('Database initialized');

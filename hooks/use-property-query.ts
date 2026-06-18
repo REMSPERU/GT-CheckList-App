@@ -12,7 +12,7 @@ import type {
   PropertyListResponse,
   PropertyResponse,
 } from '../types/api';
-import { getLocalProperties } from '../services/db/queries';
+import { getLocalProperties, getLocalPropertyById } from '../services/db/queries';
 
 const logPropertiesFlow = (...args: unknown[]) => {
   if (__DEV__) {
@@ -30,7 +30,9 @@ export const propertyKeys = {
 };
 
 /**
- * Hook para obtener una propiedad específica por ID
+ * Hook para obtener una propiedad específica por ID.
+ * OFFLINE-FIRST: Carga la propiedad desde SQLite local primero, y si existe, 
+ * actualiza los datos en background desde Supabase.
  */
 export function useProperty(
   propertyId: string,
@@ -39,12 +41,38 @@ export function useProperty(
     'queryKey' | 'queryFn'
   >,
 ) {
+  const queryClient = useQueryClient();
+  const { enabled: optionsEnabled, ...restOptions } = options ?? {};
+
   return useQuery({
     queryKey: propertyKeys.detail(propertyId),
-    queryFn: () => supabasePropertyService.getById(propertyId),
-    enabled: !!propertyId,
+    enabled: (optionsEnabled ?? true) && !!propertyId,
+    queryFn: async () => {
+      // Intentar leer de SQLite local primero
+      const localProp = await getLocalPropertyById(propertyId);
+      if (localProp) {
+        if (syncService.isSyncActive) {
+          return localProp as PropertyResponse;
+        }
+
+        // Buscar en background desde Supabase para actualizar caché local
+        supabasePropertyService
+          .getById(propertyId)
+          .then(remoteProp => {
+            queryClient.setQueryData(propertyKeys.detail(propertyId), remoteProp);
+          })
+          .catch(err => {
+            console.log('[useProperty] background remote fetch failed', err);
+          });
+
+        return localProp as PropertyResponse;
+      }
+
+      // Si no hay local, buscar directamente en Supabase
+      return await supabasePropertyService.getById(propertyId);
+    },
     staleTime: 5 * 60 * 1000, // 5 minutos
-    ...options,
+    ...restOptions,
   });
 }
 
@@ -59,6 +87,8 @@ function transformLocalToPropertyList(localProps: any[]): PropertyListResponse {
     address: p.address,
     city: p.city,
     image_url: p.image_url || null,
+    floor: p.floor !== undefined && p.floor !== null ? p.floor : null,
+    basement: p.basement !== undefined && p.basement !== null ? p.basement : null,
     // defaults for missing fields in mirror
     property_type: 'Unknown',
     is_active: true,

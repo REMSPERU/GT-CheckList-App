@@ -4,7 +4,7 @@ interface NetworkState {
   isConnected: boolean | null;
 }
 
-export type SyncItemType = 'panel_config' | 'maintenance' | 'photo';
+export type SyncItemType = 'panel_config' | 'maintenance' | 'photo' | 'equipo';
 export type SyncStatus =
   | 'pending'
   | 'syncing'

@@ -21,12 +21,12 @@ import { DynamicFieldRenderer } from '@/components/inventory/dynamic-field-rende
 import { getTechnicalFields } from '@/types/inventory';
 import {
   equipoCreateBaseSchema,
-  UBICACION_OPTIONS,
   ESTATUS_OPTIONS,
   type EquipoCreateFormValues,
 } from '@/schemas/equipment-create';
 import { useCreateEquipo } from '@/hooks/use-inventory-query';
 import { generateEquipmentCode } from '@/services/db/equipment';
+import { UbicacionSelector } from '@/components/inventory/ubicacion-selector';
 
 function getSingleParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : (value ?? '');
@@ -209,26 +209,12 @@ export default function AddEquipoScreen() {
                 control={control}
                 name="ubicacion"
                 render={({ field: { value, onChange } }) => (
-                  <View style={styles.optionsWrap}>
-                    {UBICACION_OPTIONS.map(opt => (
-                      <Pressable
-                        key={opt.value}
-                        style={[
-                          styles.optionChip,
-                          value === opt.value && styles.optionChipSelected,
-                        ]}
-                        onPress={() => onChange(opt.value)}>
-                        <Text
-                          style={[
-                            styles.optionChipText,
-                            value === opt.value &&
-                              styles.optionChipTextSelected,
-                          ]}>
-                          {opt.label}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                  <UbicacionSelector
+                    propertyId={propertyId}
+                    value={value}
+                    onChange={onChange}
+                    error={errors.ubicacion?.message}
+                  />
                 )}
               />
               {errors.ubicacion && (
