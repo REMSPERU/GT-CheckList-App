@@ -47,6 +47,7 @@ export function useProperty(
   return useQuery({
     queryKey: propertyKeys.detail(propertyId),
     enabled: (optionsEnabled ?? true) && !!propertyId,
+    networkMode: 'always',
     queryFn: async () => {
       // Intentar leer de SQLite local primero
       const localProp = await getLocalPropertyById(propertyId);
@@ -134,6 +135,7 @@ export function useProperties(
   return useQuery({
     queryKey,
     enabled: optionsEnabled ?? true,
+    networkMode: 'always',
     queryFn: async () => {
       logPropertiesFlow('query start', {
         queryKey,

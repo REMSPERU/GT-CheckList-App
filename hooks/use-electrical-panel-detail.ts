@@ -5,6 +5,7 @@ import type { TableroElectricoResponse } from '../types/api';
 export const useElectricalPanelDetail = (id: string) => {
   return useQuery<TableroElectricoResponse, Error>({
     queryKey: ['electricalPanel', id],
+    networkMode: 'always',
     queryFn: () => electricalPanelApi.getById(id),
     enabled: !!id,
   });
