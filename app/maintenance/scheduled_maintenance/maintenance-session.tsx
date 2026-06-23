@@ -135,21 +135,21 @@ export default function MaintenanceSessionScreen() {
 
   const getEquipmentTypeConfig = useCallback((type: string) => {
     switch (type) {
-      case 'Luces de Emergencia':
+      case 'Luces de emergencia':
         return {
           icon: 'lightbulb-on-outline' as const,
           color: '#F59E0B',
           bgColor: '#FEF3C7',
           label: 'Luces de Emergencia',
         };
-      case 'Tablero Electrico':
+      case 'Tableros eléctricos':
         return {
           icon: 'flash-outline' as const,
           color: '#3B82F6',
           bgColor: '#DBEAFE',
           label: 'Tablero Eléctrico',
         };
-      case 'Pozo a Tierra':
+      case 'Pozo a tierra':
         return {
           icon: 'earth' as const,
           color: '#10B981',

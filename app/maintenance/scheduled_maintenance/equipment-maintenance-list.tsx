@@ -403,7 +403,7 @@ export default function EquipmentMaintenanceListScreen() {
       };
 
       if (
-        equipment.equipamentos?.nombre === 'Luces de Emergencia' &&
+        equipment.equipamentos?.nombre === 'Luces de emergencia' &&
         sessionId
       ) {
         handleEmergencyLightNavigation(navParams);

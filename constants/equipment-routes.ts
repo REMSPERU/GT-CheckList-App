@@ -6,8 +6,9 @@
  */
 
 export type EquipmentType =
-  | 'Tablero Electrico'
-  | 'Luces de Emergencia'
+  | 'Tableros eléctricos'
+  | 'Luces de emergencia'
+  | 'Pozo a tierra'
   | string;
 
 export type EquipmentExecutionRoute =
@@ -27,15 +28,15 @@ export interface EquipmentRouteConfig {
  * The key should match the `nombre` field from the `equipamentos` table.
  */
 export const EQUIPMENT_ROUTES: Record<string, EquipmentRouteConfig> = {
-  'Tablero Electrico': {
+  'Tableros eléctricos': {
     route: '/maintenance/execution/electrical-panel/pre-photos',
     implemented: true,
   },
-  'Luces de Emergencia': {
+  'Luces de emergencia': {
     route: '/maintenance/execution/emergency-lights/checklist',
     implemented: true,
   },
-  'Pozo a Tierra': {
+  'Pozo a tierra': {
     route: '/maintenance/execution/grounding-well/checklist',
     implemented: true,
   },

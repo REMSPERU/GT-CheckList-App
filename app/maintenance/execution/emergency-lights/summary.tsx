@@ -141,7 +141,7 @@ export default function EmergencyLightsSummaryScreen() {
 
       // Build detail maintenance object
       const detailMaintenance = {
-        equipmentType: 'Luces de Emergencia',
+        equipmentType: 'Luces de emergencia',
         measurements: {
           lumenes: data.lumenes,
           tiempoDuracion: data.tiempoDuracion,
