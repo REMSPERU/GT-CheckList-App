@@ -4,83 +4,24 @@ import { YES_NO_OPTIONS } from './common';
 export const RH: TechnicalFieldConfig[] = [
   { key: 'numero_unidad', label: 'Número de Unidad', type: 'number' },
   {
-    key: 'subcomponentes',
-    label: 'Subcomponentes',
-    type: 'collection',
-    fields: [
-      {
-        key: 'tipo',
-        label: 'Tipo',
-        type: 'select',
-        options: [{ label: 'Grupo Red Húmeda', value: 'grupo_red_humeda' }],
-        defaultValue: 'grupo_red_humeda',
-      },
-      { key: 'componente', label: 'Componente', type: 'text' },
-      { key: 'piso', label: 'Piso', type: 'text' },
-      { key: 'cantidad', label: 'Cantidad', type: 'number' },
-      {
-        key: 'items',
-        label: 'Items Detallados',
-        type: 'collection',
-        fields: [
-          { key: 'n_orden', label: 'N° Orden', type: 'number' },
-          { key: 'piso', label: 'Piso', type: 'text' },
-          {
-            key: 'manguera',
-            label: 'Manguera',
-            type: 'select',
-            options: YES_NO_OPTIONS,
-          },
-          {
-            key: 'valvula_angular',
-            label: 'Válvula Angular',
-            type: 'select',
-            options: YES_NO_OPTIONS,
-          },
-        ],
-      },
-    ],
+    key: 'presion',
+    label: 'Presión Nominal (PSI)',
+    type: 'number',
   },
+  { key: 'caudal', label: 'Caudal (GPM)', type: 'number' },
+  { key: 'ubicacion', label: 'Ubicación General', type: 'text' },
+  { key: 'observaciones', label: 'Observaciones', type: 'text' },
 ];
 
 export const SIN: TechnicalFieldConfig[] = [
   { key: 'tipo_sistema', label: 'Tipo Sistema', type: 'text' },
   { key: 'estado_sistema', label: 'Estado Sistema', type: 'boolean' },
   {
-    key: 'subcomponentes',
-    label: 'Subcomponentes / Dispositivos',
-    type: 'collection',
-    fields: [
-      {
-        key: 'tipo',
-        label: 'Tipo',
-        type: 'select',
-        options: [
-          { label: 'Panel Central', value: 'panel_central' },
-          { label: 'Sensores de Humo', value: 'sensores_humo' },
-          { label: 'Sensores de Temperatura', value: 'sensores_temperatura' },
-          { label: 'Estaciones Manuales', value: 'estaciones_manuales' },
-          { label: 'Fuentes de Poder NAC', value: 'fuentes_nac' },
-          { label: 'Luces Estroboscópicas', value: 'luces_estroboscopicas' },
-          { label: 'Módulos', value: 'modulos' },
-          { label: 'Minimódulos', value: 'minimodulos' },
-          { label: 'Jacks y Teléfonos', value: 'jacks_telefonos' },
-          { label: 'Amplificadores', value: 'amplificadores' },
-        ],
-      },
-      { key: 'cantidad', label: 'Cantidad', type: 'number' },
-      { key: 'ubicacion', label: 'Ubicación', type: 'text' },
-      { key: 'marca', label: 'Marca', type: 'text' },
-      { key: 'modelo', label: 'Modelo', type: 'text' },
-      { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
-      {
-        key: 'con_parlantes',
-        label: 'Con Parlantes',
-        type: 'boolean',
-        visibleWhen: { key: 'tipo', equals: 'luces_estroboscopicas' },
-      },
-    ],
+    key: 'ubicacion_central',
+    label: 'Ubicación de Central',
+    type: 'text',
   },
+  { key: 'observaciones', label: 'Observaciones', type: 'text' },
 ];
 
 export const PCF: TechnicalFieldConfig[] = [

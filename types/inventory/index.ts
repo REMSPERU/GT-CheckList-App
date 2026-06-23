@@ -181,12 +181,147 @@ export const EQUIPMENT_TECHNICAL_FIELD_ALIASES: Record<string, string> = {
 };
 
 /**
- * Obtiene la configuración de campos técnicos para una abreviatura de equipamento.
+ * Esquemas específicos para subcomponentes que ahora son equipos independientes
+ */
+export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
+  string,
+  TechnicalFieldConfig[]
+> = {
+  // Red Húmeda
+  gabinete: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'manguera', label: 'Manguera', type: 'text' },
+    { key: 'valvula_angular', label: 'Válvula Angular', type: 'text' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  rociadores: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  // Extintores
+  pqs: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'agente', label: 'Agente', type: 'text' },
+    { key: 'peso', label: 'Peso', type: 'text' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  co2: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'agente', label: 'Agente', type: 'text' },
+    { key: 'peso', label: 'Peso', type: 'text' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  // Puertas
+  cortafuego: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'tipo_puerta', label: 'Tipo de Puerta', type: 'text' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  // Alarmas / Sensores
+  sensor_humo: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  estacion_manual: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  luz_estrobo: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  sirena: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  detector_calor: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  // CCTV y Telecom
+  camara: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  pantalla: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'tam_pulgadas', label: 'Pulgadas', type: 'text' },
+    { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  switch: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'sub_tipo', label: 'Sub Tipo', type: 'text' },
+    { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  servidor: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  telefono: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  radio: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  // Bombas genéricas
+  bomba: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'estado', label: 'Estado', type: 'text' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+};
+
+/**
+ * Obtiene la configuración de campos técnicos para una abreviatura de equipamento o un tipo de subcomponente.
+ * Si es un subcomponente extraído (tiene 'tipo'), retorna su esquema específico.
  * Si no hay configuración específica, retorna campos genéricos.
  */
 export function getTechnicalFields(
   abreviatura: string | null | undefined,
+  tipoSubcomponente?: string | null | undefined,
 ): TechnicalFieldConfig[] {
+  // 1. Si tenemos un tipo de subcomponente (ej. "camara", "Gabinete"), intentamos mapearlo primero
+  if (tipoSubcomponente) {
+    const normalizedSub = tipoSubcomponente.trim().toLowerCase();
+
+    // Si coincide con algo específico (gabinete, camara, pqs, etc.)
+    if (SUBCOMPONENT_TECHNICAL_FIELDS[normalizedSub]) {
+      return SUBCOMPONENT_TECHNICAL_FIELDS[normalizedSub];
+    }
+
+    // Si contiene la palabra bomba, tablero, sensor, etc.
+    if (normalizedSub.includes('bomba'))
+      return SUBCOMPONENT_TECHNICAL_FIELDS['bomba'];
+    if (normalizedSub.includes('tablero'))
+      return SUBCOMPONENT_TECHNICAL_FIELDS['bomba']; // Reutilizamos estado
+    if (normalizedSub.includes('sensor'))
+      return SUBCOMPONENT_TECHNICAL_FIELDS['sensor_humo'];
+
+    // Si no coincide con nada, devolvemos genéricos para subcomponentes que tengan marca/modelo
+    return getGenericSubcomponentFields();
+  }
+
+  // 2. Si no es subcomponente, usamos la abreviatura del equipo principal
   if (!abreviatura) return getGenericFields();
   const normalized = abreviatura
     .trim()
@@ -201,6 +336,15 @@ function getGenericFields(): TechnicalFieldConfig[] {
     { key: 'marca', label: 'Marca', type: 'text' },
     { key: 'modelo', label: 'Modelo', type: 'text' },
     { key: 'ano_operacion', label: 'Año de Operación', type: 'number' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ];
+}
+
+function getGenericSubcomponentFields(): TechnicalFieldConfig[] {
+  return [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ];
 }

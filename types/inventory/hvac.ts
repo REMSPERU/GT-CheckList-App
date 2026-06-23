@@ -287,36 +287,12 @@ export const VFOR: TechnicalFieldConfig[] = [
 
 export const VRF: TechnicalFieldConfig[] = [
   { key: 'numero_unidad', label: 'Número de Unidad', type: 'number' },
+  { key: 'ubicacion', label: 'Ubicación General', type: 'text' },
+  { key: 'refrigerante', label: 'Refrigerante', type: 'text' },
   {
     key: 'observaciones',
     label: 'Observaciones',
     type: 'text',
     multiline: true,
-  },
-  {
-    key: 'subcomponentes',
-    label: 'Subcomponentes',
-    type: 'collection',
-    fields: [
-      {
-        key: 'tipo',
-        label: 'Tipo',
-        type: 'select',
-        options: [
-          { label: 'Condensador', value: 'condensador' },
-          { label: 'Evaporador / Interior', value: 'evaporador_interior' },
-          { label: 'Placa', value: 'placa' },
-          { label: 'Torre VRF', value: 'torre' },
-        ],
-      },
-      { key: 'unidad', label: 'Unidad / N°', type: 'number' },
-      { key: 'ubicacion', label: 'Ubicación', type: 'text' },
-      { key: 'marca', label: 'Marca', type: 'text' },
-      { key: 'modelo', label: 'Modelo', type: 'text' },
-      { key: 'capacidad', label: 'Capacidad', type: 'text' },
-      { key: 'refrigerante', label: 'Refrigerante', type: 'text' },
-      { key: 'voltaje', label: 'Voltaje', type: 'text' },
-      { key: 'anio_operacion', label: 'Año', type: 'number' },
-    ],
   },
 ];
