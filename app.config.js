@@ -11,7 +11,7 @@ export default ({ config }) => {
 
     slug: 'gema',
 
-    version: '1.0.90',
+    version: '1.0.91',
     orientation: 'portrait',
 
     icon: './assets/images/icon.png',
