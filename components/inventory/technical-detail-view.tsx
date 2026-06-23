@@ -65,6 +65,14 @@ function isFieldVisible(
   field: TechnicalFieldConfig,
   data: Record<string, unknown>,
 ) {
+  // Ocultar 'observaciones' si está vacío en la vista de detalle
+  if (field.key === 'observaciones') {
+    const val = getValueByPath(data, field.key);
+    if (val === null || val === undefined || val === '') {
+      return false;
+    }
+  }
+
   if (!field.visibleWhen) return true;
   return (
     getValueByPath(data, field.visibleWhen.key) === field.visibleWhen.equals

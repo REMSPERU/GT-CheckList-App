@@ -190,12 +190,14 @@ export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
   // Red Húmeda
   gabinete: [
     { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'piso', label: 'Piso', type: 'text' },
     { key: 'manguera', label: 'Manguera', type: 'text' },
     { key: 'valvula_angular', label: 'Válvula Angular', type: 'text' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
   rociadores: [
     { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'piso', label: 'Piso', type: 'text' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
   // Extintores
@@ -218,24 +220,67 @@ export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
   // Alarmas / Sensores
+  panel_central: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'sub_tipo', label: 'Sub Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
+    { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
   sensor_humo: [
     { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'sub_tipo', label: 'Sub Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
+    { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
   estacion_manual: [
     { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'sub_tipo', label: 'Sub Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
+    { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
   luz_estrobo: [
     { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'sub_tipo', label: 'Sub Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
+    { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
   sirena: [
     { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'sub_tipo', label: 'Sub Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
+    { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
   detector_calor: [
     { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'sub_tipo', label: 'Sub Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
+    { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
+    { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  ],
+  fuentes_nac: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'sub_tipo', label: 'Sub Tipo', type: 'text' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
+    { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
   // CCTV y Telecom
@@ -243,6 +288,7 @@ export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
     { key: 'tipo', label: 'Tipo', type: 'text' },
     { key: 'marca', label: 'Marca', type: 'text' },
     { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
     { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
@@ -251,6 +297,7 @@ export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
     { key: 'marca', label: 'Marca', type: 'text' },
     { key: 'modelo', label: 'Modelo', type: 'text' },
     { key: 'tam_pulgadas', label: 'Pulgadas', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
     { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
@@ -259,6 +306,7 @@ export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
     { key: 'marca', label: 'Marca', type: 'text' },
     { key: 'modelo', label: 'Modelo', type: 'text' },
     { key: 'sub_tipo', label: 'Sub Tipo', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
     { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
@@ -266,6 +314,7 @@ export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
     { key: 'tipo', label: 'Tipo', type: 'text' },
     { key: 'marca', label: 'Marca', type: 'text' },
     { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
     { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
@@ -273,6 +322,7 @@ export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
     { key: 'tipo', label: 'Tipo', type: 'text' },
     { key: 'marca', label: 'Marca', type: 'text' },
     { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
     { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
@@ -280,6 +330,7 @@ export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
     { key: 'tipo', label: 'Tipo', type: 'text' },
     { key: 'marca', label: 'Marca', type: 'text' },
     { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
     { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
@@ -293,6 +344,7 @@ export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
   condensador: [
     { key: 'tipo', label: 'Tipo', type: 'text' },
     { key: 'unidad', label: 'Unidad / N°', type: 'number' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
     { key: 'marca', label: 'Marca', type: 'text' },
     { key: 'modelo', label: 'Modelo', type: 'text' },
     { key: 'capacidad', label: 'Capacidad', type: 'text' },
@@ -303,6 +355,7 @@ export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
   evaporador_interior: [
     { key: 'tipo', label: 'Tipo', type: 'text' },
     { key: 'unidad', label: 'Unidad / N°', type: 'number' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
     { key: 'marca', label: 'Marca', type: 'text' },
     { key: 'modelo', label: 'Modelo', type: 'text' },
     { key: 'capacidad', label: 'Capacidad', type: 'text' },
@@ -313,6 +366,7 @@ export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
   placa: [
     { key: 'tipo', label: 'Tipo', type: 'text' },
     { key: 'unidad', label: 'Unidad / N°', type: 'number' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
     { key: 'marca', label: 'Marca', type: 'text' },
     { key: 'modelo', label: 'Modelo', type: 'text' },
     { key: 'capacidad', label: 'Capacidad', type: 'text' },
@@ -323,6 +377,7 @@ export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
   torre: [
     { key: 'tipo', label: 'Tipo', type: 'text' },
     { key: 'unidad', label: 'Unidad / N°', type: 'number' },
+    { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
     { key: 'marca', label: 'Marca', type: 'text' },
     { key: 'modelo', label: 'Modelo', type: 'text' },
     { key: 'capacidad', label: 'Capacidad', type: 'text' },
@@ -365,8 +420,21 @@ export function getTechnicalFields(
       return SUBCOMPONENT_TECHNICAL_FIELDS['bomba'];
     if (normalizedSub.includes('tablero'))
       return SUBCOMPONENT_TECHNICAL_FIELDS['bomba']; // Reutilizamos estado
+    // Alarmas / Sensores
+    if (normalizedSub.includes('panel'))
+      return SUBCOMPONENT_TECHNICAL_FIELDS['panel_central'];
     if (normalizedSub.includes('sensor'))
       return SUBCOMPONENT_TECHNICAL_FIELDS['sensor_humo'];
+    if (normalizedSub.includes('estacion'))
+      return SUBCOMPONENT_TECHNICAL_FIELDS['estacion_manual'];
+    if (normalizedSub.includes('luz'))
+      return SUBCOMPONENT_TECHNICAL_FIELDS['luz_estrobo'];
+    if (normalizedSub.includes('sirena'))
+      return SUBCOMPONENT_TECHNICAL_FIELDS['sirena'];
+    if (normalizedSub.includes('detector'))
+      return SUBCOMPONENT_TECHNICAL_FIELDS['detector_calor'];
+    if (normalizedSub.includes('fuente'))
+      return SUBCOMPONENT_TECHNICAL_FIELDS['fuentes_nac'];
 
     // Si no coincide con nada, devolvemos genéricos para subcomponentes que tengan marca/modelo
     return getGenericSubcomponentFields();
