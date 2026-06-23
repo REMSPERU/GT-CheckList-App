@@ -289,6 +289,47 @@ export const SUBCOMPONENT_TECHNICAL_FIELDS: Record<
     { key: 'estado', label: 'Estado', type: 'text' },
     { key: 'observaciones', label: 'Observaciones', type: 'text' },
   ],
+  // HVAC (VRV/VRF)
+  condensador: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'unidad', label: 'Unidad / N°', type: 'number' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'capacidad', label: 'Capacidad', type: 'text' },
+    { key: 'refrigerante', label: 'Refrigerante', type: 'text' },
+    { key: 'voltaje', label: 'Voltaje', type: 'text' },
+    { key: 'anio_operacion', label: 'Año', type: 'number' },
+  ],
+  evaporador_interior: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'unidad', label: 'Unidad / N°', type: 'number' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'capacidad', label: 'Capacidad', type: 'text' },
+    { key: 'refrigerante', label: 'Refrigerante', type: 'text' },
+    { key: 'voltaje', label: 'Voltaje', type: 'text' },
+    { key: 'anio_operacion', label: 'Año', type: 'number' },
+  ],
+  placa: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'unidad', label: 'Unidad / N°', type: 'number' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'capacidad', label: 'Capacidad', type: 'text' },
+    { key: 'refrigerante', label: 'Refrigerante', type: 'text' },
+    { key: 'voltaje', label: 'Voltaje', type: 'text' },
+    { key: 'anio_operacion', label: 'Año', type: 'number' },
+  ],
+  torre: [
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'unidad', label: 'Unidad / N°', type: 'number' },
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'capacidad', label: 'Capacidad', type: 'text' },
+    { key: 'refrigerante', label: 'Refrigerante', type: 'text' },
+    { key: 'voltaje', label: 'Voltaje', type: 'text' },
+    { key: 'anio_operacion', label: 'Año', type: 'number' },
+  ],
 };
 
 /**
@@ -308,6 +349,16 @@ export function getTechnicalFields(
     if (SUBCOMPONENT_TECHNICAL_FIELDS[normalizedSub]) {
       return SUBCOMPONENT_TECHNICAL_FIELDS[normalizedSub];
     }
+
+    // VRF / HVAC
+    if (normalizedSub.includes('evaporador'))
+      return SUBCOMPONENT_TECHNICAL_FIELDS['evaporador_interior'];
+    if (normalizedSub.includes('condensador'))
+      return SUBCOMPONENT_TECHNICAL_FIELDS['condensador'];
+    if (normalizedSub.includes('torre'))
+      return SUBCOMPONENT_TECHNICAL_FIELDS['torre'];
+    if (normalizedSub.includes('placa'))
+      return SUBCOMPONENT_TECHNICAL_FIELDS['placa'];
 
     // Si contiene la palabra bomba, tablero, sensor, etc.
     if (normalizedSub.includes('bomba'))
