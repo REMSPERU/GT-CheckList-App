@@ -112,7 +112,7 @@ function renderScalarCell(
   return (
     <View key={field.key} style={styles.cell}>
       <Text style={styles.label}>{field.label}</Text>
-      <Text style={styles.value} numberOfLines={field.multiline ? 5 : 2}>
+      <Text style={styles.value}>
         {formatFieldValue(getValueByPath(data, field.key), field, data)}
       </Text>
     </View>
@@ -147,7 +147,7 @@ function renderCollection(value: unknown, field: TechnicalFieldConfig) {
           {(field.fields ?? []).map(child => (
             <View key={child.key} style={styles.collectionCell}>
               <Text style={styles.label}>{child.label}</Text>
-              <Text style={styles.value} numberOfLines={2}>
+              <Text style={styles.value}>
                 {formatFieldValue(
                   getValueByPath(itemData, child.key),
                   child,

@@ -711,12 +711,20 @@ export const EQUIPMENT_TECHNICAL_FIELDS: Record<
   TRAIS: [
     { key: 'marca', label: 'Marca', type: 'text' },
     { key: 'modelo', label: 'Modelo', type: 'text' },
-    { key: 'capacidad', label: 'Capacidad', type: 'number', suffix: 'kVA' },
-    { key: 'tiene_banco_de_baterias', label: 'Tiene Banco de Baterías', type: 'boolean' },
-    { key: 'ubicacion_banco_bateria', label: 'Ubicación Banco', type: 'text', section: 'Banco de Baterías', visibleWhen: { key: 'tiene_banco_de_baterias', equals: true } },
-    { key: 'marca_banco_bateria', label: 'Marca Banco', type: 'text', section: 'Banco de Baterías', visibleWhen: { key: 'tiene_banco_de_baterias', equals: true } },
-    { key: 'modelo_banco_bateria', label: 'Modelo Banco', type: 'text', section: 'Banco de Baterías', visibleWhen: { key: 'tiene_banco_de_baterias', equals: true } },
-    { key: 'autonomia_banco_bateria', label: 'Autonomía', type: 'number', suffix: 'min', section: 'Banco de Baterías', visibleWhen: { key: 'tiene_banco_de_baterias', equals: true } },
+    { key: 'capacidad', label: 'Capacidad', type: 'text' },
+    { key: 'numero_unidad', label: 'Número de Unidad', type: 'number' },
+    {
+      key: 'subcomponentes',
+      label: 'Subcomponentes',
+      type: 'collection',
+      fields: [
+        { key: 'tipo', label: 'Tipo', type: 'text' },
+        { key: 'marca', label: 'Marca', type: 'text' },
+        { key: 'modelo', label: 'Modelo', type: 'text' },
+        { key: 'autonomia', label: 'Autonomía', type: 'text' },
+        { key: 'ubicacion', label: 'Ubicación', type: 'text' },
+      ],
+    },
   ],
 
   // Cisternas de Agua Potable / PTAG
