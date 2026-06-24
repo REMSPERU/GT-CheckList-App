@@ -557,8 +557,12 @@ const QrPrintCard = memo(function QrPrintCard({
         />
         {shouldShowLogo ? (
           <span
-            className={`qr-print-logo qr-logo-size-${qrLogoSize} absolute left-1/2 top-1/2 grid -translate-x-1/2 -translate-y-1/2 place-items-center overflow-hidden text-[0.58rem] font-black tracking-[-0.04em] text-emerald-800`}
+            className={`qr-print-logo qr-logo-size-${qrLogoSize} grid place-items-center overflow-hidden text-[0.58rem] font-black tracking-[-0.04em] text-emerald-800`}
             style={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
               width: printLogoSize,
               height: printLogoSize,
               borderRadius: logoBorderRadius,

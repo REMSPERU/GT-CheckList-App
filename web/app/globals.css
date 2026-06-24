@@ -135,6 +135,10 @@
   }
 
   .qr-print-logo {
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
     width: 9mm !important;
     height: 9mm !important;
     border-radius: 2mm !important;
