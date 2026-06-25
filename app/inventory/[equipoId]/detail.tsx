@@ -53,7 +53,16 @@ export default function EquipoDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
 
   const abreviatura = equipo?.equipamento_abreviatura ?? equipamentoAbreviatura;
-  const techFields = getTechnicalFields(abreviatura);
+
+  // Extraer el tipo de subcomponente (si aplica)
+  const equipmentDetailData =
+    (equipo?.equipment_detail as Record<string, unknown>) ?? {};
+  const tipoSubcomponente =
+    typeof equipmentDetailData.tipo === 'string'
+      ? equipmentDetailData.tipo
+      : undefined;
+
+  const techFields = getTechnicalFields(abreviatura, tipoSubcomponente);
 
   const {
     control,

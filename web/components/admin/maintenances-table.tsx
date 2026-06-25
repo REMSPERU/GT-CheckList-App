@@ -65,7 +65,7 @@ export function MaintenancesTable({ items, isLoading }: MaintenancesTableProps) 
                   <td className={TD_CLASS}>
                     <div className="flex flex-col gap-1.5 min-w-[120px]">
                       <span className="text-xs text-slate-600 font-bold">
-                        {item.completedCount} / {item.maintenancesCount} terminados
+                        {item.completedCount.toLocaleString('en-US')} / {item.maintenancesCount.toLocaleString('en-US')} terminados
                       </span>
                       <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                         <div 

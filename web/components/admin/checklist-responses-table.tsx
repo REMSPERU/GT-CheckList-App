@@ -41,7 +41,7 @@ export function ChecklistResponsesTable({
       summary={
         isLoading
           ? 'Cargando respuestas...'
-          : `${responses.length} de ${total} respuestas · página ${page} de ${totalPages}`
+          : `${responses.length.toLocaleString('en-US')} de ${total.toLocaleString('en-US')} respuestas · página ${page.toLocaleString('en-US')} de ${totalPages.toLocaleString('en-US')}`
       }>
       {responses.length === 0 && !isLoading ? (
         <EmptyState message="No hay respuestas para el filtro seleccionado." />

@@ -57,7 +57,12 @@ export default function AdminEquipmentDetailPage() {
     if (!equipment) return [];
 
     return Object.entries(equipment.rawData)
-      .filter(([key]) => key !== 'equipment_detail' && !isTechnicalIdField(key))
+      .filter(
+        ([key]) =>
+          key !== 'equipment_detail' &&
+          key !== 'properties' &&
+          !isTechnicalIdField(key),
+      )
       .sort(([first], [second]) => first.localeCompare(second));
   }, [equipment]);
 

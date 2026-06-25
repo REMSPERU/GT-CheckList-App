@@ -299,10 +299,11 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
         <section className="grid gap-4">
           <label className="grid gap-1.5 text-sm font-bold text-slate-600">
             Tipo de equipamento
-            <SelectField
+            <SearchableSelectField
               value={checklist.selectedQuestionEquipmentType}
               options={equipmentOptions}
               onChange={checklist.handleQuestionEquipmentTypeChange}
+              placeholder="Seleccionar tipo de equipamento"
               ariaLabel="Filtrar preguntas por tipo de equipamento"
             />
           </label>

@@ -35,7 +35,7 @@ export function AuditSessionsTable({
       summary={
         isLoading
           ? 'Cargando auditorias...'
-          : `${audits.length} de ${total} auditorias · página ${page} de ${totalPages}`
+          : `${audits.length.toLocaleString('en-US')} de ${total.toLocaleString('en-US')} auditorias · página ${page.toLocaleString('en-US')} de ${totalPages.toLocaleString('en-US')}`
       }>
       {audits.length === 0 && !isLoading ? (
         <EmptyState />
@@ -75,11 +75,11 @@ export function AuditSessionsTable({
                   </td>
                   <td className={TD_CLASS}>
                     <strong className="block text-amber-700">
-                      {audit.total_obs} observadas
+                      {audit.total_obs.toLocaleString('en-US')} observadas
                     </strong>
                     <small className="mt-1 block text-slate-500">
-                      {audit.total_ok} OK · {audit.total_photos} fotos ·{' '}
-                      {audit.total_applies} aplica
+                      {audit.total_ok.toLocaleString('en-US')} OK · {audit.total_photos.toLocaleString('en-US')} fotos ·{' '}
+                      {audit.total_applies.toLocaleString('en-US')} aplica
                     </small>
                   </td>
                   <td className={TD_CLASS}>
