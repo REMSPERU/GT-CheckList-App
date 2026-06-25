@@ -416,6 +416,32 @@ function DetailHeader({ equipment }: DetailHeaderProps) {
   );
 }
 
+function formatTechnicalKey(key: string): string {
+  const lowerKey = key.toLowerCase();
+  const dictionary: Record<string, string> = {
+    tiene_vdf: '¿Tiene variador de frecuencia (VDF)?',
+    vdf: 'Variador de frecuencia (VDF)',
+    marca: 'Marca',
+    modelo: 'Modelo',
+    serie: 'Número de Serie',
+    capacidad: 'Capacidad',
+    potencia: 'Potencia',
+    voltaje: 'Voltaje',
+    corriente: 'Corriente (Amperaje)',
+    fases: 'Fases',
+    presion: 'Presión',
+    temperatura: 'Temperatura',
+    rpm: 'RPM (Velocidad)',
+    frecuencia: 'Frecuencia',
+    refrigerante: 'Tipo de Refrigerante',
+    aceite: 'Tipo de Aceite',
+    filtro: 'Filtro',
+    ubicacion_exacta: 'Ubicación Exacta',
+  };
+
+  return dictionary[lowerKey] ?? key.replace(/_/g, ' ');
+}
+
 interface JsonValueProps {
   value: unknown;
 }
@@ -429,8 +455,20 @@ function JsonValue({ value }: JsonValueProps) {
     );
   }
 
-  if (isRecord(value)) {
-    const entries = Object.entries(value);
+  let parsedValue = value;
+  if (typeof value === 'string') {
+    try {
+      const trimmed = value.trim();
+      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        parsedValue = JSON.parse(value);
+      }
+    } catch {
+      // Ignorar error y usar como string simple
+    }
+  }
+
+  if (isRecord(parsedValue)) {
+    const entries = Object.entries(parsedValue);
 
     return (
       <div className="grid grid-cols-2 gap-3 max-[640px]:grid-cols-1">
@@ -439,9 +477,9 @@ function JsonValue({ value }: JsonValueProps) {
             key={key}
             className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 text-xs transition-colors hover:bg-slate-50">
             <span className="block font-bold text-slate-400 uppercase tracking-wider text-[9px]">
-              {key.replace(/_/g, ' ')}
+              {formatTechnicalKey(key)}
             </span>
-            <span className="mt-1 block break-words font-semibold text-slate-800 text-[13px]">
+            <span className="mt-1 block break-words font-semibold text-slate-800 text-[13px] whitespace-pre-line">
               {formatUnknown(entryValue)}
             </span>
           </div>
@@ -451,7 +489,7 @@ function JsonValue({ value }: JsonValueProps) {
   }
 
   return (
-    <pre className="m-0 max-h-64 overflow-auto rounded-xl bg-slate-950 p-3.5 text-xs font-mono font-semibold text-slate-100">
+    <pre className="m-0 max-h-64 overflow-auto rounded-xl bg-slate-950 p-3.5 text-xs font-mono font-semibold text-slate-100 whitespace-pre-wrap">
       {formatUnknown(value)}
     </pre>
   );
@@ -467,8 +505,20 @@ function formatUnknown(value: unknown): string {
   if (typeof value === 'string' || typeof value === 'number')
     return String(value);
 
+  if (isRecord(value)) {
+    const entries = Object.entries(value);
+    if (entries.length === 1) {
+      // Si el objeto tiene una sola clave (por ejemplo: {"tiene_vdf": false}), desempaquetar y formatear su valor
+      return formatUnknown(entries[0][1]);
+    }
+    // Si tiene más de una clave, formatear como líneas independientes clave: valor
+    return entries
+      .map(([k, v]) => `${formatTechnicalKey(k)}: ${formatUnknown(v)}`)
+      .join('\n');
+  }
+
   try {
-    return JSON.stringify(value, null, 2);
+    return JSON.stringify(value);
   } catch {
     return String(value);
   }
