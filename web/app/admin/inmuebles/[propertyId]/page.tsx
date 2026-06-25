@@ -497,7 +497,7 @@ function PropertyDetailContent() {
                   <span>{getSystemEmoji(system.nombre)}</span>
                   <span>{system.nombre}</span>
                   <span className="ml-auto rounded-full bg-emerald-50 px-2.5 py-0.5 text-[0.68rem] font-bold text-emerald-900 border border-emerald-100">
-                    {system.totalEquipos} equipo{system.totalEquipos === 1 ? '' : 's'}
+                    {system.totalEquipos.toLocaleString('en-US')} equipo{system.totalEquipos === 1 ? '' : 's'}
                   </span>
                 </h3>
 
@@ -548,7 +548,7 @@ function PropertyDetailContent() {
                             {type.nombre}
                           </h4>
                           <span className="text-xs font-bold text-slate-400">
-                            {type.count} dispositivo{type.count === 1 ? '' : 's'} →
+                            {type.count.toLocaleString('en-US')} dispositivo{type.count === 1 ? '' : 's'} →
                           </span>
                         </div>
                       </Link>

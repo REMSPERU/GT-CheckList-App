@@ -23,7 +23,7 @@ export function MetricCardGrid({ metrics, isLoading }: MetricCardGridProps) {
               key={metric.label}>
               <span className="text-slate-500">{metric.label}</span>
               <strong className="text-[2.6rem] font-bold tracking-[-0.07em] text-[#0c1720]">
-                {metric.value}
+                {metric.value.toLocaleString('en-US')}
               </strong>
               <small className="text-slate-500">{metric.note}</small>
             </article>

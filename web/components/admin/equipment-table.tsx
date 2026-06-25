@@ -34,7 +34,7 @@ export function EquipmentTable({
       summary={
         isLoading
           ? 'Cargando equipos...'
-          : `${items.length} de ${total} equipos · pagina ${page} de ${totalPages}`
+          : `${items.length.toLocaleString('en-US')} de ${total.toLocaleString('en-US')} equipos · pagina ${page.toLocaleString('en-US')} de ${totalPages.toLocaleString('en-US')}`
       }>
       <ResponsiveTable>
         <table className={TABLE_CLASS}>
