@@ -10,6 +10,7 @@ import { getSupabaseClient } from '@/lib/supabase-browser';
 import { getAdminEquipmentById } from '@/services/admin/equipments.service';
 import type { AdminEquipmentDetailRow } from '@/types/admin';
 import { formatDateTime } from '@/utils/date';
+import { ElectricalPanelDetail } from '@/components/admin/electrical-panel-detail';
 
 export default function AdminEquipmentDetailPage() {
   const params = useParams<{ equipmentId: string }>();
@@ -64,6 +65,17 @@ export default function AdminEquipmentDetailPage() {
           !isTechnicalIdField(key),
       )
       .sort(([first], [second]) => first.localeCompare(second));
+  }, [equipment]);
+
+  const isElectricalPanel = useMemo(() => {
+    if (!equipment) return false;
+    const isAbbrMatch = equipment.equipmentAbbreviation === 'TBELEC';
+    const hasItgData = !!(
+      equipment.equipment_detail &&
+      typeof equipment.equipment_detail === 'object' &&
+      'itgs' in equipment.equipment_detail
+    );
+    return isAbbrMatch || hasItgData;
   }, [equipment]);
 
   if (isLoading) {
@@ -127,7 +139,7 @@ export default function AdminEquipmentDetailPage() {
         </CompactCard>
       </section>
 
-      <section className="grid grid-cols-[0.9fr_1.1fr] gap-3 max-[980px]:grid-cols-1">
+      <section className={isElectricalPanel ? "grid grid-cols-1 gap-3" : "grid grid-cols-[0.9fr_1.1fr] gap-3 max-[980px]:grid-cols-1"}>
         <CompactCard title="Auditoria">
           <KeyValue
             label="Creado"
@@ -143,10 +155,21 @@ export default function AdminEquipmentDetailPage() {
           />
         </CompactCard>
 
-        <CompactCard title="Detalle guardado">
-          <JsonValue value={equipment.equipment_detail} />
-        </CompactCard>
+        {!isElectricalPanel && (
+          <CompactCard title="Detalle guardado">
+            <JsonValue value={equipment.equipment_detail} />
+          </CompactCard>
+        )}
       </section>
+
+      {isElectricalPanel && (
+        <section className="rounded-[22px] border border-slate-900/10 bg-white/85 p-6 shadow-sm">
+          <h2 className="m-0 mb-4 text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
+            Detalle Estructurado del Tablero Eléctrico
+          </h2>
+          <ElectricalPanelDetail data={equipment.equipment_detail} />
+        </section>
+      )}
 
       <section className="rounded-[22px] border border-slate-900/10 bg-white/85 shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
         <div className="border-b border-slate-200 px-4 py-3">
