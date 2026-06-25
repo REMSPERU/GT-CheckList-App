@@ -239,6 +239,7 @@ export interface AdminPropertyRow {
   image_url: string | null;
   floor: number | null;
   basement: number | null;
+  is_active: boolean;
 }
 
 export interface AdminMaintenanceRow {
