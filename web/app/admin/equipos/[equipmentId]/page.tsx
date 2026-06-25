@@ -3,6 +3,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import {
+  ArrowLeft,
+  MapPin,
+  Clock,
+  Database,
+  Server,
+  Cpu,
+  Zap,
+  XCircle,
+  ChevronDown,
+} from 'lucide-react';
 
 import { StatusBadge } from '@/components/admin/status-badge';
 import { Alert } from '@/components/ui/alert';
@@ -80,10 +91,20 @@ export default function AdminEquipmentDetailPage() {
 
   if (isLoading) {
     return (
-      <main className="grid gap-4 px-8 pb-8 pt-4 max-[640px]:px-[14px]">
+      <main className="grid gap-6 px-8 pb-8 pt-4 max-[640px]:px-[14px]">
         <DetailHeader />
-        <section className="grid min-h-[260px] place-items-center rounded-[22px] border border-slate-900/10 bg-white/80 text-sm font-semibold text-slate-500 shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
-          Cargando datos del equipo...
+        <section className="grid min-h-[300px] place-items-center rounded-[22px] border border-slate-200/80 bg-white shadow-sm">
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative flex h-10 w-10">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-10 w-10 bg-emerald-500 items-center justify-center text-white">
+                <Zap className="h-5 w-5 animate-pulse" />
+              </span>
+            </div>
+            <span className="text-xs font-bold tracking-wider text-slate-500 uppercase animate-pulse">
+              Cargando datos del equipo...
+            </span>
+          </div>
         </section>
       </main>
     );
@@ -91,101 +112,250 @@ export default function AdminEquipmentDetailPage() {
 
   if (!equipment) {
     return (
-      <main className="grid gap-4 px-8 pb-8 pt-4 max-[640px]:px-[14px]">
+      <main className="grid gap-6 px-8 pb-8 pt-4 max-[640px]:px-[14px]">
         <DetailHeader />
         <Alert>{errorMessage}</Alert>
-        <section className="rounded-[22px] border border-slate-900/10 bg-white/80 p-6 text-sm text-slate-500 shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
-          No se encontro este equipo.
+        <section className="rounded-[22px] border border-red-100 bg-red-50/30 p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600 mb-3">
+            <XCircle className="h-6 w-6" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+            Equipo No Encontrado
+          </h3>
+          <p className="mt-1 text-xs text-slate-500 font-medium">
+            El identificador del equipo no es válido o fue eliminado del sistema.
+          </p>
         </section>
       </main>
     );
   }
 
   return (
-    <main className="grid gap-4 px-8 pb-8 pt-4 max-[640px]:px-[14px]">
+    <main className="grid gap-6 px-8 pb-8 pt-4 max-[640px]:px-[14px]">
       <DetailHeader equipment={equipment} />
       <Alert>{errorMessage}</Alert>
 
-      <section className="grid grid-cols-[1.1fr_1fr_1fr] gap-3 max-[1100px]:grid-cols-2 max-[720px]:grid-cols-1">
-        <CompactCard title="Identificacion">
-          <KeyValue label="Codigo" value={equipment.codigo} emphasis />
-          <KeyValue
-            label="Estado"
-            value={<StatusBadge>{equipment.estatus}</StatusBadge>}
-          />
-          <KeyValue
-            label="Configurado"
-            value={formatBoolean(equipment.config)}
-          />
-        </CompactCard>
-
-        <CompactCard title="Ubicacion">
-          <KeyValue label="Inmueble" value={equipment.propertyName} emphasis />
-          <KeyValue label="Codigo inmueble" value={equipment.propertyCode} />
-          <KeyValue label="Ciudad" value={equipment.propertyCity} />
-          <KeyValue label="Direccion" value={equipment.propertyAddress} />
-          <KeyValue label="Zona" value={equipment.ubicacion} />
-          <KeyValue label="Detalle" value={equipment.detalle_ubicacion} />
-        </CompactCard>
-
-        <CompactCard title="Tipo de equipo">
-          <KeyValue label="Sistema" value={equipment.systemName} emphasis />
-          <KeyValue label="Tipo" value={equipment.equipmentName} />
-          <KeyValue
-            label="Abreviatura"
-            value={equipment.equipmentAbbreviation}
-          />
-          <KeyValue label="Frecuencia" value={equipment.equipmentFrequency} />
-        </CompactCard>
-      </section>
-
-      <section className={isElectricalPanel ? "grid grid-cols-1 gap-3" : "grid grid-cols-[0.9fr_1.1fr] gap-3 max-[980px]:grid-cols-1"}>
-        <CompactCard title="Auditoria">
-          <KeyValue
-            label="Creado"
-            value={formatDateTime(
-              firstDate(equipment.created_at, equipment.created),
-            )}
-          />
-          <KeyValue
-            label="Actualizado"
-            value={formatDateTime(
-              firstDate(equipment.updated_at, equipment.updated),
-            )}
-          />
-        </CompactCard>
-
-        {!isElectricalPanel && (
-          <CompactCard title="Detalle guardado">
-            <JsonValue value={equipment.equipment_detail} />
-          </CompactCard>
-        )}
-      </section>
-
-      {isElectricalPanel && (
-        <section className="rounded-[22px] border border-slate-900/10 bg-white/85 p-6 shadow-sm">
-          <h2 className="m-0 mb-4 text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
-            Detalle Estructurado del Tablero Eléctrico
-          </h2>
-          <ElectricalPanelDetail data={equipment.equipment_detail} />
-        </section>
-      )}
-
-      <section className="rounded-[22px] border border-slate-900/10 bg-white/85 shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
-        <div className="border-b border-slate-200 px-4 py-3">
-          <span className="text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
-            Campos crudos sincronizados
-          </span>
-          <p className="m-0 mt-1 text-xs font-semibold text-slate-500">
-            Vista compacta de campos operativos guardados en la tabla equipos.
-          </p>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 items-start">
+        {/* Sección Principal (Detalles) */}
+        <div className="space-y-6">
+          {isElectricalPanel ? (
+            <div className="rounded-[22px] border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/50 px-6 py-4.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100/50">
+                  <Zap className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <h2 className="m-0 text-[13px] font-black uppercase tracking-[0.12em] text-slate-800">
+                    Detalle Estructurado del Tablero Eléctrico
+                  </h2>
+                  <p className="m-0 mt-0.5 text-xs text-slate-400 font-medium">
+                    Especificación técnica detallada de interruptores e ITGs.
+                  </p>
+                </div>
+              </div>
+              <div className="p-6">
+                <ElectricalPanelDetail data={equipment.equipment_detail} />
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[22px] border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/50 px-6 py-4.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-slate-600 border border-slate-200/40">
+                  <Cpu className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <h2 className="m-0 text-[13px] font-black uppercase tracking-[0.12em] text-slate-800">
+                    Detalles y Especificaciones del Equipo
+                  </h2>
+                  <p className="m-0 mt-0.5 text-xs text-slate-400 font-medium">
+                    Información técnica específica guardada en la base de datos.
+                  </p>
+                </div>
+              </div>
+              <div className="p-6">
+                <JsonValue value={equipment.equipment_detail} />
+              </div>
+            </div>
+          )}
         </div>
-        <div className="grid grid-cols-3 gap-2 p-3 max-[1180px]:grid-cols-2 max-[720px]:grid-cols-1">
-          {savedFields.map(([key, value]) => (
-            <RawField fieldKey={key} key={key} value={value} />
-          ))}
+
+        {/* Barra Lateral (Contexto) */}
+        <div className="space-y-6">
+          {/* Card 1: Ubicación */}
+          <div className="rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-sm space-y-4">
+            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <MapPin className="h-4 w-4" />
+              </div>
+              <h2 className="m-0 text-[11px] font-black uppercase tracking-[0.14em] text-slate-800">
+                Ubicación del Equipo
+              </h2>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Inmueble
+                </span>
+                <span className="mt-0.5 block font-bold text-slate-800 text-sm">
+                  {equipment.propertyName}
+                </span>
+                {equipment.propertyCode && (
+                  <span className="mt-1 inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-slate-600">
+                    Cód: {equipment.propertyCode}
+                  </span>
+                )}
+              </div>
+
+              {(equipment.propertyAddress || equipment.propertyCity) && (
+                <div>
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Dirección
+                  </span>
+                  <span className="mt-0.5 block text-xs font-semibold text-slate-600">
+                    {equipment.propertyAddress
+                      ? `${equipment.propertyAddress}, `
+                      : ''}
+                    {equipment.propertyCity}
+                  </span>
+                </div>
+              )}
+
+              {equipment.ubicacion && (
+                <div>
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Zona / Sector
+                  </span>
+                  <span className="mt-1 inline-flex items-center rounded-lg bg-emerald-50/50 border border-emerald-100/50 px-2 py-1 text-xs font-bold text-emerald-800">
+                    {equipment.ubicacion}
+                  </span>
+                </div>
+              )}
+
+              {equipment.detalle_ubicacion && (
+                <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-100/50">
+                  <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                    Detalle de Ubicación
+                  </span>
+                  <span className="mt-1 block text-xs font-semibold text-slate-600 leading-relaxed">
+                    {equipment.detalle_ubicacion}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Card 2: Clasificación */}
+          <div className="rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-sm space-y-4">
+            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <Server className="h-4 w-4" />
+              </div>
+              <h2 className="m-0 text-[11px] font-black uppercase tracking-[0.14em] text-slate-800">
+                Clasificación y Tipo
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Sistema
+                </span>
+                <span className="mt-0.5 block text-xs font-bold text-slate-800">
+                  {equipment.systemName || '-'}
+                </span>
+              </div>
+
+              <div>
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Categoría
+                </span>
+                <span className="mt-0.5 block text-xs font-semibold text-slate-600">
+                  {equipment.equipmentName}
+                </span>
+              </div>
+
+              <div>
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Frecuencia
+                </span>
+                <span className="mt-0.5 block text-xs font-semibold text-slate-600">
+                  {equipment.equipmentFrequency || 'No programada'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Auditoría */}
+          <div className="rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-sm space-y-4">
+            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                <Clock className="h-4 w-4" />
+              </div>
+              <h2 className="m-0 text-[11px] font-black uppercase tracking-[0.14em] text-slate-800">
+                Historial de Registro
+              </h2>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="flex justify-between items-center gap-2">
+                <span className="font-semibold text-slate-400">Creado</span>
+                <span className="font-mono text-slate-700 text-[11px] font-medium text-right">
+                  {formatDateTime(
+                    firstDate(equipment.created_at, equipment.created),
+                  )}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center gap-2 border-t border-slate-50 pt-2.5">
+                <span className="font-semibold text-slate-400">Actualizado</span>
+                <span className="font-mono text-slate-700 text-[11px] font-medium text-right">
+                  {formatDateTime(
+                    firstDate(equipment.updated_at, equipment.updated),
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Acordeón de Campos Sincronizados */}
+          <details className="group rounded-[22px] border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all duration-300">
+            <summary className="flex items-center justify-between p-4.5 cursor-pointer select-none hover:bg-slate-50/50 list-none [&::-webkit-details-marker]:hidden">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-500 group-hover:bg-slate-100">
+                  <Database className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="m-0 text-[11px] font-black uppercase tracking-[0.14em] text-slate-700">
+                    Campos Sincronizados
+                  </h2>
+                  <p className="m-0 text-[10px] text-slate-400 font-semibold mt-0.5">
+                    {savedFields.length} campos crudos
+                  </p>
+                </div>
+              </div>
+              <ChevronDown className="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform duration-200" />
+            </summary>
+            <div className="border-t border-slate-100 p-4 bg-slate-50/30 space-y-2 max-h-[350px] overflow-y-auto">
+              <p className="m-0 text-[10px] font-semibold text-slate-400 italic mb-2">
+                Valores operativos directos de la tabla de base de datos.
+              </p>
+              {savedFields.map(([key, value]) => (
+                <div
+                  key={key}
+                  className="rounded-xl border border-slate-100 bg-white p-2.5 text-[11px] shadow-sm">
+                  <span className="block font-bold text-slate-400 text-[9px] uppercase tracking-wider font-mono">
+                    {key}
+                  </span>
+                  <span className="mt-0.5 block break-all font-semibold text-slate-700 font-mono text-[11px]">
+                    {formatUnknown(value)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </details>
         </div>
-      </section>
+      </div>
     </main>
   );
 }
@@ -196,85 +366,53 @@ interface DetailHeaderProps {
 
 function DetailHeader({ equipment }: DetailHeaderProps) {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-      <Link
-        className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3.5 py-2 text-sm font-bold text-[#0c1720] no-underline transition-colors hover:bg-slate-200"
-        href="/admin/equipos">
-        ← Volver a equipos
-      </Link>
-      {equipment ? (
-        <div className="text-right max-[640px]:text-left">
-          <span className="block text-sm font-black text-[#0c1720]">
-            {equipment.codigo ?? 'Sin codigo'}
-          </span>
-          <span className="block text-xs font-semibold text-slate-500">
-            {equipment.propertyName} · {equipment.equipmentName}
-          </span>
+    <header className="flex flex-col gap-4 border-b border-slate-200/60 pb-5">
+      <div>
+        <Link
+          className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 px-3.5 py-2 text-xs font-bold text-slate-600 no-underline transition-all duration-200 hover:-translate-x-0.5 active:translate-x-0 active:scale-95 shadow-sm border border-slate-200/40"
+          href="/admin/equipos">
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Volver a equipos
+        </Link>
+      </div>
+
+      {equipment && (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="m-0 text-xl font-black tracking-tight text-slate-800 font-mono">
+                {equipment.codigo ?? 'Sin código'}
+              </h1>
+              {equipment.equipmentAbbreviation && (
+                <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold tracking-wider text-slate-500 uppercase font-mono">
+                  {equipment.equipmentAbbreviation}
+                </span>
+              )}
+              {equipment.config !== null && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                    equipment.config
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                      : 'bg-amber-50 text-amber-700 border border-amber-100'
+                  }`}>
+                  {equipment.config ? 'Configurado' : 'Pendiente'}
+                </span>
+              )}
+            </div>
+            <p className="m-0 text-xs font-semibold text-slate-500">
+              {equipment.propertyName} · {equipment.equipmentName}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Estado:
+            </span>
+            <StatusBadge>{equipment.estatus}</StatusBadge>
+          </div>
         </div>
-      ) : null}
+      )}
     </header>
-  );
-}
-
-interface CompactCardProps {
-  title: string;
-  children: React.ReactNode;
-}
-
-function CompactCard({ title, children }: CompactCardProps) {
-  return (
-    <section className="rounded-[18px] border border-slate-900/10 bg-white/85 p-3 shadow-sm">
-      <h2 className="m-0 mb-2 text-[0.7rem] font-black uppercase tracking-[0.16em] text-emerald-800">
-        {title}
-      </h2>
-      <div className="grid gap-1.5">{children}</div>
-    </section>
-  );
-}
-
-interface KeyValueProps {
-  label: string;
-  value: React.ReactNode;
-  emphasis?: boolean;
-  mono?: boolean;
-}
-
-function KeyValue({
-  label,
-  value,
-  emphasis = false,
-  mono = false,
-}: KeyValueProps) {
-  return (
-    <div className="grid grid-cols-[116px_1fr] gap-2 rounded-xl bg-slate-50 px-2.5 py-1.5 text-xs">
-      <span className="font-black uppercase tracking-[0.08em] text-slate-500">
-        {label}
-      </span>
-      <span
-        className={`min-w-0 break-words font-semibold text-[#0c1720] ${
-          emphasis ? 'text-sm' : ''
-        } ${mono ? 'font-mono text-[0.7rem]' : ''}`}>
-        {isEmptyValue(value) ? '-' : value}
-      </span>
-    </div>
-  );
-}
-
-interface RawFieldProps {
-  fieldKey: string;
-  value: unknown;
-}
-
-function RawField({ fieldKey, value }: RawFieldProps) {
-  return (
-    <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-2 text-xs">
-      <span className="block font-black uppercase tracking-[0.08em] text-slate-500">
-        {fieldKey}
-      </span>
-      <span className="mt-1 block break-words font-semibold text-[#0c1720]">
-        {formatUnknown(value)}
-      </span>
-    </div>
   );
 }
 
@@ -285,7 +423,7 @@ interface JsonValueProps {
 function JsonValue({ value }: JsonValueProps) {
   if (isEmptyValue(value)) {
     return (
-      <p className="m-0 text-xs font-semibold text-slate-500">
+      <p className="m-0 text-xs font-semibold text-slate-400 italic">
         Sin detalle guardado.
       </p>
     );
@@ -295,16 +433,25 @@ function JsonValue({ value }: JsonValueProps) {
     const entries = Object.entries(value);
 
     return (
-      <div className="grid grid-cols-2 gap-2 max-[640px]:grid-cols-1">
+      <div className="grid grid-cols-2 gap-3 max-[640px]:grid-cols-1">
         {entries.map(([key, entryValue]) => (
-          <RawField fieldKey={key} key={key} value={entryValue} />
+          <div
+            key={key}
+            className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 text-xs transition-colors hover:bg-slate-50">
+            <span className="block font-bold text-slate-400 uppercase tracking-wider text-[9px]">
+              {key.replace(/_/g, ' ')}
+            </span>
+            <span className="mt-1 block break-words font-semibold text-slate-800 text-[13px]">
+              {formatUnknown(entryValue)}
+            </span>
+          </div>
         ))}
       </div>
     );
   }
 
   return (
-    <pre className="m-0 max-h-64 overflow-auto rounded-xl bg-slate-950 p-3 text-xs font-semibold text-slate-100">
+    <pre className="m-0 max-h-64 overflow-auto rounded-xl bg-slate-950 p-3.5 text-xs font-mono font-semibold text-slate-100">
       {formatUnknown(value)}
     </pre>
   );
@@ -314,14 +461,9 @@ function firstDate(...values: (string | null)[]) {
   return values.find(Boolean) ?? null;
 }
 
-function formatBoolean(value: boolean | null) {
-  if (value === null) return '-';
-  return value ? 'Si' : 'No';
-}
-
 function formatUnknown(value: unknown): string {
   if (value === null || value === undefined || value === '') return '-';
-  if (typeof value === 'boolean') return value ? 'Si' : 'No';
+  if (typeof value === 'boolean') return value ? 'Sí' : 'No';
   if (typeof value === 'string' || typeof value === 'number')
     return String(value);
 
