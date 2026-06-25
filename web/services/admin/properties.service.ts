@@ -7,7 +7,7 @@ export async function listAdminProperties(
 ): Promise<AdminPropertyRow[]> {
   const { data, error } = await supabase
     .from('properties')
-    .select('id, code, name, address, city, image_url, floor, basement')
+    .select('id, code, name, address, city, image_url, floor, basement, is_active')
     .order('name', { ascending: true })
     .limit(250);
 
@@ -22,7 +22,7 @@ export async function getAdminProperty(
 ): Promise<AdminPropertyRow | null> {
   const { data, error } = await supabase
     .from('properties')
-    .select('id, code, name, address, city, image_url, floor, basement')
+    .select('id, code, name, address, city, image_url, floor, basement, is_active')
     .eq('id', propertyId)
     .maybeSingle();
 
@@ -45,6 +45,7 @@ export async function createAdminProperty(
       image_url: property.image_url || null,
       floor: property.floor !== undefined ? property.floor : null,
       basement: property.basement !== undefined ? property.basement : null,
+      is_active: property.is_active !== undefined ? property.is_active : true,
     })
     .select()
     .single();
@@ -68,6 +69,7 @@ export async function updateAdminProperty(
       image_url: property.image_url,
       floor: property.floor !== undefined ? property.floor : undefined,
       basement: property.basement !== undefined ? property.basement : undefined,
+      is_active: property.is_active !== undefined ? property.is_active : undefined,
     })
     .eq('id', propertyId)
     .select()

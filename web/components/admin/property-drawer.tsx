@@ -25,6 +25,7 @@ export function PropertyDrawer({
   const [floor, setFloor] = useState('');
   const [basement, setBasement] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [isActive, setIsActive] = useState(true);
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export function PropertyDrawer({
         setBasement(propertyToEdit.basement !== null && propertyToEdit.basement !== undefined ? String(propertyToEdit.basement) : '');
         setImageUrl(propertyToEdit.image_url || '');
         setImagePreview(propertyToEdit.image_url || null);
+        setIsActive(propertyToEdit.is_active !== undefined ? propertyToEdit.is_active : true);
       } else {
         // Clear fields for new property
         setName('');
@@ -55,6 +57,7 @@ export function PropertyDrawer({
         setBasement('');
         setImageUrl('');
         setImagePreview(null);
+        setIsActive(true);
       }
       setSelectedFile(null);
       setErrorMessage(null);
@@ -129,6 +132,7 @@ export function PropertyDrawer({
         image_url: finalImageUrl || null,
         floor: floor.trim() ? parseInt(floor.trim(), 10) : null,
         basement: basement.trim() ? parseInt(basement.trim(), 10) : null,
+        is_active: isActive,
       };
 
       let result: AdminPropertyRow;
@@ -327,6 +331,34 @@ export function PropertyDrawer({
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                   />
                 </div>
+              </div>
+
+              {/* Status Toggle Switch */}
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Estado del Inmueble
+                  </label>
+                  <p className="m-0 mt-0.5 text-[11px] text-slate-500 font-medium">
+                    {isActive ? 'El inmueble está activo y visible en la app.' : 'El inmueble está dado de baja (inactivo).'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsActive(!isActive)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    isActive ? 'bg-emerald-600' : 'bg-slate-300'
+                  }`}
+                  role="switch"
+                  aria-checked={isActive}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      isActive ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
               </div>
             </div>
           </div>
