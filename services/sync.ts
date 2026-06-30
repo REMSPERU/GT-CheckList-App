@@ -1016,17 +1016,27 @@ class SyncService {
                 `Subiendo evidencia ${countUploadedAuditPhotos(payload) + 1} de ${countAuditPhotos(payload)}...`,
               );
 
-              const uploaded = await withTimeout(
-                supabaseAuditStorageService.uploadPhoto({
-                  uri: sourceUri,
-                  clientSubmissionId: item.client_submission_id,
-                  propertyId: item.property_id,
-                  auditorId: item.auditor_id,
-                  questionId: answer.question_id,
-                }),
-                AUDIT_PHOTO_UPLOAD_TIMEOUT_MS,
-                'AUDIT_PHOTO_UPLOAD_TIMEOUT',
-              );
+              let uploaded;
+              try {
+                uploaded = await withTimeout(
+                  supabaseAuditStorageService.uploadPhoto({
+                    uri: sourceUri,
+                    clientSubmissionId: item.client_submission_id,
+                    propertyId: item.property_id,
+                    auditorId: item.auditor_id,
+                    questionId: answer.question_id,
+                  }),
+                  AUDIT_PHOTO_UPLOAD_TIMEOUT_MS,
+                  'AUDIT_PHOTO_UPLOAD_TIMEOUT',
+                );
+              } catch (err) {
+                if (this.isFileNotFoundError(err)) {
+                  console.warn('[SYNC-AUDIT] Skipping missing photo:', sourceUri);
+                  uploaded = { bucket: 'missing_evidence', path: 'file_not_found' };
+                } else {
+                  throw err;
+                }
+              }
 
               answer.photos[index] = {
                 bucket: uploaded.bucket,
@@ -1036,7 +1046,7 @@ class SyncService {
               await this.persistAuditUploadProgress(
                 item,
                 payload,
-                `Evidencia ${countUploadedAuditPhotos(payload)} de ${countAuditPhotos(payload)} subida.`,
+                `Evidencia ${countUploadedAuditPhotos(payload)} de ${countAuditPhotos(payload)} procesada.`,
               );
             }
           }
@@ -1071,17 +1081,27 @@ class SyncService {
                   `Subiendo evidencia ${countUploadedAuditPhotos(payload) + 1} de ${countAuditPhotos(payload)}...`,
                 );
 
-                const uploaded = await withTimeout(
-                  supabaseAuditStorageService.uploadPhoto({
-                    uri: sourceUri,
-                    clientSubmissionId: item.client_submission_id,
-                    propertyId: item.property_id,
-                    auditorId: item.auditor_id,
-                    questionId: `${feedback.equipment_key}-${suffix}`,
-                  }),
-                  AUDIT_PHOTO_UPLOAD_TIMEOUT_MS,
-                  'AUDIT_PHOTO_UPLOAD_TIMEOUT',
-                );
+                let uploaded;
+                try {
+                  uploaded = await withTimeout(
+                    supabaseAuditStorageService.uploadPhoto({
+                      uri: sourceUri,
+                      clientSubmissionId: item.client_submission_id,
+                      propertyId: item.property_id,
+                      auditorId: item.auditor_id,
+                      questionId: `${feedback.equipment_key}-${suffix}`,
+                    }),
+                    AUDIT_PHOTO_UPLOAD_TIMEOUT_MS,
+                    'AUDIT_PHOTO_UPLOAD_TIMEOUT',
+                  );
+                } catch (err) {
+                  if (this.isFileNotFoundError(err)) {
+                    console.warn('[SYNC-AUDIT] Skipping missing feedback photo:', sourceUri);
+                    uploaded = { bucket: 'missing_evidence', path: 'file_not_found' };
+                  } else {
+                    throw err;
+                  }
+                }
 
                 photos[index] = {
                   bucket: uploaded.bucket,
@@ -1091,7 +1111,7 @@ class SyncService {
                 await this.persistAuditUploadProgress(
                   item,
                   payload,
-                  `Evidencia ${countUploadedAuditPhotos(payload)} de ${countAuditPhotos(payload)} subida.`,
+                  `Evidencia ${countUploadedAuditPhotos(payload)} de ${countAuditPhotos(payload)} procesada.`,
                 );
               }
 
@@ -1169,6 +1189,22 @@ class SyncService {
     }
   }
 
+  private isFileNotFoundError(error: unknown): boolean {
+    const rawMessage =
+      error && typeof error === 'object' && 'message' in error
+        ? String((error as { message?: unknown }).message ?? '')
+        : String(error ?? '');
+
+    const normalized = rawMessage.toLowerCase();
+
+    return (
+      normalized.includes('no such file') ||
+      normalized.includes('file not found') ||
+      normalized.includes('could not be read') ||
+      normalized.includes('no se pudo leer')
+    );
+  }
+
   private getAuditSyncErrorMessage(error: unknown): string {
     const rawMessage =
       error && typeof error === 'object' && 'message' in error
@@ -1205,12 +1241,7 @@ class SyncService {
       return 'No se pudo subir evidencia fotografica a storage.';
     }
 
-    if (
-      normalized.includes('no such file') ||
-      normalized.includes('file not found') ||
-      normalized.includes('could not be read') ||
-      normalized.includes('no se pudo leer')
-    ) {
+    if (this.isFileNotFoundError(error)) {
       return 'No se encontro una foto local. Mantenga esta app instalada y contacte soporte antes de borrar datos.';
     }
 
