@@ -4,23 +4,23 @@ import type { AdminMetric } from '@/types/admin';
 
 const IN_FILTER_BATCH_SIZE = 400;
 
-async function countMaintenancesByEquipment(
+async function countMaintenancesBySession(
   supabase: SupabaseClient,
-  equipmentIds: string[],
+  sessionIds: string[],
   statuses: string[],
 ): Promise<number> {
   let total = 0;
 
   for (
     let index = 0;
-    index < equipmentIds.length;
+    index < sessionIds.length;
     index += IN_FILTER_BATCH_SIZE
   ) {
-    const batch = equipmentIds.slice(index, index + IN_FILTER_BATCH_SIZE);
+    const batch = sessionIds.slice(index, index + IN_FILTER_BATCH_SIZE);
     let query = supabase
       .from('mantenimientos')
       .select('id', { count: 'exact', head: true })
-      .in('id_equipo', batch);
+      .in('id_sesion', batch);
 
     query =
       statuses.length === 1
@@ -35,11 +35,11 @@ async function countMaintenancesByEquipment(
   return total;
 }
 
-async function listEquipmentIdsByProperties(
+async function listSessionIdsByProperties(
   supabase: SupabaseClient,
   propertyIds: string[],
 ): Promise<string[]> {
-  const equipmentIds: string[] = [];
+  const sessionIds: string[] = [];
 
   for (
     let index = 0;
@@ -48,15 +48,15 @@ async function listEquipmentIdsByProperties(
   ) {
     const batch = propertyIds.slice(index, index + IN_FILTER_BATCH_SIZE);
     const { data, error } = await supabase
-      .from('equipos')
+      .from('sesion_mantenimiento')
       .select('id')
       .in('id_property', batch);
 
     if (error) throw error;
-    equipmentIds.push(...(data ?? []).map(item => item.id as string));
+    sessionIds.push(...(data ?? []).map(item => item.id as string));
   }
 
-  return equipmentIds;
+  return sessionIds;
 }
 
 export async function getAdminMetrics(
@@ -75,7 +75,7 @@ export async function getAdminMetrics(
     return buildMetrics(0, 0, 0, 0, 0);
   }
 
-  const [equipments, activeEquipments, equipmentIds] = await Promise.all([
+  const [equipments, activeEquipments, sessionIds] = await Promise.all([
     supabase
       .from('equipos')
       .select('id', { count: 'exact', head: true })
@@ -85,21 +85,21 @@ export async function getAdminMetrics(
       .select('id', { count: 'exact', head: true })
       .in('id_property', propertyIds)
       .eq('estatus', 'ACTIVO'),
-    listEquipmentIdsByProperties(supabase, propertyIds),
+    listSessionIdsByProperties(supabase, propertyIds),
   ]);
 
   if (equipments.error) throw equipments.error;
   if (activeEquipments.error) throw activeEquipments.error;
 
   const [pendingCount, completedCount] =
-    equipmentIds.length > 0
+    sessionIds.length > 0
       ? await Promise.all([
-          countMaintenancesByEquipment(supabase, equipmentIds, [
+          countMaintenancesBySession(supabase, sessionIds, [
             'NO_INICIADO',
             'EN_PROGRESO',
             'PENDIENTE',
           ]),
-          countMaintenancesByEquipment(supabase, equipmentIds, ['FINALIZADO']),
+          countMaintenancesBySession(supabase, sessionIds, ['FINALIZADO']),
         ])
       : [0, 0];
 
