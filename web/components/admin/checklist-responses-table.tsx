@@ -52,7 +52,7 @@ export function ChecklistResponsesTable({
               headers={[
                 'Fecha',
                 'Inmueble',
-                'Equipo',
+                'Activo',
                 'Frecuencia',
                 'Operatividad',
                 'Detalle',

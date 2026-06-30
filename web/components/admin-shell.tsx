@@ -29,7 +29,7 @@ const NAV_ITEMS = [
   },
   {
     href: '/admin/equipos',
-    label: 'Equipos',
+    label: 'Activos',
     icon: Wrench,
   },
   {
@@ -91,7 +91,7 @@ export function AdminShell({ children }: AdminShellProps) {
 
   const getSectionTitle = () => {
     if (pathname === '/admin') return 'Dashboard';
-    if (pathname.startsWith('/admin/equipos')) return 'Inventario · Equipos';
+    if (pathname.startsWith('/admin/equipos')) return 'Inventario · Activos';
     if (pathname.startsWith('/admin/inmuebles'))
       return 'Inventario · Inmuebles';
     if (pathname.startsWith('/admin/mantenimientos'))

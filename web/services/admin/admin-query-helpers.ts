@@ -99,7 +99,7 @@ export async function getSystemNameById(
   return new Map(
     ((data ?? []) as RelatedSystem[]).map(item => [
       item.id,
-      item.nombre ?? 'Sin sistema',
+      item.nombre ?? 'Sin especialidad',
     ]),
   );
 }

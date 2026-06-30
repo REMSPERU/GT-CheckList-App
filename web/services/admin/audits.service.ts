@@ -434,7 +434,7 @@ function mapEquipmentFeedback(
 
   return feedback.map(item => ({
     equipment_key: asString(item.equipment_key) ?? '',
-    equipment_label: asString(item.equipment_label) ?? 'Equipo',
+    equipment_label: asString(item.equipment_label) ?? 'Activo',
     good_practices_comment: asString(item.good_practices_comment),
     good_practices_photos: mapPhotoRefs(item.good_practices_photos, supabase),
     improvement_opportunity_comment: asString(

@@ -32,7 +32,7 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
               Inmuebles
             </span>
             <span className="rounded-2xl border border-white/70 bg-white/55 p-4 shadow-sm">
-              Equipos
+              Activos
             </span>
             <span className="rounded-2xl border border-white/70 bg-white/55 p-4 shadow-sm">
               Checklist

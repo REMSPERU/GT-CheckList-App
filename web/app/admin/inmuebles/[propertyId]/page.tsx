@@ -514,7 +514,7 @@ function PropertyDetailContent() {
               {systemsWithCounts.length}
             </strong>
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-              Sistemas Activos
+              Especialidades Activas
             </span>
           </div>
         </div>
@@ -529,7 +529,7 @@ function PropertyDetailContent() {
               {equipos.length}
             </strong>
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-              Equipos Totales
+              Activos Totales
             </span>
           </div>
         </div>
@@ -579,7 +579,7 @@ function PropertyDetailContent() {
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <span>🗂️ Sistemas y Equipos</span>
+          <span>🗂️ Especialidades y Activos</span>
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-black shadow-sm ${
             activeTab === 'systems' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
           }`}>
@@ -608,15 +608,15 @@ function PropertyDetailContent() {
           {systemsWithCounts.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-12 text-center shadow-inner">
               <span className="text-4xl block mb-2">⚙️</span>
-              <strong className="text-lg text-slate-900 block font-black">Sin equipos registrados</strong>
+              <strong className="text-lg text-slate-900 block font-black">Sin activos registrados</strong>
               <p className="text-sm text-slate-500 mt-2 mb-4 font-medium max-w-sm mx-auto">
-                Este inmueble no posee equipos activos cargados en su inventario en este momento.
+                Este inmueble no posee activos cargados en su inventario en este momento.
               </p>
               <Link
                 href="/admin/equipos"
                 className="inline-block rounded-full bg-emerald-800 px-6 py-2.5 text-xs font-bold text-white hover:bg-emerald-950 transition shadow-sm"
               >
-                Ir a Equipos
+                Ir a Activos
               </Link>
             </div>
           ) : (
@@ -627,7 +627,7 @@ function PropertyDetailContent() {
                   <span className="text-base">{getSystemEmoji(system.nombre)}</span>
                   <span>{system.nombre}</span>
                   <span className="ml-auto rounded-full bg-white border border-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
-                    {system.totalEquipos.toLocaleString('en-US')} equipo{system.totalEquipos === 1 ? '' : 's'}
+                    {system.totalEquipos.toLocaleString('en-US')} activo{system.totalEquipos === 1 ? '' : 's'}
                   </span>
                 </h3>
 

@@ -37,8 +37,8 @@ export async function getAdminMetrics(
 
   return [
     { label: 'Inmuebles activos', value: properties.count ?? 0, note: 'Sedes operativas' },
-    { label: 'Equipos registrados', value: equipments.count ?? 0, note: 'Inventario total' },
-    { label: 'Equipos activos', value: activeEquipments.count ?? 0, note: 'Disponibles' },
+    { label: 'Activos registrados', value: equipments.count ?? 0, note: 'Inventario total' },
+    { label: 'Activos activos', value: activeEquipments.count ?? 0, note: 'Disponibles' },
     { label: 'Mantenimientos abiertos', value: pending.count ?? 0, note: 'Por atender' },
     { label: 'Mantenimientos finalizados', value: completed.count ?? 0, note: 'Historico' },
   ];

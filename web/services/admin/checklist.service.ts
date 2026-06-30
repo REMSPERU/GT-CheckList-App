@@ -204,7 +204,7 @@ export async function listAdminChecklistQuestions(
     return {
       id: item.id,
       equipamento_id: item.equipamento_id,
-      systemName: equipmentType?.systemName ?? 'Sin sistema',
+      systemName: equipmentType?.systemName ?? 'Sin especialidad',
       equipmentName: equipmentType?.nombre ?? 'Sin tipo',
       pregunta: item.pregunta,
       orden: item.orden,
@@ -340,7 +340,7 @@ export async function listAdminChecklistSchedules(
       equipamento_id: item.equipamento_id,
       propertyName: property?.name ?? 'Inmueble sin nombre',
       equipmentName: equipmentType?.nombre ?? 'Tipo sin nombre',
-      systemName: equipmentType?.systemName ?? 'Sin sistema',
+      systemName: equipmentType?.systemName ?? 'Sin especialidad',
       frequency: item.frequency,
       occurrences_per_day: item.occurrences_per_day,
       execution_range_days: item.execution_range_days ?? 1,

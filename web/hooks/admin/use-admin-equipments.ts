@@ -144,7 +144,7 @@ export function useAdminEquipments() {
           setErrorMessage(
             error instanceof Error
               ? error.message
-              : 'No se pudieron cargar los equipos',
+              : 'No se pudieron cargar los activos',
           );
         }
       } finally {

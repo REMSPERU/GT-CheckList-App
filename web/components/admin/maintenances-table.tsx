@@ -19,7 +19,7 @@ export function MaintenancesTable({ items, isLoading }: MaintenancesTableProps) 
       <ResponsiveTable>
         <table className={TABLE_CLASS}>
           <TableHeaders
-            headers={['Sesión / Visita', 'Inmueble', 'Equipos Cubiertos', 'Fecha Programada', 'Progreso', 'Estado']}
+            headers={['Sesión / Visita', 'Inmueble', 'Activos Cubiertos', 'Fecha Programada', 'Progreso', 'Estado']}
           />
           <tbody>
             {items.map(item => {
@@ -49,7 +49,7 @@ export function MaintenancesTable({ items, isLoading }: MaintenancesTableProps) 
                     <strong className="block text-slate-700 text-xs truncate max-w-[200px]" title={item.equipmentCodes.join(', ')}>
                       {item.equipmentCodes.length > 0 
                         ? item.equipmentCodes.join(', ')
-                        : 'Sin equipos'}
+                        : 'Sin activos'}
                     </strong>
                     {item.equipmentTypes.length > 0 && (
                       <span className="mt-1 block text-[11px] text-slate-500 font-medium truncate max-w-[200px]" title={item.equipmentTypes.join(', ')}>

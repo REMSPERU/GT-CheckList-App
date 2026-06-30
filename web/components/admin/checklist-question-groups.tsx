@@ -41,7 +41,7 @@ export function ChecklistQuestionGroups({
               Sin preguntas
             </strong>
             <p className="mb-0 mt-2">
-              No hay preguntas para el equipo seleccionado.
+              No hay preguntas para el activo seleccionado.
             </p>
           </div>
         </div>
@@ -241,7 +241,7 @@ function WeightHint({ metrics }: { metrics: GroupMetrics }) {
 
   return (
     <small className="font-bold text-emerald-800">
-      Ponderado completo para este equipo.
+      Ponderado completo para este activo.
     </small>
   );
 }

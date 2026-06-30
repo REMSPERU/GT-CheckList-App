@@ -29,7 +29,7 @@ function AdminMaintenancesContent() {
   ];
 
   const equipmentTypeOptions = [
-    { value: '', label: 'Todos los tipos de equipo' },
+    { value: '', label: 'Todos los tipos de activo' },
     ...maintenances.equipmentTypes.map(item => ({
       value: item.id,
       label: `${item.systemName} · ${item.nombre}`,
@@ -40,7 +40,7 @@ function AdminMaintenancesContent() {
     <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
       <section className="grid grid-cols-[1.5fr_1.2fr_1.2fr_1.1fr_1.1fr_1.2fr_0.8fr] gap-2.5 max-[1400px]:grid-cols-4 max-[1024px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1">
         <SearchInput
-          placeholder="Buscar sesión, inmueble, equipos..."
+          placeholder="Buscar sesión, inmueble, activos..."
           value={maintenances.search}
           onChange={maintenances.setSearch}
         />
@@ -56,7 +56,7 @@ function AdminMaintenancesContent() {
           value={maintenances.equipmentTypeId}
           options={equipmentTypeOptions}
           onChange={maintenances.setEquipmentTypeId}
-          ariaLabel="Filtrar por tipo de equipo"
+          ariaLabel="Filtrar por tipo de activo"
         />
 
         <div className="flex flex-col justify-center min-h-11">

@@ -24,8 +24,8 @@ export async function listAdminEquipmentTypes(
     abreviatura: item.abreviatura,
     frecuencia: item.Frecuencia,
     systemName: item.id_sistema
-      ? (systemsById.get(item.id_sistema) ?? 'Sin sistema')
-      : 'Sin sistema',
+      ? (systemsById.get(item.id_sistema) ?? 'Sin especialidad')
+      : 'Sin especialidad',
     systemId: item.id_sistema,
     image_url: item.image_url ?? null,
   }));
