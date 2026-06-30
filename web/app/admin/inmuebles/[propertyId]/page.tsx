@@ -2,7 +2,9 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { EquipmentDetailView } from '@/components/admin/equipment-detail-view';
+import { getAdminEquipmentById } from '@/services/admin/equipments.service';
 import {
   ArrowLeft,
   Building,
@@ -31,7 +33,11 @@ import {
   updateAdminProperty,
   updateAdminPropertyImage,
 } from '@/services/admin/properties.service';
-import type { AdminEquipmentTypeRow, AdminPropertyRow } from '@/types/admin';
+import type {
+  AdminEquipmentTypeRow,
+  AdminPropertyRow,
+  AdminEquipmentDetailRow,
+} from '@/types/admin';
 import {
   uploadPropertyPhoto,
   uploadEquipmentTypePhoto,
@@ -155,6 +161,35 @@ interface DBSystem {
 
 function PropertyDetailContent() {
   const params = useParams<{ propertyId: string }>();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Read search params
+  const activeTab = (searchParams.get('tab') as 'systems' | 'info') || 'systems';
+  const systemIdParam = searchParams.get('systemId');
+  const typeIdParam = searchParams.get('typeId');
+  const equipmentIdParam = searchParams.get('equipmentId');
+
+  const activeSpecialty = useMemo(() => {
+    if (systemIdParam && typeIdParam) {
+      return { systemId: systemIdParam, typeId: typeIdParam };
+    }
+    return null;
+  }, [systemIdParam, typeIdParam]);
+
+  // Helper to update search params
+  const setQueryParams = (newParams: Record<string, string | null>) => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    Object.entries(newParams).forEach(([key, value]) => {
+      if (value === null) {
+        nextParams.delete(key);
+      } else {
+        nextParams.set(key, value);
+      }
+    });
+    router.push(`${pathname}?${nextParams.toString()}`);
+  };
 
   const [property, setProperty] = useState<AdminPropertyRow | null>(null);
   const [systems, setSystems] = useState<DBSystem[]>([]);
@@ -166,7 +201,6 @@ function PropertyDetailContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'systems' | 'info'>('systems');
   const [isEditing, setIsEditing] = useState(false);
 
   // Form states
@@ -192,10 +226,6 @@ function PropertyDetailContent() {
 
   const [selectedEqType, setSelectedEqType] =
     useState<AdminEquipmentTypeRow | null>(null);
-  const [activeSpecialty, setActiveSpecialty] = useState<{
-    systemId: string;
-    typeId: string;
-  } | null>(null);
   const [uploadingTypeId, setUploadingTypeId] = useState<string | null>(null);
   const eqFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -765,7 +795,7 @@ function PropertyDetailContent() {
         <button
           type="button"
           onClick={() => {
-            setActiveTab('systems');
+            setQueryParams({ tab: 'systems', systemId: null, typeId: null, equipmentId: null });
             setIsEditing(false);
           }}
           className={`flex items-center gap-2 border-b-2 px-6 py-4 text-sm font-bold transition-all -mb-[2px] ${
@@ -786,7 +816,7 @@ function PropertyDetailContent() {
         <button
           type="button"
           onClick={() => {
-            setActiveTab('info');
+            setQueryParams({ tab: 'info', systemId: null, typeId: null, equipmentId: null });
             setIsEditing(false);
           }}
           className={`flex items-center gap-2 border-b-2 px-6 py-4 text-sm font-bold transition-all -mb-[2px] ${
@@ -801,11 +831,16 @@ function PropertyDetailContent() {
       {/* Tab Panels */}
       {activeTab === 'systems' ? (
         <section className="grid gap-6">
-          {activeSpecialtyDetail ? (
+          {equipmentIdParam ? (
+            <EquipmentDetailSection
+              equipmentId={equipmentIdParam}
+              onBack={() => setQueryParams({ equipmentId: null })}
+            />
+          ) : activeSpecialtyDetail ? (
             <div className="grid gap-5">
               <button
                 type="button"
-                onClick={() => setActiveSpecialty(null)}
+                onClick={() => setQueryParams({ systemId: null, typeId: null, equipmentId: null })}
                 className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-950">
                 <ArrowLeft className="h-3.5 w-3.5" />
                 <span>Volver a especialidades</span>
@@ -886,9 +921,10 @@ function PropertyDetailContent() {
 
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3">
                     {activeSpecialtyDetail.equipos.map(equipo => (
-                      <div
+                      <Link
                         key={equipo.id}
-                        className="group rounded-2xl border border-slate-200 bg-slate-50/60 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white hover:shadow-md">
+                        href={`/admin/inmuebles/${property.id}?tab=systems&systemId=${activeSpecialtyDetail.system.id}&typeId=${activeSpecialtyDetail.type.id}&equipmentId=${equipo.id}`}
+                        className="group block rounded-2xl border border-slate-200 bg-slate-50/60 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white hover:shadow-md text-left no-underline">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-800 ring-1 ring-slate-200 transition group-hover:ring-emerald-200">
                             <Cpu className="h-5 w-5" />
@@ -914,7 +950,7 @@ function PropertyDetailContent() {
                             ) : null}
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 </div>
@@ -983,9 +1019,10 @@ function PropertyDetailContent() {
                         <button
                           type="button"
                           onClick={() =>
-                            setActiveSpecialty({
+                            setQueryParams({
                               systemId: system.id,
                               typeId: type.id,
+                              equipmentId: null,
                             })
                           }
                           className="flex w-full flex-col text-left">
@@ -1460,6 +1497,63 @@ function PropertyDetailContent() {
         className="hidden"
       />
     </main>
+  );
+}
+
+interface EquipmentDetailSectionProps {
+  equipmentId: string;
+  onBack: () => void;
+}
+
+function EquipmentDetailSection({
+  equipmentId,
+  onBack,
+}: EquipmentDetailSectionProps) {
+  const [equipment, setEquipment] = useState<AdminEquipmentDetailRow | null>(
+    null,
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadEquipment() {
+      try {
+        setIsLoading(true);
+        setErrorMessage(null);
+        const supabase = getSupabaseClient();
+        const result = await getAdminEquipmentById(supabase, equipmentId);
+
+        if (isMounted) setEquipment(result);
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : 'No se pudo cargar el activo',
+          );
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    void loadEquipment();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [equipmentId]);
+
+  return (
+    <EquipmentDetailView
+      equipment={equipment}
+      isLoading={isLoading}
+      errorMessage={errorMessage}
+      onBackClick={onBack}
+      backText="Volver a la lista de activos"
+    />
   );
 }
 
