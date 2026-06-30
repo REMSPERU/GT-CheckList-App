@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { persistLocalPhoto, saveToGallery } from '@/lib/photo-storage';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AppAlertModal } from '@/components/app-alert-modal';
@@ -681,7 +682,10 @@ export default function ChecklistFormScreen() {
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      onPhotoSelectedRef.current?.(result.assets[0].uri);
+      const rawUri = result.assets[0].uri;
+      const photoUri = await persistLocalPhoto(rawUri);
+      await saveToGallery(photoUri);
+      onPhotoSelectedRef.current?.(photoUri);
     }
 
     onPhotoSelectedRef.current = null;

@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { persistLocalPhoto, saveToGallery } from '@/lib/photo-storage';
 
 import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceSession } from '@/hooks/use-maintenance-session';
@@ -428,7 +429,10 @@ export default function MaintenanceChecklistScreen() {
         });
 
         if (!result.canceled && result.assets.length > 0) {
-          const photoUri = result.assets[0].uri;
+          const rawUri = result.assets[0].uri;
+          const photoUri = await persistLocalPhoto(rawUri);
+          await saveToGallery(photoUri);
+          
           await updateSession(
             prevSession => ({
               ...prevSession,

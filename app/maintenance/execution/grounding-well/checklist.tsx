@@ -23,6 +23,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { persistLocalPhoto, saveToGallery } from '@/lib/photo-storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 
@@ -615,7 +616,9 @@ export default function GroundingWellChecklistScreen() {
         return;
       }
 
-      const uri = asset.uri;
+      const rawUri = asset.uri;
+      const uri = await persistLocalPhoto(rawUri);
+      await saveToGallery(uri);
       const directPhotoMap: Record<DirectPhotoKey, string> = {
         reprogramEvidence: 'reprogramPhoto',
         lidStatus: 'lidStatusPhoto',

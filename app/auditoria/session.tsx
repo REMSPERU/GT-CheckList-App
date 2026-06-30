@@ -151,39 +151,10 @@ const FIRE_SYSTEM_OPTIONS: SystemEquipmentOption[] = [
   },
 ];
 
-const AUDIT_PHOTOS_DIR = `${FileSystem.documentDirectory}audit-photos/`;
-
-function getPhotoExtension(uri: string) {
-  const cleanUri = uri.split('?')[0].toLowerCase();
-  if (cleanUri.endsWith('.png')) return 'png';
-  if (cleanUri.endsWith('.webp')) return 'webp';
-  return 'jpg';
-}
-
-async function persistAuditPhoto(uri: string) {
-  await FileSystem.makeDirectoryAsync(AUDIT_PHOTOS_DIR, {
-    intermediates: true,
-  });
-
-  const extension = getPhotoExtension(uri);
-  const targetUri = `${AUDIT_PHOTOS_DIR}${Date.now()}_${Math.floor(
-    Math.random() * 100000,
-  )}.${extension}`;
-
-  await FileSystem.copyAsync({ from: uri, to: targetUri });
-  return targetUri;
-}
+import { persistLocalPhoto, saveToGallery } from '@/lib/photo-storage';
 
 async function ensurePersistedAuditPhoto(uri: string) {
-  if (uri.startsWith(AUDIT_PHOTOS_DIR)) {
-    const fileInfo = await FileSystem.getInfoAsync(uri);
-    if (!fileInfo.exists) {
-      throw new Error('AUDIT_PHOTO_LOCAL_MISSING');
-    }
-    return uri;
-  }
-
-  return persistAuditPhoto(uri);
+  return persistLocalPhoto(uri);
 }
 
 function normalizeAuditLabel(value: string | null | undefined) {
@@ -978,7 +949,10 @@ export default function AuditoriaSessionScreen() {
   const handleSelectedPhoto = useCallback(
     async (uri: string) => {
       try {
-        const storedUri = await persistAuditPhoto(uri);
+        const storedUri = await persistLocalPhoto(uri);
+        // Add backup to gallery
+        await saveToGallery(storedUri);
+        
         onPhotoSelectedRef.current?.(storedUri);
       } catch (error) {
         console.error('Failed to persist audit photo:', error);

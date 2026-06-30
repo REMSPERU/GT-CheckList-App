@@ -23,6 +23,7 @@ import MaintenanceHeader from '@/components/maintenance-header';
 import { useMaintenanceByProperty } from '@/hooks/use-maintenance';
 import { MaintenanceStatusEnum } from '@/types/api';
 import * as ImagePicker from 'expo-image-picker';
+import { persistLocalPhoto, saveToGallery } from '@/lib/photo-storage';
 import { DatabaseService } from '@/services/database';
 import { ensureImagePermission } from '@/lib/image-permissions';
 import { supabase } from '@/lib/supabase';
@@ -456,7 +457,10 @@ export default function EquipmentMaintenanceListScreen() {
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        setSessionPhotos(prev => [...prev, result.assets[0].uri]);
+        const rawUri = result.assets[0].uri;
+        const photoUri = await persistLocalPhoto(rawUri);
+        await saveToGallery(photoUri);
+        setSessionPhotos(prev => [...prev, photoUri]);
       }
     } catch {
       Alert.alert('Error', 'No se pudo abrir la cámara');

@@ -20,6 +20,7 @@ import {
 } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { persistLocalPhoto, saveToGallery } from '@/lib/photo-storage';
 
 import { ensureImagePermission } from '@/lib/image-permissions';
 
@@ -151,7 +152,10 @@ export default function EmergencyLightsChecklistScreen() {
       });
 
       if (!result.canceled && result.assets.length > 0) {
-        updateItem(itemKey, { photoUri: result.assets[0].uri });
+        const rawUri = result.assets[0].uri;
+        const photoUri = await persistLocalPhoto(rawUri);
+        await saveToGallery(photoUri);
+        updateItem(itemKey, { photoUri });
       }
     } catch {
       Alert.alert('Error', 'No se pudo abrir la cámara');
