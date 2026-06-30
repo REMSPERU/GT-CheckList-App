@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { useDebouncedValue } from './use-debounced-value';
@@ -22,6 +22,8 @@ export function useAdminProperties() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const initialSearch = searchParams.get('search') || '';
+  const lastKnownUrlSearchRef = useRef(initialSearch);
 
   // Helper to update URL params
   const updateUrlParams = useCallback(
@@ -40,7 +42,7 @@ export function useAdminProperties() {
   );
 
   const [items, setItems] = useState<AdminPropertyRow[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [status, setStatus] = useState<PropertyStatusFilter>(() =>
     readStatusParam(searchParams.get('status')),
   );
@@ -52,16 +54,20 @@ export function useAdminProperties() {
   // Synchronize URL search params to React state (handles back/forward navigation)
   useEffect(() => {
     const searchVal = searchParams.get('search') || '';
-    if (searchVal !== search) setSearch(searchVal);
+    if (searchVal !== lastKnownUrlSearchRef.current) {
+      lastKnownUrlSearchRef.current = searchVal;
+      setSearch(searchVal);
+    }
 
     const statusVal = readStatusParam(searchParams.get('status'));
     if (statusVal !== status) setStatus(statusVal);
-  }, [search, searchParams, status]);
+  }, [searchParams, status]);
 
   // Synchronize debounced search text back to URL
   useEffect(() => {
     const urlSearch = searchParams.get('search') || '';
     if (debouncedSearch !== urlSearch) {
+      lastKnownUrlSearchRef.current = debouncedSearch;
       updateUrlParams({ search: debouncedSearch });
     }
   }, [debouncedSearch, searchParams, updateUrlParams]);
