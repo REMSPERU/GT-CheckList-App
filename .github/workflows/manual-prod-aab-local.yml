@@ -12,19 +12,75 @@ on:
         description: 'Branch to build from'
         required: true
         default: 'main'
+      submit_to_play_store:
+        description: 'Submit AAB to Play Store internal testing'
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: write
 
 jobs:
-  build-android-aab:
-    name: Android AAB (Production, Local)
+  prepare-version:
+    name: Prepare Version
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 10
+
+    outputs:
+      target_branch: ${{ steps.context.outputs.target_branch }}
+      version: ${{ steps.bump_version.outputs.version }}
 
     concurrency:
       group: prod-aab-local-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}
       cancel-in-progress: true
+
+    steps:
+      - name: Resolve target branch
+        id: context
+        run: |
+          TARGET_BRANCH="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}"
+          echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.context.outputs.target_branch }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bump version (patch)
+        id: bump_version
+        run: |
+          npm version patch --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+
+          VERSION="$VERSION" node -e "const fs=require('fs');const p='app.config.js';const v=process.env.VERSION;const c=fs.readFileSync(p,'utf8');const n=c.replace(/version:\s*'[^']*'/,\`version: '\${v}'\`);if(c===n){throw new Error('No se pudo actualizar version en app.config.js');}fs.writeFileSync(p,n);"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json app.config.js
+          git commit -m "chore: bump version to $VERSION [skip ci]"
+          git push origin "HEAD:${{ steps.context.outputs.target_branch }}"
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+  build-aab:
+    name: Build Android AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    needs: prepare-version
+
+    outputs:
+      aab_name: ${{ steps.aab.outputs.aab_name }}
 
     env:
       APP_ENV: production
@@ -38,8 +94,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}
-          fetch-depth: 0
+          ref: ${{ needs.prepare-version.outputs.target_branch }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -62,23 +117,6 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Bump version (patch)
-        id: bump_version
-        run: |
-          TARGET_BRANCH="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}"
-          npm version patch --no-git-tag-version
-          VERSION=$(node -p "require('./package.json').version")
-
-          VERSION="$VERSION" node -e "const fs=require('fs');const p='app.config.js';const v=process.env.VERSION;const c=fs.readFileSync(p,'utf8');const n=c.replace(/version:\s*'[^']*'/,\`version: '\${v}'\`);if(c===n){throw new Error('No se pudo actualizar version en app.config.js');}fs.writeFileSync(p,n);"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json app.config.js
-          git commit -m "chore: bump version to $VERSION [skip ci]"
-          git push origin "HEAD:$TARGET_BRANCH"
-
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
       - name: Expo Prebuild (clean)
         run: |
           echo "Building profile: production"
@@ -91,16 +129,12 @@ jobs:
       - name: Rename AAB
         id: aab
         run: |
-          VERSION="${{ steps.bump_version.outputs.version }}"
+          VERSION="${{ needs.prepare-version.outputs.version }}"
           DATE=$(date +%Y%m%d-%H%M)
           FILENAME="GT-CheckList-production-${VERSION}-${DATE}.aab"
           mv build-output.aab "$FILENAME"
           echo "aab_name=$FILENAME" >> $GITHUB_OUTPUT
           echo "AAB: $FILENAME"
-
-      - name: Submit to Play Store (Internal Testing)
-        run: |
-          eas submit --platform android --profile production --path "${{ steps.aab.outputs.aab_name }}" --non-interactive
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
@@ -108,3 +142,67 @@ jobs:
           name: ${{ steps.aab.outputs.aab_name }}
           path: ${{ steps.aab.outputs.aab_name }}
           retention-days: 30
+
+  submit-play-store:
+    name: Submit to Play Store
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - prepare-version
+      - build-aab
+    if: github.event_name == 'push' || github.event.inputs.submit_to_play_store == 'true'
+
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-version.outputs.target_branch }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Download AAB artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-aab.outputs.aab_name }}
+          path: .
+
+      - name: Submit to Play Store (Internal Testing)
+        run: |
+          eas submit --platform android --profile production --path "${{ needs.build-aab.outputs.aab_name }}" --non-interactive
+
+  summary:
+    name: Workflow Summary
+    runs-on: ubuntu-latest
+    needs:
+      - prepare-version
+      - build-aab
+      - submit-play-store
+    if: always()
+
+    steps:
+      - name: Write summary
+        run: |
+          {
+            echo "## Production AAB"
+            echo ""
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| Branch | ${{ needs.prepare-version.outputs.target_branch }} |"
+            echo "| Version | ${{ needs.prepare-version.outputs.version }} |"
+            echo "| AAB | ${{ needs.build-aab.outputs.aab_name }} |"
+            echo "| Build job | ${{ needs.build-aab.result }} |"
+            echo "| Play Store submit | ${{ needs.submit-play-store.result }} |"
+          } >> $GITHUB_STEP_SUMMARY
