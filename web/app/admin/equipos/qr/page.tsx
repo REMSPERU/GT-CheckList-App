@@ -755,7 +755,7 @@ export default function AdminEquipmentQrPage() {
 
   const systemOptions = useMemo(
     () => [
-      { value: '', label: 'Todos los sistemas' },
+      { value: '', label: 'Todas las especialidades' },
       ...systems.map(item => ({ value: item.id, label: item.nombre })),
     ],
     [systems],
@@ -767,7 +767,7 @@ export default function AdminEquipmentQrPage() {
       : equipmentTypes;
 
     return [
-      { value: '', label: 'Todos los tipos de equipo' },
+      { value: '', label: 'Todos los tipos de activo' },
       ...filteredTypes.map(item => ({ value: item.id, label: item.nombre })),
     ];
   }, [equipmentTypes, systemId]);
@@ -840,10 +840,10 @@ export default function AdminEquipmentQrPage() {
           <Link
             className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3.5 py-2 text-sm font-bold text-[#0c1720] no-underline transition-colors hover:bg-slate-200"
             href="/admin/equipos">
-            ← Volver a equipos
+            ← Volver a activos
           </Link>
           <h1 className="m-0 mt-3 text-2xl font-black tracking-[-0.04em] text-[#0c1720]">
-            QRs de equipos
+            QRs de activos
           </h1>
           <p className="m-0 mt-1 text-sm font-semibold text-slate-500">
             Cada QR contiene el código. La impresión agrega tipo y ubicación
@@ -906,13 +906,13 @@ export default function AdminEquipmentQrPage() {
           value={systemId}
           options={systemOptions}
           onChange={handleSystemChange}
-          ariaLabel="Filtrar por sistema"
+          ariaLabel="Filtrar por especialidad"
         />
         <SelectField
           value={equipmentTypeId}
           options={equipmentTypeOptions}
           onChange={setEquipmentTypeId}
-          ariaLabel="Filtrar por tipo de equipo"
+          ariaLabel="Filtrar por tipo de activo"
         />
         <SelectField
           value={status}

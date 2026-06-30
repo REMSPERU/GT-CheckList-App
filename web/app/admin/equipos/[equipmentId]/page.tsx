@@ -50,7 +50,7 @@ export default function AdminEquipmentDetailPage() {
           setErrorMessage(
             error instanceof Error
               ? error.message
-              : 'No se pudo cargar el equipo',
+              : 'No se pudo cargar el activo',
           );
         }
       } finally {
@@ -102,7 +102,7 @@ export default function AdminEquipmentDetailPage() {
               </span>
             </div>
             <span className="text-xs font-bold tracking-wider text-slate-500 uppercase animate-pulse">
-              Cargando datos del equipo...
+              Cargando datos del activo...
             </span>
           </div>
         </section>
@@ -120,10 +120,10 @@ export default function AdminEquipmentDetailPage() {
             <XCircle className="h-6 w-6" />
           </div>
           <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
-            Equipo No Encontrado
+            Activo No Encontrado
           </h3>
           <p className="mt-1 text-xs text-slate-500 font-medium">
-            El identificador del equipo no es válido o fue eliminado del sistema.
+            El identificador del activo no es válido o fue eliminado del sistema.
           </p>
         </section>
       </main>
@@ -165,7 +165,7 @@ export default function AdminEquipmentDetailPage() {
                 </div>
                 <div>
                   <h2 className="m-0 text-[13px] font-black uppercase tracking-[0.12em] text-slate-800">
-                    Detalles y Especificaciones del Equipo
+                    Detalles y Especificaciones del Activo
                   </h2>
                   <p className="m-0 mt-0.5 text-xs text-slate-400 font-medium">
                     Información técnica específica guardada en la base de datos.
@@ -188,7 +188,7 @@ export default function AdminEquipmentDetailPage() {
                 <MapPin className="h-4 w-4" />
               </div>
               <h2 className="m-0 text-[11px] font-black uppercase tracking-[0.14em] text-slate-800">
-                Ubicación del Equipo
+                Ubicación del Activo
               </h2>
             </div>
 
@@ -259,7 +259,7 @@ export default function AdminEquipmentDetailPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Sistema
+                  Especialidad
                 </span>
                 <span className="mt-0.5 block text-xs font-bold text-slate-800">
                   {equipment.systemName || '-'}
@@ -372,7 +372,7 @@ function DetailHeader({ equipment }: DetailHeaderProps) {
           className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 px-3.5 py-2 text-xs font-bold text-slate-600 no-underline transition-all duration-200 hover:-translate-x-0.5 active:translate-x-0 active:scale-95 shadow-sm border border-slate-200/40"
           href="/admin/equipos">
           <ArrowLeft className="w-3.5 h-3.5" />
-          Volver a equipos
+          Volver a activos
         </Link>
       </div>
 

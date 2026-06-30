@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import {
   ArrowLeft,
   Building,
@@ -18,14 +18,24 @@ import {
   Loader2,
   FolderOpen,
   X,
-  AlertCircle
+  AlertCircle,
 } from 'lucide-react';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
-import { listAdminEquipmentTypes, updateAdminEquipmentTypeImage } from '@/services/admin/equipment-types.service';
-import { getAdminProperty, updateAdminProperty, updateAdminPropertyImage } from '@/services/admin/properties.service';
+import {
+  listAdminEquipmentTypes,
+  updateAdminEquipmentTypeImage,
+} from '@/services/admin/equipment-types.service';
+import {
+  getAdminProperty,
+  updateAdminProperty,
+  updateAdminPropertyImage,
+} from '@/services/admin/properties.service';
 import type { AdminEquipmentTypeRow, AdminPropertyRow } from '@/types/admin';
-import { uploadPropertyPhoto, uploadEquipmentTypePhoto } from '@/utils/upload-image';
+import {
+  uploadPropertyPhoto,
+  uploadEquipmentTypePhoto,
+} from '@/utils/upload-image';
 
 // Curated system images mapping function
 function getSystemImage(systemName: string): string {
@@ -33,22 +43,51 @@ function getSystemImage(systemName: string): string {
   if (normalized.includes('electr') || normalized.includes('tabler')) {
     return 'https://images.unsplash.com/photo-1558346490-a72e53ae2d4f?auto=format&fit=crop&w=400&q=80';
   }
-  if (normalized.includes('agua') || normalized.includes('bomb') || normalized.includes('hidro') || normalized.includes('sanit')) {
+  if (
+    normalized.includes('agua') ||
+    normalized.includes('bomb') ||
+    normalized.includes('hidro') ||
+    normalized.includes('sanit')
+  ) {
     return 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80';
   }
-  if (normalized.includes('incendio') || normalized.includes('fuego') || normalized.includes('extintor') || normalized.includes('aci')) {
+  if (
+    normalized.includes('incendio') ||
+    normalized.includes('fuego') ||
+    normalized.includes('extintor') ||
+    normalized.includes('aci')
+  ) {
     return 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80';
   }
-  if (normalized.includes('ascensor') || normalized.includes('elevad') || normalized.includes('vertical')) {
+  if (
+    normalized.includes('ascensor') ||
+    normalized.includes('elevad') ||
+    normalized.includes('vertical')
+  ) {
     return 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=400&q=80';
   }
-  if (normalized.includes('aire') || normalized.includes('acondicion') || normalized.includes('hvac') || normalized.includes('ventilac') || normalized.includes('chiller')) {
+  if (
+    normalized.includes('aire') ||
+    normalized.includes('acondicion') ||
+    normalized.includes('hvac') ||
+    normalized.includes('ventilac') ||
+    normalized.includes('chiller')
+  ) {
     return 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80';
   }
-  if (normalized.includes('grupo') || normalized.includes('generad') || normalized.includes('electrog')) {
+  if (
+    normalized.includes('grupo') ||
+    normalized.includes('generad') ||
+    normalized.includes('electrog')
+  ) {
     return 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?auto=format&fit=crop&w=400&q=80';
   }
-  if (normalized.includes('cctv') || normalized.includes('seguridad') || normalized.includes('camar') || normalized.includes('intrus')) {
+  if (
+    normalized.includes('cctv') ||
+    normalized.includes('seguridad') ||
+    normalized.includes('camar') ||
+    normalized.includes('intrus')
+  ) {
     return 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=400&q=80';
   }
   return 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80';
@@ -56,18 +95,57 @@ function getSystemImage(systemName: string): string {
 
 function getSystemEmoji(systemName: string): string {
   const normalized = systemName.toLowerCase();
-  if (normalized.includes('electr') || normalized.includes('tabler')) return '⚡';
-  if (normalized.includes('agua') || normalized.includes('bomb') || normalized.includes('hidro') || normalized.includes('sanit')) return '🚰';
-  if (normalized.includes('incendio') || normalized.includes('fuego') || normalized.includes('extintor') || normalized.includes('aci')) return '🔥';
-  if (normalized.includes('ascensor') || normalized.includes('elevad') || normalized.includes('vertical')) return '🛗';
-  if (normalized.includes('aire') || normalized.includes('acondicion') || normalized.includes('hvac') || normalized.includes('ventilac')) return '❄️';
-  if (normalized.includes('grupo') || normalized.includes('generad') || normalized.includes('electrog')) return '🔌';
-  if (normalized.includes('cctv') || normalized.includes('seguridad') || normalized.includes('camar')) return '📹';
+  if (normalized.includes('electr') || normalized.includes('tabler'))
+    return '⚡';
+  if (
+    normalized.includes('agua') ||
+    normalized.includes('bomb') ||
+    normalized.includes('hidro') ||
+    normalized.includes('sanit')
+  )
+    return '🚰';
+  if (
+    normalized.includes('incendio') ||
+    normalized.includes('fuego') ||
+    normalized.includes('extintor') ||
+    normalized.includes('aci')
+  )
+    return '🔥';
+  if (
+    normalized.includes('ascensor') ||
+    normalized.includes('elevad') ||
+    normalized.includes('vertical')
+  )
+    return '🛗';
+  if (
+    normalized.includes('aire') ||
+    normalized.includes('acondicion') ||
+    normalized.includes('hvac') ||
+    normalized.includes('ventilac')
+  )
+    return '❄️';
+  if (
+    normalized.includes('grupo') ||
+    normalized.includes('generad') ||
+    normalized.includes('electrog')
+  )
+    return '🔌';
+  if (
+    normalized.includes('cctv') ||
+    normalized.includes('seguridad') ||
+    normalized.includes('camar')
+  )
+    return '📹';
   return '🏢';
 }
 
 interface DBEquipo {
+  id: string;
   id_equipamento: string | null;
+  codigo: string | null;
+  ubicacion: string | null;
+  detalle_ubicacion: string | null;
+  estatus: string | null;
 }
 
 interface DBSystem {
@@ -77,11 +155,12 @@ interface DBSystem {
 
 function PropertyDetailContent() {
   const params = useParams<{ propertyId: string }>();
-  const router = useRouter();
 
   const [property, setProperty] = useState<AdminPropertyRow | null>(null);
   const [systems, setSystems] = useState<DBSystem[]>([]);
-  const [equipmentTypes, setEquipmentTypes] = useState<AdminEquipmentTypeRow[]>([]);
+  const [equipmentTypes, setEquipmentTypes] = useState<AdminEquipmentTypeRow[]>(
+    [],
+  );
   const [equipos, setEquipos] = useState<DBEquipo[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -102,14 +181,21 @@ function PropertyDetailContent() {
 
   // Status operation modal states
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
-  const [statusAction, setStatusAction] = useState<'activate' | 'deactivate'>('deactivate');
+  const [statusAction, setStatusAction] = useState<'activate' | 'deactivate'>(
+    'deactivate',
+  );
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [selectedEqType, setSelectedEqType] = useState<AdminEquipmentTypeRow | null>(null);
+  const [selectedEqType, setSelectedEqType] =
+    useState<AdminEquipmentTypeRow | null>(null);
+  const [activeSpecialty, setActiveSpecialty] = useState<{
+    systemId: string;
+    typeId: string;
+  } | null>(null);
   const [uploadingTypeId, setUploadingTypeId] = useState<string | null>(null);
   const eqFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -126,12 +212,17 @@ function PropertyDetailContent() {
         // Query property, systems catalog, equipment types catalog and direct equipments list
         const [propRes, sysRes, typesRes, equiposRes] = await Promise.all([
           getAdminProperty(supabase, params.propertyId),
-          supabase.from('sistemas').select('id, nombre').order('nombre', { ascending: true }),
+          supabase
+            .from('sistemas')
+            .select('id, nombre')
+            .order('nombre', { ascending: true }),
           listAdminEquipmentTypes(supabase),
           supabase
             .from('equipos')
-            .select('id_equipamento')
-            .eq('id_property', params.propertyId)
+            .select(
+              'id, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus',
+            )
+            .eq('id_property', params.propertyId),
         ]);
 
         if (!isMounted) return;
@@ -150,15 +241,26 @@ function PropertyDetailContent() {
         setEditCode(propRes.code || '');
         setEditCity(propRes.city || '');
         setEditAddress(propRes.address || '');
-        setEditFloor(propRes.floor !== null && propRes.floor !== undefined ? String(propRes.floor) : '');
-        setEditBasement(propRes.basement !== null && propRes.basement !== undefined ? String(propRes.basement) : '');
+        setEditFloor(
+          propRes.floor !== null && propRes.floor !== undefined
+            ? String(propRes.floor)
+            : '',
+        );
+        setEditBasement(
+          propRes.basement !== null && propRes.basement !== undefined
+            ? String(propRes.basement)
+            : '',
+        );
         setEditImageUrl(propRes.image_url || '');
         setImagePreview(propRes.image_url || null);
         setEditIsActive(propRes.is_active !== false);
-
       } catch (error) {
         if (isMounted) {
-          setErrorMessage(error instanceof Error ? error.message : 'Error al cargar los datos');
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : 'Error al cargar los datos',
+          );
         }
       } finally {
         if (isMounted) setIsLoading(false);
@@ -181,39 +283,68 @@ function PropertyDetailContent() {
 
   // Compute active systems and equipment types counts in this building
   const systemsWithCounts = useMemo(() => {
-    if (!property || systems.length === 0 || equipmentTypes.length === 0) return [];
+    if (!property || systems.length === 0 || equipmentTypes.length === 0)
+      return [];
 
     // Map to count how many equipos of each equipment type exist in this property
     const typeCountMap = new Map<string, number>();
     equipos.forEach(eq => {
       if (eq.id_equipamento) {
-        typeCountMap.set(eq.id_equipamento, (typeCountMap.get(eq.id_equipamento) || 0) + 1);
+        typeCountMap.set(
+          eq.id_equipamento,
+          (typeCountMap.get(eq.id_equipamento) || 0) + 1,
+        );
       }
     });
 
-    return systems.map(system => {
-      // Find equipment types under this system
-      const typesUnderSystem = equipmentTypes.filter(t => t.systemId === system.id);
+    return systems
+      .map(system => {
+        // Find equipment types under this system
+        const typesUnderSystem = equipmentTypes.filter(
+          t => t.systemId === system.id,
+        );
 
-      // Filter types that have at least 1 equipo in this property
-      const activeTypes = typesUnderSystem
-        .map(type => ({
-          ...type,
-          count: typeCountMap.get(type.id) || 0,
-        }))
-        .filter(type => type.count > 0);
+        // Filter types that have at least 1 equipo in this property
+        const activeTypes = typesUnderSystem
+          .map(type => ({
+            ...type,
+            count: typeCountMap.get(type.id) || 0,
+          }))
+          .filter(type => type.count > 0);
 
-      const totalEquipos = activeTypes.reduce((acc, curr) => acc + curr.count, 0);
+        const totalEquipos = activeTypes.reduce(
+          (acc, curr) => acc + curr.count,
+          0,
+        );
 
-      return {
-        id: system.id,
-        nombre: system.nombre,
-        types: activeTypes,
-        totalEquipos,
-      };
-    }).filter(sys => sys.types.length > 0); // Only show systems that have active equipments
-
+        return {
+          id: system.id,
+          nombre: system.nombre,
+          types: activeTypes,
+          totalEquipos,
+        };
+      })
+      .filter(sys => sys.types.length > 0); // Only show systems that have active equipments
   }, [property, systems, equipmentTypes, equipos]);
+
+  const activeSpecialtyDetail = useMemo(() => {
+    if (!activeSpecialty) return null;
+
+    const system = systemsWithCounts.find(
+      item => item.id === activeSpecialty.systemId,
+    );
+    const type = system?.types.find(item => item.id === activeSpecialty.typeId);
+
+    if (!system || !type) return null;
+
+    return {
+      system,
+      type,
+      equipos: equipos.filter(
+        item => item.id_equipamento === activeSpecialty.typeId,
+      ),
+    };
+  }, [activeSpecialty, systemsWithCounts, equipos]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -233,27 +364,43 @@ function PropertyDetailContent() {
     }
   };
 
-  const handleBannerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBannerFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     if (file && property) {
       try {
         setIsSaving(true);
         const supabase = getSupabaseClient();
-        
+
         // 1. Upload to Supabase Storage
-        const finalImageUrl = await uploadPropertyPhoto(supabase, file, property.name);
-        
+        const finalImageUrl = await uploadPropertyPhoto(
+          supabase,
+          file,
+          property.name,
+        );
+
         // 2. Update column in database
-        await updateAdminPropertyImage(supabase, params.propertyId, finalImageUrl);
-        
+        await updateAdminPropertyImage(
+          supabase,
+          params.propertyId,
+          finalImageUrl,
+        );
+
         // 3. Update local state
-        setProperty(prev => prev ? { ...prev, image_url: finalImageUrl } : null);
+        setProperty(prev =>
+          prev ? { ...prev, image_url: finalImageUrl } : null,
+        );
         setEditImageUrl(finalImageUrl);
         setImagePreview(finalImageUrl);
         alert('Foto de portada actualizada con éxito');
       } catch (error) {
         console.error('Error updating property image:', error);
-        alert(error instanceof Error ? error.message : 'Error al actualizar la foto de portada');
+        alert(
+          error instanceof Error
+            ? error.message
+            : 'Error al actualizar la foto de portada',
+        );
       } finally {
         setIsSaving(false);
         if (bannerFileInputRef.current) {
@@ -270,8 +417,16 @@ function PropertyDetailContent() {
       setEditCode(property.code || '');
       setEditCity(property.city || '');
       setEditAddress(property.address || '');
-      setEditFloor(property.floor !== null && property.floor !== undefined ? String(property.floor) : '');
-      setEditBasement(property.basement !== null && property.basement !== undefined ? String(property.basement) : '');
+      setEditFloor(
+        property.floor !== null && property.floor !== undefined
+          ? String(property.floor)
+          : '',
+      );
+      setEditBasement(
+        property.basement !== null && property.basement !== undefined
+          ? String(property.basement)
+          : '',
+      );
       setEditImageUrl(property.image_url || '');
       setImagePreview(property.image_url || null);
       setEditIsActive(property.is_active !== false);
@@ -292,7 +447,11 @@ function PropertyDetailContent() {
       let finalImageUrl = editImageUrl;
 
       if (selectedFile) {
-        finalImageUrl = await uploadPropertyPhoto(supabase, selectedFile, editName.trim());
+        finalImageUrl = await uploadPropertyPhoto(
+          supabase,
+          selectedFile,
+          editName.trim(),
+        );
       }
 
       const updated = await updateAdminProperty(supabase, params.propertyId, {
@@ -302,7 +461,9 @@ function PropertyDetailContent() {
         address: editAddress.trim() || null,
         image_url: finalImageUrl || null,
         floor: editFloor.trim() ? parseInt(editFloor.trim(), 10) : null,
-        basement: editBasement.trim() ? parseInt(editBasement.trim(), 10) : null,
+        basement: editBasement.trim()
+          ? parseInt(editBasement.trim(), 10)
+          : null,
         is_active: editIsActive,
       });
 
@@ -313,7 +474,9 @@ function PropertyDetailContent() {
       alert('Cambios guardados con éxito');
     } catch (error) {
       console.error('Error updating property:', error);
-      alert(error instanceof Error ? error.message : 'Error al guardar los cambios');
+      alert(
+        error instanceof Error ? error.message : 'Error al guardar los cambios',
+      );
     } finally {
       setIsSaving(false);
     }
@@ -332,10 +495,18 @@ function PropertyDetailContent() {
 
       setProperty(updated);
       setIsStatusModalOpen(false);
-      alert(nextActive ? 'Inmueble reactivado con éxito' : 'Inmueble dado de baja con éxito');
+      alert(
+        nextActive
+          ? 'Inmueble reactivado con éxito'
+          : 'Inmueble dado de baja con éxito',
+      );
     } catch (error) {
       console.error('Error changing property status:', error);
-      alert(error instanceof Error ? error.message : 'Error al cambiar el estado del inmueble');
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Error al cambiar el estado del inmueble',
+      );
     } finally {
       setIsSaving(false);
     }
@@ -347,22 +518,36 @@ function PropertyDetailContent() {
       try {
         setUploadingTypeId(selectedEqType.id);
         const supabase = getSupabaseClient();
-        
+
         // 1. Upload to Supabase Storage
-        const publicUrl = await uploadEquipmentTypePhoto(supabase, file, selectedEqType.nombre);
-        
+        const publicUrl = await uploadEquipmentTypePhoto(
+          supabase,
+          file,
+          selectedEqType.nombre,
+        );
+
         // 2. Update column in database
-        await updateAdminEquipmentTypeImage(supabase, selectedEqType.id, publicUrl);
-        
+        await updateAdminEquipmentTypeImage(
+          supabase,
+          selectedEqType.id,
+          publicUrl,
+        );
+
         // 3. Update local state
         setEquipmentTypes(prev =>
-          prev.map(t => (t.id === selectedEqType.id ? { ...t, image_url: publicUrl } : t))
+          prev.map(t =>
+            t.id === selectedEqType.id ? { ...t, image_url: publicUrl } : t,
+          ),
         );
-        
+
         alert(`Imagen de ${selectedEqType.nombre} actualizada con éxito`);
       } catch (error) {
         console.error('Error updating equipment type image:', error);
-        alert(error instanceof Error ? error.message : 'Error al actualizar la imagen');
+        alert(
+          error instanceof Error
+            ? error.message
+            : 'Error al actualizar la imagen',
+        );
       } finally {
         setUploadingTypeId(null);
         setSelectedEqType(null);
@@ -390,7 +575,9 @@ function PropertyDetailContent() {
         <div className="grid min-h-[200px] place-items-center">
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-emerald-800" />
-            <p className="text-xs text-slate-500 font-bold">Cargando información técnica...</p>
+            <p className="text-xs text-slate-500 font-bold">
+              Cargando información técnica...
+            </p>
           </div>
         </div>
       </main>
@@ -401,14 +588,17 @@ function PropertyDetailContent() {
     return (
       <main className="grid gap-4 px-8 pb-8 pt-4 max-[640px]:px-[14px]">
         <header className="flex h-12 items-center">
-          <Link href="/admin/inmuebles" className="inline-flex items-center gap-2 text-sm font-bold text-emerald-800 hover:underline">
+          <Link
+            href="/admin/inmuebles"
+            className="inline-flex items-center gap-2 text-sm font-bold text-emerald-800 hover:underline">
             <ArrowLeft className="h-4 w-4" />
             <span>Volver a Inmuebles</span>
           </Link>
         </header>
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-800 flex flex-col items-center gap-2">
           <AlertCircle className="h-8 w-8 text-red-600" />
-          <strong>⚠️ Error:</strong> {errorMessage || 'No se pudo cargar el inmueble'}
+          <strong>⚠️ Error:</strong>{' '}
+          {errorMessage || 'No se pudo cargar el inmueble'}
         </div>
       </main>
     );
@@ -420,8 +610,7 @@ function PropertyDetailContent() {
       <header className="flex items-center gap-3 border-b border-slate-100 pb-3">
         <Link
           className="group inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50 hover:text-slate-900 shadow-sm"
-          href="/admin/inmuebles"
-        >
+          href="/admin/inmuebles">
           <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1" />
           <span>Inmuebles</span>
         </Link>
@@ -437,7 +626,7 @@ function PropertyDetailContent() {
         <div className="relative h-[240px] md:h-[280px] w-full overflow-hidden bg-gradient-to-br from-[#0c3c2e] via-[#082920] to-[#04120e]">
           {/* Geometrical construction blueprint grid pattern (CSS pattern) */}
           <div className="absolute inset-0 opacity-10 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:20px_20px]" />
-          
+
           {property.image_url ? (
             <img
               className="h-full w-full object-cover opacity-75 transition-all duration-300"
@@ -451,8 +640,7 @@ function PropertyDetailContent() {
             type="button"
             onClick={() => bannerFileInputRef.current?.click()}
             disabled={isSaving}
-            className="absolute top-5 right-5 z-20 flex items-center gap-2 rounded-xl bg-black/55 px-4 py-2.5 text-xs font-black text-white hover:bg-black/75 transition shadow border border-white/10 backdrop-blur-md"
-          >
+            className="absolute top-5 right-5 z-20 flex items-center gap-2 rounded-xl bg-black/55 px-4 py-2.5 text-xs font-black text-white hover:bg-black/75 transition shadow border border-white/10 backdrop-blur-md">
             {isSaving ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -494,7 +682,10 @@ function PropertyDetailContent() {
               {property.address && (
                 <p className="m-0 flex items-center gap-1 text-xs font-semibold text-white/80">
                   <MapPin className="h-3 w-3 shrink-0 text-emerald-400" />
-                  <span>{property.address}{property.city ? `, ${property.city}` : ''}</span>
+                  <span>
+                    {property.address}
+                    {property.city ? `, ${property.city}` : ''}
+                  </span>
                 </p>
               )}
             </div>
@@ -514,7 +705,7 @@ function PropertyDetailContent() {
               {systemsWithCounts.length}
             </strong>
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-              Sistemas Activos
+              Especialidades Activas
             </span>
           </div>
         </div>
@@ -529,7 +720,7 @@ function PropertyDetailContent() {
               {equipos.length}
             </strong>
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-              Equipos Totales
+              Activos Totales
             </span>
           </div>
         </div>
@@ -541,7 +732,9 @@ function PropertyDetailContent() {
           </div>
           <div>
             <strong className="block text-2xl font-black text-slate-950 leading-tight">
-              {property.floor !== null && property.floor !== undefined ? property.floor : '0'}
+              {property.floor !== null && property.floor !== undefined
+                ? property.floor
+                : '0'}
             </strong>
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
               Pisos
@@ -556,7 +749,9 @@ function PropertyDetailContent() {
           </div>
           <div>
             <strong className="block text-2xl font-black text-slate-950 leading-tight">
-              {property.basement !== null && property.basement !== undefined ? property.basement : '0'}
+              {property.basement !== null && property.basement !== undefined
+                ? property.basement
+                : '0'}
             </strong>
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
               Sótanos
@@ -577,12 +772,14 @@ function PropertyDetailContent() {
             activeTab === 'systems'
               ? 'border-emerald-800 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span>🗂️ Sistemas y Equipos</span>
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-black shadow-sm ${
-            activeTab === 'systems' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
           }`}>
+          <span>🗂️ Especialidades y Activos</span>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-black shadow-sm ${
+              activeTab === 'systems'
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-slate-100 text-slate-600'
+            }`}>
             {systemsWithCounts.length}
           </span>
         </button>
@@ -596,8 +793,7 @@ function PropertyDetailContent() {
             activeTab === 'info'
               ? 'border-emerald-800 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
+          }`}>
           <span>ℹ️ Información del Inmueble</span>
         </button>
       </section>
@@ -605,54 +801,178 @@ function PropertyDetailContent() {
       {/* Tab Panels */}
       {activeTab === 'systems' ? (
         <section className="grid gap-6">
-          {systemsWithCounts.length === 0 ? (
+          {activeSpecialtyDetail ? (
+            <div className="grid gap-5">
+              <button
+                type="button"
+                onClick={() => setActiveSpecialty(null)}
+                className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-950">
+                <ArrowLeft className="h-3.5 w-3.5" />
+                <span>Volver a especialidades</span>
+              </button>
+
+              <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                <div className="relative min-h-[220px] overflow-hidden bg-slate-950">
+                  <img
+                    src={
+                      activeSpecialtyDetail.type.image_url ||
+                      getSystemImage(activeSpecialtyDetail.system.nombre)
+                    }
+                    alt={activeSpecialtyDetail.type.nombre}
+                    className="absolute inset-0 h-full w-full object-cover opacity-45"
+                  />
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(132,204,22,0.35),transparent_34%),linear-gradient(135deg,rgba(4,18,14,0.96),rgba(12,60,46,0.78))]" />
+                  <div className="relative grid gap-5 p-6 text-white md:grid-cols-[1fr_auto] md:items-end">
+                    <div className="grid gap-3">
+                      <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-100/90">
+                        <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 backdrop-blur">
+                          {getSystemEmoji(activeSpecialtyDetail.system.nombre)}{' '}
+                          {activeSpecialtyDetail.system.nombre}
+                        </span>
+                        <span className="rounded-full border border-lime-300/30 bg-lime-300 px-3 py-1 text-[#061e1b]">
+                          {activeSpecialtyDetail.type.frecuencia ||
+                            'Sin frecuencia'}
+                        </span>
+                      </div>
+                      <div>
+                        <h2 className="m-0 text-2xl font-black leading-tight tracking-[-0.04em] md:text-3xl">
+                          {activeSpecialtyDetail.type.nombre}
+                        </h2>
+                        <p className="m-0 mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-white/75">
+                          Activos de esta especialidad dentro de {property.name}
+                          . El flujo se mantiene en el inmueble para revisar
+                          equipos sin salir al módulo global.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 md:min-w-[260px]">
+                      <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-md">
+                        <strong className="block text-2xl font-black leading-none">
+                          {activeSpecialtyDetail.equipos.length.toLocaleString(
+                            'en-US',
+                          )}
+                        </strong>
+                        <span className="mt-1 block text-[10px] font-black uppercase tracking-wider text-white/60">
+                          Activos
+                        </span>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-md">
+                        <strong className="block text-2xl font-black leading-none">
+                          {activeSpecialtyDetail.type.abreviatura || 'N/A'}
+                        </strong>
+                        <span className="mt-1 block text-[10px] font-black uppercase tracking-wider text-white/60">
+                          Código tipo
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                    <div>
+                      <h3 className="m-0 text-base font-black text-slate-950">
+                        Equipos registrados
+                      </h3>
+                      <p className="m-0 mt-0.5 text-xs font-semibold text-slate-500">
+                        Lista filtrada por inmueble y tipo de equipo.
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-800 ring-1 ring-emerald-100">
+                      {property.code || property.name}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3">
+                    {activeSpecialtyDetail.equipos.map(equipo => (
+                      <div
+                        key={equipo.id}
+                        className="group rounded-2xl border border-slate-200 bg-slate-50/60 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white hover:shadow-md">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-800 ring-1 ring-slate-200 transition group-hover:ring-emerald-200">
+                            <Cpu className="h-5 w-5" />
+                          </div>
+                          <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-slate-500 ring-1 ring-slate-200">
+                            {equipo.estatus || 'Sin estado'}
+                          </span>
+                        </div>
+                        <div className="mt-4 grid gap-2">
+                          <strong className="text-sm font-black text-slate-950">
+                            {equipo.codigo || 'Sin código'}
+                          </strong>
+                          <div className="grid gap-1 text-[11px] font-semibold text-slate-500">
+                            <span className="inline-flex items-center gap-1.5">
+                              <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                              {equipo.ubicacion || 'Ubicación no especificada'}
+                            </span>
+                            {equipo.detalle_ubicacion ? (
+                              <span className="inline-flex items-start gap-1.5">
+                                <Info className="mt-0.5 h-3.5 w-3.5 text-slate-400" />
+                                {equipo.detalle_ubicacion}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : systemsWithCounts.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-12 text-center shadow-inner">
               <span className="text-4xl block mb-2">⚙️</span>
-              <strong className="text-lg text-slate-900 block font-black">Sin equipos registrados</strong>
+              <strong className="text-lg text-slate-900 block font-black">
+                Sin activos registrados
+              </strong>
               <p className="text-sm text-slate-500 mt-2 mb-4 font-medium max-w-sm mx-auto">
-                Este inmueble no posee equipos activos cargados en su inventario en este momento.
+                Este inmueble no posee activos cargados en su inventario en este
+                momento.
               </p>
               <Link
                 href="/admin/equipos"
-                className="inline-block rounded-full bg-emerald-800 px-6 py-2.5 text-xs font-bold text-white hover:bg-emerald-950 transition shadow-sm"
-              >
-                Ir a Equipos
+                className="inline-block rounded-full bg-emerald-800 px-6 py-2.5 text-xs font-bold text-white hover:bg-emerald-950 transition shadow-sm">
+                Ir a Activos
               </Link>
             </div>
           ) : (
             systemsWithCounts.map(system => (
-              <div key={system.id} className="grid gap-4 bg-slate-50/40 border border-slate-200/50 rounded-2xl p-5 shadow-sm">
+              <div
+                key={system.id}
+                className="grid gap-4 bg-slate-50/40 border border-slate-200/50 rounded-2xl p-5 shadow-sm">
                 {/* System Group Header */}
                 <h3 className="m-0 flex items-center gap-2 border-b border-slate-200 pb-3 text-xs font-black uppercase tracking-widest text-slate-700">
-                  <span className="text-base">{getSystemEmoji(system.nombre)}</span>
+                  <span className="text-base">
+                    {getSystemEmoji(system.nombre)}
+                  </span>
                   <span>{system.nombre}</span>
                   <span className="ml-auto rounded-full bg-white border border-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
-                    {system.totalEquipos.toLocaleString('en-US')} equipo{system.totalEquipos === 1 ? '' : 's'}
+                    {system.totalEquipos.toLocaleString('en-US')} activo
+                    {system.totalEquipos === 1 ? '' : 's'}
                   </span>
                 </h3>
 
                 {/* Grid of Equipment Type Cards */}
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4 max-[480px]:grid-cols-1">
                   {system.types.map(type => {
-                    const bgImage = type.image_url || getSystemImage(system.nombre);
+                    const bgImage =
+                      type.image_url || getSystemImage(system.nombre);
                     return (
-                      <Link
+                      <div
                         key={type.id}
-                        href={`/admin/equipos?property=${property.id}&system=${system.id}&eqType=${type.id}`}
-                        className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 no-underline flex flex-col"
-                      >
+                        className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
                         {/* Camera upload cover photo button */}
                         <button
                           type="button"
-                          onClick={(e) => {
+                          onClick={e => {
                             e.preventDefault();
                             e.stopPropagation();
                             triggerEqImageUpload(type);
                           }}
                           disabled={uploadingTypeId !== null}
                           className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md border border-white/20 transition-all hover:bg-black/85 hover:scale-105 shadow-sm"
-                          title="Cambiar imagen de portada"
-                        >
+                          title="Cambiar imagen de portada">
                           {uploadingTypeId === type.id ? (
                             <Loader2 className="h-4 w-4 animate-spin text-white" />
                           ) : (
@@ -660,30 +980,45 @@ function PropertyDetailContent() {
                           )}
                         </button>
 
-                        {/* Card Image Area */}
-                        <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100">
-                          <img
-                            src={bgImage}
-                            alt={type.nombre}
-                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-transparent to-transparent" />
-                          <span className="absolute bottom-2.5 left-3 rounded-md bg-lime-300 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#061e1b] shadow-sm">
-                            {type.frecuencia || 'Sin frecuencia'}
-                          </span>
-                        </div>
-                        
-                        {/* Card Text Content */}
-                        <div className="p-4 flex flex-col flex-1 justify-between gap-1.5">
-                          <h4 className="m-0 text-sm font-black leading-tight text-slate-950 group-hover:text-emerald-800 transition-colors">
-                            {type.nombre}
-                          </h4>
-                          <span className="text-[11px] font-bold text-slate-400 flex items-center justify-between">
-                            <span>{type.count.toLocaleString('en-US')} dispositivo{type.count === 1 ? '' : 's'}</span>
-                            <span className="transition-transform group-hover:translate-x-1 text-slate-300">→</span>
-                          </span>
-                        </div>
-                      </Link>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveSpecialty({
+                              systemId: system.id,
+                              typeId: type.id,
+                            })
+                          }
+                          className="flex w-full flex-col text-left">
+                          {/* Card Image Area */}
+                          <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100">
+                            <img
+                              src={bgImage}
+                              alt={type.nombre}
+                              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-transparent to-transparent" />
+                            <span className="absolute bottom-2.5 left-3 rounded-md bg-lime-300 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#061e1b] shadow-sm">
+                              {type.frecuencia || 'Sin frecuencia'}
+                            </span>
+                          </div>
+
+                          {/* Card Text Content */}
+                          <div className="p-4 flex w-full flex-col flex-1 justify-between gap-1.5">
+                            <h4 className="m-0 text-sm font-black leading-tight text-slate-950 group-hover:text-emerald-800 transition-colors">
+                              {type.nombre}
+                            </h4>
+                            <span className="text-[11px] font-bold text-slate-400 flex items-center justify-between">
+                              <span>
+                                {type.count.toLocaleString('en-US')} dispositivo
+                                {type.count === 1 ? '' : 's'}
+                              </span>
+                              <span className="transition-transform group-hover:translate-x-1 text-slate-300">
+                                Ver activos →
+                              </span>
+                            </span>
+                          </div>
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -700,7 +1035,9 @@ function PropertyDetailContent() {
                 {/* Section Header */}
                 <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
                   <div>
-                    <h2 className="m-0 text-base font-black text-slate-950">Datos Generales</h2>
+                    <h2 className="m-0 text-base font-black text-slate-950">
+                      Datos Generales
+                    </h2>
                     <p className="m-0 mt-0.5 text-xs text-slate-500 font-semibold">
                       Ficha técnica del inmueble
                     </p>
@@ -708,8 +1045,7 @@ function PropertyDetailContent() {
                   <button
                     type="button"
                     onClick={() => setIsEditing(true)}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-800 border border-emerald-200 transition hover:bg-emerald-100 shadow-sm cursor-pointer"
-                  >
+                    className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-800 border border-emerald-200 transition hover:bg-emerald-100 shadow-sm cursor-pointer">
                     <Edit2 className="h-3.5 w-3.5" />
                     <span>Editar Datos</span>
                   </button>
@@ -732,7 +1068,9 @@ function PropertyDetailContent() {
                     </span>
                     <strong className="mt-1 block text-sm font-semibold text-slate-900 leading-normal">
                       {property.code || (
-                        <span className="text-slate-400 font-medium italic">No especificado</span>
+                        <span className="text-slate-400 font-medium italic">
+                          No especificado
+                        </span>
                       )}
                     </strong>
                   </div>
@@ -743,7 +1081,9 @@ function PropertyDetailContent() {
                     </span>
                     <strong className="mt-1 block text-sm font-semibold text-slate-900 leading-normal">
                       {property.city || (
-                        <span className="text-slate-400 font-medium italic">No especificada</span>
+                        <span className="text-slate-400 font-medium italic">
+                          No especificada
+                        </span>
                       )}
                     </strong>
                   </div>
@@ -754,7 +1094,9 @@ function PropertyDetailContent() {
                     </span>
                     <strong className="mt-1 block text-sm font-semibold text-slate-900 leading-normal">
                       {property.address || (
-                        <span className="text-slate-400 font-medium italic">No especificada</span>
+                        <span className="text-slate-400 font-medium italic">
+                          No especificada
+                        </span>
                       )}
                     </strong>
                   </div>
@@ -764,7 +1106,9 @@ function PropertyDetailContent() {
                       Número de Pisos
                     </span>
                     <strong className="mt-1 block text-sm font-semibold text-slate-900 leading-normal">
-                      {property.floor !== null && property.floor !== undefined ? property.floor : 0}
+                      {property.floor !== null && property.floor !== undefined
+                        ? property.floor
+                        : 0}
                     </strong>
                   </div>
 
@@ -773,7 +1117,10 @@ function PropertyDetailContent() {
                       Número de Sótanos
                     </span>
                     <strong className="mt-1 block text-sm font-semibold text-slate-900 leading-normal">
-                      {property.basement !== null && property.basement !== undefined ? property.basement : 0}
+                      {property.basement !== null &&
+                      property.basement !== undefined
+                        ? property.basement
+                        : 0}
                     </strong>
                   </div>
                 </div>
@@ -784,7 +1131,7 @@ function PropertyDetailContent() {
                 <h3 className="m-0 text-base font-black text-slate-950 border-b border-slate-100 pb-4 mb-4">
                   Operación y Estado
                 </h3>
-                
+
                 <div className="grid gap-5">
                   <div className="flex items-center gap-3">
                     {property.is_active !== false ? (
@@ -818,8 +1165,7 @@ function PropertyDetailContent() {
                         setStatusAction('deactivate');
                         setIsStatusModalOpen(true);
                       }}
-                      className="w-full inline-flex justify-center items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-700 transition hover:bg-red-100 cursor-pointer shadow-sm"
-                    >
+                      className="w-full inline-flex justify-center items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-bold text-red-700 transition hover:bg-red-100 cursor-pointer shadow-sm">
                       <AlertTriangle className="h-4 w-4" />
                       <span>Dar de Baja Inmueble</span>
                     </button>
@@ -830,8 +1176,7 @@ function PropertyDetailContent() {
                         setStatusAction('activate');
                         setIsStatusModalOpen(true);
                       }}
-                      className="w-full inline-flex justify-center items-center gap-2 rounded-xl bg-emerald-800 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-950 cursor-pointer shadow-sm"
-                    >
+                      className="w-full inline-flex justify-center items-center gap-2 rounded-xl bg-emerald-800 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-950 cursor-pointer shadow-sm">
                       <CheckCircle2 className="h-4 w-4" />
                       <span>Reactivar Inmueble</span>
                     </button>
@@ -841,9 +1186,13 @@ function PropertyDetailContent() {
             </>
           ) : (
             /* Editing form wrapper layout (takes full 3 columns) */
-            <form onSubmit={handleEditSubmit} className="lg:col-span-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm max-w-3xl">
+            <form
+              onSubmit={handleEditSubmit}
+              className="lg:col-span-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm max-w-3xl">
               <div className="border-b border-slate-100 pb-4 mb-5">
-                <h2 className="m-0 text-base font-black text-slate-950">Editar Datos del Inmueble</h2>
+                <h2 className="m-0 text-base font-black text-slate-950">
+                  Editar Datos del Inmueble
+                </h2>
                 <p className="m-0 mt-0.5 text-xs text-slate-500 font-semibold">
                   Modifica los parámetros físicos y de estado del inmueble.
                 </p>
@@ -858,9 +1207,12 @@ function PropertyDetailContent() {
                   {imagePreview ? (
                     <div
                       onClick={() => fileInputRef.current?.click()}
-                      className="group relative aspect-[16/6] w-full cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-inner"
-                    >
-                      <img src={imagePreview} alt="Portada" className="h-full w-full object-cover" />
+                      className="group relative aspect-[16/6] w-full cursor-pointer overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-inner">
+                      <img
+                        src={imagePreview}
+                        alt="Portada"
+                        className="h-full w-full object-cover"
+                      />
                       <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-200">
                         <span className="text-white font-bold text-xs bg-slate-900/70 border border-white/20 px-4 py-2 rounded-full backdrop-blur-sm">
                           📷 Seleccionar otra imagen
@@ -868,24 +1220,26 @@ function PropertyDetailContent() {
                       </div>
                       <button
                         type="button"
-                        onClick={(e) => {
+                        onClick={e => {
                           e.stopPropagation();
                           handleRemoveImage();
                         }}
                         className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-red-600 font-bold text-white shadow-md hover:bg-red-700 transition"
-                        title="Eliminar portada"
-                      >
+                        title="Eliminar portada">
                         <X className="h-4 w-4" />
                       </button>
                     </div>
                   ) : (
                     <div
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex aspect-[16/6] w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 text-center transition hover:border-emerald-600 hover:bg-white"
-                    >
+                      className="flex aspect-[16/6] w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 text-center transition hover:border-emerald-600 hover:bg-white">
                       <Camera className="h-8 w-8 text-slate-400 mb-1" />
-                      <strong className="text-xs text-slate-700">Subir una nueva imagen</strong>
-                      <span className="text-[10px] text-slate-400 mt-0.5">Formato WebP o JPG recomendado</span>
+                      <strong className="text-xs text-slate-700">
+                        Subir una nueva imagen
+                      </strong>
+                      <span className="text-[10px] text-slate-400 mt-0.5">
+                        Formato WebP o JPG recomendado
+                      </span>
                     </div>
                   )}
                   <input
@@ -906,7 +1260,7 @@ function PropertyDetailContent() {
                     <input
                       type="text"
                       value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
+                      onChange={e => setEditName(e.target.value)}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
                       required
                     />
@@ -920,7 +1274,7 @@ function PropertyDetailContent() {
                       <input
                         type="text"
                         value={editCode}
-                        onChange={(e) => setEditCode(e.target.value)}
+                        onChange={e => setEditCode(e.target.value)}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
                       />
                     </div>
@@ -931,7 +1285,7 @@ function PropertyDetailContent() {
                       <input
                         type="text"
                         value={editCity}
-                        onChange={(e) => setEditCity(e.target.value)}
+                        onChange={e => setEditCity(e.target.value)}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
                       />
                     </div>
@@ -944,7 +1298,7 @@ function PropertyDetailContent() {
                     <input
                       type="text"
                       value={editAddress}
-                      onChange={(e) => setEditAddress(e.target.value)}
+                      onChange={e => setEditAddress(e.target.value)}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
                     />
                   </div>
@@ -958,7 +1312,7 @@ function PropertyDetailContent() {
                         type="number"
                         min="0"
                         value={editFloor}
-                        onChange={(e) => setEditFloor(e.target.value)}
+                        onChange={e => setEditFloor(e.target.value)}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
                       />
                     </div>
@@ -970,7 +1324,7 @@ function PropertyDetailContent() {
                         type="number"
                         min="0"
                         value={editBasement}
-                        onChange={(e) => setEditBasement(e.target.value)}
+                        onChange={e => setEditBasement(e.target.value)}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-600 focus:bg-white"
                       />
                     </div>
@@ -983,7 +1337,9 @@ function PropertyDetailContent() {
                         Estado del Inmueble
                       </label>
                       <p className="m-0 mt-0.5 text-[11px] text-slate-500 font-semibold">
-                        {editIsActive ? 'El inmueble se guardará como activo y visible en la app.' : 'El inmueble se guardará como inactivo (de baja).'}
+                        {editIsActive
+                          ? 'El inmueble se guardará como activo y visible en la app.'
+                          : 'El inmueble se guardará como inactivo (de baja).'}
                       </p>
                     </div>
                     <button
@@ -993,8 +1349,7 @@ function PropertyDetailContent() {
                         editIsActive ? 'bg-emerald-600' : 'bg-slate-300'
                       }`}
                       role="switch"
-                      aria-checked={editIsActive}
-                    >
+                      aria-checked={editIsActive}>
                       <span
                         aria-hidden="true"
                         className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
@@ -1012,15 +1367,13 @@ function PropertyDetailContent() {
                   type="button"
                   onClick={handleCancelEdit}
                   disabled={isSaving}
-                  className="rounded-full bg-slate-100 px-6 py-2.5 text-xs font-bold text-slate-800 hover:bg-slate-200 transition cursor-pointer"
-                >
+                  className="rounded-full bg-slate-100 px-6 py-2.5 text-xs font-bold text-slate-800 hover:bg-slate-200 transition cursor-pointer">
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="rounded-full bg-emerald-800 px-6 py-2.5 text-xs font-bold text-white hover:bg-emerald-950 transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
-                >
+                  className="rounded-full bg-emerald-800 px-6 py-2.5 text-xs font-bold text-white hover:bg-emerald-950 transition flex items-center justify-center gap-2 shadow-sm cursor-pointer">
                   {isSaving ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1039,21 +1392,26 @@ function PropertyDetailContent() {
       {/* Confirmation Status Modal overlay */}
       {isStatusModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
+          <div
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
             onClick={() => setIsStatusModalOpen(false)}
           />
           <div className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl animate-in fade-in zoom-in-95 duration-250">
-            <div className={`flex h-11 w-11 items-center justify-center rounded-xl mb-4 ${
-              statusAction === 'deactivate' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-800'
-            }`}>
+            <div
+              className={`flex h-11 w-11 items-center justify-center rounded-xl mb-4 ${
+                statusAction === 'deactivate'
+                  ? 'bg-red-50 text-red-600'
+                  : 'bg-emerald-50 text-emerald-800'
+              }`}>
               <AlertTriangle className="h-5.5 w-5.5" />
             </div>
-            
+
             <h4 className="m-0 text-base font-black text-slate-950 leading-tight">
-              {statusAction === 'deactivate' ? '¿Confirmar dar de baja?' : '¿Confirmar reactivación?'}
+              {statusAction === 'deactivate'
+                ? '¿Confirmar dar de baja?'
+                : '¿Confirmar reactivación?'}
             </h4>
-            
+
             <p className="mt-2 text-xs text-slate-500 leading-relaxed font-semibold">
               {statusAction === 'deactivate'
                 ? 'Esta acción marcará el inmueble como inactivo. Se desactivará en las listas del auditor y nuevas planificaciones.'
@@ -1064,8 +1422,7 @@ function PropertyDetailContent() {
               <button
                 type="button"
                 onClick={() => setIsStatusModalOpen(false)}
-                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
-              >
+                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition cursor-pointer">
                 Cancelar
               </button>
               <button
@@ -1073,11 +1430,14 @@ function PropertyDetailContent() {
                 onClick={handleToggleStatus}
                 disabled={isSaving}
                 className={`flex-1 rounded-xl py-2.5 text-xs font-bold text-white transition flex justify-center items-center gap-1.5 shadow-sm cursor-pointer ${
-                  statusAction === 'deactivate' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-800 hover:bg-emerald-950'
-                }`}
-              >
+                  statusAction === 'deactivate'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-emerald-800 hover:bg-emerald-950'
+                }`}>
                 {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                <span>{statusAction === 'deactivate' ? 'Dar de Baja' : 'Reactivar'}</span>
+                <span>
+                  {statusAction === 'deactivate' ? 'Dar de Baja' : 'Reactivar'}
+                </span>
               </button>
             </div>
           </div>
@@ -1105,12 +1465,15 @@ function PropertyDetailContent() {
 
 export default function AdminPropertyDetailPage() {
   return (
-    <Suspense fallback={
-      <div className="grid min-h-[400px] place-items-center gap-3">
-        <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
-        <p className="text-sm text-slate-500 font-medium">Cargando inmueble...</p>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="grid min-h-[400px] place-items-center gap-3">
+          <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
+          <p className="text-sm text-slate-500 font-medium">
+            Cargando inmueble...
+          </p>
+        </div>
+      }>
       <PropertyDetailContent />
     </Suspense>
   );

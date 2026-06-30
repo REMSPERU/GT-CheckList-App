@@ -112,7 +112,7 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
   };
   const detailReturnTo = `${pathname}?${searchParams.toString()}`;
   const equipmentOptions = [
-    { value: '', label: 'Todos los equipos' },
+    { value: '', label: 'Todos los activos' },
     ...checklist.equipmentTypes.map(item => ({
       value: item.id,
       label: `${item.systemName} · ${item.nombre}${
@@ -155,7 +155,7 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
     ...propertyOptions,
   ];
   const scheduleListEquipmentOptions = [
-    { value: '', label: 'Todos los tipos de equipo' },
+    { value: '', label: 'Todos los tipos de activo' },
     ...checklist.equipmentTypes.map(item => ({
       value: item.id,
       label: `${item.systemName} · ${item.nombre}`,
@@ -254,7 +254,7 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
         <section className="grid gap-4">
           <div className="grid grid-cols-[minmax(220px,1.2fr)_minmax(220px,1fr)_minmax(220px,1fr)_minmax(180px,0.8fr)] gap-3 max-[1180px]:grid-cols-2 max-[640px]:grid-cols-1">
             <SearchInput
-              placeholder="Buscar inmueble, equipo, codigo o frecuencia"
+              placeholder="Buscar inmueble, activo, codigo o frecuencia"
               value={checklist.responseSearch}
               onChange={checklist.handleResponseSearchChange}
             />
@@ -262,7 +262,7 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
               value={checklist.selectedEquipmentType}
               options={equipmentOptions}
               onChange={checklist.handleEquipmentTypeChange}
-              ariaLabel="Filtrar respuestas por tipo de equipamento"
+              ariaLabel="Filtrar respuestas por tipo de activo"
             />
             <SearchableSelectField
               value={checklist.selectedBuildingName}
@@ -298,13 +298,13 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
       ) : activeTab === 'questions' ? (
         <section className="grid gap-4">
           <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-            Tipo de equipamento
+            Tipo de activo
             <SearchableSelectField
               value={checklist.selectedQuestionEquipmentType}
               options={equipmentOptions}
               onChange={checklist.handleQuestionEquipmentTypeChange}
-              placeholder="Seleccionar tipo de equipamento"
-              ariaLabel="Filtrar preguntas por tipo de equipamento"
+              placeholder="Seleccionar tipo de activo"
+              ariaLabel="Filtrar preguntas por tipo de activo"
             />
           </label>
           <ChecklistQuestionGroups
@@ -344,7 +344,7 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
 
             <div className="mb-4 grid grid-cols-[minmax(240px,1.2fr)_minmax(220px,1fr)_minmax(220px,1fr)_minmax(180px,0.8fr)_auto] items-center gap-3 max-[1180px]:grid-cols-2 max-[640px]:grid-cols-1">
               <SearchInput
-                placeholder="Buscar por inmueble, sistema, equipo o frecuencia"
+                placeholder="Buscar por inmueble, especialidad, activo o frecuencia"
                 value={scheduleListSearch}
                 onChange={setScheduleListSearch}
               />
@@ -359,8 +359,8 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
                 value={scheduleListEquipmentFilter}
                 options={scheduleListEquipmentOptions}
                 onChange={setScheduleListEquipmentFilter}
-                placeholder="Filtrar por tipo de equipo"
-                ariaLabel="Filtrar programaciones por tipo de equipo"
+                placeholder="Filtrar por tipo de activo"
+                ariaLabel="Filtrar programaciones por tipo de activo"
               />
               <SelectField
                 value={scheduleListStatusFilter}
@@ -465,7 +465,7 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
                         />
                       </label>
                       <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-                        Tipo de equipo
+                        Tipo de activo
                         <SearchableSelectField
                           value={checklist.selectedScheduleEquipmentType}
                           options={scheduleEquipmentOptions}
@@ -474,20 +474,20 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
                             checklist.selectedScheduleProperty
                               ? checklist.loadingScheduleEquipmentTypes
                                 ? 'Cargando tipos del inmueble...'
-                                : 'Escribe para buscar tipo de equipo'
+                                : 'Escribe para buscar tipo de activo'
                               : 'Primero selecciona un inmueble'
                           }
                           disabled={
                             !checklist.selectedScheduleProperty ||
                             checklist.loadingScheduleEquipmentTypes
                           }
-                          ariaLabel="Seleccionar tipo de equipo para programar checklist"
+                          ariaLabel="Seleccionar tipo de activo para programar checklist"
                         />
                       </label>
 
                       {hasNoScheduleEquipmentTypes ? (
                         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
-                          Este inmueble no tiene equipos registrados para
+                          Este inmueble no tiene activos registrados para
                           programar.
                         </div>
                       ) : null}
@@ -522,7 +522,7 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
                           />
                         </label>
                         <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-                          Veces máximas por equipo
+                          Veces máximas por activo
                           <input
                             className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                             type="number"
@@ -683,8 +683,8 @@ function ScheduleSelectionState({
       </strong>
       <p className="m-0 mt-1 text-xs font-semibold text-slate-600">
         {isLoadingEquipments
-          ? 'Validando equipos afectados...'
-          : `${equipmentCount} equipo${equipmentCount === 1 ? '' : 's'} afectado${equipmentCount === 1 ? '' : 's'}.`}
+          ? 'Validando activos afectados...'
+          : `${equipmentCount} activo${equipmentCount === 1 ? '' : 's'} afectado${equipmentCount === 1 ? '' : 's'}.`}
       </p>
     </div>
   );
@@ -698,7 +698,7 @@ function ScheduleEquipmentPreview({
   if (!hasSelection) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
-        Selecciona inmueble y tipo para ver que equipos se programaran.
+        Selecciona inmueble y tipo para ver qué activos se programarán.
       </div>
     );
   }
@@ -706,7 +706,7 @@ function ScheduleEquipmentPreview({
   if (isLoading) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
-        Cargando equipos del inmueble...
+        Cargando activos del inmueble...
       </div>
     );
   }
@@ -714,7 +714,7 @@ function ScheduleEquipmentPreview({
   if (equipments.length === 0) {
     return (
       <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
-        Este inmueble no tiene equipos de ese tipo. No se puede programar esta
+        Este inmueble no tiene activos de ese tipo. No se puede programar esta
         regla.
       </div>
     );
@@ -723,7 +723,7 @@ function ScheduleEquipmentPreview({
   return (
     <div className="grid gap-2 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3">
       <p className="m-0 text-sm font-black text-emerald-950">
-        Se programaran {equipments.length} equipo
+        Se programarán {equipments.length} activo
         {equipments.length === 1 ? '' : 's'}:
       </p>
       <div className="grid max-h-36 gap-1.5 overflow-auto pr-1">
@@ -764,7 +764,7 @@ function ScheduleProgressPanel({
   if (!progress) {
     return (
       <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm font-bold text-slate-500">
-        Selecciona una programacion para ver equipos pendientes.
+        Selecciona una programación para ver activos pendientes.
       </div>
     );
   }
@@ -777,7 +777,7 @@ function ScheduleProgressPanel({
             Avance del rango actual
           </p>
           <h3 className="m-0 mt-1 text-lg font-black text-slate-950">
-            {progress.completed.length}/{progress.total} equipos completados
+            {progress.completed.length}/{progress.total} activos completados
           </h3>
         </div>
         <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-900">

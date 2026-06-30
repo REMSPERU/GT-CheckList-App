@@ -57,7 +57,9 @@ export function useAdminEquipments() {
   // Synchronize URL search params to React state (handles back/forward navigation)
   useEffect(() => {
     const searchVal = searchParams.get('search') || '';
-    if (searchVal !== search) setSearch(searchVal);
+    if (searchVal !== search && searchVal !== debouncedSearch) {
+      setSearch(searchVal);
+    }
 
     const statusVal = searchParams.get('status') || 'TODOS';
     if (statusVal !== status) setStatus(statusVal);
@@ -73,7 +75,16 @@ export function useAdminEquipments() {
 
     const pageVal = Number(searchParams.get('page') || '1');
     if (pageVal !== page) setPage(pageVal);
-  }, [searchParams]);
+  }, [
+    searchParams,
+    search,
+    debouncedSearch,
+    status,
+    propertyId,
+    systemId,
+    equipmentTypeId,
+    page,
+  ]);
 
   // Synchronize debounced search text back to URL
   useEffect(() => {
@@ -144,7 +155,7 @@ export function useAdminEquipments() {
           setErrorMessage(
             error instanceof Error
               ? error.message
-              : 'No se pudieron cargar los equipos',
+              : 'No se pudieron cargar los activos',
           );
         }
       } finally {

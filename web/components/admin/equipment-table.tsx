@@ -33,8 +33,8 @@ export function EquipmentTable({
     <AdminTableShell
       summary={
         isLoading
-          ? 'Cargando equipos...'
-          : `${items.length.toLocaleString('en-US')} de ${total.toLocaleString('en-US')} equipos · pagina ${page.toLocaleString('en-US')} de ${totalPages.toLocaleString('en-US')}`
+          ? 'Cargando activos...'
+          : `${items.length.toLocaleString('en-US')} de ${total.toLocaleString('en-US')} activos · pagina ${page.toLocaleString('en-US')} de ${totalPages.toLocaleString('en-US')}`
       }>
       <ResponsiveTable>
         <table className={TABLE_CLASS}>

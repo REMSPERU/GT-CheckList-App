@@ -37,6 +37,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 
 interface PreparedAuditQuestionRow {
@@ -149,6 +150,41 @@ const FIRE_SYSTEM_OPTIONS: SystemEquipmentOption[] = [
     ],
   },
 ];
+
+const AUDIT_PHOTOS_DIR = `${FileSystem.documentDirectory}audit-photos/`;
+
+function getPhotoExtension(uri: string) {
+  const cleanUri = uri.split('?')[0].toLowerCase();
+  if (cleanUri.endsWith('.png')) return 'png';
+  if (cleanUri.endsWith('.webp')) return 'webp';
+  return 'jpg';
+}
+
+async function persistAuditPhoto(uri: string) {
+  await FileSystem.makeDirectoryAsync(AUDIT_PHOTOS_DIR, {
+    intermediates: true,
+  });
+
+  const extension = getPhotoExtension(uri);
+  const targetUri = `${AUDIT_PHOTOS_DIR}${Date.now()}_${Math.floor(
+    Math.random() * 100000,
+  )}.${extension}`;
+
+  await FileSystem.copyAsync({ from: uri, to: targetUri });
+  return targetUri;
+}
+
+async function ensurePersistedAuditPhoto(uri: string) {
+  if (uri.startsWith(AUDIT_PHOTOS_DIR)) {
+    const fileInfo = await FileSystem.getInfoAsync(uri);
+    if (!fileInfo.exists) {
+      throw new Error('AUDIT_PHOTO_LOCAL_MISSING');
+    }
+    return uri;
+  }
+
+  return persistAuditPhoto(uri);
+}
 
 function normalizeAuditLabel(value: string | null | undefined) {
   const trimmed = value?.trim();
@@ -939,6 +975,22 @@ export default function AuditoriaSessionScreen() {
     [ensureEquipmentFeedback, updateEquipmentFeedbacks],
   );
 
+  const handleSelectedPhoto = useCallback(
+    async (uri: string) => {
+      try {
+        const storedUri = await persistAuditPhoto(uri);
+        onPhotoSelectedRef.current?.(storedUri);
+      } catch (error) {
+        console.error('Failed to persist audit photo:', error);
+        showAlert(
+          'Foto no guardada',
+          'No se pudo guardar la foto en el dispositivo. Intente tomarla nuevamente.',
+        );
+      }
+    },
+    [showAlert],
+  );
+
   const takePhoto = useCallback(async () => {
     const hasCameraPermission = await ensureImagePermission('camera', {
       deniedMessage: 'Debe habilitar acceso a la camara.',
@@ -955,12 +1007,12 @@ export default function AuditoriaSessionScreen() {
     if (!result.canceled) {
       const uri = result.assets[0]?.uri;
       if (uri) {
-        onPhotoSelectedRef.current?.(uri);
+        await handleSelectedPhoto(uri);
       }
     }
 
     setIsCameraSheetVisible(false);
-  }, []);
+  }, [handleSelectedPhoto]);
 
   const pickFromGallery = useCallback(async () => {
     const hasLibraryPermission = await ensureImagePermission('mediaLibrary', {
@@ -979,12 +1031,12 @@ export default function AuditoriaSessionScreen() {
     if (!result.canceled) {
       const uri = result.assets[0]?.uri;
       if (uri) {
-        onPhotoSelectedRef.current?.(uri);
+        await handleSelectedPhoto(uri);
       }
     }
 
     setIsCameraSheetVisible(false);
-  }, []);
+  }, [handleSelectedPhoto]);
 
   const validateAnswers = useCallback((): AuditValidationResult => {
     const nextErrors: AnswerErrors = {};
@@ -1168,6 +1220,45 @@ export default function AuditoriaSessionScreen() {
         }
       }
 
+      const persistedAnswerPhotoUris = new Map<string, string[]>();
+      for (const question of filteredQuestions) {
+        const answer = answers[question.id];
+        if (answer?.status !== false || answer.photoUris.length === 0) {
+          continue;
+        }
+
+        persistedAnswerPhotoUris.set(
+          question.id,
+          await Promise.all(answer.photoUris.map(ensurePersistedAuditPhoto)),
+        );
+      }
+
+      const persistedFeedbackPhotos = new Map<
+        string,
+        {
+          goodPracticesPhotos: string[];
+          improvementOpportunityPhotos: string[];
+        }
+      >();
+
+      for (const target of equipmentFeedbackTargets) {
+        const feedback = equipmentFeedbacks[target.key];
+        if (!feedback) {
+          continue;
+        }
+
+        persistedFeedbackPhotos.set(target.key, {
+          goodPracticesPhotos: await Promise.all(
+            feedback.goodPracticesPhotos.map(ensurePersistedAuditPhoto),
+          ),
+          improvementOpportunityPhotos: await Promise.all(
+            feedback.improvementOpportunityPhotos.map(
+              ensurePersistedAuditPhoto,
+            ),
+          ),
+        });
+      }
+
       const payloadAnswers = filteredQuestions
         .map(question => ({ question, answer: answers[question.id] }))
         .filter((entry): entry is ApplicableAnswerEntry => {
@@ -1184,7 +1275,9 @@ export default function AuditoriaSessionScreen() {
             comment: status === 'OBS' ? answer.observation.trim() : null,
             photos:
               status === 'OBS'
-                ? answer.photoUris.map(uri => ({ local_uri: uri }))
+                ? (persistedAnswerPhotoUris.get(question.id) ?? []).map(
+                    uri => ({ local_uri: uri }),
+                  )
                 : [],
           };
         });
@@ -1198,11 +1291,13 @@ export default function AuditoriaSessionScreen() {
               feedback?.goodPracticesComment.trim() || null;
             const improvementOpportunityComment =
               feedback?.improvementOpportunityComment.trim() || null;
+            const storedPhotos = persistedFeedbackPhotos.get(target.key);
             const goodPracticesPhotos =
-              feedback?.goodPracticesPhotos.map(uri => ({ local_uri: uri })) ||
-              [];
+              storedPhotos?.goodPracticesPhotos.map(uri => ({
+                local_uri: uri,
+              })) || [];
             const improvementOpportunityPhotos =
-              feedback?.improvementOpportunityPhotos.map(uri => ({
+              storedPhotos?.improvementOpportunityPhotos.map(uri => ({
                 local_uri: uri,
               })) || [];
 
@@ -1276,7 +1371,11 @@ export default function AuditoriaSessionScreen() {
       );
     } catch (error) {
       console.error('Failed to save audit session:', error);
-      showAlert('Error', 'No se pudo guardar la auditoria localmente.');
+      const message =
+        error instanceof Error && error.message === 'AUDIT_PHOTO_LOCAL_MISSING'
+          ? 'Una foto seleccionada ya no existe en el dispositivo. Vuelva a tomar o seleccionar esa foto antes de guardar.'
+          : 'No se pudo guardar la auditoria localmente.';
+      showAlert('Error', message);
     } finally {
       setIsSaving(false);
     }

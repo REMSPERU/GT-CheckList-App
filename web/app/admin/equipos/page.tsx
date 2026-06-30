@@ -28,7 +28,7 @@ function AdminEquipmentsContent() {
   ];
 
   const systemOptions = [
-    { value: '', label: 'Todos los sistemas' },
+    { value: '', label: 'Todas las especialidades' },
     ...equipments.systems.map(item => ({
       value: item.id,
       label: item.nombre,
@@ -49,7 +49,7 @@ function AdminEquipmentsContent() {
   }
 
   const equipmentTypeOptions = [
-    { value: '', label: 'Todos los tipos de equipo' },
+    { value: '', label: 'Todos los tipos de activo' },
     ...filteredEquipmentTypes.map(item => ({
       value: item.id,
       label: item.nombre,
@@ -61,10 +61,10 @@ function AdminEquipmentsContent() {
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-slate-900/10 bg-white/80 px-4 py-3 shadow-sm">
         <div>
           <h1 className="m-0 text-xl font-black tracking-[-0.04em] text-[#0c1720]">
-            Equipos
+            Activos
           </h1>
           <p className="m-0 mt-1 text-sm font-semibold text-slate-500">
-            Consulta equipos y genera etiquetas QR imprimibles.
+            Consulta activos y genera etiquetas QR imprimibles.
           </p>
         </div>
         <Link
@@ -89,13 +89,13 @@ function AdminEquipmentsContent() {
           value={equipments.systemId}
           options={systemOptions}
           onChange={equipments.handleSystemChange}
-          ariaLabel="Filtrar por sistema"
+          ariaLabel="Filtrar por especialidad"
         />
         <SearchableSelect
           value={equipments.equipmentTypeId}
           options={equipmentTypeOptions}
           onChange={equipments.handleEquipmentTypeChange}
-          placeholder="Todos los tipos de equipo"
+          placeholder="Todos los tipos de activo"
         />
         <SelectField
           value={equipments.status}
@@ -129,7 +129,7 @@ export default function AdminEquipmentsPage() {
     <Suspense fallback={
       <div className="grid min-h-[400px] place-items-center gap-3">
         <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
-        <p className="text-sm text-slate-500 font-medium">Cargando equipos...</p>
+        <p className="text-sm text-slate-500 font-medium">Cargando activos...</p>
       </div>
     }>
       <AdminEquipmentsContent />

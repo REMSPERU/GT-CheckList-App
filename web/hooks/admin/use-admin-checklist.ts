@@ -460,7 +460,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
           setErrorMessage(
             error instanceof Error
               ? error.message
-              : 'No se pudieron cargar los tipos de equipo del inmueble',
+              : 'No se pudieron cargar los tipos de activo del inmueble',
           );
         }
       } finally {
@@ -499,7 +499,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
           setErrorMessage(
             error instanceof Error
               ? error.message
-              : 'No se pudieron cargar los equipos del inmueble',
+              : 'No se pudieron cargar los activos del inmueble',
           );
         }
       } finally {
@@ -647,7 +647,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
       setSuccessMessage(null);
 
       if (!selectedScheduleProperty || !selectedScheduleEquipmentType) {
-        throw new Error('Selecciona un inmueble y un tipo de equipo.');
+        throw new Error('Selecciona un inmueble y un tipo de activo.');
       }
 
       const occurrencesPerDay = Number(scheduleOccurrencesPerDay);
@@ -656,7 +656,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
         occurrencesPerDay < 1 ||
         occurrencesPerDay > 24
       ) {
-        throw new Error('Las veces maximas por equipo deben ser entre 1 y 24.');
+        throw new Error('Las veces máximas por activo deben ser entre 1 y 24.');
       }
 
       if (scheduleWindowStart >= scheduleWindowEnd) {
@@ -694,7 +694,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
 
       if (availableEquipments.length === 0) {
         throw new Error(
-          'No hay equipos de ese tipo en el inmueble seleccionado. No se puede crear la programacion.',
+          'No hay activos de ese tipo en el inmueble seleccionado. No se puede crear la programación.',
         );
       }
 

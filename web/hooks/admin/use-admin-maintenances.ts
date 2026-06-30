@@ -52,7 +52,9 @@ export function useAdminMaintenances() {
   // Synchronize URL search params to React state (handles back/forward navigation)
   useEffect(() => {
     const searchVal = searchParams.get('search') || '';
-    if (searchVal !== search) setSearch(searchVal);
+    if (searchVal !== search && searchVal !== debouncedSearch) {
+      setSearch(searchVal);
+    }
 
     const statusVal = searchParams.get('status') || 'TODOS';
     if (statusVal !== status) setStatus(statusVal);
@@ -68,7 +70,16 @@ export function useAdminMaintenances() {
 
     const endVal = searchParams.get('end') || '';
     if (endVal !== endDate) setEndDate(endVal);
-  }, [searchParams]);
+  }, [
+    searchParams,
+    search,
+    debouncedSearch,
+    status,
+    propertyId,
+    equipmentTypeId,
+    startDate,
+    endDate,
+  ]);
 
   // Synchronize debounced search text back to URL
   useEffect(() => {
