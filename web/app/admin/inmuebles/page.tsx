@@ -25,21 +25,34 @@ function AdminPropertiesContent() {
         <button
           type="button"
           onClick={() => setIsDrawerOpen(true)}
-          className="rounded-full bg-emerald-800 px-5 py-2.5 text-sm font-black text-white hover:bg-emerald-950 transition shadow-sm max-[640px]:w-full text-center shrink-0"
-        >
+          className="rounded-full bg-emerald-800 px-5 py-2.5 text-sm font-black text-white hover:bg-emerald-950 transition shadow-sm max-[640px]:w-full text-center shrink-0">
           ➕ Nuevo Inmueble
         </button>
       </section>
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() =>
+            properties.handleStatusChange(
+              properties.status === 'inactive' ? 'active' : 'inactive',
+            )
+          }
+          className="rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-black text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-800">
+          {properties.status === 'inactive'
+            ? 'Ver inmuebles activos'
+            : 'Ver dados de baja'}
+        </button>
+      </div>
       <Alert>{properties.errorMessage}</Alert>
       <PropertiesGrid
         items={properties.filteredItems}
         isLoading={properties.isLoading}
       />
-      
+
       <PropertyDrawer
         open={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        onSaveSuccess={(prop) => properties.addPropertyToList(prop)}
+        onSaveSuccess={prop => properties.addPropertyToList(prop)}
       />
     </main>
   );
@@ -47,12 +60,15 @@ function AdminPropertiesContent() {
 
 export default function AdminPropertiesPage() {
   return (
-    <Suspense fallback={
-      <div className="grid min-h-[400px] place-items-center gap-3">
-        <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
-        <p className="text-sm text-slate-500 font-medium">Cargando inmuebles...</p>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="grid min-h-[400px] place-items-center gap-3">
+          <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
+          <p className="text-sm text-slate-500 font-medium">
+            Cargando inmuebles...
+          </p>
+        </div>
+      }>
       <AdminPropertiesContent />
     </Suspense>
   );

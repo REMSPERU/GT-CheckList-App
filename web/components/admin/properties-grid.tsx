@@ -15,8 +15,7 @@ export function PropertiesGrid({ items, isLoading }: PropertiesGridProps) {
         {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="animate-pulse rounded-[22px] border border-slate-200 bg-white/70 shadow-[0_8px_32px_rgba(15,23,42,0.06)]"
-          >
+            className="animate-pulse rounded-[22px] border border-slate-200 bg-white/70 shadow-[0_8px_32px_rgba(15,23,42,0.06)]">
             <div className="aspect-[16/10] rounded-t-[22px] bg-slate-200" />
             <div className="grid gap-3 p-5">
               <div className="h-5 w-3/4 rounded-lg bg-slate-200" />
@@ -54,10 +53,7 @@ export function PropertiesGrid({ items, isLoading }: PropertiesGridProps) {
       </p>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5 max-[640px]:grid-cols-1">
         {items.map(item => (
-          <PropertyCard
-            key={item.id}
-            property={item}
-          />
+          <PropertyCard key={item.id} property={item} />
         ))}
       </div>
     </>
@@ -76,36 +72,36 @@ function isNextImageSafe(url: string): boolean {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname;
-    return host.endsWith('.supabase.co') || NEXT_IMAGE_ALLOWED_HOSTS.includes(host);
+    return (
+      host.endsWith('.supabase.co') || NEXT_IMAGE_ALLOWED_HOSTS.includes(host)
+    );
   } catch {
     return false;
   }
 }
 
 function PropertyCard({ property }: { property: AdminPropertyRow }) {
-  const useNextImage = property.image_url ? isNextImageSafe(property.image_url) : false;
+  const useNextImage = property.image_url
+    ? isNextImageSafe(property.image_url)
+    : false;
 
   return (
     <Link
       href={`/admin/inmuebles/${property.id}`}
       className={`group block overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_8px_32px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(15,23,42,0.12)] no-underline text-inherit ${
-        property.is_active === false ? 'opacity-70 grayscale-[25%] hover:grayscale-0 hover:opacity-100' : ''
-      }`}
-    >
+        property.is_active === false
+          ? 'opacity-70 grayscale-[25%] hover:grayscale-0 hover:opacity-100'
+          : ''
+      }`}>
       {/* Image section */}
       <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
         {/* Status Badge */}
-        {property.is_active !== false ? (
-          <span className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-full bg-emerald-50/90 border border-emerald-200/50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-800 backdrop-blur-sm shadow-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Activo
-          </span>
-        ) : (
+        {property.is_active === false ? (
           <span className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-full bg-slate-100/90 border border-slate-300 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-slate-700 backdrop-blur-sm shadow-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
             Inactivo
           </span>
-        )}
+        ) : null}
 
         {property.image_url ? (
           useNextImage ? (

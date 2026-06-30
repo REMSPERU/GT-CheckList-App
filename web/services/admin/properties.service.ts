@@ -2,14 +2,29 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { AdminPropertyRow } from '@/types/admin';
 
+type AdminPropertyStatusFilter = 'active' | 'inactive' | 'all';
+
 export async function listAdminProperties(
   supabase: SupabaseClient,
+  status: AdminPropertyStatusFilter = 'active',
 ): Promise<AdminPropertyRow[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('properties')
-    .select('id, code, name, address, city, image_url, floor, basement, is_active')
+    .select(
+      'id, code, name, address, city, image_url, floor, basement, is_active',
+    )
     .order('name', { ascending: true })
     .limit(250);
+
+  if (status === 'active') {
+    query = query.eq('is_active', true);
+  }
+
+  if (status === 'inactive') {
+    query = query.eq('is_active', false);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
 
@@ -22,7 +37,9 @@ export async function getAdminProperty(
 ): Promise<AdminPropertyRow | null> {
   const { data, error } = await supabase
     .from('properties')
-    .select('id, code, name, address, city, image_url, floor, basement, is_active')
+    .select(
+      'id, code, name, address, city, image_url, floor, basement, is_active',
+    )
     .eq('id', propertyId)
     .maybeSingle();
 
@@ -65,11 +82,12 @@ export async function updateAdminProperty(
       name: property.name,
       address: property.address,
       city: property.city,
-      code: property.code !== undefined ? (property.code || null) : undefined,
+      code: property.code !== undefined ? property.code || null : undefined,
       image_url: property.image_url,
       floor: property.floor !== undefined ? property.floor : undefined,
       basement: property.basement !== undefined ? property.basement : undefined,
-      is_active: property.is_active !== undefined ? property.is_active : undefined,
+      is_active:
+        property.is_active !== undefined ? property.is_active : undefined,
     })
     .eq('id', propertyId)
     .select()
@@ -90,6 +108,8 @@ export async function updateAdminPropertyImage(
     .eq('id', propertyId);
 
   if (error) {
-    throw new Error(`Error al actualizar la imagen del inmueble: ${error.message}`);
+    throw new Error(
+      `Error al actualizar la imagen del inmueble: ${error.message}`,
+    );
   }
 }
