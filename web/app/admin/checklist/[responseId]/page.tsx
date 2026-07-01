@@ -414,11 +414,13 @@ function PhotoGrid({ photos }: { photos: AdminChecklistPhotoRef[] }) {
     <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
       {photos.map((photo, index) => {
         const url = getPhotoUrl(photo);
+        const isMissing =
+          !url || url === 'file_not_found' || url.includes('file_not_found');
 
-        return url ? (
+        return !isMissing ? (
           <a
             className="group overflow-hidden rounded-2xl border border-white bg-slate-200 shadow-[0_12px_28px_rgba(12,23,32,0.12)]"
-            href={url}
+            href={url!}
             target="_blank"
             rel="noreferrer"
             key={`${url}-${index}`}>
@@ -433,9 +435,13 @@ function PhotoGrid({ photos }: { photos: AdminChecklistPhotoRef[] }) {
           </a>
         ) : (
           <div
-            className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500"
+            className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500 flex flex-col items-center justify-center aspect-[4/3] bg-slate-50 text-center"
             key={index}>
-            Foto sin URL publica
+            <span className="text-xl mb-1">📷🚫</span>
+            <span className="font-semibold text-xs">Foto no disponible</span>
+            <span className="text-[10px] text-slate-400">
+              Archivo local no encontrado
+            </span>
           </div>
         );
       })}

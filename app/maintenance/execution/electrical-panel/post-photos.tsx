@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { persistLocalPhoto, saveToGallery } from '@/lib/photo-storage';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import MaintenanceHeader from '@/components/maintenance-header';
@@ -41,9 +42,12 @@ export default function PostMaintenancePhotosScreen() {
     async (result: ImagePicker.ImagePickerResult) => {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
+        const persistentUri = await persistLocalPhoto(asset.uri);
+        await saveToGallery(persistentUri);
+
         const newPhoto: PhotoItem = {
-          id: asset.uri,
-          uri: asset.uri,
+          id: persistentUri,
+          uri: persistentUri,
           status: 'pending',
           category: 'visual', // Default for post photos
         };

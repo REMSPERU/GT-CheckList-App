@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useState } from 'react';
 import { Image } from 'expo-image';
+import { ImagePreviewModal } from '@/components/image-preview-modal';
 import {
   View,
   Text,
@@ -58,6 +59,7 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
   statusLayout = 'inline',
 }: QuestionChecklistItemProps) {
   const [isQuestionExpanded, setIsQuestionExpanded] = useState(false);
+  const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
   const isApplicable = value.isApplicable !== false;
   const showObservationBlock = isApplicable && value.status === false;
   const statusLabel =
@@ -228,12 +230,16 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
             contentContainerStyle={styles.photosRow}>
             {value.photoUris.map((uri, index) => (
               <View key={uri} style={styles.photoWrap}>
-                <Image
-                  source={{ uri }}
-                  style={styles.photo}
-                  contentFit="cover"
-                  transition={100}
-                />
+                <Pressable
+                  onPress={() => setPreviewImageUri(uri)}
+                  style={({ pressed }) => pressed && styles.pressed}>
+                  <Image
+                    source={{ uri }}
+                    style={styles.photo}
+                    contentFit="cover"
+                    transition={100}
+                  />
+                </Pressable>
                 <Pressable
                   onPress={() => onRemovePhoto(index)}
                   style={({ pressed }) => [
@@ -265,6 +271,11 @@ export const QuestionChecklistItem = memo(function QuestionChecklistItem({
           ) : null}
         </View>
       )}
+      <ImagePreviewModal
+        visible={previewImageUri !== null}
+        imageUri={previewImageUri}
+        onClose={() => setPreviewImageUri(null)}
+      />
     </View>
   );
 });

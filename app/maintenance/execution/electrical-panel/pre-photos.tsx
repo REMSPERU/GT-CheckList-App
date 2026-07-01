@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { persistLocalPhoto, saveToGallery } from '@/lib/photo-storage';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import MaintenanceHeader from '@/components/maintenance-header';
@@ -165,9 +166,12 @@ export default function PreMaintenancePhotosScreen() {
         }
 
         const asset = result.assets[0];
+        const persistentUri = await persistLocalPhoto(asset.uri);
+        await saveToGallery(persistentUri);
+
         const newPhoto: PhotoItem = {
-          id: asset.uri, // Using URI as ID for now
-          uri: asset.uri,
+          id: persistentUri, // Using URI as ID for now
+          uri: persistentUri,
           status: 'pending', // Will be uploaded later
           category: section === 'panel' ? 'visual' : 'thermo',
         };
