@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 
@@ -54,37 +54,45 @@ export function useAdminEquipments() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search, 250);
 
+  // Tracks the values last synced FROM the URL so we can detect real navigation changes
+  // without including local state in the effect's dependency array (which caused a
+  // write-then-overwrite loop on every keystroke).
+  const lastSyncedFromUrl = useRef({
+    search: '',
+    status: 'TODOS',
+    propertyId: '',
+    systemId: '',
+    equipmentTypeId: '',
+    page: 1,
+  });
+
   // Synchronize URL search params to React state (handles back/forward navigation)
   useEffect(() => {
-    const searchVal = searchParams.get('search') || '';
-    if (searchVal !== search && searchVal !== debouncedSearch) {
-      setSearch(searchVal);
-    }
+    const searchVal = searchParams.get('search') ?? '';
+    const statusVal = searchParams.get('status') ?? 'TODOS';
+    const propertyVal = searchParams.get('property') ?? '';
+    const systemVal = searchParams.get('system') ?? '';
+    const eqTypeVal = searchParams.get('eqType') ?? '';
+    const pageVal = Number(searchParams.get('page') ?? '1');
 
-    const statusVal = searchParams.get('status') || 'TODOS';
-    if (statusVal !== status) setStatus(statusVal);
+    const prev = lastSyncedFromUrl.current;
 
-    const propertyVal = searchParams.get('property') || '';
-    if (propertyVal !== propertyId) setPropertyId(propertyVal);
+    if (searchVal !== prev.search) setSearch(searchVal);
+    if (statusVal !== prev.status) setStatus(statusVal);
+    if (propertyVal !== prev.propertyId) setPropertyId(propertyVal);
+    if (systemVal !== prev.systemId) setSystemId(systemVal);
+    if (eqTypeVal !== prev.equipmentTypeId) setEquipmentTypeId(eqTypeVal);
+    if (pageVal !== prev.page) setPage(pageVal);
 
-    const systemVal = searchParams.get('system') || '';
-    if (systemVal !== systemId) setSystemId(systemVal);
-
-    const eqTypeVal = searchParams.get('eqType') || '';
-    if (eqTypeVal !== equipmentTypeId) setEquipmentTypeId(eqTypeVal);
-
-    const pageVal = Number(searchParams.get('page') || '1');
-    if (pageVal !== page) setPage(pageVal);
-  }, [
-    searchParams,
-    search,
-    debouncedSearch,
-    status,
-    propertyId,
-    systemId,
-    equipmentTypeId,
-    page,
-  ]);
+    lastSyncedFromUrl.current = {
+      search: searchVal,
+      status: statusVal,
+      propertyId: propertyVal,
+      systemId: systemVal,
+      equipmentTypeId: eqTypeVal,
+      page: pageVal,
+    };
+  }, [searchParams]);
 
   // Synchronize debounced search text back to URL
   useEffect(() => {
