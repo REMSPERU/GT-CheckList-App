@@ -219,6 +219,40 @@ export default function MaintenanceResponseDetailScreen() {
   const isReprogrammedGroundingWell =
     detail?.executionStatus === 'reprogrammed';
 
+  const renderImageOrPlaceholder = (uri?: string | null, style?: any) => {
+    const isMissing =
+      !uri || uri === 'file_not_found' || uri.includes('file_not_found');
+    if (isMissing) {
+      return (
+        <View
+          style={[
+            style,
+            {
+              backgroundColor: '#F3F4F6',
+              justifyContent: 'center',
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+              borderRadius: 8,
+            },
+          ]}>
+          <Ionicons name="image-outline" size={20} color="#9CA3AF" />
+          <Text
+            style={{
+              fontSize: 9,
+              color: '#6B7280',
+              textAlign: 'center',
+              marginTop: 2,
+              paddingHorizontal: 4,
+            }}>
+            No disponible
+          </Text>
+        </View>
+      );
+    }
+    return <Image source={{ uri }} style={style} />;
+  };
+
   const renderPhotoGrid = (photos: any[], title: string) => {
     if (!photos || photos.length === 0) {
       return (
@@ -236,13 +270,14 @@ export default function MaintenanceResponseDetailScreen() {
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.photoRow}>
-            {photos.map((photo: any, index: number) => (
-              <Image
-                key={photo.id || index}
-                source={{ uri: photo.url || photo.uri }}
-                style={styles.photo}
-              />
-            ))}
+            {photos.map((photo: any, index: number) => {
+              const uri = photo.url || photo.uri;
+              return (
+                <View key={photo.id || index}>
+                  {renderImageOrPlaceholder(uri, styles.photo)}
+                </View>
+              );
+            })}
           </View>
         </ScrollView>
       </View>
@@ -297,12 +332,11 @@ export default function MaintenanceResponseDetailScreen() {
             <Text style={styles.observationText}>
               {observation.note || 'Sin nota'}
             </Text>
-            {observation.photoUrl && (
-              <Image
-                source={{ uri: observation.photoUrl }}
-                style={styles.observationPhoto}
-              />
-            )}
+            {observation.photoUrl &&
+              renderImageOrPlaceholder(
+                observation.photoUrl,
+                styles.observationPhoto,
+              )}
           </View>
         )}
       </View>
@@ -322,7 +356,7 @@ export default function MaintenanceResponseDetailScreen() {
     return (
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{title}</Text>
-        <Image source={{ uri }} style={styles.groundingPhoto} />
+        {renderImageOrPlaceholder(uri, styles.groundingPhoto)}
       </View>
     );
   };
@@ -350,9 +384,9 @@ export default function MaintenanceResponseDetailScreen() {
           <Text style={styles.groundingFieldValue}>{item.observation}</Text>
         )}
 
-        {!isOk && !!item?.photo && (
-          <Image source={{ uri: item.photo }} style={styles.observationPhoto} />
-        )}
+        {!isOk &&
+          !!item?.photo &&
+          renderImageOrPlaceholder(item.photo, styles.observationPhoto)}
       </View>
     );
   };
@@ -468,12 +502,11 @@ export default function MaintenanceResponseDetailScreen() {
                       {detail.lidStatusObservation}
                     </Text>
                   )}
-                  {!!detail.lidStatusPhoto && (
-                    <Image
-                      source={{ uri: detail.lidStatusPhoto }}
-                      style={styles.observationPhoto}
-                    />
-                  )}
+                  {!!detail.lidStatusPhoto &&
+                    renderImageOrPlaceholder(
+                      detail.lidStatusPhoto,
+                      styles.observationPhoto,
+                    )}
                 </View>
 
                 <View style={styles.card}>

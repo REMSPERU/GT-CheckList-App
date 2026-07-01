@@ -239,7 +239,10 @@ async function safeFetch<T = any>(
   }
 }
 
-async function fetchEquiposPaginated(): Promise<{ data: any[] | null; failed: boolean }> {
+async function fetchEquiposPaginated(): Promise<{
+  data: any[] | null;
+  failed: boolean;
+}> {
   try {
     let allEquipos: any[] = [];
     let from = 0;
@@ -254,7 +257,10 @@ async function fetchEquiposPaginated(): Promise<{ data: any[] | null; failed: bo
         .range(from, to);
 
       if (error) {
-        console.error('[SYNC] Error fetching equipos page:', error.message || error);
+        console.error(
+          '[SYNC] Error fetching equipos page:',
+          error.message || error,
+        );
         return { data: null, failed: true };
       }
 
@@ -832,13 +838,31 @@ class SyncService {
               photo.id,
               'syncing',
             );
-            const uploaded = await checklistStorageService.uploadPhoto({
-              uri: photo.local_uri,
-              userId: item.user_created,
-              equipoId: item.equipo_id,
-              questionId: photo.question_id || undefined,
-              kind: photo.kind,
-            });
+
+            let uploaded;
+            try {
+              uploaded = await checklistStorageService.uploadPhoto({
+                uri: photo.local_uri,
+                userId: item.user_created,
+                equipoId: item.equipo_id,
+                questionId: photo.question_id || undefined,
+                kind: photo.kind,
+              });
+            } catch (err) {
+              if (this.isFileNotFoundError(err)) {
+                console.warn(
+                  '[SYNC-CHECKLIST] Skipping missing photo:',
+                  photo.local_uri,
+                );
+                uploaded = {
+                  bucket: 'missing_evidence',
+                  path: 'file_not_found',
+                  public_url: 'file_not_found',
+                };
+              } else {
+                throw err;
+              }
+            }
 
             const uploadedRef = {
               bucket: uploaded.bucket,
@@ -1031,8 +1055,14 @@ class SyncService {
                 );
               } catch (err) {
                 if (this.isFileNotFoundError(err)) {
-                  console.warn('[SYNC-AUDIT] Skipping missing photo:', sourceUri);
-                  uploaded = { bucket: 'missing_evidence', path: 'file_not_found' };
+                  console.warn(
+                    '[SYNC-AUDIT] Skipping missing photo:',
+                    sourceUri,
+                  );
+                  uploaded = {
+                    bucket: 'missing_evidence',
+                    path: 'file_not_found',
+                  };
                 } else {
                   throw err;
                 }
@@ -1096,8 +1126,14 @@ class SyncService {
                   );
                 } catch (err) {
                   if (this.isFileNotFoundError(err)) {
-                    console.warn('[SYNC-AUDIT] Skipping missing feedback photo:', sourceUri);
-                    uploaded = { bucket: 'missing_evidence', path: 'file_not_found' };
+                    console.warn(
+                      '[SYNC-AUDIT] Skipping missing feedback photo:',
+                      sourceUri,
+                    );
+                    uploaded = {
+                      bucket: 'missing_evidence',
+                      path: 'file_not_found',
+                    };
                   } else {
                     throw err;
                   }
@@ -1286,25 +1322,38 @@ class SyncService {
 
         for (const photo of photos) {
           try {
-            const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
-              photo.local_uri,
-              {
-                sessionId: routeContext?.id_sesion || null,
-                equipmentId: routeContext?.id_equipo || null,
-                maintenanceId:
-                  item.id_mantenimiento || `offline-${item.local_id}`,
-                category:
-                  photo.type === 'pre'
-                    ? 'pre'
-                    : photo.type === 'post'
-                      ? 'post'
-                      : photo.type === 'session'
-                        ? 'session-start'
-                        : 'observation',
-                observationKey: photo.observation_key || null,
-              },
-            );
-            log(`[SYNC] Photo ${photo.id} uploaded: ${remoteUrl}`);
+            let remoteUrl;
+            try {
+              remoteUrl = await supabaseMaintenanceService.uploadPhoto(
+                photo.local_uri,
+                {
+                  sessionId: routeContext?.id_sesion || null,
+                  equipmentId: routeContext?.id_equipo || null,
+                  maintenanceId:
+                    item.id_mantenimiento || `offline-${item.local_id}`,
+                  category:
+                    photo.type === 'pre'
+                      ? 'pre'
+                      : photo.type === 'post'
+                        ? 'post'
+                        : photo.type === 'session'
+                          ? 'session-start'
+                          : 'observation',
+                  observationKey: photo.observation_key || null,
+                },
+              );
+              log(`[SYNC] Photo ${photo.id} uploaded: ${remoteUrl}`);
+            } catch (err) {
+              if (this.isFileNotFoundError(err)) {
+                console.warn(
+                  '[SYNC-MAINT] Skipping missing photo:',
+                  photo.local_uri,
+                );
+                remoteUrl = 'file_not_found';
+              } else {
+                throw err;
+              }
+            }
 
             await DatabaseService.updatePhotoStatus(
               photo.id,
@@ -1427,8 +1476,7 @@ class SyncService {
   // SUB-ROUTINE 2B: INVENTORY EQUIPOS
   // ----------------------------------------------------------------
   private async syncPendingEquipos(specificEquipoId?: string) {
-    const pendingItems =
-      (await DatabaseService.getPendingEquipos()) as any[];
+    const pendingItems = (await DatabaseService.getPendingEquipos()) as any[];
 
     const itemsToSync = specificEquipoId
       ? pendingItems.filter(e => e.id_equipo === specificEquipoId)
@@ -1442,31 +1490,34 @@ class SyncService {
       try {
         await DatabaseService.updateOfflineEquipmentStatus(
           item.local_id,
-          'syncing'
+          'syncing',
         );
 
         const detail = JSON.parse(item.equipment_detail || '{}');
 
         // B. Reconstruct/Upsert to Supabase
-        const { error } = await supabase.from('equipos').upsert({
-          id: item.id_equipo,
-          id_property: item.id_property,
-          id_equipamento: item.id_equipamento,
-          codigo: item.codigo,
-          ubicacion: item.ubicacion,
-          detalle_ubicacion: item.detalle_ubicacion,
-          estatus: item.estatus,
-          equipment_detail: detail,
-          config: item.config === 1,
-        }, {
-          onConflict: 'id'
-        });
+        const { error } = await supabase.from('equipos').upsert(
+          {
+            id: item.id_equipo,
+            id_property: item.id_property,
+            id_equipamento: item.id_equipamento,
+            codigo: item.codigo,
+            ubicacion: item.ubicacion,
+            detalle_ubicacion: item.detalle_ubicacion,
+            estatus: item.estatus,
+            equipment_detail: detail,
+            config: item.config === 1,
+          },
+          {
+            onConflict: 'id',
+          },
+        );
 
         if (error) throw error;
 
         await DatabaseService.updateOfflineEquipmentStatus(
           item.local_id,
-          'synced'
+          'synced',
         );
         log(`[SYNC-EQUIPO] Equipo ${item.id_equipo} synced successfully`);
       } catch (error) {
@@ -1474,7 +1525,7 @@ class SyncService {
         await DatabaseService.updateOfflineEquipmentStatus(
           item.local_id,
           'error',
-          this.getErrorMessage(error)
+          this.getErrorMessage(error),
         );
       }
     }
@@ -1514,26 +1565,48 @@ class SyncService {
         const photoItemMap: Record<string, string> = {};
 
         for (const photo of photos) {
-          const remoteUrl = await supabaseMaintenanceService.uploadPhoto(
-            photo.local_uri,
-            {
-              sessionId: routeContext?.id_sesion || null,
-              equipmentId:
-                checklist.panel_id || routeContext?.id_equipo || null,
-              maintenanceId:
-                checklist.maintenance_id ||
-                `grounding-offline-${checklist.local_id}`,
-              category: 'grounding-well',
-              itemKey: photo.item_key,
-            },
-          );
-          await DatabaseService.updateGroundingWellChecklistPhotoStatus(
-            photo.id,
-            'synced',
-            remoteUrl,
-          );
-          photoUrlMap[photo.local_uri] = remoteUrl;
-          photoItemMap[photo.item_key] = remoteUrl;
+          try {
+            let remoteUrl;
+            try {
+              remoteUrl = await supabaseMaintenanceService.uploadPhoto(
+                photo.local_uri,
+                {
+                  sessionId: routeContext?.id_sesion || null,
+                  equipmentId:
+                    checklist.panel_id || routeContext?.id_equipo || null,
+                  maintenanceId:
+                    checklist.maintenance_id ||
+                    `grounding-offline-${checklist.local_id}`,
+                  category: 'grounding-well',
+                  itemKey: photo.item_key,
+                },
+              );
+            } catch (err) {
+              if (this.isFileNotFoundError(err)) {
+                console.warn(
+                  '[SYNC-GROUND] Skipping missing photo:',
+                  photo.local_uri,
+                );
+                remoteUrl = 'file_not_found';
+              } else {
+                throw err;
+              }
+            }
+
+            await DatabaseService.updateGroundingWellChecklistPhotoStatus(
+              photo.id,
+              'synced',
+              remoteUrl,
+            );
+            photoUrlMap[photo.local_uri] = remoteUrl;
+            photoItemMap[photo.item_key] = remoteUrl;
+          } catch (pError) {
+            console.error(
+              `Grounding well photo upload failed for ${photo.id}:`,
+              pError,
+            );
+            throw pError;
+          }
         }
 
         // B. Replace URLs in JSON
