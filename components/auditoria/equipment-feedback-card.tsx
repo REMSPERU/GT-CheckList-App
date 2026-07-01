@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { memo } from 'react';
+import { memo, useState } from 'react';
+import { ImagePreviewModal } from '@/components/image-preview-modal';
 import {
   Pressable,
   ScrollView,
@@ -100,41 +101,61 @@ function PhotoRow({
   onAddPhoto,
   onRemovePhoto,
 }: PhotoRowProps) {
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.photosRow}>
-      {uris.map((uri, index) => (
-        <View key={`${uri}-${index}`} style={styles.photoWrap}>
-          <Image
-            source={{ uri }}
-            style={styles.photo}
-            contentFit="cover"
-            transition={80}
-          />
-          <Pressable
-            onPress={() => onRemovePhoto(index)}
-            disabled={disabled}
-            style={({ pressed }) => [
-              styles.removePhotoBtn,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button">
-            <Ionicons name="close-circle" size={20} color="#EF4444" />
-          </Pressable>
-        </View>
-      ))}
+  const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
 
-      <Pressable
-        onPress={onAddPhoto}
-        disabled={disabled}
-        style={({ pressed }) => [styles.addPhotoBtn, pressed && styles.pressed]}
-        accessibilityRole="button">
-        <Ionicons name="camera-outline" size={20} color="#475569" />
-        <Text style={styles.addPhotoText}>Agregar foto</Text>
-      </Pressable>
-    </ScrollView>
+  return (
+    <>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.photosRow}>
+        {uris.map((uri, index) => (
+          <View key={`${uri}-${index}`} style={styles.photoWrap}>
+            <Pressable
+              onPress={() => setPreviewImageUri(uri)}
+              style={({ pressed }) => [
+                styles.photoPressable,
+                pressed && styles.pressed,
+              ]}>
+              <Image
+                source={{ uri }}
+                style={styles.photo}
+                contentFit="cover"
+                transition={80}
+              />
+            </Pressable>
+            <Pressable
+              onPress={() => onRemovePhoto(index)}
+              disabled={disabled}
+              style={({ pressed }) => [
+                styles.removePhotoBtn,
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button">
+              <Ionicons name="close-circle" size={20} color="#EF4444" />
+            </Pressable>
+          </View>
+        ))}
+
+        <Pressable
+          onPress={onAddPhoto}
+          disabled={disabled}
+          style={({ pressed }) => [
+            styles.addPhotoBtn,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button">
+          <Ionicons name="camera-outline" size={20} color="#475569" />
+          <Text style={styles.addPhotoText}>Agregar foto</Text>
+        </Pressable>
+      </ScrollView>
+
+      <ImagePreviewModal
+        visible={previewImageUri !== null}
+        imageUri={previewImageUri}
+        onClose={() => setPreviewImageUri(null)}
+      />
+    </>
   );
 }
 
@@ -184,6 +205,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
     position: 'relative',
+  },
+  photoPressable: {
+    width: '100%',
+    height: '100%',
   },
   photo: {
     width: '100%',
