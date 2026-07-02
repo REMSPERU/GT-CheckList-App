@@ -160,6 +160,42 @@ interface DBSystem {
   nombre: string;
 }
 
+async function fetchAllPropertyEquipos(
+  supabase: any,
+  propertyId: string,
+): Promise<DBEquipo[]> {
+  let allEquipos: DBEquipo[] = [];
+  let page = 0;
+  const pageSize = 1000;
+
+  while (true) {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error } = await supabase
+      .from('equipos')
+      .select('id, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus')
+      .eq('id_property', propertyId)
+      .range(from, to);
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      break;
+    }
+
+    allEquipos = allEquipos.concat(data as DBEquipo[]);
+
+    if (data.length < pageSize) {
+      break;
+    }
+
+    page++;
+  }
+
+  return allEquipos;
+}
+
 function PropertyDetailContent() {
   const params = useParams<{ propertyId: string }>();
   const router = useRouter();
@@ -242,19 +278,14 @@ function PropertyDetailContent() {
         const supabase = getSupabaseClient();
 
         // Query property, systems catalog, equipment types catalog and direct equipments list
-        const [propRes, sysRes, typesRes, equiposRes] = await Promise.all([
+        const [propRes, sysRes, typesRes, equiposData] = await Promise.all([
           getAdminProperty(supabase, params.propertyId),
           supabase
             .from('sistemas')
             .select('id, nombre')
             .order('nombre', { ascending: true }),
           listAdminEquipmentTypes(supabase),
-          supabase
-            .from('equipos')
-            .select(
-              'id, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus',
-            )
-            .eq('id_property', params.propertyId),
+          fetchAllPropertyEquipos(supabase, params.propertyId),
         ]);
 
         if (!isMounted) return;
@@ -266,7 +297,7 @@ function PropertyDetailContent() {
         setProperty(propRes);
         setSystems((sysRes.data ?? []) as DBSystem[]);
         setEquipmentTypes(typesRes);
-        setEquipos((equiposRes.data ?? []) as DBEquipo[]);
+        setEquipos(equiposData);
 
         // Populate edit form
         setEditName(propRes.name || '');
