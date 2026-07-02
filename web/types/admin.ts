@@ -101,6 +101,21 @@ export interface AdminEquipmentFilters {
   propertyId?: string;
   systemId?: string;
   equipmentTypeId?: string;
+  config?: string;
+  city?: string;
+  frecuencia?: string;
+  marca?: string;
+  modelo?: string;
+  serie?: string;
+  capacidad?: string;
+  potencia?: string;
+  voltaje?: string;
+  fases?: string;
+  tipoTablero?: string;
+  rpm?: string;
+  presion?: string;
+  refrigerante?: string;
+  tieneVdf?: string;
 }
 
 export interface AdminEquipmentTypeRow {

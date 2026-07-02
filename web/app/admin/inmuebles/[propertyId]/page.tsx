@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { EquipmentDetailView } from '@/components/admin/equipment-detail-view';
+import { SearchInput } from '@/components/ui/search-input';
 import { getAdminEquipmentById } from '@/services/admin/equipments.service';
 import {
   ArrowLeft,
@@ -159,6 +160,42 @@ interface DBSystem {
   nombre: string;
 }
 
+async function fetchAllPropertyEquipos(
+  supabase: any,
+  propertyId: string,
+): Promise<DBEquipo[]> {
+  let allEquipos: DBEquipo[] = [];
+  let page = 0;
+  const pageSize = 1000;
+
+  while (true) {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error } = await supabase
+      .from('equipos')
+      .select('id, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus')
+      .eq('id_property', propertyId)
+      .range(from, to);
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      break;
+    }
+
+    allEquipos = allEquipos.concat(data as DBEquipo[]);
+
+    if (data.length < pageSize) {
+      break;
+    }
+
+    page++;
+  }
+
+  return allEquipos;
+}
+
 function PropertyDetailContent() {
   const params = useParams<{ propertyId: string }>();
   const router = useRouter();
@@ -197,6 +234,7 @@ function PropertyDetailContent() {
     [],
   );
   const [equipos, setEquipos] = useState<DBEquipo[]>([]);
+  const [typeSearch, setTypeSearch] = useState('');
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -240,19 +278,14 @@ function PropertyDetailContent() {
         const supabase = getSupabaseClient();
 
         // Query property, systems catalog, equipment types catalog and direct equipments list
-        const [propRes, sysRes, typesRes, equiposRes] = await Promise.all([
+        const [propRes, sysRes, typesRes, equiposData] = await Promise.all([
           getAdminProperty(supabase, params.propertyId),
           supabase
             .from('sistemas')
             .select('id, nombre')
             .order('nombre', { ascending: true }),
           listAdminEquipmentTypes(supabase),
-          supabase
-            .from('equipos')
-            .select(
-              'id, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus',
-            )
-            .eq('id_property', params.propertyId),
+          fetchAllPropertyEquipos(supabase, params.propertyId),
         ]);
 
         if (!isMounted) return;
@@ -264,7 +297,7 @@ function PropertyDetailContent() {
         setProperty(propRes);
         setSystems((sysRes.data ?? []) as DBSystem[]);
         setEquipmentTypes(typesRes);
-        setEquipos((equiposRes.data ?? []) as DBEquipo[]);
+        setEquipos(equiposData);
 
         // Populate edit form
         setEditName(propRes.name || '');
@@ -356,6 +389,24 @@ function PropertyDetailContent() {
       })
       .filter(sys => sys.types.length > 0); // Only show systems that have active equipments
   }, [property, systems, equipmentTypes, equipos]);
+
+  const filteredSystemsWithCounts = useMemo(() => {
+    if (!typeSearch.trim()) return systemsWithCounts;
+    const query = typeSearch.toLowerCase();
+    return systemsWithCounts
+      .map(system => {
+        const matchingTypes = system.types.filter(type =>
+          type.nombre.toLowerCase().includes(query) ||
+          (type.abreviatura && type.abreviatura.toLowerCase().includes(query))
+        );
+        return {
+          ...system,
+          types: matchingTypes,
+          totalEquipos: matchingTypes.reduce((acc, curr) => acc + curr.count, 0),
+        };
+      })
+      .filter(sys => sys.types.length > 0);
+  }, [systemsWithCounts, typeSearch]);
 
   const activeSpecialtyDetail = useMemo(() => {
     if (!activeSpecialty) return null;
@@ -973,94 +1024,109 @@ function PropertyDetailContent() {
               </Link>
             </div>
           ) : (
-            systemsWithCounts.map(system => (
-              <div
-                key={system.id}
-                className="grid gap-4 bg-slate-50/40 border border-slate-200/50 rounded-2xl p-5 shadow-sm">
-                {/* System Group Header */}
-                <h3 className="m-0 flex items-center gap-2 border-b border-slate-200 pb-3 text-xs font-black uppercase tracking-widest text-slate-700">
-                  <span className="text-base">
-                    {getSystemEmoji(system.nombre)}
-                  </span>
-                  <span>{system.nombre}</span>
-                  <span className="ml-auto rounded-full bg-white border border-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
-                    {system.totalEquipos.toLocaleString('en-US')} activo
-                    {system.totalEquipos === 1 ? '' : 's'}
-                  </span>
-                </h3>
-
-                {/* Grid of Equipment Type Cards */}
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4 max-[480px]:grid-cols-1">
-                  {system.types.map(type => {
-                    const bgImage =
-                      type.image_url || getSystemImage(system.nombre);
-                    return (
-                      <div
-                        key={type.id}
-                        className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
-                        {/* Camera upload cover photo button */}
-                        <button
-                          type="button"
-                          onClick={e => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            triggerEqImageUpload(type);
-                          }}
-                          disabled={uploadingTypeId !== null}
-                          className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md border border-white/20 transition-all hover:bg-black/85 hover:scale-105 shadow-sm"
-                          title="Cambiar imagen de portada">
-                          {uploadingTypeId === type.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-white" />
-                          ) : (
-                            <Camera className="h-4.5 w-4.5 text-white" />
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setQueryParams({
-                              systemId: system.id,
-                              typeId: type.id,
-                              equipmentId: null,
-                            })
-                          }
-                          className="flex w-full flex-col text-left">
-                          {/* Card Image Area */}
-                          <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100">
-                            <img
-                              src={bgImage}
-                              alt={type.nombre}
-                              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-transparent to-transparent" />
-                            <span className="absolute bottom-2.5 left-3 rounded-md bg-lime-300 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#061e1b] shadow-sm">
-                              {type.frecuencia || 'Sin frecuencia'}
-                            </span>
-                          </div>
-
-                          {/* Card Text Content */}
-                          <div className="p-4 flex w-full flex-col flex-1 justify-between gap-1.5">
-                            <h4 className="m-0 text-sm font-black leading-tight text-slate-950 group-hover:text-emerald-800 transition-colors">
-                              {type.nombre}
-                            </h4>
-                            <span className="text-[11px] font-bold text-slate-400 flex items-center justify-between">
-                              <span>
-                                {type.count.toLocaleString('en-US')} dispositivo
-                                {type.count === 1 ? '' : 's'}
-                              </span>
-                              <span className="transition-transform group-hover:translate-x-1 text-slate-300">
-                                Ver activos →
-                              </span>
-                            </span>
-                          </div>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+            <div className="grid gap-6">
+              <div className="max-w-md">
+                <SearchInput
+                  placeholder="Buscar tipo de activo..."
+                  value={typeSearch}
+                  onChange={setTypeSearch}
+                />
               </div>
-            ))
+              {filteredSystemsWithCounts.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-8 text-center text-slate-500 font-semibold shadow-inner">
+                  No se encontraron tipos de activos que coincidan con la búsqueda.
+                </div>
+              ) : (
+                filteredSystemsWithCounts.map(system => (
+                  <div
+                    key={system.id}
+                    className="grid gap-4 bg-slate-50/40 border border-slate-200/50 rounded-2xl p-5 shadow-sm">
+                    {/* System Group Header */}
+                    <h3 className="m-0 flex items-center gap-2 border-b border-slate-200 pb-3 text-xs font-black uppercase tracking-widest text-slate-700">
+                      <span className="text-base">
+                        {getSystemEmoji(system.nombre)}
+                      </span>
+                      <span>{system.nombre}</span>
+                      <span className="ml-auto rounded-full bg-white border border-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
+                        {system.totalEquipos.toLocaleString('en-US')} activo
+                        {system.totalEquipos === 1 ? '' : 's'}
+                      </span>
+                    </h3>
+
+                    {/* Grid of Equipment Type Cards */}
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4 max-[480px]:grid-cols-1">
+                      {system.types.map(type => {
+                        const bgImage =
+                          type.image_url || getSystemImage(system.nombre);
+                        return (
+                          <div
+                            key={type.id}
+                            className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+                            {/* Camera upload cover photo button */}
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                triggerEqImageUpload(type);
+                              }}
+                              disabled={uploadingTypeId !== null}
+                              className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md border border-white/20 transition-all hover:bg-black/85 hover:scale-105 shadow-sm"
+                              title="Cambiar imagen de portada">
+                              {uploadingTypeId === type.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-white" />
+                              ) : (
+                                <Camera className="h-4.5 w-4.5 text-white" />
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setQueryParams({
+                                  systemId: system.id,
+                                  typeId: type.id,
+                                  equipmentId: null,
+                                })
+                              }
+                              className="flex w-full flex-col text-left">
+                              {/* Card Image Area */}
+                              <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100">
+                                <img
+                                  src={bgImage}
+                                  alt={type.nombre}
+                                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-transparent to-transparent" />
+                                <span className="absolute bottom-2.5 left-3 rounded-md bg-lime-300 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#061e1b] shadow-sm">
+                                  {type.frecuencia || 'Sin frecuencia'}
+                                </span>
+                              </div>
+
+                              {/* Card Text Content */}
+                              <div className="p-4 flex w-full flex-col flex-1 justify-between gap-1.5">
+                                <h4 className="m-0 text-sm font-black leading-tight text-slate-950 group-hover:text-emerald-800 transition-colors">
+                                  {type.nombre}
+                                </h4>
+                                <span className="text-[11px] font-bold text-slate-400 flex items-center justify-between">
+                                  <span>
+                                    {type.count.toLocaleString('en-US')} dispositivo
+                                    {type.count === 1 ? '' : 's'}
+                                  </span>
+                                  <span className="transition-transform group-hover:translate-x-1 text-slate-300">
+                                    Ver activos →
+                                  </span>
+                                </span>
+                              </div>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </section>
       ) : (
