@@ -40,6 +40,22 @@ export function useAdminEquipments() {
   const [propertyId, setPropertyId] = useState('');
   const [systemId, setSystemId] = useState('');
   const [equipmentTypeId, setEquipmentTypeId] = useState('');
+  const [config, setConfig] = useState('TODOS');
+  const [city, setCity] = useState('');
+  const [frecuencia, setFrecuencia] = useState('');
+  const [fases, setFases] = useState('');
+  const [voltaje, setVoltaje] = useState('');
+  const [tipoTablero, setTipoTablero] = useState('');
+  const [marca, setMarca] = useState('');
+  const [modelo, setModelo] = useState('');
+  const [serie, setSerie] = useState('');
+  const [capacidad, setCapacidad] = useState('');
+  const [potencia, setPotencia] = useState('');
+  const [rpm, setRpm] = useState('');
+  const [presion, setPresion] = useState('');
+  const [refrigerante, setRefrigerante] = useState('');
+  const [tieneVdf, setTieneVdf] = useState('TODOS');
+  
   const [availableEquipmentTypeIds, setAvailableEquipmentTypeIds] = useState<
     string[] | null
   >(null);
@@ -63,6 +79,21 @@ export function useAdminEquipments() {
     propertyId: '',
     systemId: '',
     equipmentTypeId: '',
+    config: 'TODOS',
+    city: '',
+    frecuencia: '',
+    fases: '',
+    voltaje: '',
+    tipoTablero: '',
+    marca: '',
+    modelo: '',
+    serie: '',
+    capacidad: '',
+    potencia: '',
+    rpm: '',
+    presion: '',
+    refrigerante: '',
+    tieneVdf: 'TODOS',
     page: 1,
   });
 
@@ -73,6 +104,21 @@ export function useAdminEquipments() {
     const propertyVal = searchParams.get('property') ?? '';
     const systemVal = searchParams.get('system') ?? '';
     const eqTypeVal = searchParams.get('eqType') ?? '';
+    const configVal = searchParams.get('config') ?? 'TODOS';
+    const cityVal = searchParams.get('city') ?? '';
+    const freqVal = searchParams.get('frecuencia') ?? '';
+    const fasesVal = searchParams.get('fases') ?? '';
+    const voltVal = searchParams.get('voltaje') ?? '';
+    const tipoTableroVal = searchParams.get('tipoTablero') ?? '';
+    const marcaVal = searchParams.get('marca') ?? '';
+    const modeloVal = searchParams.get('modelo') ?? '';
+    const serieVal = searchParams.get('serie') ?? '';
+    const capacidadVal = searchParams.get('capacidad') ?? '';
+    const potenciaVal = searchParams.get('potencia') ?? '';
+    const rpmVal = searchParams.get('rpm') ?? '';
+    const presionVal = searchParams.get('presion') ?? '';
+    const refrigVal = searchParams.get('refrigerante') ?? '';
+    const tieneVdfVal = searchParams.get('tieneVdf') ?? 'TODOS';
     const pageVal = Number(searchParams.get('page') ?? '1');
 
     const prev = lastSyncedFromUrl.current;
@@ -82,6 +128,21 @@ export function useAdminEquipments() {
     if (propertyVal !== prev.propertyId) setPropertyId(propertyVal);
     if (systemVal !== prev.systemId) setSystemId(systemVal);
     if (eqTypeVal !== prev.equipmentTypeId) setEquipmentTypeId(eqTypeVal);
+    if (configVal !== prev.config) setConfig(configVal);
+    if (cityVal !== prev.city) setCity(cityVal);
+    if (freqVal !== prev.frecuencia) setFrecuencia(freqVal);
+    if (fasesVal !== prev.fases) setFases(fasesVal);
+    if (voltVal !== prev.voltaje) setVoltaje(voltVal);
+    if (tipoTableroVal !== prev.tipoTablero) setTipoTablero(tipoTableroVal);
+    if (marcaVal !== prev.marca) setMarca(marcaVal);
+    if (modeloVal !== prev.modelo) setModelo(modeloVal);
+    if (serieVal !== prev.serie) setSerie(serieVal);
+    if (capacidadVal !== prev.capacidad) setCapacidad(capacidadVal);
+    if (potenciaVal !== prev.potencia) setPotencia(potenciaVal);
+    if (rpmVal !== prev.rpm) setRpm(rpmVal);
+    if (presionVal !== prev.presion) setPresion(presionVal);
+    if (refrigVal !== prev.refrigerante) setRefrigerante(refrigVal);
+    if (tieneVdfVal !== prev.tieneVdf) setTieneVdf(tieneVdfVal);
     if (pageVal !== prev.page) setPage(pageVal);
 
     lastSyncedFromUrl.current = {
@@ -90,6 +151,21 @@ export function useAdminEquipments() {
       propertyId: propertyVal,
       systemId: systemVal,
       equipmentTypeId: eqTypeVal,
+      config: configVal,
+      city: cityVal,
+      frecuencia: freqVal,
+      fases: fasesVal,
+      voltaje: voltVal,
+      tipoTablero: tipoTableroVal,
+      marca: marcaVal,
+      modelo: modeloVal,
+      serie: serieVal,
+      capacidad: capacidadVal,
+      potencia: potenciaVal,
+      rpm: rpmVal,
+      presion: presionVal,
+      refrigerante: refrigVal,
+      tieneVdf: tieneVdfVal,
       page: pageVal,
     };
   }, [searchParams]);
@@ -135,7 +211,28 @@ export function useAdminEquipments() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, status, propertyId, systemId, equipmentTypeId]);
+  }, [
+    debouncedSearch,
+    status,
+    propertyId,
+    systemId,
+    equipmentTypeId,
+    config,
+    city,
+    frecuencia,
+    fases,
+    voltaje,
+    tipoTablero,
+    marca,
+    modelo,
+    serie,
+    capacidad,
+    potencia,
+    rpm,
+    presion,
+    refrigerante,
+    tieneVdf,
+  ]);
 
   useEffect(() => {
     let isMounted = true;
@@ -153,6 +250,21 @@ export function useAdminEquipments() {
           propertyId,
           systemId,
           equipmentTypeId,
+          config,
+          city,
+          frecuencia,
+          fases,
+          voltaje,
+          tipoTablero,
+          marca,
+          modelo,
+          serie,
+          capacidad,
+          potencia,
+          rpm,
+          presion,
+          refrigerante,
+          tieneVdf,
         });
         if (isMounted) {
           setItems(result.items);
@@ -176,7 +288,29 @@ export function useAdminEquipments() {
     return () => {
       isMounted = false;
     };
-  }, [debouncedSearch, page, status, propertyId, systemId, equipmentTypeId]);
+  }, [
+    debouncedSearch,
+    page,
+    status,
+    propertyId,
+    systemId,
+    equipmentTypeId,
+    config,
+    city,
+    frecuencia,
+    fases,
+    voltaje,
+    tipoTablero,
+    marca,
+    modelo,
+    serie,
+    capacidad,
+    potencia,
+    rpm,
+    presion,
+    refrigerante,
+    tieneVdf,
+  ]);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(total / PAGE_SIZE)),
@@ -246,15 +380,205 @@ export function useAdminEquipments() {
 
   function handleSystemChange(nextSystemId: string) {
     setSystemId(nextSystemId);
-    setEquipmentTypeId(''); // Reset equipment type when system changes
+    setEquipmentTypeId('');
+    setFases('');
+    setVoltaje('');
+    setTipoTablero('');
+    setMarca('');
+    setModelo('');
+    setSerie('');
+    setCapacidad('');
+    setPotencia('');
+    setRpm('');
+    setPresion('');
+    setRefrigerante('');
+    setTieneVdf('TODOS');
     setPage(1);
-    updateUrlParams({ system: nextSystemId, eqType: '', page: 1 });
+    updateUrlParams({
+      system: nextSystemId,
+      eqType: '',
+      fases: null,
+      voltaje: null,
+      tipoTablero: null,
+      marca: null,
+      modelo: null,
+      serie: null,
+      capacidad: null,
+      potencia: null,
+      rpm: null,
+      presion: null,
+      refrigerante: null,
+      tieneVdf: null,
+      page: 1,
+    });
   }
 
   function handleEquipmentTypeChange(nextEquipmentTypeId: string) {
     setEquipmentTypeId(nextEquipmentTypeId);
+    setFases('');
+    setVoltaje('');
+    setTipoTablero('');
+    setMarca('');
+    setModelo('');
+    setSerie('');
+    setCapacidad('');
+    setPotencia('');
+    setRpm('');
+    setPresion('');
+    setRefrigerante('');
+    setTieneVdf('TODOS');
     setPage(1);
-    updateUrlParams({ eqType: nextEquipmentTypeId, page: 1 });
+    updateUrlParams({
+      eqType: nextEquipmentTypeId,
+      fases: null,
+      voltaje: null,
+      tipoTablero: null,
+      marca: null,
+      modelo: null,
+      serie: null,
+      capacidad: null,
+      potencia: null,
+      rpm: null,
+      presion: null,
+      refrigerante: null,
+      tieneVdf: null,
+      page: 1,
+    });
+  }
+
+  function handleConfigChange(nextConfig: string) {
+    setConfig(nextConfig);
+    setPage(1);
+    updateUrlParams({ config: nextConfig, page: 1 });
+  }
+
+  function handleCityChange(nextCity: string) {
+    setCity(nextCity);
+    setPage(1);
+    updateUrlParams({ city: nextCity, page: 1 });
+  }
+
+  function handleFrecuenciaChange(nextFrecuencia: string) {
+    setFrecuencia(nextFrecuencia);
+    setPage(1);
+    updateUrlParams({ frecuencia: nextFrecuencia, page: 1 });
+  }
+
+  function handleFasesChange(nextFases: string) {
+    setFases(nextFases);
+    setPage(1);
+    updateUrlParams({ fases: nextFases, page: 1 });
+  }
+
+  function handleVoltajeChange(nextVoltaje: string) {
+    setVoltaje(nextVoltaje);
+    setPage(1);
+    updateUrlParams({ voltaje: nextVoltaje, page: 1 });
+  }
+
+  function handleTipoTableroChange(nextTipoTablero: string) {
+    setTipoTablero(nextTipoTablero);
+    setPage(1);
+    updateUrlParams({ tipoTablero: nextTipoTablero, page: 1 });
+  }
+
+  function handleMarcaChange(nextMarca: string) {
+    setMarca(nextMarca);
+    setPage(1);
+    updateUrlParams({ marca: nextMarca || null, page: 1 });
+  }
+
+  function handleModeloChange(nextModelo: string) {
+    setModelo(nextModelo);
+    setPage(1);
+    updateUrlParams({ modelo: nextModelo || null, page: 1 });
+  }
+
+  function handleSerieChange(nextSerie: string) {
+    setSerie(nextSerie);
+    setPage(1);
+    updateUrlParams({ serie: nextSerie || null, page: 1 });
+  }
+
+  function handleCapacidadChange(nextCapacidad: string) {
+    setCapacidad(nextCapacidad);
+    setPage(1);
+    updateUrlParams({ capacidad: nextCapacidad || null, page: 1 });
+  }
+
+  function handlePotenciaChange(nextPotencia: string) {
+    setPotencia(nextPotencia);
+    setPage(1);
+    updateUrlParams({ potencia: nextPotencia || null, page: 1 });
+  }
+
+  function handleRpmChange(nextRpm: string) {
+    setRpm(nextRpm);
+    setPage(1);
+    updateUrlParams({ rpm: nextRpm || null, page: 1 });
+  }
+
+  function handlePresionChange(nextPresion: string) {
+    setPresion(nextPresion);
+    setPage(1);
+    updateUrlParams({ presion: nextPresion || null, page: 1 });
+  }
+
+  function handleRefrigeranteChange(nextRefrigerante: string) {
+    setRefrigerante(nextRefrigerante);
+    setPage(1);
+    updateUrlParams({ refrigerante: nextRefrigerante || null, page: 1 });
+  }
+
+  function handleTieneVdfChange(nextTieneVdf: string) {
+    setTieneVdf(nextTieneVdf);
+    setPage(1);
+    updateUrlParams({ tieneVdf: nextTieneVdf, page: 1 });
+  }
+
+  function clearFilters() {
+    setStatus('TODOS');
+    setPropertyId('');
+    setSystemId('');
+    setEquipmentTypeId('');
+    setConfig('TODOS');
+    setCity('');
+    setFrecuencia('');
+    setFases('');
+    setVoltaje('');
+    setTipoTablero('');
+    setMarca('');
+    setModelo('');
+    setSerie('');
+    setCapacidad('');
+    setPotencia('');
+    setRpm('');
+    setPresion('');
+    setRefrigerante('');
+    setTieneVdf('TODOS');
+    setPage(1);
+    updateUrlParams({
+      status: null,
+      property: null,
+      system: null,
+      eqType: null,
+      config: null,
+      city: null,
+      frecuencia: null,
+      fases: null,
+      voltaje: null,
+      tipoTablero: null,
+      marca: null,
+      modelo: null,
+      serie: null,
+      capacidad: null,
+      potencia: null,
+      rpm: null,
+      presion: null,
+      refrigerante: null,
+      tieneVdf: null,
+      page: 1,
+    });
   }
 
   return {
@@ -269,6 +593,37 @@ export function useAdminEquipments() {
     handleSystemChange,
     equipmentTypeId,
     handleEquipmentTypeChange,
+    config,
+    handleConfigChange,
+    city,
+    handleCityChange,
+    frecuencia,
+    handleFrecuenciaChange,
+    fases,
+    handleFasesChange,
+    voltaje,
+    handleVoltajeChange,
+    tipoTablero,
+    handleTipoTableroChange,
+    marca,
+    handleMarcaChange,
+    modelo,
+    handleModeloChange,
+    serie,
+    handleSerieChange,
+    capacidad,
+    handleCapacidadChange,
+    potencia,
+    handlePotenciaChange,
+    rpm,
+    handleRpmChange,
+    presion,
+    handlePresionChange,
+    refrigerante,
+    handleRefrigeranteChange,
+    tieneVdf,
+    handleTieneVdfChange,
+    clearFilters,
     availableEquipmentTypeIds,
     properties,
     systems,
