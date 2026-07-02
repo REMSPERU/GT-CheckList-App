@@ -194,14 +194,13 @@ export function useAdminEquipments() {
     async function loadFilterOptions() {
       try {
         const supabase = getSupabaseClient();
-        const [props, types, systemsRes, distinctTiposRes] = await Promise.all([
+        const [props, types, systemsRes] = await Promise.all([
           listAdminProperties(supabase),
           listAdminEquipmentTypes(supabase),
           supabase
             .from('sistemas')
             .select('id, nombre')
             .order('nombre', { ascending: true }),
-          getDistinctEquipmentDetailTypes(supabase),
         ]);
         if (isMounted) {
           setProperties(props);
@@ -209,7 +208,6 @@ export function useAdminEquipments() {
           setSystems(
             (systemsRes.data ?? []) as { id: string; nombre: string }[],
           );
-          setDistinctTipos(distinctTiposRes);
         }
       } catch (error) {
         console.error('Error loading filter options:', error);
@@ -220,6 +218,39 @@ export function useAdminEquipments() {
       isMounted = false;
     };
   }, []);
+
+  // Load unique detail types whenever major filters change
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDistinctTipos() {
+      try {
+        const supabase = getSupabaseClient();
+        const types = await getDistinctEquipmentDetailTypes(supabase, {
+          propertyId,
+          systemId,
+          equipmentTypeId,
+        });
+        if (isMounted) {
+          setDistinctTipos(types);
+        }
+      } catch (error) {
+        console.error('Error loading distinct detail types:', error);
+      }
+    }
+    void loadDistinctTipos();
+    return () => {
+      isMounted = false;
+    };
+  }, [propertyId, systemId, equipmentTypeId]);
+
+  // Reset selected detail type if it is no longer available in the newly filtered set of distinct types
+  useEffect(() => {
+    if (tipo && distinctTipos.length > 0 && !distinctTipos.includes(tipo)) {
+      setTipo('');
+      updateUrlParams({ tipo: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [distinctTipos, tipo]);
 
   useEffect(() => {
     setPage(1);

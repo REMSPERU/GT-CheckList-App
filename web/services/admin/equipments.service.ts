@@ -55,12 +55,37 @@ async function getEquipmentTypeIdsBySystem(
 
 export async function getDistinctEquipmentDetailTypes(
   supabase: SupabaseClient,
+  filters?: {
+    propertyId?: string;
+    systemId?: string;
+    equipmentTypeId?: string;
+  }
 ): Promise<string[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('equipos')
     .select('tipo:equipment_detail->>tipo')
     .not('equipment_detail->>tipo', 'is', null);
 
+  if (filters?.propertyId) {
+    query = query.eq('id_property', filters.propertyId);
+  }
+
+  if (filters?.systemId) {
+    const matchedIds = await getEquipmentTypeIdsBySystem(
+      supabase,
+      filters.systemId,
+    );
+    query = query.in(
+      'id_equipamento',
+      matchedIds.length > 0 ? matchedIds : [EMPTY_UUID],
+    );
+  }
+
+  if (filters?.equipmentTypeId) {
+    query = query.eq('id_equipamento', filters.equipmentTypeId);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
 
   const types = new Set<string>();
