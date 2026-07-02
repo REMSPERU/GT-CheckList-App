@@ -53,6 +53,29 @@ async function getEquipmentTypeIdsBySystem(
   return (data ?? []).map(item => item.id as string);
 }
 
+export async function getDistinctEquipmentDetailTypes(
+  supabase: SupabaseClient,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('equipos')
+    .select('tipo:equipment_detail->>tipo')
+    .not('equipment_detail->>tipo', 'is', null);
+
+  if (error) throw error;
+
+  const types = new Set<string>();
+  (data ?? []).forEach((item: any) => {
+    if (item && typeof item.tipo === 'string') {
+      const trimmed = item.tipo.trim();
+      if (trimmed) {
+        types.add(trimmed);
+      }
+    }
+  });
+
+  return Array.from(types).sort((a, b) => a.localeCompare(b));
+}
+
 export async function listAdminEquipments(
   supabase: SupabaseClient,
   filters: AdminEquipmentFilters,
@@ -184,6 +207,10 @@ export async function listAdminEquipments(
 
   if (filters.refrigerante) {
     query = query.eq('equipment_detail->>refrigerante', filters.refrigerante);
+  }
+
+  if (filters.tipo) {
+    query = query.eq('equipment_detail->>tipo', filters.tipo);
   }
 
   if (filters.tieneVdf && filters.tieneVdf !== 'TODOS') {
@@ -356,6 +383,10 @@ export async function listAdminEquipmentsForQr(
 
   if (filters.refrigerante) {
     query = query.eq('equipment_detail->>refrigerante', filters.refrigerante);
+  }
+
+  if (filters.tipo) {
+    query = query.eq('equipment_detail->>tipo', filters.tipo);
   }
 
   if (filters.tieneVdf && filters.tieneVdf !== 'TODOS') {

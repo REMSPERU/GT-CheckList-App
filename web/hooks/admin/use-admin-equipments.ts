@@ -4,7 +4,10 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import { listAdminEquipmentTypes } from '@/services/admin/equipment-types.service';
-import { listAdminEquipments } from '@/services/admin/equipments.service';
+import {
+  listAdminEquipments,
+  getDistinctEquipmentDetailTypes,
+} from '@/services/admin/equipments.service';
 import { listAdminProperties } from '@/services/admin/properties.service';
 import type {
   AdminEquipmentRow,
@@ -55,6 +58,8 @@ export function useAdminEquipments() {
   const [presion, setPresion] = useState('');
   const [refrigerante, setRefrigerante] = useState('');
   const [tieneVdf, setTieneVdf] = useState('TODOS');
+  const [tipo, setTipo] = useState('');
+  const [distinctTipos, setDistinctTipos] = useState<string[]>([]);
   
   const [availableEquipmentTypeIds, setAvailableEquipmentTypeIds] = useState<
     string[] | null
@@ -94,6 +99,7 @@ export function useAdminEquipments() {
     presion: '',
     refrigerante: '',
     tieneVdf: 'TODOS',
+    tipo: '',
     page: 1,
   });
 
@@ -119,6 +125,7 @@ export function useAdminEquipments() {
     const presionVal = searchParams.get('presion') ?? '';
     const refrigVal = searchParams.get('refrigerante') ?? '';
     const tieneVdfVal = searchParams.get('tieneVdf') ?? 'TODOS';
+    const tipoVal = searchParams.get('tipo') ?? '';
     const pageVal = Number(searchParams.get('page') ?? '1');
 
     const prev = lastSyncedFromUrl.current;
@@ -143,6 +150,7 @@ export function useAdminEquipments() {
     if (presionVal !== prev.presion) setPresion(presionVal);
     if (refrigVal !== prev.refrigerante) setRefrigerante(refrigVal);
     if (tieneVdfVal !== prev.tieneVdf) setTieneVdf(tieneVdfVal);
+    if (tipoVal !== prev.tipo) setTipo(tipoVal);
     if (pageVal !== prev.page) setPage(pageVal);
 
     lastSyncedFromUrl.current = {
@@ -166,6 +174,7 @@ export function useAdminEquipments() {
       presion: presionVal,
       refrigerante: refrigVal,
       tieneVdf: tieneVdfVal,
+      tipo: tipoVal,
       page: pageVal,
     };
   }, [searchParams]);
@@ -176,6 +185,7 @@ export function useAdminEquipments() {
     if (debouncedSearch !== urlSearch) {
       updateUrlParams({ search: debouncedSearch, page: 1 });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
 
   // Load filter options (properties, systems and equipment types) once on mount
@@ -184,13 +194,14 @@ export function useAdminEquipments() {
     async function loadFilterOptions() {
       try {
         const supabase = getSupabaseClient();
-        const [props, types, systemsRes] = await Promise.all([
+        const [props, types, systemsRes, distinctTiposRes] = await Promise.all([
           listAdminProperties(supabase),
           listAdminEquipmentTypes(supabase),
           supabase
             .from('sistemas')
             .select('id, nombre')
             .order('nombre', { ascending: true }),
+          getDistinctEquipmentDetailTypes(supabase),
         ]);
         if (isMounted) {
           setProperties(props);
@@ -198,6 +209,7 @@ export function useAdminEquipments() {
           setSystems(
             (systemsRes.data ?? []) as { id: string; nombre: string }[],
           );
+          setDistinctTipos(distinctTiposRes);
         }
       } catch (error) {
         console.error('Error loading filter options:', error);
@@ -232,6 +244,7 @@ export function useAdminEquipments() {
     presion,
     refrigerante,
     tieneVdf,
+    tipo,
   ]);
 
   useEffect(() => {
@@ -265,6 +278,7 @@ export function useAdminEquipments() {
           presion,
           refrigerante,
           tieneVdf,
+          tipo,
         });
         if (isMounted) {
           setItems(result.items);
@@ -310,6 +324,7 @@ export function useAdminEquipments() {
     presion,
     refrigerante,
     tieneVdf,
+    tipo,
   ]);
 
   const totalPages = useMemo(
@@ -393,6 +408,7 @@ export function useAdminEquipments() {
     setPresion('');
     setRefrigerante('');
     setTieneVdf('TODOS');
+    setTipo('');
     setPage(1);
     updateUrlParams({
       system: nextSystemId,
@@ -409,6 +425,7 @@ export function useAdminEquipments() {
       presion: null,
       refrigerante: null,
       tieneVdf: null,
+      tipo: null,
       page: 1,
     });
   }
@@ -427,6 +444,7 @@ export function useAdminEquipments() {
     setPresion('');
     setRefrigerante('');
     setTieneVdf('TODOS');
+    setTipo('');
     setPage(1);
     updateUrlParams({
       eqType: nextEquipmentTypeId,
@@ -442,6 +460,7 @@ export function useAdminEquipments() {
       presion: null,
       refrigerante: null,
       tieneVdf: null,
+      tipo: null,
       page: 1,
     });
   }
@@ -536,6 +555,12 @@ export function useAdminEquipments() {
     updateUrlParams({ tieneVdf: nextTieneVdf, page: 1 });
   }
 
+  function handleTipoChange(nextTipo: string) {
+    setTipo(nextTipo);
+    setPage(1);
+    updateUrlParams({ tipo: nextTipo || null, page: 1 });
+  }
+
   function clearFilters() {
     setStatus('TODOS');
     setPropertyId('');
@@ -556,6 +581,7 @@ export function useAdminEquipments() {
     setPresion('');
     setRefrigerante('');
     setTieneVdf('TODOS');
+    setTipo('');
     setPage(1);
     updateUrlParams({
       status: null,
@@ -577,6 +603,7 @@ export function useAdminEquipments() {
       presion: null,
       refrigerante: null,
       tieneVdf: null,
+      tipo: null,
       page: 1,
     });
   }
@@ -623,6 +650,9 @@ export function useAdminEquipments() {
     handleRefrigeranteChange,
     tieneVdf,
     handleTieneVdfChange,
+    tipo,
+    handleTipoChange,
+    distinctTipos,
     clearFilters,
     availableEquipmentTypeIds,
     properties,

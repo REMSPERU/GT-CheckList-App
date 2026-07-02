@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { AdminPagination } from '@/components/admin/admin-pagination';
 import { EquipmentTable } from '@/components/admin/equipment-table';
 import { Alert } from '@/components/ui/alert';
-import { SearchInput } from '@/components/ui/search-input';
 import { SelectField } from '@/components/ui/select-field';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useAdminEquipments } from '@/hooks/admin/use-admin-equipments';
@@ -21,6 +20,7 @@ function AdminEquipmentsContent() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const activeAdvancedCount = [
+    equipments.status !== 'TODOS' ? 1 : 0,
     equipments.config !== 'TODOS' ? 1 : 0,
     equipments.city ? 1 : 0,
     equipments.frecuencia ? 1 : 0,
@@ -38,12 +38,6 @@ function AdminEquipmentsContent() {
     equipments.tieneVdf !== 'TODOS' ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
-  const activeFiltersCount = [
-    equipments.propertyId ? 1 : 0,
-    equipments.systemId ? 1 : 0,
-    equipments.equipmentTypeId ? 1 : 0,
-    equipments.status !== 'TODOS' ? 1 : 0,
-  ].reduce((a, b) => a + b, 0) + activeAdvancedCount;
 
   const CONFIG_OPTIONS = [
     { value: 'TODOS', label: 'Todas las configuraciones' },
@@ -148,6 +142,14 @@ function AdminEquipmentsContent() {
     })),
   ];
 
+  const tipoOptions = [
+    { value: '', label: 'Todos los tipos (Detalle)' },
+    ...equipments.distinctTipos.map(t => ({
+      value: t,
+      label: t,
+    })),
+  ];
+
   return (
     <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-slate-900/10 bg-white/80 px-4 py-3 shadow-sm">
@@ -165,12 +167,7 @@ function AdminEquipmentsContent() {
           Imprimir QRs
         </Link>
       </section>
-      <section className="grid grid-cols-[1.2fr_1fr_1fr_1.2fr_0.8fr_auto] items-center gap-2.5 max-[1200px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1">
-        <SearchInput
-          placeholder="Buscar por ubicación..."
-          value={equipments.search}
-          onChange={equipments.setSearch}
-        />
+      <section className="grid grid-cols-[1fr_1fr_1.2fr_1fr_auto] items-center gap-2.5 max-[1200px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1">
         <SearchableSelect
           value={equipments.propertyId}
           options={propertyOptions}
@@ -190,10 +187,10 @@ function AdminEquipmentsContent() {
           placeholder="Todos los tipos de activo"
         />
         <SelectField
-          value={equipments.status}
-          options={STATUS_OPTIONS}
-          onChange={equipments.handleStatusChange}
-          ariaLabel="Filtrar por estado"
+          value={equipments.tipo}
+          options={tipoOptions}
+          onChange={equipments.handleTipoChange}
+          ariaLabel="Filtrar por tipo de detalle"
         />
         <div className="relative">
           <button
@@ -269,6 +266,15 @@ function AdminEquipmentsContent() {
                       <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">
                         Campos Operativos
                       </span>
+                      <div className="grid gap-1.5">
+                        <label className="text-xs font-bold text-slate-500">Estado</label>
+                        <SelectField
+                          value={equipments.status}
+                          options={STATUS_OPTIONS}
+                          onChange={equipments.handleStatusChange}
+                          ariaLabel="Filtrar por estado"
+                        />
+                      </div>
                       <div className="grid gap-1.5">
                         <label className="text-xs font-bold text-slate-500">Configuración</label>
                         <SelectField
