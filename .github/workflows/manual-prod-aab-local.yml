@@ -153,7 +153,11 @@ jobs:
     if: github.event_name == 'push' || github.event.inputs.submit_to_play_store == 'true'
 
     env:
+      APP_ENV: production
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_KEY }}
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
 
     steps:
       - name: Checkout repository
