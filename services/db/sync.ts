@@ -39,6 +39,8 @@ export async function clearMirrorTables() {
     DELETE FROM local_audit_questions;
     DELETE FROM local_equipamentos_property;
     DELETE FROM offline_panel_configurations;
+    DELETE FROM local_marca;
+    DELETE FROM local_equipos_marcas;
   `);
 }
 
@@ -252,6 +254,8 @@ export async function bulkInsertMirrorData(
   sessions: any[] | null = [],
   userSessions: any[] | null = [],
   sessionPhotos: any[] | null = [],
+  marcas: any[] | null = null,
+  equipamentosMarcas: any[] | null = null,
 ) {
   await ensureInitialized();
 
@@ -546,6 +550,31 @@ export async function bulkInsertMirrorData(
           item.created_by || null,
           item.created_at || null,
         ],
+      ),
+    );
+  }
+
+  if (marcas !== null) {
+    await runMirrorStep('local_marca', tx =>
+      smartSyncTable(
+        tx,
+        'local_marca',
+        marcas,
+        'id',
+        'INSERT OR REPLACE INTO local_marca (id, nombre) VALUES (?, ?)',
+        item => [item.id, item.nombre],
+      ),
+    );
+  }
+
+  if (equipamentosMarcas !== null) {
+    await runMirrorStep('local_equipos_marcas', tx =>
+      replaceCompositeRows(
+        tx,
+        'local_equipos_marcas',
+        equipamentosMarcas,
+        'INSERT OR REPLACE INTO local_equipos_marcas (id_equipamento, id_marca) VALUES (?, ?)',
+        item => [item.id_equipamento, item.id_marca],
       ),
     );
   }

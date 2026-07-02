@@ -10,12 +10,16 @@ import {
 import { Controller, useWatch } from 'react-hook-form';
 import type { Control, FieldValues, Path } from 'react-hook-form';
 import type { TechnicalFieldConfig } from '@/types/inventory';
+import { BrandSelector } from './brand-selector';
 
 interface DynamicFieldRendererProps<T extends FieldValues> {
   fields: TechnicalFieldConfig[];
   /** Path prefix in the form: equipment_detail.marca */
   fieldPrefix: string;
   control: Control<T>;
+  equipamentoId?: string | null;
+  equipamentoAbreviatura?: string | null;
+  equipamentoNombre?: string | null;
 }
 
 /**
@@ -24,7 +28,14 @@ interface DynamicFieldRendererProps<T extends FieldValues> {
  */
 export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
   T extends FieldValues,
->({ fields, fieldPrefix, control }: DynamicFieldRendererProps<T>) {
+>({
+  fields,
+  fieldPrefix,
+  control,
+  equipamentoId,
+  equipamentoAbreviatura,
+  equipamentoNombre,
+}: DynamicFieldRendererProps<T>) {
   const detailValue = useWatch({
     control,
     name: fieldPrefix as Path<T>,
@@ -41,6 +52,41 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
         }
 
         const fieldPath = `${fieldPrefix}.${field.key}` as Path<T>;
+
+        const isBrandField =
+          field.key === 'marca' ||
+          field.key === 'marca_vdf' ||
+          field.key === 'marca_motor' ||
+          field.key.endsWith('.marca');
+
+        if (isBrandField) {
+          return (
+            <Controller
+              key={field.key}
+              control={control}
+              name={fieldPath}
+              render={({ field: { value, onChange }, fieldState }) => (
+                <View style={styles.fieldWrap}>
+                  <Text style={styles.label}>
+                    {field.label}
+                    {field.required && <Text style={styles.required}> *</Text>}
+                  </Text>
+                  <BrandSelector
+                    value={value != null ? String(value) : ''}
+                    onChange={onChange}
+                    equipamentoId={equipamentoId}
+                    equipamentoAbreviatura={equipamentoAbreviatura}
+                    equipamentoNombre={equipamentoNombre}
+                    error={fieldState.error?.message}
+                  />
+                  {fieldState.error && (
+                    <Text style={styles.error}>{fieldState.error.message}</Text>
+                  )}
+                </View>
+              )}
+            />
+          );
+        }
 
         if (field.type === 'collection') {
           return (
@@ -88,6 +134,9 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
                             fields={field.fields ?? []}
                             fieldPrefix={`${fieldPrefix}.${field.key}.${index}`}
                             control={control}
+                            equipamentoId={equipamentoId}
+                            equipamentoAbreviatura={equipamentoAbreviatura}
+                            equipamentoNombre={equipamentoNombre}
                           />
                         </View>
                       ))

@@ -295,6 +295,9 @@ export default function EquipoDetailScreen() {
                     fields={techFields}
                     fieldPrefix="equipment_detail"
                     control={control as Control<EquipoDetailEditFormValues>}
+                    equipamentoId={equipo?.id_equipamento ?? equipamentoId}
+                    equipamentoAbreviatura={abreviatura}
+                    equipamentoNombre={displayNombre}
                   />
                 </View>
               )}

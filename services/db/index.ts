@@ -98,10 +98,12 @@ import {
   softDeleteEquipment,
   generateEquipmentCode,
 } from './equipment';
+import { getLocalBrandsForEquipment } from './brands';
 
 // Re-export all database functions from modular files
 export * from './connection';
 export * from './sync';
+export * from './brands';
 export * from './maintenance';
 export * from './panel-configuration';
 export * from './equipment-offline';
@@ -221,6 +223,9 @@ export const DatabaseService = {
   updateEquipment,
   softDeleteEquipment,
   generateEquipmentCode,
+
+  // Brands
+  getLocalBrandsForEquipment,
 
   // Session Photos
   saveOfflineSessionPhotos,

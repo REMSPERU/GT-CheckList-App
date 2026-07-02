@@ -1794,6 +1794,8 @@ class SyncService {
           userSessionsResult,
           sessionPhotosResult,
           auditSessionsResult,
+          marcasResult,
+          equipamentosMarcasResult,
         ] = await Promise.all([
           fetchEquiposPaginated(),
           safeFetch(() =>
@@ -1885,6 +1887,12 @@ class SyncService {
 
             return query;
           }),
+          safeFetch(() =>
+            supabase.from('marca').select('*').limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
+            supabase.from('equipamento_marca').select('*').limit(SYNC_ROW_LIMIT),
+          ),
         ]);
 
         log('[SYNC] Pull table counts', {
@@ -1915,6 +1923,8 @@ class SyncService {
         if (sessionPhotosResult.failed)
           failedTables.push('sesion_mantenimiento_fotos');
         if (auditSessionsResult.failed) failedTables.push('audit_sessions');
+        if (marcasResult.failed) failedTables.push('marca');
+        if (equipamentosMarcasResult.failed) failedTables.push('equipamento_marca');
 
         if (failedTables.length > 0) {
           console.warn(
@@ -1938,6 +1948,8 @@ class SyncService {
           sessionsResult.data,
           userSessionsResult.data,
           sessionPhotosResult.data,
+          marcasResult.data,
+          equipamentosMarcasResult.data,
         );
 
         if (auditSessionsResult.data !== null) {

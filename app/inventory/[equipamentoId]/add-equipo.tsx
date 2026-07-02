@@ -287,6 +287,9 @@ export default function AddEquipoScreen() {
                 fields={techFields}
                 fieldPrefix="equipment_detail"
                 control={control as Control<EquipoCreateFormValues>}
+                equipamentoId={equipamentoId}
+                equipamentoAbreviatura={equipamentoAbreviatura}
+                equipamentoNombre={equipamentoNombre}
               />
             </View>
           )}

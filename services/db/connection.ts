@@ -283,6 +283,17 @@ export async function initDatabase() {
           PRIMARY KEY (id_user, id_sesion)
         );
 
+        CREATE TABLE IF NOT EXISTS local_marca (
+          id TEXT PRIMARY KEY,
+          nombre TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS local_equipos_marcas (
+          id_equipamento TEXT,
+          id_marca TEXT,
+          PRIMARY KEY (id_equipamento, id_marca)
+        );
+
         -- Offline Work (Write-Sync)
         CREATE TABLE IF NOT EXISTS offline_maintenance_response (
           local_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -790,6 +801,24 @@ export async function initDatabase() {
       console.log('Migration: Created indexes for offline_equipos');
     } catch (error) {
       // Indexes already exist
+    }
+
+    // Migration v1.13: Add local_marca and local_equipos_marcas tables
+    try {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS local_marca (
+          id TEXT PRIMARY KEY,
+          nombre TEXT
+        );
+        CREATE TABLE IF NOT EXISTS local_equipos_marcas (
+          id_equipamento TEXT,
+          id_marca TEXT,
+          PRIMARY KEY (id_equipamento, id_marca)
+        );
+      `);
+      console.log('Migration: Created local_marca and local_equipos_marcas tables');
+    } catch (error) {
+      console.error('Migration failed to create brands tables:', error);
     }
 
     console.log('Database initialized');
