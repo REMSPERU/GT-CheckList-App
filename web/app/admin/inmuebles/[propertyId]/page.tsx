@@ -3,20 +3,15 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { EquipmentDetailView } from '@/components/admin/equipment-detail-view';
 import { SearchInput } from '@/components/ui/search-input';
-import { getAdminEquipmentById } from '@/services/admin/equipments.service';
 import {
   ArrowLeft,
-  Building,
   MapPin,
   Camera,
   Layers,
-  Info,
   AlertTriangle,
   CheckCircle2,
   Edit2,
-  Trash2,
   Cpu,
   Loader2,
   FolderOpen,
@@ -37,7 +32,6 @@ import {
 import type {
   AdminEquipmentTypeRow,
   AdminPropertyRow,
-  AdminEquipmentDetailRow,
 } from '@/types/admin';
 import {
   uploadPropertyPhoto,
@@ -204,16 +198,6 @@ function PropertyDetailContent() {
 
   // Read search params
   const activeTab = (searchParams.get('tab') as 'systems' | 'info') || 'systems';
-  const systemIdParam = searchParams.get('systemId');
-  const typeIdParam = searchParams.get('typeId');
-  const equipmentIdParam = searchParams.get('equipmentId');
-
-  const activeSpecialty = useMemo(() => {
-    if (systemIdParam && typeIdParam) {
-      return { systemId: systemIdParam, typeId: typeIdParam };
-    }
-    return null;
-  }, [systemIdParam, typeIdParam]);
 
   // Helper to update search params
   const setQueryParams = (newParams: Record<string, string | null>) => {
@@ -408,24 +392,7 @@ function PropertyDetailContent() {
       .filter(sys => sys.types.length > 0);
   }, [systemsWithCounts, typeSearch]);
 
-  const activeSpecialtyDetail = useMemo(() => {
-    if (!activeSpecialty) return null;
 
-    const system = systemsWithCounts.find(
-      item => item.id === activeSpecialty.systemId,
-    );
-    const type = system?.types.find(item => item.id === activeSpecialty.typeId);
-
-    if (!system || !type) return null;
-
-    return {
-      system,
-      type,
-      equipos: equipos.filter(
-        item => item.id_equipamento === activeSpecialty.typeId,
-      ),
-    };
-  }, [activeSpecialty, systemsWithCounts, equipos]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -846,7 +813,7 @@ function PropertyDetailContent() {
         <button
           type="button"
           onClick={() => {
-            setQueryParams({ tab: 'systems', systemId: null, typeId: null, equipmentId: null });
+            setQueryParams({ tab: 'systems' });
             setIsEditing(false);
           }}
           className={`flex items-center gap-2 border-b-2 px-6 py-4 text-sm font-bold transition-all -mb-[2px] ${
@@ -867,7 +834,7 @@ function PropertyDetailContent() {
         <button
           type="button"
           onClick={() => {
-            setQueryParams({ tab: 'info', systemId: null, typeId: null, equipmentId: null });
+            setQueryParams({ tab: 'info' });
             setIsEditing(false);
           }}
           className={`flex items-center gap-2 border-b-2 px-6 py-4 text-sm font-bold transition-all -mb-[2px] ${
@@ -882,132 +849,7 @@ function PropertyDetailContent() {
       {/* Tab Panels */}
       {activeTab === 'systems' ? (
         <section className="grid gap-6">
-          {equipmentIdParam ? (
-            <EquipmentDetailSection
-              equipmentId={equipmentIdParam}
-              onBack={() => setQueryParams({ equipmentId: null })}
-            />
-          ) : activeSpecialtyDetail ? (
-            <div className="grid gap-5">
-              <button
-                type="button"
-                onClick={() => setQueryParams({ systemId: null, typeId: null, equipmentId: null })}
-                className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-950">
-                <ArrowLeft className="h-3.5 w-3.5" />
-                <span>Volver a especialidades</span>
-              </button>
-
-              <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-                <div className="relative min-h-[220px] overflow-hidden bg-slate-950">
-                  <img
-                    src={
-                      activeSpecialtyDetail.type.image_url ||
-                      getSystemImage(activeSpecialtyDetail.system.nombre)
-                    }
-                    alt={activeSpecialtyDetail.type.nombre}
-                    className="absolute inset-0 h-full w-full object-cover opacity-45"
-                  />
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(132,204,22,0.35),transparent_34%),linear-gradient(135deg,rgba(4,18,14,0.96),rgba(12,60,46,0.78))]" />
-                  <div className="relative grid gap-5 p-6 text-white md:grid-cols-[1fr_auto] md:items-end">
-                    <div className="grid gap-3">
-                      <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-100/90">
-                        <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 backdrop-blur">
-                          {getSystemEmoji(activeSpecialtyDetail.system.nombre)}{' '}
-                          {activeSpecialtyDetail.system.nombre}
-                        </span>
-                        <span className="rounded-full border border-lime-300/30 bg-lime-300 px-3 py-1 text-[#061e1b]">
-                          {activeSpecialtyDetail.type.frecuencia ||
-                            'Sin frecuencia'}
-                        </span>
-                      </div>
-                      <div>
-                        <h2 className="m-0 text-2xl font-black leading-tight tracking-[-0.04em] md:text-3xl">
-                          {activeSpecialtyDetail.type.nombre}
-                        </h2>
-                        <p className="m-0 mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-white/75">
-                          Activos de esta especialidad dentro de {property.name}
-                          . El flujo se mantiene en el inmueble para revisar
-                          equipos sin salir al módulo global.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 md:min-w-[260px]">
-                      <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-md">
-                        <strong className="block text-2xl font-black leading-none">
-                          {activeSpecialtyDetail.equipos.length.toLocaleString(
-                            'en-US',
-                          )}
-                        </strong>
-                        <span className="mt-1 block text-[10px] font-black uppercase tracking-wider text-white/60">
-                          Activos
-                        </span>
-                      </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-md">
-                        <strong className="block text-2xl font-black leading-none">
-                          {activeSpecialtyDetail.type.abreviatura || 'N/A'}
-                        </strong>
-                        <span className="mt-1 block text-[10px] font-black uppercase tracking-wider text-white/60">
-                          Código tipo
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                    <div>
-                      <h3 className="m-0 text-base font-black text-slate-950">
-                        Equipos registrados
-                      </h3>
-                      <p className="m-0 mt-0.5 text-xs font-semibold text-slate-500">
-                        Lista filtrada por inmueble y tipo de equipo.
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-800 ring-1 ring-emerald-100">
-                      {property.code || property.name}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3">
-                    {activeSpecialtyDetail.equipos.map(equipo => (
-                      <Link
-                        key={equipo.id}
-                        href={`/admin/inmuebles/${property.id}?tab=systems&systemId=${activeSpecialtyDetail.system.id}&typeId=${activeSpecialtyDetail.type.id}&equipmentId=${equipo.id}`}
-                        className="group block rounded-2xl border border-slate-200 bg-slate-50/60 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white hover:shadow-md text-left no-underline">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-800 ring-1 ring-slate-200 transition group-hover:ring-emerald-200">
-                            <Cpu className="h-5 w-5" />
-                          </div>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-slate-500 ring-1 ring-slate-200">
-                            {equipo.estatus || 'Sin estado'}
-                          </span>
-                        </div>
-                        <div className="mt-4 grid gap-2">
-                          <strong className="text-sm font-black text-slate-950">
-                            {equipo.codigo || 'Sin código'}
-                          </strong>
-                          <div className="grid gap-1 text-[11px] font-semibold text-slate-500">
-                            <span className="inline-flex items-center gap-1.5">
-                              <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                              {equipo.ubicacion || 'Ubicación no especificada'}
-                            </span>
-                            {equipo.detalle_ubicacion ? (
-                              <span className="inline-flex items-start gap-1.5">
-                                <Info className="mt-0.5 h-3.5 w-3.5 text-slate-400" />
-                                {equipo.detalle_ubicacion}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : systemsWithCounts.length === 0 ? (
+          {systemsWithCounts.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-12 text-center shadow-inner">
               <span className="text-4xl block mb-2">⚙️</span>
               <strong className="text-lg text-slate-900 block font-black">
@@ -1080,15 +922,8 @@ function PropertyDetailContent() {
                               )}
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setQueryParams({
-                                  systemId: system.id,
-                                  typeId: type.id,
-                                  equipmentId: null,
-                                })
-                              }
+                            <Link
+                              href={`/admin/inmuebles/${property.id}/especialidad/${type.id}`}
                               className="flex w-full flex-col text-left">
                               {/* Card Image Area */}
                               <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100">
@@ -1118,7 +953,7 @@ function PropertyDetailContent() {
                                   </span>
                                 </span>
                               </div>
-                            </button>
+                            </Link>
                           </div>
                         );
                       })}
@@ -1566,62 +1401,7 @@ function PropertyDetailContent() {
   );
 }
 
-interface EquipmentDetailSectionProps {
-  equipmentId: string;
-  onBack: () => void;
-}
 
-function EquipmentDetailSection({
-  equipmentId,
-  onBack,
-}: EquipmentDetailSectionProps) {
-  const [equipment, setEquipment] = useState<AdminEquipmentDetailRow | null>(
-    null,
-  );
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadEquipment() {
-      try {
-        setIsLoading(true);
-        setErrorMessage(null);
-        const supabase = getSupabaseClient();
-        const result = await getAdminEquipmentById(supabase, equipmentId);
-
-        if (isMounted) setEquipment(result);
-      } catch (error) {
-        if (isMounted) {
-          setErrorMessage(
-            error instanceof Error
-              ? error.message
-              : 'No se pudo cargar el activo',
-          );
-        }
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    }
-
-    void loadEquipment();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [equipmentId]);
-
-  return (
-    <EquipmentDetailView
-      equipment={equipment}
-      isLoading={isLoading}
-      errorMessage={errorMessage}
-      onBackClick={onBack}
-      backText="Volver a la lista de activos"
-    />
-  );
-}
 
 export default function AdminPropertyDetailPage() {
   return (
