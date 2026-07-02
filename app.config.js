@@ -29,6 +29,10 @@ export default ({ config }) => {
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
+      blockedPermissions: [
+        'android.permission.READ_MEDIA_IMAGES',
+        'android.permission.READ_MEDIA_VIDEO',
+      ],
 
       package: isProd
         ? 'pe.rems.gema'

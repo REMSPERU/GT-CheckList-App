@@ -45,7 +45,7 @@ export async function persistLocalPhoto(uri: string): Promise<string> {
  */
 export async function saveToGallery(uri: string): Promise<void> {
   try {
-    const { status } = await MediaLibrary.requestPermissionsAsync();
+    const { status } = await MediaLibrary.requestPermissionsAsync(true);
     if (status !== 'granted') {
       console.warn('Media Library permission not granted, skipping gallery save.');
       return;

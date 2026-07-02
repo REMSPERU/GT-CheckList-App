@@ -1,4 +1,4 @@
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 type ImagePermissionSource = 'camera' | 'mediaLibrary';
@@ -47,6 +47,14 @@ export async function ensureImagePermission(
   source: ImagePermissionSource,
   options?: EnsureImagePermissionOptions,
 ): Promise<boolean> {
+  if (source === 'mediaLibrary') {
+    // On Android 13+ (API 33+), the system photo picker does not require permissions.
+    // Since READ_MEDIA_IMAGES is blocked in app.config.js, requesting it would fail.
+    if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
+      return true;
+    }
+  }
+
   const permission =
     source === 'camera'
       ? await ImagePicker.requestCameraPermissionsAsync()
