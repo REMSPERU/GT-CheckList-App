@@ -7,6 +7,7 @@ type AdminPropertyStatusFilter = 'active' | 'inactive' | 'all';
 export async function listAdminProperties(
   supabase: SupabaseClient,
   status: AdminPropertyStatusFilter = 'active',
+  equipmentTypeId?: string,
 ): Promise<AdminPropertyRow[]> {
   let query = supabase
     .from('properties')
@@ -22,6 +23,25 @@ export async function listAdminProperties(
 
   if (status === 'inactive') {
     query = query.eq('is_active', false);
+  }
+
+  if (equipmentTypeId) {
+    const { data: equiposData, error: equiposError } = await supabase
+      .from('equipos')
+      .select('id_property')
+      .eq('id_equipamento', equipmentTypeId);
+
+    if (equiposError) throw equiposError;
+
+    const propertyIds = Array.from(
+      new Set((equiposData ?? []).map(e => e.id_property).filter((id): id is string => !!id))
+    );
+
+    if (propertyIds.length === 0) {
+      query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+    } else {
+      query = query.in('id', propertyIds);
+    }
   }
 
   const { data, error } = await query;

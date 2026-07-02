@@ -4,11 +4,12 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useDebouncedValue } from './use-debounced-value';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
+import { listAdminEquipmentTypes } from '@/services/admin/equipment-types.service';
 import {
   listAdminProperties,
   updateAdminPropertyImage,
 } from '@/services/admin/properties.service';
-import type { AdminPropertyRow } from '@/types/admin';
+import type { AdminPropertyRow, AdminEquipmentTypeRow } from '@/types/admin';
 import { normalizeSearchText } from '@/utils/search';
 import { uploadPropertyPhoto } from '@/utils/upload-image';
 
@@ -46,6 +47,8 @@ export function useAdminProperties() {
   const [status, setStatus] = useState<PropertyStatusFilter>(() =>
     readStatusParam(searchParams.get('status')),
   );
+  const [equipmentTypeId, setEquipmentTypeId] = useState(() => searchParams.get('eqType') || '');
+  const [equipmentTypes, setEquipmentTypes] = useState<AdminEquipmentTypeRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
@@ -61,7 +64,10 @@ export function useAdminProperties() {
 
     const statusVal = readStatusParam(searchParams.get('status'));
     if (statusVal !== status) setStatus(statusVal);
-  }, [searchParams, status]);
+
+    const eqTypeVal = searchParams.get('eqType') || '';
+    if (eqTypeVal !== equipmentTypeId) setEquipmentTypeId(eqTypeVal);
+  }, [searchParams, status, equipmentTypeId]);
 
   // Synchronize debounced search text back to URL
   useEffect(() => {
@@ -72,6 +78,24 @@ export function useAdminProperties() {
     }
   }, [debouncedSearch, searchParams, updateUrlParams]);
 
+  // Load equipment types once on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadEquipmentTypes() {
+      try {
+        const supabase = getSupabaseClient();
+        const result = await listAdminEquipmentTypes(supabase);
+        if (isMounted) setEquipmentTypes(result);
+      } catch (error) {
+        console.error('Error loading equipment types:', error);
+      }
+    }
+    void loadEquipmentTypes();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -80,7 +104,7 @@ export function useAdminProperties() {
         setIsLoading(true);
         setErrorMessage(null);
         const supabase = getSupabaseClient();
-        const result = await listAdminProperties(supabase, status);
+        const result = await listAdminProperties(supabase, status, equipmentTypeId);
         if (isMounted) setItems(result);
       } catch (error) {
         if (isMounted) {
@@ -100,7 +124,7 @@ export function useAdminProperties() {
     return () => {
       isMounted = false;
     };
-  }, [status]);
+  }, [status, equipmentTypeId]);
 
   const filteredItems = useMemo(() => {
     const query = normalizeSearchText(search);
@@ -158,12 +182,20 @@ export function useAdminProperties() {
     updateUrlParams({ status: nextStatus === 'inactive' ? 'inactive' : null });
   }
 
+  function handleEquipmentTypeChange(nextEquipmentTypeId: string) {
+    setEquipmentTypeId(nextEquipmentTypeId);
+    updateUrlParams({ eqType: nextEquipmentTypeId || null });
+  }
+
   return {
     filteredItems,
     search,
     setSearch,
     status,
     handleStatusChange,
+    equipmentTypeId,
+    equipmentTypes,
+    handleEquipmentTypeChange,
     isLoading,
     errorMessage,
     changePropertyImage,
