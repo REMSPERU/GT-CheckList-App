@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import { getAdminEquipmentById } from '@/services/admin/equipments.service';
 import type { AdminEquipmentDetailRow } from '@/types/admin';
@@ -9,11 +9,18 @@ import { EquipmentDetailView } from '@/components/admin/equipment-detail-view';
 
 export default function AdminEquipmentDetailPage() {
   const params = useParams<{ equipmentId: string }>();
+  const searchParams = useSearchParams();
   const [equipment, setEquipment] = useState<AdminEquipmentDetailRow | null>(
     null,
   );
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Reconstruct the back href from the encoded query params passed by the list page
+  const rawBack = searchParams.get('back');
+  const backHref = rawBack
+    ? `/admin/equipos?${decodeURIComponent(rawBack)}`
+    : '/admin/equipos';
 
   useEffect(() => {
     let isMounted = true;
@@ -54,6 +61,7 @@ export default function AdminEquipmentDetailPage() {
       equipment={equipment}
       isLoading={isLoading}
       errorMessage={errorMessage}
+      backHref={backHref}
     />
   );
 }
