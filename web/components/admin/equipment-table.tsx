@@ -1,5 +1,8 @@
+'use client';
+
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 import type { AdminEquipmentRow } from '@/types/admin';
 
@@ -29,6 +32,9 @@ export function EquipmentTable({
   isLoading,
   footer,
 }: EquipmentTableProps) {
+  const searchParams = useSearchParams();
+  const backQuery = searchParams.toString();
+  const backParam = backQuery ? `?back=${encodeURIComponent(backQuery)}` : '';
   return (
     <AdminTableShell
       summary={
@@ -75,7 +81,7 @@ export function EquipmentTable({
                 <td className={TD_CLASS}>
                   <Link
                     className="inline-flex rounded-full bg-[#0c1720] px-3 py-1.5 text-xs font-black text-white no-underline shadow-sm transition-colors hover:bg-emerald-800"
-                    href={`/admin/equipos/${item.id}`}>
+                    href={`/admin/equipos/${item.id}${backParam}`}>
                     Ver
                   </Link>
                 </td>
