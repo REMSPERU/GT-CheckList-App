@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '@/services/database';
 import { useAuth } from './AuthContext';
 
-export type UserRole = 'SUPERVISOR' | 'TECNICO' | 'AUDITOR' | 'SUPERADMIN';
+export type UserRole = 'SUPERVISOR' | 'TECNICO' | 'AUDITOR' | 'SUPERADMIN' | 'TECNICO_REMS';
 
 interface LocalUser {
   id: string;
@@ -33,6 +33,7 @@ interface UserRoleContextType {
   isTechnician: boolean;
   isAuditor: boolean;
   isAdmin: boolean;
+  isTecnicoRems: boolean;
 
   // Permission checks
   canScheduleMaintenance: boolean;
@@ -147,10 +148,11 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     isTechnician: role === 'TECNICO',
     isAuditor: role === 'AUDITOR',
     isAdmin: role === 'SUPERADMIN',
+    isTecnicoRems: role === 'TECNICO_REMS',
 
     // Permission checks
-    canScheduleMaintenance: role !== 'AUDITOR',
-    canExecuteMaintenance: role !== 'AUDITOR',
+    canScheduleMaintenance: role !== 'AUDITOR' && role !== 'TECNICO_REMS',
+    canExecuteMaintenance: role !== 'AUDITOR' && role !== 'TECNICO_REMS',
     canAudit: role === 'AUDITOR' || role === 'SUPERADMIN',
     canViewAllMaintenances: role === 'SUPERVISOR' || role === 'SUPERADMIN',
     canViewAssignedOnly: role === 'TECNICO' || role === 'AUDITOR',

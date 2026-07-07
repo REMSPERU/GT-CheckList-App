@@ -37,7 +37,7 @@ export default function AdminScreen() {
     },
     {
       href: '/admin/assign-auditor-properties',
-      title: 'Asignar Auditor a Inmueble',
+      title: 'Asignar Inmuebles (Auditor/REMS)',
       description: 'Guarda asignaciones en user_properties',
       icon: 'map-pin',
     },

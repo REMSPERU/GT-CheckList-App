@@ -97,6 +97,7 @@ export default function AssignRolesScreen() {
 
   const roleOptions = [
     { label: 'Técnico', value: 'TECNICO' },
+    { label: 'Técnico REMS', value: 'TECNICO_REMS' },
     { label: 'Auditor', value: 'AUDITOR' },
     { label: 'Supervisor', value: 'SUPERVISOR' },
     { label: 'Super Admin', value: 'SUPERADMIN' },

@@ -12,7 +12,13 @@ import type {
   PropertyListResponse,
   PropertyResponse,
 } from '../types/api';
-import { getLocalProperties, getLocalPropertyById } from '../services/db/queries';
+import { useAuth } from '../contexts/AuthContext';
+import { useUserRole } from './use-user-role';
+import {
+  getLocalProperties,
+  getLocalAssignedProperties,
+  getLocalPropertyById,
+} from '../services/db/queries';
 
 const logPropertiesFlow = (...args: unknown[]) => {
   if (__DEV__) {
@@ -128,6 +134,8 @@ export function useProperties(
   >,
 ) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { isAuditor, isTecnicoRems } = useUserRole();
   const { enabled: optionsEnabled, ...restOptions } = options ?? {};
   const normalizedFilters = filters ?? null;
   const queryKey = propertyKeys.list(normalizedFilters);
@@ -143,7 +151,10 @@ export function useProperties(
       });
 
       // OFFLINE-FIRST: Start with local data immediately
-      const localProps = await getLocalProperties();
+      const isRestricted = isAuditor || isTecnicoRems;
+      const localProps = isRestricted && user?.id
+        ? await getLocalAssignedProperties(user.id)
+        : await getLocalProperties();
       const localData = transformLocalToPropertyList(localProps);
       logPropertiesFlow('local read complete', {
         localCount: localData.items.length,

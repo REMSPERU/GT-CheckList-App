@@ -53,6 +53,22 @@ export async function getLocalProperties() {
   );
 }
 
+export async function getLocalAssignedProperties(userId: string) {
+  await ensureInitialized();
+  const db = await dbPromise;
+  const now = new Date().toISOString();
+  return await db.getAllAsync(
+    `SELECT p.*
+       FROM local_properties p
+       INNER JOIN local_user_properties up
+         ON up.property_id = p.id
+       WHERE up.user_id = ?
+         AND (up.expires_at IS NULL OR up.expires_at > ?)
+       ORDER BY p.name ASC`,
+    [userId, now],
+  );
+}
+
 export async function getLocalPropertyById(id: string) {
   await ensureInitialized();
   return withLock(async () => {

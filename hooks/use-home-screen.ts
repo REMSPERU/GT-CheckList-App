@@ -8,9 +8,6 @@ import { useProperties } from '@/hooks/use-property-query';
 import { syncService } from '@/services/sync';
 import type { PropertyResponse as Property } from '@/types/api';
 
-const LAST_BUILDING_STORAGE_KEY = '@home:last-selected-building-id';
-const CACHED_BUILDINGS_STORAGE_KEY = '@home:cached-buildings';
-
 const logHomeFlow = (...args: unknown[]) => {
   if (__DEV__) {
     console.log('[useHomeScreen]', ...args);
@@ -74,11 +71,16 @@ export function useHomeScreen() {
   }, [refetch]);
 
   useEffect(() => {
+    if (!user?.id) return;
+
     const loadCachedHomeData = async () => {
       try {
+        const lastBuildingKey = `@home:last-selected-building-id:${user.id}`;
+        const cachedBuildingsKey = `@home:cached-buildings:${user.id}`;
+
         const [savedBuildingId, savedBuildings] = await Promise.all([
-          AsyncStorage.getItem(LAST_BUILDING_STORAGE_KEY),
-          AsyncStorage.getItem(CACHED_BUILDINGS_STORAGE_KEY),
+          AsyncStorage.getItem(lastBuildingKey),
+          AsyncStorage.getItem(cachedBuildingsKey),
         ]);
 
         if (savedBuildingId) {
@@ -86,16 +88,21 @@ export function useHomeScreen() {
           logHomeFlow('restored last selected building', {
             buildingId: savedBuildingId,
           });
+        } else {
+          setLastSelectedBuildingId(null);
+          setSelectedBuilding(null);
         }
 
         if (savedBuildings) {
           const parsed = JSON.parse(savedBuildings) as Property[];
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             setCachedBuildings(parsed);
             logHomeFlow('restored cached buildings from AsyncStorage', {
               cachedCount: parsed.length,
             });
           }
+        } else {
+          setCachedBuildings([]);
         }
       } catch (error) {
         console.error('Failed to restore cached home data:', error);
@@ -103,17 +110,17 @@ export function useHomeScreen() {
     };
 
     void loadCachedHomeData();
-  }, []);
+  }, [user?.id]);
 
   // Ref to track the last hash we persisted, avoiding redundant writes
   const lastPersistedHashRef = useRef('');
 
   useEffect(() => {
-    const liveBuildings = data?.items ?? [];
-    if (liveBuildings.length === 0) return;
+    if (!user?.id || !data) return;
+    const liveBuildings = data.items;
 
     // Simple hash: length + first/last IDs. Skip write if unchanged.
-    const hash = `${liveBuildings.length}:${liveBuildings[0]?.id}:${liveBuildings[liveBuildings.length - 1]?.id}`;
+    const hash = `${liveBuildings.length}:${liveBuildings[0]?.id || ''}:${liveBuildings[liveBuildings.length - 1]?.id || ''}`;
     if (hash === lastPersistedHashRef.current) return;
     lastPersistedHashRef.current = hash;
 
@@ -123,12 +130,12 @@ export function useHomeScreen() {
 
     setCachedBuildings(liveBuildings);
 
-    // Debounced write (500ms) — coalesces rapid updates from
-    // local-return → background-remote-return → post-sync-refetch
+    // Debounced write (500ms) — coalesces rapid updates
     const timeoutId = setTimeout(async () => {
       try {
+        const cachedBuildingsKey = `@home:cached-buildings:${user.id}`;
         await AsyncStorage.setItem(
-          CACHED_BUILDINGS_STORAGE_KEY,
+          cachedBuildingsKey,
           JSON.stringify(liveBuildings),
         );
       } catch (error) {
@@ -137,11 +144,14 @@ export function useHomeScreen() {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [data?.items]);
+  }, [data, user?.id]);
 
   const sourceBuildings = useMemo(() => {
-    const liveBuildings = data?.items ?? [];
-    return liveBuildings.length > 0 ? liveBuildings : cachedBuildings;
+    // If the query has finished loading, use its list (even if empty)
+    if (data?.items) {
+      return data.items;
+    }
+    return cachedBuildings;
   }, [cachedBuildings, data?.items]);
 
   useEffect(() => {
@@ -150,9 +160,9 @@ export function useHomeScreen() {
       liveCount,
       cachedCount: cachedBuildings.length,
       sourceCount: sourceBuildings.length,
-      source: liveCount > 0 ? 'react-query/live' : 'async-storage/cached',
+      source: data?.items ? 'react-query/live' : 'async-storage/cached',
     });
-  }, [cachedBuildings.length, data?.items?.length, sourceBuildings.length]);
+  }, [cachedBuildings.length, data, sourceBuildings.length]);
 
   useEffect(() => {
     if (
@@ -174,11 +184,13 @@ export function useHomeScreen() {
 
   const handleBuildingSelect = useCallback((building: Property) => {
     setSelectedBuilding(building);
+    if (!user?.id) return;
 
     const persistSelection = async () => {
       try {
+        const lastBuildingKey = `@home:last-selected-building-id:${user.id}`;
         await AsyncStorage.setItem(
-          LAST_BUILDING_STORAGE_KEY,
+          lastBuildingKey,
           String(building.id),
         );
       } catch (error) {
@@ -187,7 +199,7 @@ export function useHomeScreen() {
     };
 
     void persistSelection();
-  }, []);
+  }, [user?.id]);
 
   const filteredBuildings = useMemo(() => {
     const items = sourceBuildings;
