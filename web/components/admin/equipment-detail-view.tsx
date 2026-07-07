@@ -476,7 +476,10 @@ function JsonValue({ value }: JsonValueProps) {
   if (typeof value === 'string') {
     try {
       const trimmed = value.trim();
-      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      if (
+        (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+        (trimmed.startsWith('[') && trimmed.endsWith(']'))
+      ) {
         parsedValue = JSON.parse(value);
       }
     } catch {
@@ -484,31 +487,123 @@ function JsonValue({ value }: JsonValueProps) {
     }
   }
 
+  if (Array.isArray(parsedValue)) {
+    if (parsedValue.length === 0) {
+      return (
+        <p className="m-0 text-xs font-semibold text-slate-400 italic">
+          Sin elementos.
+        </p>
+      );
+    }
+    return (
+      <div className="space-y-3">
+        {parsedValue.map((item, idx) => (
+          <SubcomponentCard key={idx} index={idx} item={item} />
+        ))}
+      </div>
+    );
+  }
+
   if (isRecord(parsedValue)) {
-    const entries = Object.entries(parsedValue);
+    const entries = Object.entries(parsedValue).filter(([_, entryValue]) => {
+      if (isEmptyValue(entryValue)) return false;
+      if (Array.isArray(entryValue) && entryValue.length === 0) return false;
+      return true;
+    });
+
+    if (entries.length === 0) {
+      return (
+        <p className="m-0 text-xs font-semibold text-slate-400 italic">
+          Sin detalle guardado.
+        </p>
+      );
+    }
 
     return (
       <div className="grid grid-cols-2 gap-3 max-[640px]:grid-cols-1">
-        {entries.map(([key, entryValue]) => (
-          <div
-            key={key}
-            className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 text-xs transition-colors hover:bg-slate-50">
-            <span className="block font-bold text-slate-400 uppercase tracking-wider text-[9px]">
-              {formatTechnicalKey(key)}
-            </span>
-            <span className="mt-1 block break-words font-semibold text-slate-800 text-[13px] whitespace-pre-line">
-              {formatUnknown(entryValue)}
-            </span>
-          </div>
-        ))}
+        {entries.map(([key, entryValue]) => {
+          if (Array.isArray(entryValue)) {
+            return (
+              <div key={key} className="col-span-2">
+                <span className="mb-2 block font-black text-slate-600 uppercase tracking-wider text-[10px]">
+                  {formatTechnicalKey(key)}
+                </span>
+                <JsonValue value={entryValue} />
+              </div>
+            );
+          }
+          return (
+            <div
+              key={key}
+              className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 text-xs transition-colors hover:bg-slate-50">
+              <span className="block font-bold text-slate-400 uppercase tracking-wider text-[9px]">
+                {formatTechnicalKey(key)}
+              </span>
+              <span className="mt-1 block break-words font-semibold text-slate-800 text-[13px] whitespace-pre-line">
+                {formatUnknown(entryValue)}
+              </span>
+            </div>
+          );
+        })}
       </div>
     );
   }
 
   return (
     <pre className="m-0 max-h-64 overflow-auto rounded-xl bg-slate-950 p-3.5 text-xs font-mono font-semibold text-slate-100 whitespace-pre-wrap">
-      {formatUnknown(value)}
+      {formatUnknown(parsedValue)}
     </pre>
+  );
+}
+
+interface SubcomponentCardProps {
+  item: unknown;
+  index: number;
+}
+
+function SubcomponentCard({ item, index }: SubcomponentCardProps) {
+  const label =
+    isRecord(item) && typeof item['tipo'] === 'string'
+      ? item['tipo']
+      : `Ítem ${index + 1}`;
+
+  const displayLabel = formatTechnicalKey(label);
+
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+      {/* Cabecera de la tarjeta */}
+      <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/70 px-4 py-2.5">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-black text-emerald-700">
+          {index + 1}
+        </span>
+        <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">
+          {displayLabel}
+        </span>
+      </div>
+      {/* Contenido de la tarjeta */}
+      <div className="grid grid-cols-2 gap-2.5 p-3.5 max-[480px]:grid-cols-1">
+        {isRecord(item)
+          ? Object.entries(item)
+              .filter(([k]) => k !== 'tipo')
+              .map(([k, v]) => (
+                <div
+                  key={k}
+                  className="rounded-lg border border-slate-100 bg-slate-50/50 p-2.5">
+                  <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                    {formatTechnicalKey(k)}
+                  </span>
+                  <span className="mt-0.5 block break-words text-[12px] font-semibold text-slate-800">
+                    {formatUnknown(v)}
+                  </span>
+                </div>
+              ))
+          : (
+            <span className="col-span-2 text-[12px] font-semibold text-slate-700">
+              {formatUnknown(item)}
+            </span>
+          )}
+      </div>
+    </div>
   );
 }
 
