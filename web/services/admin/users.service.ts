@@ -212,6 +212,7 @@ export async function assignUserToProperty(
     propertyId: string;
     propertyRole?: string | null;
     assignmentReason?: string | null;
+    assignedBy: string;
   },
 ): Promise<void> {
   const now = new Date().toISOString();
@@ -222,6 +223,7 @@ export async function assignUserToProperty(
       property_id: input.propertyId,
       property_role: input.propertyRole ?? null,
       assignment_reason: input.assignmentReason ?? null,
+      assigned_by: input.assignedBy,
       assigned_at: now,
       updated_at: now,
     },

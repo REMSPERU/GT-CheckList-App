@@ -6,6 +6,7 @@ export interface AuditorUser {
   username: string | null;
   first_name: string | null;
   last_name: string | null;
+  role?: string;
 }
 
 export interface UserPropertyAssignment {
@@ -18,13 +19,13 @@ export interface UserPropertyAssignment {
 
 class SupabaseUserPropertyService {
   /**
-   * Lista auditores activos para asignar inmuebles.
+   * Lista auditores y técnicos REMS activos para asignar inmuebles.
    */
   async listAuditors(): Promise<AuditorUser[]> {
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, username, first_name, last_name')
-      .eq('role', 'AUDITOR')
+      .select('id, email, username, first_name, last_name, role')
+      .in('role', ['AUDITOR', 'TECNICO_REMS'])
       .eq('is_active', true)
       .order('first_name', { ascending: true });
 

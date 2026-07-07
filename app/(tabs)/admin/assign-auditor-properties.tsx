@@ -22,9 +22,9 @@ import {
 
 function getUserDisplayName(user: AuditorUser) {
   const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-  if (fullName.length > 0) return fullName;
-  if (user.username) return user.username;
-  return user.email;
+  const baseName = fullName.length > 0 ? fullName : (user.username || user.email);
+  const roleSuffix = user.role === 'TECNICO_REMS' ? 'Técnico REMS' : 'Auditor';
+  return `${baseName} (${roleSuffix})`;
 }
 
 export default function AssignAuditorPropertiesScreen() {
@@ -105,7 +105,7 @@ export default function AssignAuditorPropertiesScreen() {
 
   const handleAssign = async () => {
     if (!selectedAuditor || !selectedProperty) {
-      Alert.alert('Faltan datos', 'Seleccione auditor e inmueble.');
+      Alert.alert('Faltan datos', 'Seleccione usuario e inmueble.');
       return;
     }
 
@@ -144,12 +144,12 @@ export default function AssignAuditorPropertiesScreen() {
       });
 
       await loadAssignments(selectedAuditor);
-      Alert.alert('Listo', 'Inmueble quitado del auditor.');
+      Alert.alert('Listo', 'Inmueble quitado del usuario.');
     } catch (error) {
       const errorMessage =
         error instanceof Error
           ? error.message
-          : 'No se pudo quitar el inmueble del auditor';
+          : 'No se pudo quitar el inmueble del usuario';
       Alert.alert('Error', errorMessage);
     } finally {
       setRemovingPropertyId(null);
@@ -162,7 +162,7 @@ export default function AssignAuditorPropertiesScreen() {
 
     Alert.alert(
       'Quitar inmueble',
-      `Desea quitar ${propertyName} de ${selectedAuditorName || 'este auditor'}?`,
+      `Desea quitar ${propertyName} de ${selectedAuditorName || 'este usuario'}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -187,7 +187,7 @@ export default function AssignAuditorPropertiesScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <DefaultHeader title="Asignar Auditor a Inmueble" />
+        <DefaultHeader title="Asignar Inmuebles (Auditor/REMS)" />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#0891B2" />
         </View>
@@ -197,7 +197,7 @@ export default function AssignAuditorPropertiesScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <DefaultHeader title="Asignar Auditor a Inmueble" />
+      <DefaultHeader title="Asignar Inmuebles (Auditor/REMS)" />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -206,12 +206,12 @@ export default function AssignAuditorPropertiesScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Nueva asignacion</Text>
 
-          <Text style={styles.label}>Auditor</Text>
+          <Text style={styles.label}>Usuario (Auditor/Técnico REMS)</Text>
           <RNPickerSelect
             onValueChange={value => setSelectedAuditor(value)}
             value={selectedAuditor}
             items={auditorItems}
-            placeholder={{ label: 'Seleccione un auditor...', value: null }}
+            placeholder={{ label: 'Seleccione un usuario...', value: null }}
             style={pickerSelectStyles}
           />
 

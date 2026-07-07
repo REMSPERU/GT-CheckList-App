@@ -18,6 +18,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     return NextResponse.json({ accesses });
   } catch (error) {
+    console.error('[API GET properties] Error:', error);
     const status = error instanceof Error && error.message === 'UNAUTHENTICATED'
       ? 401
       : 403;
@@ -42,18 +43,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const { supabase } = await requireSuperAdminSession(request);
+    const { supabase, user: adminUser } = await requireSuperAdminSession(request);
     await assignUserToProperty(supabase, {
       userId,
       propertyId: body.propertyId,
       propertyRole: body.propertyRole,
       assignmentReason: body.assignmentReason,
+      assignedBy: adminUser.id,
     });
 
     const accesses = await listUserPropertyAccess(supabase, userId);
 
     return NextResponse.json({ accesses });
   } catch (error) {
+    console.error('[API POST properties] Error:', error);
     const status = error instanceof Error && error.message === 'UNAUTHENTICATED'
       ? 401
       : 403;
