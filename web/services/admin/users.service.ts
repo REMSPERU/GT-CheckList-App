@@ -15,6 +15,7 @@ const USER_SELECT =
 
 export const ADMIN_ROLE_OPTIONS: { label: string; value: AdminRole }[] = [
   { label: 'Tecnico', value: 'TECNICO' },
+  { label: 'Tecnico REMS', value: 'TECNICO_REMS' },
   { label: 'Auditor', value: 'AUDITOR' },
   { label: 'Supervisor', value: 'SUPERVISOR' },
   { label: 'Superadmin', value: 'SUPERADMIN' },

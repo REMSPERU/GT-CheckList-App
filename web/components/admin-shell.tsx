@@ -2,7 +2,7 @@
 
 import { ReactNode, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Wrench,
@@ -62,6 +62,7 @@ const NAV_ITEMS = [
 
 export function AdminShell({ children }: AdminShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, isCheckingSession, handleSignOut } = useAdminSession();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -71,6 +72,19 @@ export function AdminShell({ children }: AdminShellProps) {
       setIsCollapsed(true);
     }
   }, []);
+
+  // Security routing guard for Técnico REMS
+  useEffect(() => {
+    if (isCheckingSession || !user) return;
+
+    if (user.role === 'TECNICO_REMS') {
+      const allowedPaths = ['/admin/equipos', '/admin/inmuebles', '/admin/checklist'];
+      const isAllowed = allowedPaths.some(path => pathname.startsWith(path));
+      if (!isAllowed) {
+        router.replace('/admin/checklist');
+      }
+    }
+  }, [user, isCheckingSession, pathname, router]);
 
   const toggleSidebar = () => {
     setIsCollapsed(prev => {
@@ -103,9 +117,19 @@ export function AdminShell({ children }: AdminShellProps) {
     return null;
   };
 
-  const visibleNavItems = NAV_ITEMS.filter(
-    item => !item.superadminOnly || user?.role === 'SUPERADMIN',
-  );
+  const visibleNavItems = NAV_ITEMS.filter(item => {
+    if (item.superadminOnly && user?.role !== 'SUPERADMIN') {
+      return false;
+    }
+    if (user?.role === 'TECNICO_REMS') {
+      return (
+        item.href === '/admin/equipos' ||
+        item.href === '/admin/inmuebles' ||
+        item.href === '/admin/checklist'
+      );
+    }
+    return true;
+  });
 
   return (
     <div

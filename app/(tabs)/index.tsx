@@ -32,7 +32,7 @@ function HomeScreen() {
   const { height } = useWindowDimensions();
   const isTallScreen = height >= 820;
   const appVersion = Constants.expoConfig?.version ?? '1.0.36';
-  const { isAdmin, isSupervisor, isTechnician, canAudit } = useUserRole();
+  const { isAdmin, isSupervisor, isTechnician, isTecnicoRems, canAudit } = useUserRole();
 
   const {
     userDisplayName,
@@ -72,7 +72,7 @@ function HomeScreen() {
       onPress: handleInventoryPress,
     });
 
-    const canSeeChecklist = isAdmin;
+    const canSeeChecklist = isAdmin || isTecnicoRems;
     const canSeeSchedule = isTechnician || isSupervisor;
     const canSeeExecute = isTechnician || isSupervisor;
     const canSeeReports = isSupervisor;
@@ -137,6 +137,7 @@ function HomeScreen() {
     isAdmin,
     isSupervisor,
     isTechnician,
+    isTecnicoRems,
     handleChecklistPress,
     handleAuditPress,
     handleExecuteMaintenancePress,

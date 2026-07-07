@@ -7,6 +7,7 @@ export enum RoleEnum {
   AUDITOR = 'AUDITOR',
   SUPERVISOR = 'SUPERVISOR',
   SUPERADMIN = 'SUPERADMIN',
+  TECNICO_REMS = 'TECNICO_REMS',
 }
 
 // User types
