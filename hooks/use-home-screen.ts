@@ -44,6 +44,11 @@ export function useHomeScreen() {
     useState(false);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
+  const [lastSyncTimestamp, setLastSyncTimestamp] = useState<number>(0);
+  const [isManualSyncing, setIsManualSyncing] = useState<boolean>(false);
+  const [tick, setTick] = useState(0);
+
+  // Restore search input debouncing
   useEffect(() => {
     const debounceTimeout = setTimeout(() => {
       setDebouncedSearch(searchInput);
@@ -51,6 +56,23 @@ export function useHomeScreen() {
 
     return () => clearTimeout(debounceTimeout);
   }, [searchInput]);
+
+  // Tick interval to automatically refresh relative times
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick(t => t + 1);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchLastSyncTime = useCallback(async () => {
+    const ts = await syncService.getLastSyncTimestamp();
+    setLastSyncTimestamp(ts);
+  }, []);
+
+  useEffect(() => {
+    fetchLastSyncTime();
+  }, [fetchLastSyncTime]);
 
   useEffect(() => {
     if (hasSynced.current) return;
@@ -62,13 +84,48 @@ export function useHomeScreen() {
         await syncService.triggerSync('home-screen-mount');
         logHomeFlow('initial sync done, triggering properties refetch');
         refetch();
+        await fetchLastSyncTime();
       } catch (error) {
         console.error('Background sync failed:', error);
       }
     };
 
     void backgroundSync();
-  }, [refetch]);
+  }, [refetch, fetchLastSyncTime]);
+
+  const handleManualSync = useCallback(async () => {
+    setIsManualSyncing(true);
+    try {
+      await syncService.triggerSync('home-screen-manual-refresh', { force: true });
+      await refetch();
+      await fetchLastSyncTime();
+    } catch (error) {
+      console.error('Manual sync failed on home:', error);
+    } finally {
+      setIsManualSyncing(false);
+    }
+  }, [refetch, fetchLastSyncTime]);
+
+  const lastSyncTimeText = useMemo(() => {
+    if (!lastSyncTimestamp) return 'Nunca';
+    const diffMs = Date.now() - lastSyncTimestamp;
+    if (diffMs < 0) return 'Hace unos momentos';
+
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHr = Math.floor(diffMin / 60);
+    const diffDays = Math.floor(diffHr / 24);
+
+    if (diffSec < 60) {
+      return 'Hace unos momentos';
+    } else if (diffMin < 60) {
+      return `Hace ${diffMin} min`;
+    } else if (diffHr < 24) {
+      return `Hace ${diffHr} ${diffHr === 1 ? 'hora' : 'horas'}`;
+    } else {
+      return `Hace ${diffDays} ${diffDays === 1 ? 'día' : 'días'}`;
+    }
+  }, [lastSyncTimestamp, tick]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -362,5 +419,8 @@ export function useHomeScreen() {
     handleInventoryPress,
     handleAccountPress,
     handleLogoutConfirm,
+    lastSyncTimeText,
+    isManualSyncing,
+    handleManualSync,
   };
 }

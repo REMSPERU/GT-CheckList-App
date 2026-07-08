@@ -9,6 +9,8 @@ import {
   Text,
   View,
   useWindowDimensions,
+  ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppActionCard } from '@/components/app-action-card';
@@ -59,6 +61,9 @@ function HomeScreen() {
     handleInventoryPress,
     handleAccountPress,
     handleLogoutConfirm,
+    lastSyncTimeText,
+    isManualSyncing,
+    handleManualSync,
   } = useHomeScreen();
 
   const actionCards = useMemo<HomeActionCard[]>(() => {
@@ -212,6 +217,23 @@ function HomeScreen() {
             />
           ))}
         </View>
+
+        <View style={styles.syncRow}>
+          <View style={styles.syncLeft}>
+            <Feather name="refresh-cw" size={12} color="#6B7280" />
+            <Text style={styles.syncText}>Actualizado: {lastSyncTimeText}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.syncButton}
+            onPress={handleManualSync}
+            disabled={isManualSyncing}>
+            {isManualSyncing ? (
+              <ActivityIndicator size="small" color="#06B6D4" />
+            ) : (
+              <Text style={styles.syncButtonText}>Sincronizar ahora</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       <BuildingSelectorModal
@@ -300,6 +322,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
     opacity: 0.85,
+  },
+  syncRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  syncLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  syncText: {
+    fontSize: 12,
+    color: '#4B5563',
+    fontWeight: '500',
+  },
+  syncButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  syncButtonText: {
+    fontSize: 12,
+    color: '#06B6D4',
+    fontWeight: '600',
   },
 });
 

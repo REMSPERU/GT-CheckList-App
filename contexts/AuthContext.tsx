@@ -294,6 +294,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLocalUser(null);
       setError(null);
       await DatabaseService.clearSession();
+      
+      try {
+        await DatabaseService.clearMirrorTables();
+      } catch (clearErr) {
+        console.error('[AuthContext] Failed to clear mirror tables on auth failure:', clearErr);
+      }
 
       if (!options?.skipRemoteSignOut) {
         await supabaseAuthService.signOut();

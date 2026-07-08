@@ -7,6 +7,7 @@ import { supabaseAuditStorageService } from './supabase-audit-storage.service';
 import { checklistStorageService } from './checklist-storage.service';
 import NetInfo from '@react-native-community/netinfo';
 import { syncQueue } from './sync-queue';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface NetworkState {
   isConnected: boolean | null;
@@ -335,6 +336,23 @@ class SyncService {
     return (
       this.isFullSyncing || this.isSyncing || this.currentSyncPromise !== null
     );
+  }
+
+  async getLastSyncTimestamp(): Promise<number> {
+    if (this.lastFullSyncTimestamp > 0) {
+      return this.lastFullSyncTimestamp;
+    }
+    try {
+      const val = await AsyncStorage.getItem('@sync:last-sync-timestamp');
+      if (val) {
+        const ts = Number(val);
+        this.lastFullSyncTimestamp = ts;
+        return ts;
+      }
+    } catch (e) {
+      console.warn('[SyncService] Error reading last sync timestamp:', e);
+    }
+    return 0;
   }
 
   onReady(listener: () => void): () => void {
@@ -698,6 +716,12 @@ class SyncService {
       const totalDuration = Date.now() - startTime;
       if (pulled) {
         this.lastFullSyncTimestamp = Date.now();
+        void AsyncStorage.setItem(
+          '@sync:last-sync-timestamp',
+          String(this.lastFullSyncTimestamp)
+        ).catch(err => {
+          console.warn('[SYNC] Failed to persist sync timestamp:', err);
+        });
       } else {
         log(`[SYNC#${syncId}] Pull skipped — not updating dedup timestamp`);
       }
