@@ -75,7 +75,7 @@ export async function hasUsableLocalMirror() {
 }
 
 /** Batch size for INSERT OR REPLACE operations */
-const INSERT_BATCH_SIZE = 50;
+const INSERT_BATCH_SIZE = 95;
 
 /**
  * Executes a batched insert using a dynamically constructed multi-row VALUES clause.
@@ -259,327 +259,305 @@ export async function bulkInsertMirrorData(
 ) {
   await ensureInitialized();
 
-  if (equipos !== null) {
-    await runMirrorStep('local_equipos', tx =>
-      smartSyncTable(
-        tx,
-        'local_equipos',
-        equipos,
-        'id',
-        'INSERT OR REPLACE INTO local_equipos (id, id_property, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus, equipment_detail, config, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        item => [
-          item.id,
-          item.id_property,
-          item.id_equipamento,
-          item.codigo,
-          item.ubicacion,
-          item.detalle_ubicacion,
-          item.estatus,
-          JSON.stringify(item.equipment_detail),
-          item.config ? 1 : 0,
-          new Date().toISOString(),
-        ],
-      ),
-    );
-  }
+  return withLock(
+    async () => {
+      const db = await dbPromise;
+      const startedAt = Date.now();
+      
+      await db.withTransactionAsync(async () => {
+        if (equipos !== null) {
+          await smartSyncTable(
+            db,
+            'local_equipos',
+            equipos,
+            'id',
+            'INSERT OR REPLACE INTO local_equipos (id, id_property, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus, equipment_detail, config, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            item => [
+              item.id,
+              item.id_property,
+              item.id_equipamento,
+              item.codigo,
+              item.ubicacion,
+              item.detalle_ubicacion,
+              item.estatus,
+              JSON.stringify(item.equipment_detail),
+              item.config ? 1 : 0,
+              new Date().toISOString(),
+            ],
+          );
+        }
 
-  if (properties !== null) {
-    await runMirrorStep('local_properties', tx =>
-      smartSyncTable(
-        tx,
-        'local_properties',
-        properties,
-        'id',
-        'INSERT OR REPLACE INTO local_properties (id, name, code, address, city, image_url, floor, basement) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        item => [
-          item.id,
-          item.name,
-          item.code,
-          item.address || '',
-          item.city || '',
-          item.image_url || null,
-          item.floor !== undefined && item.floor !== null ? item.floor : null,
-          item.basement !== undefined && item.basement !== null ? item.basement : null,
-        ],
-      ),
-    );
-  }
+        if (properties !== null) {
+          await smartSyncTable(
+            db,
+            'local_properties',
+            properties,
+            'id',
+            'INSERT OR REPLACE INTO local_properties (id, name, code, address, city, image_url, floor, basement) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            item => [
+              item.id,
+              item.name,
+              item.code,
+              item.address || '',
+              item.city || '',
+              item.image_url || null,
+              item.floor !== undefined && item.floor !== null ? item.floor : null,
+              item.basement !== undefined && item.basement !== null ? item.basement : null,
+            ],
+          );
+        }
 
-  if (users !== null) {
-    await runMirrorStep('local_users', tx =>
-      smartSyncTable(
-        tx,
-        'local_users',
-        users,
-        'id',
-        'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)',
-        item => [
-          item.id,
-          item.username,
-          item.email,
-          item.first_name,
-          item.last_name,
-          item.role || null,
-        ],
-      ),
-    );
-  }
+        if (users !== null) {
+          await smartSyncTable(
+            db,
+            'local_users',
+            users,
+            'id',
+            'INSERT OR REPLACE INTO local_users (id, username, email, first_name, last_name, role) VALUES (?, ?, ?, ?, ?, ?)',
+            item => [
+              item.id,
+              item.username,
+              item.email,
+              item.first_name,
+              item.last_name,
+              item.role || null,
+            ],
+          );
+        }
 
-  if (userProperties !== null) {
-    await runMirrorStep('local_user_properties', tx =>
-      smartSyncTable(
-        tx,
-        'local_user_properties',
-        userProperties,
-        'id',
-        'INSERT OR REPLACE INTO local_user_properties (id, user_id, property_id, property_role, expires_at, assigned_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        item => [
-          item.id,
-          item.user_id,
-          item.property_id,
-          item.property_role || null,
-          item.expires_at || null,
-          item.assigned_at || null,
-          item.updated_at || null,
-        ],
-      ),
-    );
-  }
+        if (userProperties !== null) {
+          await smartSyncTable(
+            db,
+            'local_user_properties',
+            userProperties,
+            'id',
+            'INSERT OR REPLACE INTO local_user_properties (id, user_id, property_id, property_role, expires_at, assigned_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            item => [
+              item.id,
+              item.user_id,
+              item.property_id,
+              item.property_role || null,
+              item.expires_at || null,
+              item.assigned_at || null,
+              item.updated_at || null,
+            ],
+          );
+        }
 
-  if (instrumentos !== null) {
-    await runMirrorStep('local_instrumentos', tx =>
-      smartSyncTable(
-        tx,
-        'local_instrumentos',
-        instrumentos,
-        'id',
-        'INSERT OR REPLACE INTO local_instrumentos (id, instrumento, marca, modelo, serie, equipamento) VALUES (?, ?, ?, ?, ?, ?)',
-        item => [
-          item.id,
-          item.instrumento,
-          item.marca,
-          item.modelo,
-          item.serie,
-          item.equipamento,
-        ],
-      ),
-    );
-  }
+        if (instrumentos !== null) {
+          await smartSyncTable(
+            db,
+            'local_instrumentos',
+            instrumentos,
+            'id',
+            'INSERT OR REPLACE INTO local_instrumentos (id, instrumento, marca, modelo, serie, equipamento) VALUES (?, ?, ?, ?, ?, ?)',
+            item => [
+              item.id,
+              item.instrumento,
+              item.marca,
+              item.modelo,
+              item.serie,
+              item.equipamento,
+            ],
+          );
+        }
 
-  if (sistemas !== null) {
-    await runMirrorStep('local_sistemas', tx =>
-      smartSyncTable(
-        tx,
-        'local_sistemas',
-        sistemas,
-        'id',
-        'INSERT OR REPLACE INTO local_sistemas (id, nombre, activo) VALUES (?, ?, ?)',
-        item => [item.id, item.nombre, item.activo ? 1 : 0],
-      ),
-    );
-  }
+        if (sistemas !== null) {
+          await smartSyncTable(
+            db,
+            'local_sistemas',
+            sistemas,
+            'id',
+            'INSERT OR REPLACE INTO local_sistemas (id, nombre, activo) VALUES (?, ?, ?)',
+            item => [item.id, item.nombre, item.activo ? 1 : 0],
+          );
+        }
 
-  if (equipamentos !== null) {
-    await runMirrorStep('local_equipamentos', tx =>
-      smartSyncTable(
-        tx,
-        'local_equipamentos',
-        equipamentos,
-        'id',
-        'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura, frecuencia, id_sistema) VALUES (?, ?, ?, ?, ?)',
-        item => [
-          item.id,
-          item.nombre,
-          item.abreviatura,
-          item.frecuencia || item.Frecuencia || null,
-          item.id_sistema || null,
-        ],
-      ),
-    );
-  }
+        if (equipamentos !== null) {
+          await smartSyncTable(
+            db,
+            'local_equipamentos',
+            equipamentos,
+            'id',
+            'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura, frecuencia, id_sistema) VALUES (?, ?, ?, ?, ?)',
+            item => [
+              item.id,
+              item.nombre,
+              item.abreviatura,
+              item.frecuencia || item.Frecuencia || null,
+              item.id_sistema || null,
+            ],
+          );
+        }
 
-  if (perguntasEquipamento !== null) {
-    await runMirrorStep('local_preguntas_equipamento', tx =>
-      smartSyncTable(
-        tx,
-        'local_preguntas_equipamento',
-        perguntasEquipamento,
-        'id',
-        'INSERT OR REPLACE INTO local_preguntas_equipamento (id, equipamento_id, pregunta, orden, activa, ponderado, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        item => [
-          item.id,
-          item.equipamento_id,
-          item.pregunta,
-          item.orden,
-          item.activa ? 1 : 0,
-          item.ponderado ?? null,
-          item.created_at,
-          item.updated_at,
-        ],
-      ),
-    );
-  }
+        if (perguntasEquipamento !== null) {
+          await smartSyncTable(
+            db,
+            'local_preguntas_equipamento',
+            perguntasEquipamento,
+            'id',
+            'INSERT OR REPLACE INTO local_preguntas_equipamento (id, equipamento_id, pregunta, orden, activa, ponderado, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            item => [
+              item.id,
+              item.equipamento_id,
+              item.pregunta,
+              item.orden,
+              item.activa ? 1 : 0,
+              item.ponderado ?? null,
+              item.created_at,
+              item.updated_at,
+            ],
+          );
+        }
 
-  if (auditQuestions !== null) {
-    await runMirrorStep('local_audit_questions', tx =>
-      smartSyncTable(
-        tx,
-        'local_audit_questions',
-        auditQuestions,
-        'id',
-        'INSERT OR REPLACE INTO local_audit_questions (id, question_text, section_id, section_name, section_order_index, equipment_name, is_active, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        item => [
-          item.id,
-          item.question_text,
-          item.section_id || null,
-          item.section?.section_name || null,
-          item.section?.order_index || null,
-          item.equipment_name || null,
-          item.is_active ? 1 : 0,
-          item.updated_at || null,
-        ],
-      ),
-    );
-  }
+        if (auditQuestions !== null) {
+          await smartSyncTable(
+            db,
+            'local_audit_questions',
+            auditQuestions,
+            'id',
+            'INSERT OR REPLACE INTO local_audit_questions (id, question_text, section_id, section_name, section_order_index, equipment_name, is_active, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            item => [
+              item.id,
+              item.question_text,
+              item.section_id || null,
+              item.section?.section_name || null,
+              item.section?.order_index || null,
+              item.equipment_name || null,
+              item.is_active ? 1 : 0,
+              item.updated_at || null,
+            ],
+          );
+        }
 
-  if (equipamentosProperty !== null) {
-    await runMirrorStep('local_equipamentos_property', tx =>
-      replaceCompositeRows(
-        tx,
-        'local_equipamentos_property',
-        equipamentosProperty,
-        'INSERT INTO local_equipamentos_property (id_equipamentos, id_property) VALUES (?, ?)',
-        item => [item.id_equipamentos, item.id_property],
-      ),
-    );
-  }
+        if (equipamentosProperty !== null) {
+          await replaceCompositeRows(
+            db,
+            'local_equipamentos_property',
+            equipamentosProperty,
+            'INSERT INTO local_equipamentos_property (id_equipamentos, id_property) VALUES (?, ?)',
+            item => [item.id_equipamentos, item.id_property],
+          );
+        }
 
-  if (scheduledMaintenances !== null) {
-    await runMirrorStep('local_scheduled_maintenances', tx =>
-      smartSyncTable(
-        tx,
-        'local_scheduled_maintenances',
-        scheduledMaintenances,
-        'id',
-        'INSERT OR REPLACE INTO local_scheduled_maintenances (id, dia_programado, tipo_mantenimiento, observations, id_equipo, estatus, codigo, id_sesion, assigned_technicians, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        item => [
-          item.id,
-          item.dia_programado,
-          item.tipo_mantenimiento,
-          item.observations,
-          item.id_equipo,
-          item.estatus,
-          item.codigo,
-          item.id_sesion || null,
-          JSON.stringify(
-            item.user_sesion_mantenimiento?.map((um: any) => um.id_user) || [],
-          ),
-          new Date().toISOString(),
-        ],
-      ),
-    );
-  }
+        if (scheduledMaintenances !== null) {
+          await smartSyncTable(
+            db,
+            'local_scheduled_maintenances',
+            scheduledMaintenances,
+            'id',
+            'INSERT OR REPLACE INTO local_scheduled_maintenances (id, dia_programado, tipo_mantenimiento, observations, id_equipo, estatus, codigo, id_sesion, assigned_technicians, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            item => [
+              item.id,
+              item.dia_programado,
+              item.tipo_mantenimiento,
+              item.observations,
+              item.id_equipo,
+              item.estatus,
+              item.codigo,
+              item.id_sesion || null,
+              JSON.stringify(
+                item.user_sesion_mantenimiento?.map((um: any) => um.id_user) || [],
+              ),
+              new Date().toISOString(),
+            ],
+          );
+        }
 
-  if (sessions !== null) {
-    await runMirrorStep('local_sesion_mantenimiento', async tx => {
-      const hasLocalSessionReferences =
-        sessions.length === 0
-          ? await tx.getFirstAsync(`
-              SELECT COUNT(*) as count
-              FROM local_scheduled_maintenances
-              WHERE id_sesion IS NOT NULL AND id_sesion != ''
-            `)
-          : null;
-      const localSessionReferenceCount =
-        (hasLocalSessionReferences as { count?: number } | null)?.count ?? 0;
+        if (sessions !== null) {
+          const hasLocalSessionReferences =
+            sessions.length === 0
+              ? await db.getFirstAsync(`
+                  SELECT COUNT(*) as count
+                  FROM local_scheduled_maintenances
+                  WHERE id_sesion IS NOT NULL AND id_sesion != ''
+                `)
+              : null;
+          const localSessionReferenceCount =
+            (hasLocalSessionReferences as { count?: number } | null)?.count ?? 0;
 
-      if (sessions.length === 0 && localSessionReferenceCount > 0) {
-        console.warn(
-          '[SmartSync] Skipped clearing local_sesion_mantenimiento: remote returned 0 sessions but local maintenances still reference sessions.',
-          { localSessionReferenceCount },
-        );
-        return;
-      }
+          if (sessions.length === 0 && localSessionReferenceCount > 0) {
+            console.warn(
+              '[SmartSync] Skipped clearing local_sesion_mantenimiento: remote returned 0 sessions but local maintenances still reference sessions.',
+              { localSessionReferenceCount },
+            );
+          } else {
+            await smartSyncTable(
+              db,
+              'local_sesion_mantenimiento',
+              sessions,
+              'id',
+              'INSERT OR REPLACE INTO local_sesion_mantenimiento (id, nombre, descripcion, fecha_programada, estatus, id_property, created_by, created_at, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              item => [
+                item.id,
+                item.nombre,
+                item.descripcion || null,
+                item.fecha_programada || null,
+                item.estatus || 'NO_INICIADO',
+                item.id_property || null,
+                item.created_by || null,
+                item.created_at || null,
+                new Date().toISOString(),
+              ],
+            );
+          }
+        }
 
-      await smartSyncTable(
-        tx,
-        'local_sesion_mantenimiento',
-        sessions,
-        'id',
-        'INSERT OR REPLACE INTO local_sesion_mantenimiento (id, nombre, descripcion, fecha_programada, estatus, id_property, created_by, created_at, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        item => [
-          item.id,
-          item.nombre,
-          item.descripcion || null,
-          item.fecha_programada || null,
-          item.estatus || 'NO_INICIADO',
-          item.id_property || null,
-          item.created_by || null,
-          item.created_at || null,
-          new Date().toISOString(),
-        ],
-      );
-    });
-  }
+        if (userSessions !== null) {
+          await replaceCompositeRows(
+            db,
+            'local_user_sesion_mantenimiento',
+            userSessions,
+            'INSERT OR REPLACE INTO local_user_sesion_mantenimiento (id_user, id_sesion) VALUES (?, ?)',
+            item => [item.id_user, item.id_sesion],
+          );
+        }
 
-  if (userSessions !== null) {
-    await runMirrorStep('local_user_sesion_mantenimiento', tx =>
-      replaceCompositeRows(
-        tx,
-        'local_user_sesion_mantenimiento',
-        userSessions,
-        'INSERT OR REPLACE INTO local_user_sesion_mantenimiento (id_user, id_sesion) VALUES (?, ?)',
-        item => [item.id_user, item.id_sesion],
-      ),
-    );
-  }
+        if (sessionPhotos !== null) {
+          await smartSyncTable(
+            db,
+            'local_sesion_fotos',
+            sessionPhotos,
+            'id',
+            'INSERT OR REPLACE INTO local_sesion_fotos (id, id_sesion, foto_url, tipo, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+            item => [
+              item.id,
+              item.id_sesion,
+              item.foto_url,
+              item.tipo || 'inicio',
+              item.created_by || null,
+              item.created_at || null,
+            ],
+          );
+        }
 
-  if (sessionPhotos !== null) {
-    await runMirrorStep('local_sesion_fotos', tx =>
-      smartSyncTable(
-        tx,
-        'local_sesion_fotos',
-        sessionPhotos,
-        'id',
-        'INSERT OR REPLACE INTO local_sesion_fotos (id, id_sesion, foto_url, tipo, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-        item => [
-          item.id,
-          item.id_sesion,
-          item.foto_url,
-          item.tipo || 'inicio',
-          item.created_by || null,
-          item.created_at || null,
-        ],
-      ),
-    );
-  }
+        if (marcas !== null) {
+          await smartSyncTable(
+            db,
+            'local_marca',
+            marcas,
+            'id',
+            'INSERT OR REPLACE INTO local_marca (id, nombre) VALUES (?, ?)',
+            item => [item.id, item.nombre],
+          );
+        }
 
-  if (marcas !== null) {
-    await runMirrorStep('local_marca', tx =>
-      smartSyncTable(
-        tx,
-        'local_marca',
-        marcas,
-        'id',
-        'INSERT OR REPLACE INTO local_marca (id, nombre) VALUES (?, ?)',
-        item => [item.id, item.nombre],
-      ),
-    );
-  }
+        if (equipamentosMarcas !== null) {
+          await replaceCompositeRows(
+            db,
+            'local_equipos_marcas',
+            equipamentosMarcas,
+            'INSERT OR REPLACE INTO local_equipos_marcas (id_equipamento, id_marca) VALUES (?, ?)',
+            item => [item.id_equipamento, item.id_marca],
+          );
+        }
+      });
 
-  if (equipamentosMarcas !== null) {
-    await runMirrorStep('local_equipos_marcas', tx =>
-      replaceCompositeRows(
-        tx,
-        'local_equipos_marcas',
-        equipamentosMarcas,
-        'INSERT OR REPLACE INTO local_equipos_marcas (id_equipamento, id_marca) VALUES (?, ?)',
-        item => [item.id_equipamento, item.id_marca],
-      ),
-    );
-  }
-
-  console.log('[SmartSync] Mirror data sync completed');
+      console.log(`[SmartSync] Mirror data sync completed in ${Date.now() - startedAt}ms`);
+    },
+    'bulkInsertMirrorData:all',
+    { maxRetries: 0 }
+  );
 }
 
 /**
