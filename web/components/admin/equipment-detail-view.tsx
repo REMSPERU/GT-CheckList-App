@@ -505,9 +505,36 @@ function JsonValue({ value }: JsonValueProps) {
   }
 
   if (isRecord(parsedValue)) {
-    const entries = Object.entries(parsedValue).filter(([_, entryValue]) => {
+    const entries = Object.entries(parsedValue).filter(([key, entryValue]) => {
       if (isEmptyValue(entryValue)) return false;
       if (Array.isArray(entryValue) && entryValue.length === 0) return false;
+
+      // Filter out technical ID fields and duplicates
+      const normalizedKey = key.toLowerCase().replace(/_/g, ' ').trim();
+      if (
+        key === 'id' ||
+        key.endsWith('_id') ||
+        key.startsWith('id_') ||
+        normalizedKey === 'id' ||
+        normalizedKey.endsWith(' id') ||
+        normalizedKey.startsWith('id ')
+      ) {
+        return false;
+      }
+
+      if (
+        normalizedKey === 'marca catalogo' ||
+        normalizedKey === 'marca_catalogo' ||
+        normalizedKey === 'marca otro' ||
+        normalizedKey === 'marca_otro'
+      ) {
+        return false;
+      }
+
+      if (normalizedKey === 'tiene vdf' || normalizedKey === 'tiene_vdf') {
+        return false;
+      }
+
       return true;
     });
 
@@ -532,6 +559,22 @@ function JsonValue({ value }: JsonValueProps) {
               </div>
             );
           }
+
+          if (isRecord(entryValue)) {
+            return (
+              <div
+                key={key}
+                className="col-span-2 rounded-[20px] border border-slate-300 border-l-4 border-l-emerald-500 bg-slate-50/80 p-5 space-y-4 shadow-sm">
+                <span className="block font-black text-slate-800 uppercase tracking-[0.12em] text-[11px] border-b border-slate-200 pb-2">
+                  {formatTechnicalKey(key)}
+                </span>
+                <div className="pl-1">
+                  <JsonValue value={entryValue} />
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div
               key={key}
@@ -618,7 +661,32 @@ function formatUnknown(value: unknown): string {
     return String(value);
 
   if (isRecord(value)) {
-    const entries = Object.entries(value);
+    const entries = Object.entries(value).filter(([k]) => {
+      const normalizedK = k.toLowerCase().replace(/_/g, ' ').trim();
+      if (
+        k === 'id' ||
+        k.endsWith('_id') ||
+        k.startsWith('id_') ||
+        normalizedK === 'id' ||
+        normalizedK.endsWith(' id') ||
+        normalizedK.startsWith('id ')
+      ) {
+        return false;
+      }
+      if (
+        normalizedK === 'marca catalogo' ||
+        normalizedK === 'marca_catalogo' ||
+        normalizedK === 'marca otro' ||
+        normalizedK === 'marca_otro' ||
+        normalizedK === 'tiene vdf' ||
+        normalizedK === 'tiene_vdf'
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    if (entries.length === 0) return '-';
     if (entries.length === 1) {
       return formatUnknown(entries[0][1]);
     }
