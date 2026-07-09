@@ -161,7 +161,7 @@ export default function AdminAuditoriaDetailPage() {
       });
 
       const items = allItems
-        .filter(item => item.status !== 'N/A')
+        .filter(item => (item.status as string) !== 'N/A')
         .map((item, index) => ({
           ...item,
           order: index + 1,

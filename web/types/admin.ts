@@ -326,6 +326,7 @@ export interface AdminAuditSessionRow {
   property_id: string;
   propertyName: string;
   propertyCode: string | null;
+  propertyAddress: string | null;
   auditor_id: string;
   auditorName: string;
   scheduled_for: string;

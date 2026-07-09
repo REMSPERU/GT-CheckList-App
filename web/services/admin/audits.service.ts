@@ -27,6 +27,7 @@ interface PropertyNameRow {
   id: string;
   code: string | null;
   name: string;
+  address: string | null;
 }
 
 interface UserNameRow {
@@ -405,6 +406,7 @@ async function hydrateAuditRows(
       property_id: item.property_id,
       propertyName: property?.name ?? 'Inmueble sin nombre',
       propertyCode: property?.code ?? null,
+      propertyAddress: property?.address ?? null,
       auditor_id: item.auditor_id,
       auditorName: auditor ? formatUserName(auditor) : item.auditor_id,
       scheduled_for: item.scheduled_for,
@@ -429,7 +431,7 @@ async function fetchPropertiesById(supabase: SupabaseClient, ids: string[]) {
 
   const { data, error } = await supabase
     .from('properties')
-    .select('id, code, name')
+    .select('id, code, name, address')
     .in('id', ids);
 
   if (error) throw error;
