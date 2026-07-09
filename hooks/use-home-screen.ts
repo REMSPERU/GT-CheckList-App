@@ -96,7 +96,9 @@ export function useHomeScreen() {
   const handleManualSync = useCallback(async () => {
     setIsManualSyncing(true);
     try {
-      await syncService.triggerSync('home-screen-manual-refresh', { force: true });
+      await syncService.triggerSync('home-screen-manual-refresh', {
+        force: true,
+      });
       await refetch();
       await fetchLastSyncTime();
     } catch (error) {
@@ -109,7 +111,7 @@ export function useHomeScreen() {
   const lastSyncTimeText = useMemo(() => {
     if (!lastSyncTimestamp) return 'Nunca';
     const diffMs = Date.now() - lastSyncTimestamp;
-    if (diffMs < 0) return 'Hace unos momentos';
+    if (diffMs < 0) return 'Hace unos segundos';
 
     const diffSec = Math.floor(diffMs / 1000);
     const diffMin = Math.floor(diffSec / 60);
@@ -117,7 +119,7 @@ export function useHomeScreen() {
     const diffDays = Math.floor(diffHr / 24);
 
     if (diffSec < 60) {
-      return 'Hace unos momentos';
+      return 'Hace unos segundos';
     } else if (diffMin < 60) {
       return `Hace ${diffMin} min`;
     } else if (diffHr < 24) {
@@ -239,24 +241,24 @@ export function useHomeScreen() {
     }
   }, [sourceBuildings, lastSelectedBuildingId, selectedBuilding]);
 
-  const handleBuildingSelect = useCallback((building: Property) => {
-    setSelectedBuilding(building);
-    if (!user?.id) return;
+  const handleBuildingSelect = useCallback(
+    (building: Property) => {
+      setSelectedBuilding(building);
+      if (!user?.id) return;
 
-    const persistSelection = async () => {
-      try {
-        const lastBuildingKey = `@home:last-selected-building-id:${user.id}`;
-        await AsyncStorage.setItem(
-          lastBuildingKey,
-          String(building.id),
-        );
-      } catch (error) {
-        console.error('Failed to save last selected building:', error);
-      }
-    };
+      const persistSelection = async () => {
+        try {
+          const lastBuildingKey = `@home:last-selected-building-id:${user.id}`;
+          await AsyncStorage.setItem(lastBuildingKey, String(building.id));
+        } catch (error) {
+          console.error('Failed to save last selected building:', error);
+        }
+      };
 
-    void persistSelection();
-  }, [user?.id]);
+      void persistSelection();
+    },
+    [user?.id],
+  );
 
   const filteredBuildings = useMemo(() => {
     const items = sourceBuildings;
