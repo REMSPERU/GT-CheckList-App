@@ -26,7 +26,7 @@ export const TechnicalDetailView = memo(function TechnicalDetailView({
   }
 
   const sections = groupFieldsBySection(
-    fields.filter(field => isFieldVisible(field, data)),
+    fields.filter(field => isFieldVisible(field, data, fields)),
   );
 
   return (
@@ -36,7 +36,9 @@ export const TechnicalDetailView = memo(function TechnicalDetailView({
           {section.title !== DEFAULT_SECTION ? (
             <Text style={styles.sectionTitle}>{section.title}</Text>
           ) : null}
-          <View style={styles.grid}>{renderFieldGrid(section.fields, data)}</View>
+          <View style={styles.grid}>
+            {renderFieldGrid(section.fields, data)}
+          </View>
         </View>
       ))}
     </View>
@@ -64,6 +66,7 @@ function groupFieldsBySection(fields: TechnicalFieldConfig[]) {
 function isFieldVisible(
   field: TechnicalFieldConfig,
   data: Record<string, unknown>,
+  allFields: TechnicalFieldConfig[],
 ) {
   // Ocultar 'observaciones' si está vacío en la vista de detalle
   if (field.key === 'observaciones') {
@@ -71,6 +74,31 @@ function isFieldVisible(
     if (val === null || val === undefined || val === '') {
       return false;
     }
+  }
+
+  // Si el campo tiene un valor guardado (no nulo ni vacío), mostrarlo siempre (excepto si es booleano falso)
+  const savedValue = getValueByPath(data, field.key);
+  const isValueNotEmpty =
+    savedValue !== null &&
+    savedValue !== undefined &&
+    savedValue !== '' &&
+    !(field.type === 'boolean' && savedValue === false);
+
+  if (isValueNotEmpty) {
+    return true;
+  }
+
+  // Si es un campo de control (ej. tiene_vdf) y algún campo controlado por él tiene datos guardados, ocultar este control
+  const hasControlledFieldsWithData = allFields.some(other => {
+    if (other.visibleWhen?.key === field.key) {
+      const otherVal = getValueByPath(data, other.key);
+      return otherVal !== null && otherVal !== undefined && otherVal !== '';
+    }
+    return false;
+  });
+
+  if (hasControlledFieldsWithData) {
+    return false;
   }
 
   if (!field.visibleWhen) return true;

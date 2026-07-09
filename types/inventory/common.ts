@@ -114,11 +114,31 @@ export const COMMON_VDF_FIELDS: TechnicalFieldConfig[] = [
 ];
 
 export const CHILLER_PUMP_FIELDS: TechnicalFieldConfig[] = [
-  { key: 'numero_unidad', label: 'Número de Unidad', type: 'number' },
-  { key: 'tipo', label: 'Tipo de Bomba', type: 'text' },
   { key: 'marca', label: 'Marca', type: 'text', required: true },
   { key: 'modelo', label: 'Modelo', type: 'text', required: true },
   { key: 'ano_operacion', label: 'Año de Operación', type: 'number' },
+  {
+    key: 'capacidad_bomba',
+    label: 'Capacidad Bomba',
+    type: 'number',
+    suffix: 'GPM',
+  },
+  {
+    key: 'unidad_motor',
+    label: 'Unidad de Motor',
+    type: 'select',
+    options: [
+      { label: 'HP', value: 'HP' },
+      { label: 'kW', value: 'kW' },
+    ],
+    defaultValue: 'HP',
+  },
+  {
+    key: 'capacidad_motor',
+    label: 'Capacidad Motor',
+    type: 'number',
+    suffixFrom: 'unidad_motor',
+  },
   {
     key: 'vdf.tiene_vdf',
     label: 'Tiene VDF',
@@ -138,6 +158,18 @@ export const CHILLER_PUMP_FIELDS: TechnicalFieldConfig[] = [
     label: 'Modelo VDF',
     type: 'text',
     section: 'VDF',
+    visibleWhen: { key: 'vdf.tiene_vdf', equals: true },
+  },
+  {
+    key: 'vdf.unidad',
+    label: 'Unidad VDF',
+    type: 'select',
+    options: [
+      { label: 'HP', value: 'HP' },
+      { label: 'kW', value: 'kW' },
+    ],
+    section: 'VDF',
+    defaultValue: 'HP',
     visibleWhen: { key: 'vdf.tiene_vdf', equals: true },
   },
   {

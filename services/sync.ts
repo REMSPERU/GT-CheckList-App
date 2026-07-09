@@ -240,41 +240,78 @@ async function safeFetch<T = any>(
   }
 }
 
-async function fetchEquiposPaginated(): Promise<{
+async function fetchEquiposPaginated(propertyIds?: string[]): Promise<{
   data: any[] | null;
   failed: boolean;
 }> {
   try {
-    let allEquipos: any[] = [];
-    let from = 0;
     const limit = 1000;
-    let hasMore = true;
+    
+    // 1. Setup base query for count
+    let countQuery = supabase
+      .from('equipos')
+      .select('*', { count: 'exact', head: true });
 
-    while (hasMore) {
-      const to = from + limit - 1;
-      const { data, error } = await supabase
-        .from('equipos')
-        .select('*')
-        .range(from, to);
+    if (propertyIds && propertyIds.length > 0) {
+      countQuery = countQuery.in('id_property', propertyIds);
+    }
 
-      if (error) {
-        console.error(
-          '[SYNC] Error fetching equipos page:',
-          error.message || error,
-        );
-        return { data: null, failed: true };
-      }
+    const { count, error: countError } = await countQuery;
 
-      if (!data || data.length === 0) {
-        hasMore = false;
-      } else {
-        allEquipos = allEquipos.concat(data);
-        if (data.length < limit) {
-          hasMore = false;
-        } else {
-          from += limit;
+    if (countError) {
+      console.error('[SYNC] Error getting equipos count:', countError.message || countError);
+      return { data: null, failed: true };
+    }
+
+    const totalCount = count ?? 0;
+    if (totalCount === 0) {
+      return { data: [], failed: false };
+    }
+
+    const pages = Math.ceil(totalCount / limit);
+    log(`[SYNC] Fetching ${totalCount} equipos in ${pages} parallel page(s)...`);
+
+    // 2. Fetch pages in parallel using a concurrency pool of 8 concurrent requests.
+    const allEquipos: any[] = [];
+    const pageIndexes = Array.from({ length: pages }, (_, i) => i);
+    const concurrency = Math.min(8, pages);
+    let hasError = false;
+
+    async function worker() {
+      while (pageIndexes.length > 0 && !hasError) {
+        const pageIndex = pageIndexes.shift()!;
+        const from = pageIndex * limit;
+        const to = from + limit - 1;
+
+        let query = supabase
+          .from('equipos')
+          .select('*')
+          .range(from, to);
+
+        if (propertyIds && propertyIds.length > 0) {
+          query = query.in('id_property', propertyIds);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          hasError = true;
+          console.error(`[SYNC] Error fetching equipos page ${pageIndex}:`, error.message || error);
+          break;
+        }
+
+        if (data) {
+          allEquipos.push(...data);
         }
       }
+    }
+
+    // Initialize and run the workers
+    const workers = Array.from({ length: concurrency }, () => worker());
+    await Promise.all(workers);
+
+    if (hasError) {
+      return { data: null, failed: true };
     }
 
     return { data: allEquipos, failed: false };
@@ -1802,11 +1839,44 @@ class SyncService {
         const canSeeAllAuditSessions =
           currentRole === 'SUPERADMIN' || currentRole === 'SUPERVISOR';
 
-        // Fetch all tables in parallel WITH limits and error checking
+        // 1. Fetch user properties FIRST to filter equipments by assigned properties
+        log('[SYNC] Fetching user properties...');
+        const userPropertiesResult = await safeFetch(() => {
+          let query = supabase
+            .from('user_properties')
+            .select('*')
+            .limit(SYNC_ROW_LIMIT);
+
+          if (currentUserId) {
+            query = query.eq('user_id', currentUserId);
+          }
+
+          return query;
+        });
+
+        let assignedPropertyIds: string[] | null = null;
+        const isRestricted =
+          currentRole === 'TECNICO' ||
+          currentRole === 'TECNICO_REMS' ||
+          currentRole === 'AUDITOR';
+
+        if (
+          userPropertiesResult.data &&
+          userPropertiesResult.data.length > 0 &&
+          isRestricted
+        ) {
+          assignedPropertyIds = userPropertiesResult.data.map(
+            (up: any) => up.property_id,
+          );
+          log('[SYNC] Restricting equipos sync to assigned properties:', assignedPropertyIds);
+        } else {
+          log('[SYNC] Syncing all equipments (no role-restriction or no property assignments)');
+        }
+
+        // Fetch all other tables in parallel WITH limits and error checking
         const [
           equiposResult,
           propertiesResult,
-          userPropertiesResult,
           instrumentosResult,
           sistemasResult,
           equipamentosResult,
@@ -1821,22 +1891,10 @@ class SyncService {
           marcasResult,
           equipamentosMarcasResult,
         ] = await Promise.all([
-          fetchEquiposPaginated(),
+          fetchEquiposPaginated(assignedPropertyIds || undefined),
           safeFetch(() =>
             supabase.from('properties').select('*').limit(SYNC_ROW_LIMIT),
           ),
-          safeFetch(() => {
-            let query = supabase
-              .from('user_properties')
-              .select('*')
-              .limit(SYNC_ROW_LIMIT);
-
-            if (currentUserId) {
-              query = query.eq('user_id', currentUserId);
-            }
-
-            return query;
-          }),
           safeFetch(() =>
             supabase.from('instrumentos').select('*').limit(SYNC_ROW_LIMIT),
           ),

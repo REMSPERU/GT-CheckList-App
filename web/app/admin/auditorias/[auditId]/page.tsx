@@ -17,6 +17,11 @@ import type {
   AdminAuditSessionRow,
 } from '@/types/admin';
 import { formatDate, formatDateTime } from '@/utils/date';
+import {
+  buildAuditReportHtml,
+  type AuditReportData,
+  type AuditReportEvidencePhoto,
+} from '@/services/admin/audit-report-generator';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -126,6 +131,202 @@ export default function AdminAuditoriaDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const gpFileInputRef = useRef<HTMLInputElement>(null);
   const oppFileInputRef = useRef<HTMLInputElement>(null);
+
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const handleGenerateReport = useCallback(async () => {
+    if (!audit) return;
+    setIsGeneratingPdf(true);
+    setErrorMessage(null);
+
+    try {
+      const buildReportGroupKey = (
+        sectionName: string | null,
+        equipmentName: string | null,
+      ) => {
+        return `${sectionName?.trim() || 'Sin sistema'}::${equipmentName?.trim() || 'Sin equipamiento'}`;
+      };
+
+      const allItems = audit.answers.map((ans, index) => {
+        return {
+          order: index + 1,
+          questionText: ans.questionText,
+          sectionName: ans.sectionName,
+          equipmentName: ans.equipmentName,
+          status: ans.status,
+          observation: ans.comment || null,
+          photosCount: ans.photos.length,
+          photoUris: ans.photos.map(p => getPhotoUrl(p)).filter(Boolean),
+        };
+      });
+
+      const items = allItems
+        .filter(item => item.status !== 'N/A')
+        .map((item, index) => ({
+          ...item,
+          order: index + 1,
+        }));
+
+      const feedbackItems = audit.equipmentFeedback.flatMap(fb => {
+        const [systemFromKey, equipmentFromKey] = fb.equipment_key.split('::');
+        const sectionName = equipmentFromKey ? systemFromKey : fb.equipment_label;
+        const equipmentName = equipmentFromKey || null;
+        const gpComment = fb.good_practices_comment?.trim() || null;
+        const oppComment = fb.improvement_opportunity_comment?.trim() || null;
+        const gpPhotos = fb.good_practices_photos.map(p => getPhotoUrl(p)).filter(Boolean);
+        const oppPhotos = fb.improvement_opportunity_photos.map(p => getPhotoUrl(p)).filter(Boolean);
+        
+        const rows: any[] = [];
+        if (gpComment || gpPhotos.length > 0) {
+          rows.push({
+            order: 0,
+            questionText: 'Buenas practicas',
+            sectionName,
+            equipmentName,
+            status: 'OK',
+            observation: gpComment,
+            photosCount: gpPhotos.length,
+            photoUris: gpPhotos,
+          });
+        }
+        if (oppComment || oppPhotos.length > 0) {
+          rows.push({
+            order: 0,
+            questionText: 'Oportunidad de mejora',
+            sectionName,
+            equipmentName,
+            status: 'OBS',
+            observation: oppComment,
+            photosCount: oppPhotos.length,
+            photoUris: oppPhotos,
+          });
+        }
+        return rows;
+      });
+
+      const feedbackItemsByGroup = new Map<string, typeof feedbackItems>();
+      feedbackItems.forEach(item => {
+        const key = buildReportGroupKey(item.sectionName, item.equipmentName);
+        const groupItems = feedbackItemsByGroup.get(key) ?? [];
+        groupItems.push(item);
+        feedbackItemsByGroup.set(key, groupItems);
+      });
+
+      const insertedFeedbackGroups = new Set<string>();
+      const orderedReportItems: typeof items = [];
+      items.forEach((item, index) => {
+        orderedReportItems.push(item);
+        const currentKey = buildReportGroupKey(item.sectionName, item.equipmentName);
+        const nextItem = items[index + 1];
+        const nextKey = nextItem ? buildReportGroupKey(nextItem.sectionName, nextItem.equipmentName) : null;
+        if (currentKey !== nextKey) {
+          const groupFeedbackItems = feedbackItemsByGroup.get(currentKey);
+          if (groupFeedbackItems) {
+            orderedReportItems.push(...groupFeedbackItems);
+            insertedFeedbackGroups.add(currentKey);
+          }
+        }
+      });
+      feedbackItemsByGroup.forEach((groupFeedbackItems, key) => {
+        if (!insertedFeedbackGroups.has(key)) {
+          orderedReportItems.push(...groupFeedbackItems);
+        }
+      });
+
+      const reportItems = orderedReportItems.map((item, index) => ({
+        ...item,
+        order: index + 1,
+      }));
+
+      const evidencePhotos: AuditReportEvidencePhoto[] = reportItems.flatMap(item => {
+        if (!item.photoUris.length) return [];
+        const isFeedbackItem = item.questionText === 'Buenas practicas' || item.questionText === 'Oportunidad de mejora';
+        return item.photoUris.map(url => ({
+          order: item.order,
+          questionText: item.questionText,
+          sectionName: item.sectionName,
+          equipmentName: item.equipmentName,
+          observation: item.observation,
+          captionLabel: isFeedbackItem ? 'Descripcion' : undefined,
+          url,
+        }));
+      });
+
+      const feedbackOk = feedbackItems.filter(i => i.status === 'OK').length;
+      const feedbackObs = feedbackItems.filter(i => i.status === 'OBS').length;
+      const feedbackPhotos = feedbackItems.reduce((acc, i) => acc + i.photosCount, 0);
+
+      const totalQuestions = audit.total_questions || allItems.length;
+      const totalNotApplicable = audit.total_not_applicable;
+      const totalOk = audit.total_ok + feedbackOk;
+      const totalObs = audit.total_obs + feedbackObs;
+      const totalPhotos = audit.total_photos + feedbackPhotos;
+      const totalApplicable = (totalQuestions - totalNotApplicable) + feedbackItems.length;
+
+      const reportData: AuditReportData = {
+        propertyName: audit.propertyName || 'Inmueble',
+        propertyAddress: audit.propertyAddress || null,
+        auditorLabel: audit.auditorName || 'Auditor',
+        scheduledFor: formatDateTime(audit.scheduled_for),
+        startedAt: audit.started_at ? formatDateTime(audit.started_at) : formatDateTime(audit.created_at),
+        submittedAt: audit.submitted_at ? formatDateTime(audit.submitted_at) : formatDateTime(new Date().toISOString()),
+        generatedAt: formatDateTime(new Date().toISOString()),
+        summary: {
+          totalQuestions: totalQuestions + feedbackItems.length,
+          totalApplicable,
+          totalNotApplicable,
+          totalOk,
+          totalObs,
+          totalPhotos,
+        },
+        items: reportItems.map(i => ({
+          order: i.order,
+          questionText: i.questionText,
+          sectionName: i.sectionName,
+          equipmentName: i.equipmentName,
+          status: i.status as 'OK' | 'OBS' | 'N/A',
+          observation: i.observation,
+          photosCount: i.photosCount,
+        })),
+        evidencePhotos,
+      };
+
+      const coverTemplateImage = window.location.origin + '/pdf-cover.png';
+      const html = buildAuditReportHtml(reportData, coverTemplateImage);
+      
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.width = '0px';
+      iframe.style.height = '0px';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+      
+      const doc = iframe.contentWindow?.document;
+      if (doc) {
+        doc.open();
+        doc.write(html);
+        doc.close();
+        
+        iframe.onload = () => {
+          setTimeout(() => {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+            setTimeout(() => {
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+              }
+            }, 5000);
+          }, 500);
+        };
+      } else {
+        throw new Error('No se pudo inicializar el marco de impresión.');
+      }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Error al generar el informe');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  }, [audit]);
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -633,7 +834,11 @@ export default function AdminAuditoriaDetailPage() {
 
   return (
     <main className="grid gap-5 px-8 pb-11 pt-7 max-[640px]:px-[18px]">
-      <DetailHeader audit={audit} />
+      <DetailHeader 
+        audit={audit} 
+        onGenerateReport={handleGenerateReport} 
+        isGenerating={isGeneratingPdf} 
+      />
       <Alert>{errorMessage}</Alert>
 
       {/* ── Métricas ── */}
@@ -1480,7 +1685,15 @@ export default function AdminAuditoriaDetailPage() {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function DetailHeader({ audit }: { audit?: AdminAuditSessionRow }) {
+function DetailHeader({ 
+  audit, 
+  onGenerateReport, 
+  isGenerating 
+}: { 
+  audit?: AdminAuditSessionRow; 
+  onGenerateReport?: () => void;
+  isGenerating?: boolean;
+}) {
   return (
     <section className="rounded-[24px] border border-emerald-900/10 bg-[linear-gradient(135deg,#ffffff_0%,#ecfdf5_100%)] p-5 shadow-[0_20px_60px_rgba(12,23,32,0.08)]">
       <Link
@@ -1488,16 +1701,30 @@ function DetailHeader({ audit }: { audit?: AdminAuditSessionRow }) {
         href="/admin/auditorias">
         ← Volver a auditorias
       </Link>
-      <h2 className="m-0 mt-2 text-3xl font-black tracking-[-0.04em] text-[#0c1720]">
-        {audit?.propertyName ?? 'Detalle de auditoria'}
-      </h2>
-      {audit ? (
-        <p className="mb-0 mt-2 text-sm text-slate-600">
-          Auditor: <strong>{audit.auditorName}</strong> · Programada:{' '}
-          {formatDate(audit.scheduled_for)} · Enviada:{' '}
-          {formatDateTime(audit.submitted_at)}
-        </p>
-      ) : null}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mt-2">
+        <div>
+          <h2 className="m-0 text-3xl font-black tracking-[-0.04em] text-[#0c1720]">
+            {audit?.propertyName ?? 'Detalle de auditoria'}
+          </h2>
+          {audit ? (
+            <p className="mb-0 mt-2 text-sm text-slate-600">
+              Auditor: <strong>{audit.auditorName}</strong> · Programada:{' '}
+              {formatDate(audit.scheduled_for)} · Enviada:{' '}
+              {formatDateTime(audit.submitted_at)}
+            </p>
+          ) : null}
+        </div>
+        
+        {audit && onGenerateReport && (
+          <button
+            onClick={onGenerateReport}
+            disabled={isGenerating}
+            className="inline-flex h-[36px] items-center rounded-lg bg-emerald-700 px-4 text-sm font-bold text-white transition-colors hover:bg-emerald-800 disabled:opacity-60 shrink-0"
+          >
+            {isGenerating ? 'Generando...' : 'Generar Informe'}
+          </button>
+        )}
+      </div>
     </section>
   );
 }

@@ -2,16 +2,31 @@ import type { TechnicalFieldConfig } from './common';
 import { YES_NO_OPTIONS, CHILLER_PUMP_FIELDS } from './common';
 
 export const ABL: TechnicalFieldConfig[] = [
-  { key: 'marca', label: 'Marca', type: 'text', required: true },
-  { key: 'modelo', label: 'Modelo', type: 'text', required: true },
-  { key: 'capacidad', label: 'Capacidad', type: 'number', suffix: 'm³' },
+  {
+    key: 'marca',
+    label: 'Marca',
+    type: 'text',
+    required: true,
+  },
+  {
+    key: 'modelo',
+    label: 'Modelo',
+    type: 'text',
+    required: true,
+  },
+  {
+    key: 'capacidad',
+    label: 'Capacidad',
+    type: 'number',
+    suffix: 'm³',
+  },
+  { key: 'ano_operacion', label: 'Año', type: 'number', defaultValue: 2018 },
   {
     key: 'cap_tanque_salmuera',
     label: 'Tanque Salmuera',
     type: 'number',
-    suffix: 'L',
+    suffix: 'm³',
   },
-  { key: 'ano_operacion', label: 'Año', type: 'number' },
 ];
 
 export const BBA: TechnicalFieldConfig[] = [

@@ -92,6 +92,10 @@ export const EQUIPMENT_TECHNICAL_FIELD_ALIASES: Record<string, string> = {
   TORRES_DE_ENFRIAMIENTO: 'TOE',
   // Ablandadores
   AGU: 'ABL',
+  ABLANDADOR: 'ABL',
+  ABLANDADOR_AGUA: 'ABL',
+  ABLANDADOR_DE_AGUA: 'ABL',
+  AGUA: 'ABL',
   // Splits
   SP: 'SPLIT',
   // Ventilación
@@ -440,6 +444,19 @@ export function getTechnicalFields(
       return SUBCOMPONENT_TECHNICAL_FIELDS['detector_calor'];
     if (normalizedSub.includes('fuente'))
       return SUBCOMPONENT_TECHNICAL_FIELDS['fuentes_nac'];
+
+    // Si no coincide con ningún subcomponente conocido, intentamos buscar el esquema por la abreviatura del equipo principal
+    if (abreviatura) {
+      const normalizedMain = abreviatura
+        .trim()
+        .toUpperCase()
+        .replace(/[\s/-]+/g, '_');
+      const key =
+        EQUIPMENT_TECHNICAL_FIELD_ALIASES[normalizedMain] ?? normalizedMain;
+      if (EQUIPMENT_TECHNICAL_FIELDS[key]) {
+        return EQUIPMENT_TECHNICAL_FIELDS[key];
+      }
+    }
 
     // Si no coincide con nada, devolvemos genéricos para subcomponentes que tengan marca/modelo
     return getGenericSubcomponentFields();
