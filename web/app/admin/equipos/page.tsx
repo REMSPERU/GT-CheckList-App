@@ -9,6 +9,16 @@ import { SelectField } from '@/components/ui/select-field';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useAdminEquipments } from '@/hooks/admin/use-admin-equipments';
 
+export function mapTipoLabel(tipo: string): string {
+  const upper = tipo.toUpperCase().trim();
+  if (upper === 'AIRE') return 'Extracción de Aire';
+  if (upper === 'INYECCION') return 'Inyección de Aire';
+  if (upper === 'MONOXIDO') return 'Extracción de Monóxido';
+  if (upper === 'JET FAN') return 'Jet Fan';
+  if (upper === 'PRESURIZADOR') return 'Presurizador de Escaleras';
+  return tipo;
+}
+
 const STATUS_OPTIONS = [
   { value: 'TODOS', label: 'Todos los estados' },
   { value: 'ACTIVO', label: 'Activo' },
@@ -143,10 +153,10 @@ function AdminEquipmentsContent() {
   ];
 
   const tipoOptions = [
-    { value: '', label: 'Todos los tipos (Detalle)' },
+    { value: '', label: 'Todos los tipos' },
     ...equipments.distinctTipos.map(t => ({
       value: t,
-      label: t,
+      label: mapTipoLabel(t),
     })),
   ];
 
@@ -190,7 +200,7 @@ function AdminEquipmentsContent() {
           value={equipments.tipo}
           options={tipoOptions}
           onChange={equipments.handleTipoChange}
-          ariaLabel="Filtrar por tipo de detalle"
+          ariaLabel="Filtrar por tipo"
         />
         <div className="relative">
           <button
