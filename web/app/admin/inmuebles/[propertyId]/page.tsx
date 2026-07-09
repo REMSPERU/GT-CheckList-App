@@ -209,7 +209,7 @@ function PropertyDetailContent() {
         nextParams.set(key, value);
       }
     });
-    router.push(`${pathname}?${nextParams.toString()}`);
+    router.push(`${pathname}?${nextParams.toString()}`, { scroll: false });
   };
 
   const [property, setProperty] = useState<AdminPropertyRow | null>(null);
@@ -320,6 +320,11 @@ function PropertyDetailContent() {
       isMounted = false;
     };
   }, [params.propertyId]);
+
+  // Reset scroll to top immediately when component mounts to prevent scroll jump flash
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, []);
 
   // Synchronize status when isEditing triggers or property changes
   useEffect(() => {

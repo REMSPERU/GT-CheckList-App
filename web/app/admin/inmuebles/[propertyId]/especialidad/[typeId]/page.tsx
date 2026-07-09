@@ -264,6 +264,11 @@ function SpecialtyDetailContent() {
     };
   }, [params.propertyId, params.typeId]);
 
+  // Reset scroll to top immediately when component mounts to prevent scroll jump flash
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, []);
+
   const handleEqFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && equipmentType) {
@@ -590,6 +595,11 @@ function EquipmentDetailSection({
     return () => {
       isMounted = false;
     };
+  }, [equipmentId]);
+
+  // Reset scroll to top when equipmentId changes to avoid initial scroll jump
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
   }, [equipmentId]);
 
   return (

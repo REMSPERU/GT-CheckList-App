@@ -56,6 +56,11 @@ export default function AdminEquipmentDetailPage() {
     };
   }, [params.equipmentId]);
 
+  // Reset scroll to top immediately when component mounts to prevent scroll jump flash
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, []);
+
   return (
     <EquipmentDetailView
       equipment={equipment}
