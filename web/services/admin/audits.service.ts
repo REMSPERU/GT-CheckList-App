@@ -222,12 +222,16 @@ export async function updateAdminAuditAnswers(
 export interface AuditFeedbackPatch {
   equipment_key: string;
   good_practices_comment: string | null;
+  good_practices_new_photos?: { bucket: string; path: string; public_url?: string }[];
+  good_practices_kept_existing_photo_urls?: string[];
   improvement_opportunity_comment: string | null;
+  improvement_opportunity_new_photos?: { bucket: string; path: string; public_url?: string }[];
+  improvement_opportunity_kept_existing_photo_urls?: string[];
 }
 
 /**
- * Updates the comment fields of a single equipment_feedback entry inside audit_payload.
- * Matched by equipment_key; photos are preserved.
+ * Updates the comment and photo fields of a single equipment_feedback entry inside audit_payload.
+ * Matched by equipment_key.
  */
 export async function updateAdminAuditFeedback(
   supabase: SupabaseClient,
@@ -255,10 +259,73 @@ export async function updateAdminAuditFeedback(
   const updatedFeedback = currentFeedback.map(item => {
     const key = asString(item.equipment_key);
     if (key !== patch.equipment_key) return item;
+
+    // Good practices photos update
+    let currentGpPhotos = Array.isArray(item.good_practices_photos)
+      ? item.good_practices_photos
+      : [];
+
+    if (patch.good_practices_kept_existing_photo_urls) {
+      currentGpPhotos = currentGpPhotos.filter(photo => {
+        const photoObj = photo as Record<string, unknown>;
+        const directUrl =
+          asString(photoObj.publicUrl) ??
+          asString(photoObj.public_url) ??
+          asString(photoObj.url);
+
+        if (directUrl) {
+          return patch.good_practices_kept_existing_photo_urls!.includes(directUrl);
+        }
+
+        const path = asString(photoObj.path);
+        if (!path) return false;
+        const bucket = asString(photoObj.bucket) ?? 'maintenance';
+        const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+        return patch.good_practices_kept_existing_photo_urls!.includes(data.publicUrl);
+      });
+    }
+
+    const mergedGpPhotos =
+      patch.good_practices_new_photos && patch.good_practices_new_photos.length > 0
+        ? [...currentGpPhotos, ...patch.good_practices_new_photos]
+        : currentGpPhotos;
+
+    // Improvement opportunity photos update
+    let currentOppPhotos = Array.isArray(item.improvement_opportunity_photos)
+      ? item.improvement_opportunity_photos
+      : [];
+
+    if (patch.improvement_opportunity_kept_existing_photo_urls) {
+      currentOppPhotos = currentOppPhotos.filter(photo => {
+        const photoObj = photo as Record<string, unknown>;
+        const directUrl =
+          asString(photoObj.publicUrl) ??
+          asString(photoObj.public_url) ??
+          asString(photoObj.url);
+
+        if (directUrl) {
+          return patch.improvement_opportunity_kept_existing_photo_urls!.includes(directUrl);
+        }
+
+        const path = asString(photoObj.path);
+        if (!path) return false;
+        const bucket = asString(photoObj.bucket) ?? 'maintenance';
+        const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+        return patch.improvement_opportunity_kept_existing_photo_urls!.includes(data.publicUrl);
+      });
+    }
+
+    const mergedOppPhotos =
+      patch.improvement_opportunity_new_photos && patch.improvement_opportunity_new_photos.length > 0
+        ? [...currentOppPhotos, ...patch.improvement_opportunity_new_photos]
+        : currentOppPhotos;
+
     return {
       ...item,
       good_practices_comment: patch.good_practices_comment,
+      good_practices_photos: mergedGpPhotos,
       improvement_opportunity_comment: patch.improvement_opportunity_comment,
+      improvement_opportunity_photos: mergedOppPhotos,
     };
   });
 
