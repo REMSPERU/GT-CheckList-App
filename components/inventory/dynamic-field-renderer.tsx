@@ -48,7 +48,34 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
           const currentValue = detailValue
             ? getValueByPath(detailValue, field.visibleWhen.key)
             : undefined;
-          if (currentValue !== field.visibleWhen.equals) return null;
+          const hasSavedValue = detailValue
+            ? getValueByPath(detailValue, field.key)
+            : undefined;
+          const isValueNotEmpty =
+            hasSavedValue !== null &&
+            hasSavedValue !== undefined &&
+            hasSavedValue !== '';
+
+          if (currentValue !== field.visibleWhen.equals && !isValueNotEmpty) {
+            return null;
+          }
+        }
+
+        // Si es un campo de control (ej. tiene_vdf) y algún campo controlado por él tiene datos en el formulario, ocultar este control
+        const hasControlledFieldsWithData = fields.some(other => {
+          if (other.visibleWhen?.key === field.key) {
+            const otherVal = detailValue
+              ? getValueByPath(detailValue, other.key)
+              : undefined;
+            return (
+              otherVal !== null && otherVal !== undefined && otherVal !== ''
+            );
+          }
+          return false;
+        });
+
+        if (hasControlledFieldsWithData) {
+          return null;
         }
 
         const fieldPath = `${fieldPrefix}.${field.key}` as Path<T>;
@@ -119,9 +146,13 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
                       </Text>
                     ) : (
                       items.map((_, index) => (
-                        <View key={`${field.key}-${index}`} style={styles.itemCard}>
+                        <View
+                          key={`${field.key}-${index}`}
+                          style={styles.itemCard}>
                           <View style={styles.itemHeader}>
-                            <Text style={styles.itemTitle}>Registro #{index + 1}</Text>
+                            <Text style={styles.itemTitle}>
+                              Registro #{index + 1}
+                            </Text>
                             <Pressable
                               onPress={() =>
                                 onChange(items.filter((__, i) => i !== index))
@@ -270,7 +301,8 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
 function buildEmptyItem(fields: TechnicalFieldConfig[] | undefined) {
   return (fields ?? []).reduce<Record<string, unknown>>((item, field) => {
     if (field.type === 'collection') return item;
-    item[field.key] = field.defaultValue ?? (field.type === 'boolean' ? false : '');
+    item[field.key] =
+      field.defaultValue ?? (field.type === 'boolean' ? false : '');
     return item;
   }, {});
 }
