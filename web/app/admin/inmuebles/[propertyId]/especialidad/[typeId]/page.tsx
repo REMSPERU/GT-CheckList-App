@@ -1,9 +1,11 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { EquipmentDetailView } from '@/components/admin/equipment-detail-view';
+import { SelectField } from '@/components/ui/select-field';
+import { mapTipoLabel } from '@/app/admin/equipos/page';
 import {
   ArrowLeft,
   Camera,
@@ -136,6 +138,7 @@ interface DBEquipo {
   ubicacion: string | null;
   detalle_ubicacion: string | null;
   estatus: string | null;
+  equipment_detail?: any;
 }
 
 function SpecialtyDetailContent() {
@@ -150,6 +153,53 @@ function SpecialtyDetailContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedTipo, setSelectedTipo] = useState('');
+
+  const showTipoFilter = useMemo(() => {
+    if (!equipmentType) return false;
+    return equipmentType.nombre
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .includes('ventilacion mecanica');
+  }, [equipmentType]);
+
+  const distinctTipos = useMemo(() => {
+    const types = new Set<string>();
+    equipos.forEach(equipo => {
+      const detail = equipo.equipment_detail;
+      if (detail && typeof detail === 'object' && typeof detail.tipo === 'string') {
+        const trimmed = detail.tipo.trim();
+        if (trimmed) {
+          types.add(trimmed);
+        }
+      }
+    });
+    return Array.from(types).sort((a, b) => a.localeCompare(b));
+  }, [equipos]);
+
+  const tipoOptions = useMemo(() => {
+    return [
+      { value: '', label: 'Todos los tipos' },
+      ...distinctTipos.map(t => ({
+        value: t,
+        label: mapTipoLabel(t),
+      })),
+    ];
+  }, [distinctTipos]);
+
+  const filteredEquipos = useMemo(() => {
+    if (!selectedTipo) return equipos;
+    return equipos.filter(equipo => {
+      const detail = equipo.equipment_detail;
+      return (
+        detail &&
+        typeof detail === 'object' &&
+        typeof detail.tipo === 'string' &&
+        detail.tipo.trim() === selectedTipo
+      );
+    });
+  }, [equipos, selectedTipo]);
 
   const eqFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -183,7 +233,7 @@ function SpecialtyDetailContent() {
         // 2. Fetch equipments of this property and equipment type
         const { data: equiposData, error: equiposError } = await supabase
           .from('equipos')
-          .select('id, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus')
+          .select('id, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus, equipment_detail')
           .eq('id_property', params.propertyId)
           .eq('id_equipamento', params.typeId);
 
@@ -213,6 +263,11 @@ function SpecialtyDetailContent() {
       isMounted = false;
     };
   }, [params.propertyId, params.typeId]);
+
+  // Reset scroll to top immediately when component mounts to prevent scroll jump flash
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, []);
 
   const handleEqFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -414,9 +469,21 @@ function SpecialtyDetailContent() {
                     Lista filtrada por inmueble y tipo de equipo.
                   </p>
                 </div>
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-800 ring-1 ring-emerald-100">
-                  {property.code || property.name}
-                </span>
+                <div className="flex items-center gap-3">
+                  {showTipoFilter && distinctTipos.length > 0 && (
+                    <div className="w-[200px]">
+                      <SelectField
+                        value={selectedTipo}
+                        options={tipoOptions}
+                        onChange={setSelectedTipo}
+                        ariaLabel="Filtrar por tipo"
+                      />
+                    </div>
+                  )}
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-800 ring-1 ring-emerald-100">
+                    {property.code || property.name}
+                  </span>
+                </div>
               </div>
 
               {equipos.length === 0 ? (
@@ -424,40 +491,48 @@ function SpecialtyDetailContent() {
                   No se encontraron equipos registrados para esta especialidad.
                 </div>
               ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3">
-                  {equipos.map(equipo => (
-                    <Link
-                      key={equipo.id}
-                      href={`/admin/inmuebles/${property.id}/especialidad/${equipmentType.id}?equipmentId=${equipo.id}`}
-                      className="group block rounded-2xl border border-slate-200 bg-slate-50/60 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white hover:shadow-md text-left no-underline">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-800 ring-1 ring-slate-200 transition group-hover:ring-emerald-200">
-                          <Cpu className="h-5 w-5" />
-                        </div>
-                        <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-slate-500 ring-1 ring-slate-200">
-                          {equipo.estatus || 'Sin estado'}
-                        </span>
-                      </div>
-                      <div className="mt-4 grid gap-2">
-                        <strong className="text-sm font-black text-slate-950">
-                          {equipo.codigo || 'Sin código'}
-                        </strong>
-                        <div className="grid gap-1 text-[11px] font-semibold text-slate-500">
-                          <span className="inline-flex items-center gap-1.5">
-                            <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                            {equipo.ubicacion || 'Ubicación no especificada'}
-                          </span>
-                          {equipo.detalle_ubicacion ? (
-                            <span className="inline-flex items-start gap-1.5">
-                              <Info className="mt-0.5 h-3.5 w-3.5 text-slate-400" />
-                              {equipo.detalle_ubicacion}
+                <>
+                  {filteredEquipos.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-8 text-center text-slate-500 font-semibold shadow-inner animate-in fade-in duration-200">
+                      No se encontraron equipos que coincidan con el tipo seleccionado.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3 animate-in fade-in duration-200">
+                      {filteredEquipos.map(equipo => (
+                        <Link
+                          key={equipo.id}
+                          href={`/admin/inmuebles/${property.id}/especialidad/${equipmentType.id}?equipmentId=${equipo.id}`}
+                          className="group block rounded-2xl border border-slate-200 bg-slate-50/60 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-white hover:shadow-md text-left no-underline">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-800 ring-1 ring-slate-200 transition group-hover:ring-emerald-200">
+                              <Cpu className="h-5 w-5" />
+                            </div>
+                            <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-slate-500 ring-1 ring-slate-200">
+                              {equipo.estatus || 'Sin estado'}
                             </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+                          </div>
+                          <div className="mt-4 grid gap-2">
+                            <strong className="text-sm font-black text-slate-950">
+                              {equipo.codigo || 'Sin código'}
+                            </strong>
+                            <div className="grid gap-1 text-[11px] font-semibold text-slate-500">
+                              <span className="inline-flex items-center gap-1.5">
+                                <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                                {equipo.ubicacion || 'Ubicación no especificada'}
+                              </span>
+                              {equipo.detalle_ubicacion ? (
+                                <span className="inline-flex items-start gap-1.5">
+                                  <Info className="mt-0.5 h-3.5 w-3.5 text-slate-400" />
+                                  {equipo.detalle_ubicacion}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -520,6 +595,11 @@ function EquipmentDetailSection({
     return () => {
       isMounted = false;
     };
+  }, [equipmentId]);
+
+  // Reset scroll to top when equipmentId changes to avoid initial scroll jump
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
   }, [equipmentId]);
 
   return (
