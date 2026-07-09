@@ -40,7 +40,13 @@ interface FeedbackEditDraft {
   kind: 'feedback';
   equipment_key: string;
   good_practices_comment: string;
+  good_practices_existing_photos: AdminAuditPhotoRef[];
+  good_practices_new_photos: File[];
+  good_practices_delete_all_existing: boolean;
   improvement_opportunity_comment: string;
+  improvement_opportunity_existing_photos: AdminAuditPhotoRef[];
+  improvement_opportunity_new_photos: File[];
+  improvement_opportunity_delete_all_existing: boolean;
   confirming: boolean;
 }
 
@@ -118,6 +124,8 @@ export default function AdminAuditoriaDetailPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const gpFileInputRef = useRef<HTMLInputElement>(null);
+  const oppFileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -196,8 +204,14 @@ export default function AdminAuditoriaDetailPage() {
         kind: 'feedback',
         equipment_key: item.equipment_key,
         good_practices_comment: item.good_practices_comment ?? '',
+        good_practices_existing_photos: [...item.good_practices_photos],
+        good_practices_new_photos: [],
+        good_practices_delete_all_existing: false,
         improvement_opportunity_comment:
           item.improvement_opportunity_comment ?? '',
+        improvement_opportunity_existing_photos: [...item.improvement_opportunity_photos],
+        improvement_opportunity_new_photos: [],
+        improvement_opportunity_delete_all_existing: false,
         confirming: false,
       });
       setSaveError(null);
@@ -256,6 +270,82 @@ export default function AdminAuditoriaDetailPage() {
       return {
         ...prev,
         existing_photos: prev.existing_photos.filter(
+          p => getPhotoUrl(p) !== urlToRemove,
+        ),
+      };
+    });
+  }, []);
+
+  const handleGpFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+        const filesArray = Array.from(e.target.files);
+        setEditDraft(prev => {
+          if (prev?.kind !== 'feedback') return prev;
+          return {
+            ...prev,
+            good_practices_new_photos: [...prev.good_practices_new_photos, ...filesArray],
+          };
+        });
+      }
+    },
+    [],
+  );
+
+  const removeGpNewPhoto = useCallback((indexToRemove: number) => {
+    setEditDraft(prev => {
+      if (prev?.kind !== 'feedback') return prev;
+      return {
+        ...prev,
+        good_practices_new_photos: prev.good_practices_new_photos.filter((_, i) => i !== indexToRemove),
+      };
+    });
+  }, []);
+
+  const removeGpExistingPhoto = useCallback((urlToRemove: string) => {
+    setEditDraft(prev => {
+      if (prev?.kind !== 'feedback') return prev;
+      return {
+        ...prev,
+        good_practices_existing_photos: prev.good_practices_existing_photos.filter(
+          p => getPhotoUrl(p) !== urlToRemove,
+        ),
+      };
+    });
+  }, []);
+
+  const handleOppFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+        const filesArray = Array.from(e.target.files);
+        setEditDraft(prev => {
+          if (prev?.kind !== 'feedback') return prev;
+          return {
+            ...prev,
+            improvement_opportunity_new_photos: [...prev.improvement_opportunity_new_photos, ...filesArray],
+          };
+        });
+      }
+    },
+    [],
+  );
+
+  const removeOppNewPhoto = useCallback((indexToRemove: number) => {
+    setEditDraft(prev => {
+      if (prev?.kind !== 'feedback') return prev;
+      return {
+        ...prev,
+        improvement_opportunity_new_photos: prev.improvement_opportunity_new_photos.filter((_, i) => i !== indexToRemove),
+      };
+    });
+  }, []);
+
+  const removeOppExistingPhoto = useCallback((urlToRemove: string) => {
+    setEditDraft(prev => {
+      if (prev?.kind !== 'feedback') return prev;
+      return {
+        ...prev,
+        improvement_opportunity_existing_photos: prev.improvement_opportunity_existing_photos.filter(
           p => getPhotoUrl(p) !== urlToRemove,
         ),
       };
@@ -385,14 +475,87 @@ export default function AdminAuditoriaDetailPage() {
           };
         });
       } else {
+        const draft = editDraft as FeedbackEditDraft;
+        let uploadedGpPhotos: {
+          bucket: string;
+          path: string;
+          public_url: string;
+        }[] = [];
+
+        if (draft.good_practices_new_photos.length > 0) {
+          const uploadPromises = draft.good_practices_new_photos.map(async file => {
+            const bucket = 'maintenance';
+            const folderName = audit.property_id || 'unknown';
+            const path = `${folderName}/${generateUniquePath('admin_audit_gp', file.name)}`;
+
+            const { error: uploadError } = await supabase.storage
+              .from(bucket)
+              .upload(path, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+
+            return {
+              bucket,
+              path,
+              public_url: data.publicUrl,
+            };
+          });
+
+          uploadedGpPhotos = await Promise.all(uploadPromises);
+        }
+
+        let uploadedOppPhotos: {
+          bucket: string;
+          path: string;
+          public_url: string;
+        }[] = [];
+
+        if (draft.improvement_opportunity_new_photos.length > 0) {
+          const uploadPromises = draft.improvement_opportunity_new_photos.map(async file => {
+            const bucket = 'maintenance';
+            const folderName = audit.property_id || 'unknown';
+            const path = `${folderName}/${generateUniquePath('admin_audit_opp', file.name)}`;
+
+            const { error: uploadError } = await supabase.storage
+              .from(bucket)
+              .upload(path, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+
+            return {
+              bucket,
+              path,
+              public_url: data.publicUrl,
+            };
+          });
+
+          uploadedOppPhotos = await Promise.all(uploadPromises);
+        }
+
+        const keptGpPhotoUrls = draft.good_practices_existing_photos
+          .map(p => getPhotoUrl(p))
+          .filter(Boolean);
+
+        const keptOppPhotoUrls = draft.improvement_opportunity_existing_photos
+          .map(p => getPhotoUrl(p))
+          .filter(Boolean);
+
         const patch = {
-          equipment_key: editDraft.equipment_key,
-          good_practices_comment:
-            editDraft.good_practices_comment.trim() || null,
-          improvement_opportunity_comment:
-            editDraft.improvement_opportunity_comment.trim() || null,
+          equipment_key: draft.equipment_key,
+          good_practices_comment: draft.good_practices_comment.trim() || null,
+          good_practices_new_photos: uploadedGpPhotos,
+          good_practices_kept_existing_photo_urls: keptGpPhotoUrls,
+          improvement_opportunity_comment: draft.improvement_opportunity_comment.trim() || null,
+          improvement_opportunity_new_photos: uploadedOppPhotos,
+          improvement_opportunity_kept_existing_photo_urls: keptOppPhotoUrls,
         };
+
         await updateAdminAuditFeedback(supabase, params.auditId, patch);
+
         setAudit(prev => {
           if (!prev) return prev;
           return {
@@ -402,8 +565,28 @@ export default function AdminAuditoriaDetailPage() {
                 ? {
                     ...fb,
                     good_practices_comment: patch.good_practices_comment,
+                    good_practices_photos: [
+                      ...fb.good_practices_photos.filter(p =>
+                        keptGpPhotoUrls.includes(getPhotoUrl(p)),
+                      ),
+                      ...uploadedGpPhotos.map(p => ({
+                        bucket: p.bucket,
+                        path: p.path,
+                        publicUrl: p.public_url,
+                      })),
+                    ],
                     improvement_opportunity_comment:
                       patch.improvement_opportunity_comment,
+                    improvement_opportunity_photos: [
+                      ...fb.improvement_opportunity_photos.filter(p =>
+                        keptOppPhotoUrls.includes(getPhotoUrl(p)),
+                      ),
+                      ...uploadedOppPhotos.map(p => ({
+                        bucket: p.bucket,
+                        path: p.path,
+                        publicUrl: p.public_url,
+                      })),
+                    ],
                   }
                 : fb,
             ),
@@ -926,6 +1109,16 @@ export default function AdminAuditoriaDetailPage() {
                                 <em>
                                   {draft.good_practices_comment || '(Vacío)'}
                                 </em>
+                                {draft.good_practices_new_photos.length > 0 && (
+                                  <span className="text-xs text-emerald-700 block">
+                                    + {draft.good_practices_new_photos.length} foto(s) nueva(s)
+                                  </span>
+                                )}
+                                {item.good_practices_photos.length > draft.good_practices_existing_photos.length && (
+                                  <span className="text-xs text-red-600 block">
+                                    - {item.good_practices_photos.length - draft.good_practices_existing_photos.length} foto(s) de buenas prácticas eliminada(s)
+                                  </span>
+                                )}
                               </li>
                               <li>
                                 Oportunidades de Mejora:{' '}
@@ -933,6 +1126,16 @@ export default function AdminAuditoriaDetailPage() {
                                   {draft.improvement_opportunity_comment ||
                                     '(Vacío)'}
                                 </em>
+                                {draft.improvement_opportunity_new_photos.length > 0 && (
+                                  <span className="text-xs text-emerald-700 block">
+                                    + {draft.improvement_opportunity_new_photos.length} foto(s) nueva(s)
+                                  </span>
+                                )}
+                                {item.improvement_opportunity_photos.length > draft.improvement_opportunity_existing_photos.length && (
+                                  <span className="text-xs text-red-600 block">
+                                    - {item.improvement_opportunity_photos.length - draft.improvement_opportunity_existing_photos.length} foto(s) de oportunidades de mejora eliminada(s)
+                                  </span>
+                                )}
                               </li>
                             </ul>
                           </div>
@@ -994,8 +1197,108 @@ export default function AdminAuditoriaDetailPage() {
                               />
                             </div>
 
+                            {/* Evidencia fotográfica (Buenas prácticas) */}
+                            <div className="mb-4">
+                              <label className="mb-1.5 block text-xs font-bold text-emerald-800">
+                                Evidencia fotográfica (Buenas prácticas)
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                {/* Existing Photos */}
+                                {draft.good_practices_existing_photos.map((photo, i) => {
+                                  const url = getPhotoUrl(photo);
+                                  const isMissing =
+                                    !url ||
+                                    url === 'file_not_found' ||
+                                    url.includes('file_not_found');
+                                  return (
+                                    <div
+                                      key={`gp-exist-${i}`}
+                                      className="relative group rounded-xl border-2 border-slate-200 overflow-hidden h-20 w-20 bg-slate-100"
+                                      title={
+                                        isMissing
+                                          ? 'Archivo no encontrado'
+                                          : 'Foto existente'
+                                      }>
+                                      {isMissing ? (
+                                        <div className="flex flex-col items-center justify-center h-full w-full bg-slate-100 text-slate-400 p-1 text-center">
+                                          <span className="text-sm">📷🚫</span>
+                                          <span className="text-[9px] leading-tight font-semibold">
+                                            No disponible
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <img
+                                          src={url}
+                                          alt="Foto existente"
+                                          className="h-full w-full object-cover"
+                                        />
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => removeGpExistingPhoto(url)}
+                                        className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <span className="text-white text-xs font-bold mb-1">
+                                          Borrar
+                                        </span>
+                                        <span className="text-white text-xs">
+                                          🗑️
+                                        </span>
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+
+                                {/* New Photos */}
+                                {draft.good_practices_new_photos.map((file, i) => (
+                                  <div
+                                    key={`gp-new-${i}`}
+                                    className="relative group rounded-xl border-2 border-emerald-400 overflow-hidden h-20 w-20 bg-slate-100"
+                                    title="Foto nueva (no guardada)">
+                                    <img
+                                      src={URL.createObjectURL(file)}
+                                      alt="Nueva foto"
+                                      className="h-full w-full object-cover"
+                                    />
+                                    <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-bl">
+                                      NUEVA
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeGpNewPhoto(i)}
+                                      className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <span className="text-white text-xs font-bold mb-1">
+                                        Quitar
+                                      </span>
+                                      <span className="text-white text-xs">
+                                        ❌
+                                      </span>
+                                    </button>
+                                  </div>
+                                ))}
+
+                                <button
+                                  type="button"
+                                  onClick={() => gpFileInputRef.current?.click()}
+                                  className="h-20 w-20 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:bg-slate-100 hover:border-emerald-400 hover:text-emerald-700 transition-colors">
+                                  <IconCamera />
+                                  <span className="text-[10px] font-bold mt-1">
+                                    Subir más
+                                  </span>
+                                </button>
+
+                                <input
+                                  type="file"
+                                  multiple
+                                  accept="image/*"
+                                  ref={gpFileInputRef}
+                                  onChange={handleGpFileChange}
+                                  className="hidden"
+                                />
+                              </div>
+                            </div>
+
                             {/* Oportunidades */}
-                            <div>
+                            <div className="mb-3">
                               <label
                                 htmlFor={`opp-${itemKey}`}
                                 className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-amber-700">
@@ -1020,6 +1323,106 @@ export default function AdminAuditoriaDetailPage() {
                                 }
                                 className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-100"
                               />
+                            </div>
+
+                            {/* Evidencia fotográfica (Oportunidades de mejora) */}
+                            <div className="mb-4">
+                              <label className="mb-1.5 block text-xs font-bold text-amber-700">
+                                Evidencia fotográfica (Oportunidades de mejora)
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                {/* Existing Photos */}
+                                {draft.improvement_opportunity_existing_photos.map((photo, i) => {
+                                  const url = getPhotoUrl(photo);
+                                  const isMissing =
+                                    !url ||
+                                    url === 'file_not_found' ||
+                                    url.includes('file_not_found');
+                                  return (
+                                    <div
+                                      key={`opp-exist-${i}`}
+                                      className="relative group rounded-xl border-2 border-slate-200 overflow-hidden h-20 w-20 bg-slate-100"
+                                      title={
+                                        isMissing
+                                          ? 'Archivo no encontrado'
+                                          : 'Foto existente'
+                                      }>
+                                      {isMissing ? (
+                                        <div className="flex flex-col items-center justify-center h-full w-full bg-slate-100 text-slate-400 p-1 text-center">
+                                          <span className="text-sm">📷🚫</span>
+                                          <span className="text-[9px] leading-tight font-semibold">
+                                            No disponible
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <img
+                                          src={url}
+                                          alt="Foto existente"
+                                          className="h-full w-full object-cover"
+                                        />
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => removeOppExistingPhoto(url)}
+                                        className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <span className="text-white text-xs font-bold mb-1">
+                                          Borrar
+                                        </span>
+                                        <span className="text-white text-xs">
+                                          🗑️
+                                        </span>
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+
+                                {/* New Photos */}
+                                {draft.improvement_opportunity_new_photos.map((file, i) => (
+                                  <div
+                                    key={`opp-new-${i}`}
+                                    className="relative group rounded-xl border-2 border-emerald-400 overflow-hidden h-20 w-20 bg-slate-100"
+                                    title="Foto nueva (no guardada)">
+                                    <img
+                                      src={URL.createObjectURL(file)}
+                                      alt="Nueva foto"
+                                      className="h-full w-full object-cover"
+                                    />
+                                    <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-bl">
+                                      NUEVA
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeOppNewPhoto(i)}
+                                      className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <span className="text-white text-xs font-bold mb-1">
+                                        Quitar
+                                      </span>
+                                      <span className="text-white text-xs">
+                                        ❌
+                                      </span>
+                                    </button>
+                                  </div>
+                                ))}
+
+                                <button
+                                  type="button"
+                                  onClick={() => oppFileInputRef.current?.click()}
+                                  className="h-20 w-20 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-500 hover:bg-slate-100 hover:border-emerald-400 hover:text-emerald-700 transition-colors">
+                                  <IconCamera />
+                                  <span className="text-[10px] font-bold mt-1">
+                                    Subir más
+                                  </span>
+                                </button>
+
+                                <input
+                                  type="file"
+                                  multiple
+                                  accept="image/*"
+                                  ref={oppFileInputRef}
+                                  onChange={handleOppFileChange}
+                                  className="hidden"
+                                />
+                              </div>
                             </div>
 
                             {saveError ? (

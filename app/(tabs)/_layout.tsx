@@ -1,6 +1,9 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useUserRole } from '@/hooks/use-user-role';
+import { DatabaseService } from '@/services/database';
+import { InitialSyncScreen } from '@/components/initial-sync-screen';
+import { AuthLoadingScreen } from '@/components/auth-loading-screen';
 
 import { Colors } from '@/constants/theme';
 import Feather from '@expo/vector-icons/Feather';
@@ -9,6 +12,36 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function TabLayout() {
   const { isAdmin } = useUserRole();
+  const [hasLocalMirror, setHasLocalMirror] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function checkMirror() {
+      try {
+        const hasMirror = await DatabaseService.hasUsableLocalMirror();
+        if (isMounted) {
+          setHasLocalMirror(hasMirror);
+        }
+      } catch (err) {
+        console.error('[TabLayout] Error checking local mirror:', err);
+        if (isMounted) {
+          setHasLocalMirror(false);
+        }
+      }
+    }
+    checkMirror();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (hasLocalMirror === null) {
+    return <AuthLoadingScreen />;
+  }
+
+  if (hasLocalMirror === false) {
+    return <InitialSyncScreen onComplete={() => setHasLocalMirror(true)} />;
+  }
 
   return (
     <Tabs
