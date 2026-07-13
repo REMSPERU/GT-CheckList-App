@@ -73,6 +73,16 @@ class AuditReportService {
   private coverTemplateImageLoaded = false;
 
   private formatDateOnly(value: string): string {
+    if (value && value.includes(',')) {
+      const parts = value.split(',');
+      if (parts[0]) {
+        const trimmed = parts[0].trim();
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+          return trimmed;
+        }
+      }
+    }
+
     const parsed = new Date(value);
 
     if (Number.isNaN(parsed.getTime())) {
@@ -183,7 +193,9 @@ class AuditReportService {
         ? `background: conic-gradient(#16a34a 0 ${okPercent}%, #FF6640 ${okPercent}% 100%);`
         : 'background: conic-gradient(#d1d5db 0 100%);';
 
-    const coverDate = this.formatDateOnly(data.generatedAt);
+    const coverDate = data.submittedAt && data.submittedAt !== 'Sin fecha'
+      ? this.formatDateOnly(data.submittedAt)
+      : this.formatDateOnly(data.generatedAt);
     const coverBackgroundStyle = coverTemplateImage
       ? `background-image: url('${escapeHtml(coverTemplateImage)}');`
       : 'background: linear-gradient(160deg, #1f2937 0%, #111827 60%, #0b1320 100%);';
