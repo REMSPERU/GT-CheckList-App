@@ -60,6 +60,7 @@ export function useAdminEquipments() {
   const [tieneVdf, setTieneVdf] = useState('TODOS');
   const [tipo, setTipo] = useState('');
   const [distinctTipos, setDistinctTipos] = useState<string[]>([]);
+  const [brands, setBrands] = useState<{ id: string; nombre: string }[]>([]);
   
   const [availableEquipmentTypeIds, setAvailableEquipmentTypeIds] = useState<
     string[] | null
@@ -194,11 +195,15 @@ export function useAdminEquipments() {
     async function loadFilterOptions() {
       try {
         const supabase = getSupabaseClient();
-        const [props, types, systemsRes] = await Promise.all([
+        const [props, types, systemsRes, brandsRes] = await Promise.all([
           listAdminProperties(supabase),
           listAdminEquipmentTypes(supabase),
           supabase
             .from('sistemas')
+            .select('id, nombre')
+            .order('nombre', { ascending: true }),
+          supabase
+            .from('marca')
             .select('id, nombre')
             .order('nombre', { ascending: true }),
         ]);
@@ -207,6 +212,9 @@ export function useAdminEquipments() {
           setEquipmentTypes(types);
           setSystems(
             (systemsRes.data ?? []) as { id: string; nombre: string }[],
+          );
+          setBrands(
+            (brandsRes.data ?? []) as { id: string; nombre: string }[],
           );
         }
       } catch (error) {
@@ -689,6 +697,7 @@ export function useAdminEquipments() {
     properties,
     systems,
     equipmentTypes,
+    brands,
     page,
     setPage: (nextPage: number) => {
       setPage(nextPage);
