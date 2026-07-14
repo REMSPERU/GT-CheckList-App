@@ -93,6 +93,7 @@ import {
   updateOfflineChecklistPhotoStatus,
   getChecklistCountsByEquipo,
   validateLocalChecklistWorkingDay,
+  validateLocalChecklistSchedule,
 } from './checklist';
 import {
   createEquipment,
@@ -221,6 +222,7 @@ export const DatabaseService = {
   updateOfflineChecklistPhotoStatus,
   getChecklistCountsByEquipo,
   validateLocalChecklistWorkingDay,
+  validateLocalChecklistSchedule,
 
   // Equipment CRUD
   createEquipment,

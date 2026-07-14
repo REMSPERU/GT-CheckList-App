@@ -246,7 +246,7 @@ async function fetchEquiposPaginated(propertyIds?: string[]): Promise<{
 }> {
   try {
     const limit = 1000;
-    
+
     // 1. Setup base query for count
     let countQuery = supabase
       .from('equipos')
@@ -259,7 +259,10 @@ async function fetchEquiposPaginated(propertyIds?: string[]): Promise<{
     const { count, error: countError } = await countQuery;
 
     if (countError) {
-      console.error('[SYNC] Error getting equipos count:', countError.message || countError);
+      console.error(
+        '[SYNC] Error getting equipos count:',
+        countError.message || countError,
+      );
       return { data: null, failed: true };
     }
 
@@ -269,7 +272,9 @@ async function fetchEquiposPaginated(propertyIds?: string[]): Promise<{
     }
 
     const pages = Math.ceil(totalCount / limit);
-    log(`[SYNC] Fetching ${totalCount} equipos in ${pages} parallel page(s)...`);
+    log(
+      `[SYNC] Fetching ${totalCount} equipos in ${pages} parallel page(s)...`,
+    );
 
     // 2. Fetch pages in parallel using a concurrency pool of 8 concurrent requests.
     const allEquipos: any[] = [];
@@ -283,10 +288,7 @@ async function fetchEquiposPaginated(propertyIds?: string[]): Promise<{
         const from = pageIndex * limit;
         const to = from + limit - 1;
 
-        let query = supabase
-          .from('equipos')
-          .select('*')
-          .range(from, to);
+        let query = supabase.from('equipos').select('*').range(from, to);
 
         if (propertyIds && propertyIds.length > 0) {
           query = query.in('id_property', propertyIds);
@@ -296,7 +298,10 @@ async function fetchEquiposPaginated(propertyIds?: string[]): Promise<{
 
         if (error) {
           hasError = true;
-          console.error(`[SYNC] Error fetching equipos page ${pageIndex}:`, error.message || error);
+          console.error(
+            `[SYNC] Error fetching equipos page ${pageIndex}:`,
+            error.message || error,
+          );
           break;
         }
 
@@ -755,7 +760,7 @@ class SyncService {
         this.lastFullSyncTimestamp = Date.now();
         void AsyncStorage.setItem(
           '@sync:last-sync-timestamp',
-          String(this.lastFullSyncTimestamp)
+          String(this.lastFullSyncTimestamp),
         ).catch(err => {
           console.warn('[SYNC] Failed to persist sync timestamp:', err);
         });
@@ -1868,9 +1873,14 @@ class SyncService {
           assignedPropertyIds = userPropertiesResult.data.map(
             (up: any) => up.property_id,
           );
-          log('[SYNC] Restricting equipos sync to assigned properties:', assignedPropertyIds);
+          log(
+            '[SYNC] Restricting equipos sync to assigned properties:',
+            assignedPropertyIds,
+          );
         } else {
-          log('[SYNC] Syncing all equipments (no role-restriction or no property assignments)');
+          log(
+            '[SYNC] Syncing all equipments (no role-restriction or no property assignments)',
+          );
         }
 
         // Fetch all other tables in parallel WITH limits and error checking
@@ -1892,6 +1902,7 @@ class SyncService {
           equipamentosMarcasResult,
           checklistWorkdayConfigResult,
           checklistWorkdayExceptionsResult,
+          checklistSchedulesResult,
         ] = await Promise.all([
           fetchEquiposPaginated(assignedPropertyIds || undefined),
           safeFetch(() =>
@@ -1975,7 +1986,10 @@ class SyncService {
             supabase.from('marca').select('*').limit(SYNC_ROW_LIMIT),
           ),
           safeFetch(() =>
-            supabase.from('equipamento_marca').select('*').limit(SYNC_ROW_LIMIT),
+            supabase
+              .from('equipamento_marca')
+              .select('*')
+              .limit(SYNC_ROW_LIMIT),
           ),
           safeFetch(() =>
             supabase
@@ -1986,6 +2000,12 @@ class SyncService {
           safeFetch(() =>
             supabase
               .from('checklist_workday_exceptions')
+              .select('*')
+              .limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
+            supabase
+              .from('checklist_schedules')
               .select('*')
               .limit(SYNC_ROW_LIMIT),
           ),
@@ -2020,11 +2040,14 @@ class SyncService {
           failedTables.push('sesion_mantenimiento_fotos');
         if (auditSessionsResult.failed) failedTables.push('audit_sessions');
         if (marcasResult.failed) failedTables.push('marca');
-        if (equipamentosMarcasResult.failed) failedTables.push('equipamento_marca');
+        if (equipamentosMarcasResult.failed)
+          failedTables.push('equipamento_marca');
         if (checklistWorkdayConfigResult.failed)
           failedTables.push('checklist_workday_config');
         if (checklistWorkdayExceptionsResult.failed)
           failedTables.push('checklist_workday_exceptions');
+        if (checklistSchedulesResult.failed)
+          failedTables.push('checklist_schedules');
 
         if (failedTables.length > 0) {
           console.warn(
@@ -2052,6 +2075,7 @@ class SyncService {
           equipamentosMarcasResult.data,
           checklistWorkdayConfigResult.data,
           checklistWorkdayExceptionsResult.data,
+          checklistSchedulesResult.data,
         );
 
         if (auditSessionsResult.data !== null) {

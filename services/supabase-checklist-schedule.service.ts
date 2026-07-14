@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { DatabaseService } from '@/services/db';
 
 export type ChecklistScheduleFrequency =
   | 'DIARIA'
@@ -120,46 +121,74 @@ class SupabaseChecklistScheduleService {
     equipamentoId: string,
     equipoId?: string,
   ): Promise<ChecklistScheduleValidation> {
-    const params: ValidateChecklistScheduleParams = {
-      p_property_id: propertyId,
-      p_equipamento_id: equipamentoId,
-      p_submitted_at: new Date().toISOString(),
-    };
+    try {
+      const params: ValidateChecklistScheduleParams = {
+        p_property_id: propertyId,
+        p_equipamento_id: equipamentoId,
+        p_submitted_at: new Date().toISOString(),
+      };
 
-    if (equipoId) {
-      params.p_equipo_id = equipoId;
+      if (equipoId) {
+        params.p_equipo_id = equipoId;
+      }
+
+      const { data, error } = await supabase.rpc(
+        'validate_checklist_schedule',
+        params,
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      const firstRow = Array.isArray(data) ? data[0] : data;
+
+      return {
+        has_schedule: !!firstRow?.has_schedule,
+        allowed: !!firstRow?.allowed,
+        reason: firstRow?.reason || null,
+        schedule_id: firstRow?.schedule_id || null,
+        frequency: (firstRow?.frequency ||
+          null) as ChecklistScheduleFrequency | null,
+        occurrences_per_day:
+          typeof firstRow?.occurrences_per_day === 'number'
+            ? firstRow.occurrences_per_day
+            : null,
+        window_start: firstRow?.window_start || null,
+        window_end: firstRow?.window_end || null,
+        current_count:
+          typeof firstRow?.current_count === 'number'
+            ? firstRow.current_count
+            : 0,
+        period_start: firstRow?.period_start || null,
+        period_end: firstRow?.period_end || null,
+      };
+    } catch (rpcError) {
+      console.warn(
+        '[SCHEDULE-SERVICE] Remote validation failed, falling back to local database validation:',
+        rpcError,
+      );
+
+      const localResult = await DatabaseService.validateLocalChecklistSchedule(
+        propertyId,
+        equipamentoId,
+        equipoId || null,
+      );
+
+      return {
+        has_schedule: localResult.has_schedule,
+        allowed: localResult.allowed,
+        reason: localResult.reason,
+        schedule_id: localResult.schedule_id,
+        frequency: localResult.frequency as ChecklistScheduleFrequency | null,
+        occurrences_per_day: localResult.occurrences_per_day,
+        window_start: localResult.window_start,
+        window_end: localResult.window_end,
+        current_count: localResult.current_count,
+        period_start: localResult.period_start,
+        period_end: localResult.period_end,
+      };
     }
-
-    const { data, error } = await supabase.rpc(
-      'validate_checklist_schedule',
-      params,
-    );
-
-    if (error) {
-      throw error;
-    }
-
-    const firstRow = Array.isArray(data) ? data[0] : data;
-
-    return {
-      has_schedule: !!firstRow?.has_schedule,
-      allowed: !!firstRow?.allowed,
-      reason: firstRow?.reason || null,
-      schedule_id: firstRow?.schedule_id || null,
-      frequency: firstRow?.frequency || null,
-      occurrences_per_day:
-        typeof firstRow?.occurrences_per_day === 'number'
-          ? firstRow.occurrences_per_day
-          : null,
-      window_start: firstRow?.window_start || null,
-      window_end: firstRow?.window_end || null,
-      current_count:
-        typeof firstRow?.current_count === 'number'
-          ? firstRow.current_count
-          : 0,
-      period_start: firstRow?.period_start || null,
-      period_end: firstRow?.period_end || null,
-    };
   }
 }
 
