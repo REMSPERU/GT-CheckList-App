@@ -3,6 +3,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import {
+  deleteAdminChecklistWorkdayException,
+  getAdminChecklistWorkdayCalendar,
   getAdminChecklistScheduleProgress,
   listAdminChecklistPropertyEquipmentTypeIds,
   listAdminChecklistScheduleEquipments,
@@ -11,6 +13,8 @@ import {
   listAdminChecklistResponses,
   listAdminChecklistSchedules,
   updateAdminChecklistQuestion,
+  upsertAdminChecklistWorkdayConfig,
+  upsertAdminChecklistWorkdayException,
   upsertAdminChecklistSchedule,
 } from '@/services/admin/checklist.service';
 import { listAdminEquipmentTypes } from '@/services/admin/equipment-types.service';
@@ -23,6 +27,7 @@ import type {
   AdminChecklistScheduleFrequency,
   AdminChecklistScheduleProgress,
   AdminChecklistScheduleRow,
+  AdminChecklistWorkdayExceptionRow,
   AdminEquipmentTypeRow,
   AdminPropertyRow,
 } from '@/types/admin';
@@ -30,7 +35,11 @@ import type {
 const RESPONSE_PAGE_SIZE = 20;
 const DEFAULT_SCHEDULE_FREQUENCY: AdminChecklistScheduleFrequency = 'DIARIA';
 
-export type AdminChecklistTab = 'responses' | 'questions' | 'schedule';
+export type AdminChecklistTab =
+  | 'responses'
+  | 'questions'
+  | 'schedule'
+  | 'calendar';
 
 function getTodayInLima() {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -141,6 +150,18 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     });
   const [responseTotal, setResponseTotal] = useState(0);
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
+  const [calendarWorkDays, setCalendarWorkDays] = useState<number[]>([
+    1, 2, 3, 4, 5,
+  ]);
+  const [calendarExceptions, setCalendarExceptions] = useState<
+    AdminChecklistWorkdayExceptionRow[]
+  >([]);
+  const [calendarExceptionDate, setCalendarExceptionDate] = useState('');
+  const [calendarExceptionDescription, setCalendarExceptionDescription] =
+    useState('');
+  const [calendarExceptionIsWorkingDay, setCalendarExceptionIsWorkingDay] =
+    useState(false);
+  const [savingCalendar, setSavingCalendar] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -208,17 +229,20 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     async function loadCatalogs() {
       try {
         const supabase = getSupabaseClient();
-        const [propertyResult, equipmentResult, scheduleResult] =
+        const [propertyResult, equipmentResult, scheduleResult, calendarResult] =
           await Promise.all([
             listAdminProperties(supabase),
             listAdminEquipmentTypes(supabase),
             listAdminChecklistSchedules(supabase),
+            getAdminChecklistWorkdayCalendar(supabase),
           ]);
 
         if (isMounted) {
           setProperties(propertyResult);
           setEquipmentTypes(equipmentResult);
           setSchedules(scheduleResult);
+          setCalendarWorkDays(calendarResult.config.work_days);
+          setCalendarExceptions(calendarResult.exceptions);
         }
       } catch (error) {
         if (isMounted) {
@@ -640,6 +664,13 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     setSchedules(result);
   }
 
+  async function refreshCalendar() {
+    const supabase = getSupabaseClient();
+    const result = await getAdminChecklistWorkdayCalendar(supabase);
+    setCalendarWorkDays(result.config.work_days);
+    setCalendarExceptions(result.exceptions);
+  }
+
   async function handleSaveSchedule() {
     try {
       setSavingSchedule(true);
@@ -767,6 +798,95 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     }
   }
 
+  function toggleCalendarWorkDay(day: number) {
+    setCalendarWorkDays(current => {
+      if (current.includes(day)) {
+        return current.filter(item => item !== day);
+      }
+
+      return [...current, day].sort((a, b) => a - b);
+    });
+    setSuccessMessage(null);
+  }
+
+  async function handleSaveCalendarWorkDays() {
+    try {
+      setSavingCalendar(true);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+
+      if (calendarWorkDays.length === 0) {
+        throw new Error('Selecciona al menos un dia laborable semanal.');
+      }
+
+      const supabase = getSupabaseClient();
+      await upsertAdminChecklistWorkdayConfig(supabase, calendarWorkDays);
+      await refreshCalendar();
+      setSuccessMessage('Calendario laborable global guardado correctamente.');
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo guardar el calendario laborable',
+      );
+    } finally {
+      setSavingCalendar(false);
+    }
+  }
+
+  async function handleSaveCalendarException() {
+    try {
+      setSavingCalendar(true);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+
+      if (!calendarExceptionDate) {
+        throw new Error('Selecciona una fecha para la excepcion.');
+      }
+
+      const supabase = getSupabaseClient();
+      await upsertAdminChecklistWorkdayException(supabase, {
+        exceptionDate: calendarExceptionDate,
+        description: calendarExceptionDescription.trim() || null,
+        isWorkingDay: calendarExceptionIsWorkingDay,
+      });
+      await refreshCalendar();
+      setCalendarExceptionDate('');
+      setCalendarExceptionDescription('');
+      setCalendarExceptionIsWorkingDay(false);
+      setSuccessMessage('Excepcion del calendario guardada correctamente.');
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo guardar la excepcion del calendario',
+      );
+    } finally {
+      setSavingCalendar(false);
+    }
+  }
+
+  async function handleDeleteCalendarException(exceptionId: string) {
+    try {
+      setSavingCalendar(true);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+
+      const supabase = getSupabaseClient();
+      await deleteAdminChecklistWorkdayException(supabase, exceptionId);
+      await refreshCalendar();
+      setSuccessMessage('Excepcion del calendario eliminada correctamente.');
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo eliminar la excepcion del calendario',
+      );
+    } finally {
+      setSavingCalendar(false);
+    }
+  }
+
   return {
     properties,
     equipmentTypes,
@@ -838,6 +958,19 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     updateQuestionDraft,
     handleSaveQuestion,
     savingQuestionId,
+    calendarWorkDays,
+    toggleCalendarWorkDay,
+    handleSaveCalendarWorkDays,
+    calendarExceptions,
+    calendarExceptionDate,
+    setCalendarExceptionDate,
+    calendarExceptionDescription,
+    setCalendarExceptionDescription,
+    calendarExceptionIsWorkingDay,
+    setCalendarExceptionIsWorkingDay,
+    handleSaveCalendarException,
+    handleDeleteCalendarException,
+    savingCalendar,
     isLoading,
     errorMessage,
     successMessage,

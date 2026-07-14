@@ -182,6 +182,20 @@ export interface AdminChecklistScheduleUpsertInput {
   userId: string;
 }
 
+export interface AdminChecklistWorkdayConfigRow {
+  id: string;
+  work_days: number[];
+  updated_at: string | null;
+}
+
+export interface AdminChecklistWorkdayExceptionRow {
+  id: string;
+  exception_date: string;
+  description: string | null;
+  is_working_day: boolean;
+  updated_at: string | null;
+}
+
 export interface AdminChecklistScheduleEquipmentItem {
   id: string;
   codigo: string | null;

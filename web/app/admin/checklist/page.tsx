@@ -24,13 +24,25 @@ const TAB_QUERY_PARAMS: Record<AdminChecklistTab, string[]> = {
   responses: ['eqType', 'page', 'search', 'building', 'status'],
   questions: ['questionEqType'],
   schedule: ['schedProp', 'schedEqType'],
+  calendar: [],
 };
 
 const SECTION_ROUTES: Record<AdminChecklistTab, string> = {
   responses: '/admin/checklist/respuestas',
   questions: '/admin/checklist/preguntas',
   schedule: '/admin/checklist/programaciones',
+  calendar: '/admin/checklist/calendario',
 };
+
+const WEEKDAY_OPTIONS = [
+  { value: 1, label: 'Lun', description: 'Lunes' },
+  { value: 2, label: 'Mar', description: 'Martes' },
+  { value: 3, label: 'Mie', description: 'Miercoles' },
+  { value: 4, label: 'Jue', description: 'Jueves' },
+  { value: 5, label: 'Vie', description: 'Viernes' },
+  { value: 6, label: 'Sab', description: 'Sabado' },
+  { value: 7, label: 'Dom', description: 'Domingo' },
+];
 
 const REVIEW_STATUS_OPTIONS = [
   { value: 'all', label: 'Todas las respuestas' },
@@ -229,7 +241,7 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
       <Alert>{checklist.errorMessage}</Alert>
       <Alert variant="success">{checklist.successMessage}</Alert>
 
-      <section className="grid grid-cols-3 gap-2 rounded-[22px] border border-slate-900/10 bg-white/75 p-2 shadow-[0_12px_36px_rgba(12,23,32,0.06)] max-[760px]:grid-cols-1">
+      <section className="grid grid-cols-4 gap-2 rounded-[22px] border border-slate-900/10 bg-white/75 p-2 shadow-[0_12px_36px_rgba(12,23,32,0.06)] max-[900px]:grid-cols-2 max-[640px]:grid-cols-1">
         <SectionLink
           active={activeTab === 'responses'}
           href={SECTION_ROUTES.responses}
@@ -247,6 +259,12 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
           href={SECTION_ROUTES.schedule}
           onNavigate={() => setActiveTab('schedule')}>
           Programar checklist
+        </SectionLink>
+        <SectionLink
+          active={activeTab === 'calendar'}
+          href={SECTION_ROUTES.calendar}
+          onNavigate={() => setActiveTab('calendar')}>
+          Calendario global
         </SectionLink>
       </section>
 
@@ -318,7 +336,7 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
             onSaveQuestion={checklist.handleSaveQuestion}
           />
         </section>
-      ) : (
+      ) : activeTab === 'schedule' ? (
         <section className="grid gap-4">
           <section className="rounded-[26px] border border-slate-900/10 bg-white/85 p-5 shadow-[0_22px_54px_rgba(15,23,42,0.08)]">
             <div className="mb-4 flex items-start justify-between gap-3 max-[640px]:grid">
@@ -635,6 +653,8 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
             </div>
           ) : null}
         </section>
+      ) : (
+        <GlobalCalendarPanel checklist={checklist} />
       )}
     </main>
   );
@@ -644,6 +664,163 @@ interface ScheduleEquipmentPreviewProps {
   equipments: ReturnType<typeof useAdminChecklist>['scheduleEquipments'];
   isLoading: boolean;
   hasSelection: boolean;
+}
+
+interface GlobalCalendarPanelProps {
+  checklist: ReturnType<typeof useAdminChecklist>;
+}
+
+function GlobalCalendarPanel({ checklist }: GlobalCalendarPanelProps) {
+  return (
+    <section className="grid grid-cols-[minmax(320px,0.85fr)_minmax(360px,1.15fr)] gap-4 max-[980px]:grid-cols-1">
+      <section className="rounded-[28px] border border-emerald-900/10 bg-[linear-gradient(145deg,rgba(240,253,244,0.95),rgba(255,255,255,0.92))] p-5 shadow-[0_22px_54px_rgba(15,23,42,0.08)]">
+        <p className="m-0 text-xs font-black uppercase tracking-[0.18em] text-emerald-800">
+          Calendario global
+        </p>
+        <h2 className="m-0 mt-1 text-2xl font-black tracking-[-0.04em] text-slate-950">
+          Dias laborables del checklist
+        </h2>
+        <p className="mt-1.5 text-sm font-semibold text-slate-500">
+          Esta regla aplica a todos los inmuebles. Usa excepciones para feriados
+          o dias especiales sin crear configuraciones por sede.
+        </p>
+
+        <div className="mt-5 grid grid-cols-7 gap-2 max-[640px]:grid-cols-2">
+          {WEEKDAY_OPTIONS.map(day => {
+            const active = checklist.calendarWorkDays.includes(day.value);
+
+            return (
+              <button
+                key={day.value}
+                className={`rounded-2xl border px-3 py-4 text-center transition hover:-translate-y-0.5 ${
+                  active
+                    ? 'border-emerald-700 bg-emerald-800 text-white shadow-[0_14px_28px_rgba(6,95,70,0.20)]'
+                    : 'border-slate-200 bg-white text-slate-500 hover:border-emerald-200 hover:bg-emerald-50'
+                }`}
+                type="button"
+                onClick={() => checklist.toggleCalendarWorkDay(day.value)}>
+                <strong className="block text-lg font-black">{day.label}</strong>
+                <span className="mt-1 block text-[0.68rem] font-black uppercase tracking-[0.12em] opacity-80">
+                  {active ? 'Laborable' : 'Bloqueado'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          className="mt-5 min-h-12 w-full rounded-2xl bg-slate-950 px-4 text-sm font-black text-white shadow-[0_16px_34px_rgba(15,23,42,0.20)] transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-slate-400"
+          type="button"
+          disabled={checklist.savingCalendar}
+          onClick={checklist.handleSaveCalendarWorkDays}>
+          {checklist.savingCalendar ? 'Guardando...' : 'Guardar dias globales'}
+        </button>
+      </section>
+
+      <section className="rounded-[28px] border border-slate-900/10 bg-white/85 p-5 shadow-[0_22px_54px_rgba(15,23,42,0.08)]">
+        <div className="mb-4 flex items-start justify-between gap-3 max-[640px]:grid">
+          <div>
+            <p className="m-0 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+              Excepciones
+            </p>
+            <h2 className="m-0 mt-1 text-2xl font-black tracking-[-0.04em] text-slate-950">
+              Feriados y overrides
+            </h2>
+          </div>
+          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600">
+            {checklist.calendarExceptions.length} fechas
+          </span>
+        </div>
+
+        <div className="grid grid-cols-[minmax(150px,0.8fr)_minmax(220px,1.2fr)_minmax(170px,0.8fr)_auto] gap-3 max-[980px]:grid-cols-2 max-[640px]:grid-cols-1">
+          <label className="grid gap-1.5 text-sm font-bold text-slate-600">
+            Fecha
+            <input
+              className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              type="date"
+              value={checklist.calendarExceptionDate}
+              onChange={event =>
+                checklist.setCalendarExceptionDate(event.target.value)
+              }
+            />
+          </label>
+          <label className="grid gap-1.5 text-sm font-bold text-slate-600">
+            Descripcion
+            <input
+              className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              placeholder="Ej. Feriado nacional"
+              value={checklist.calendarExceptionDescription}
+              onChange={event =>
+                checklist.setCalendarExceptionDescription(event.target.value)
+              }
+            />
+          </label>
+          <label className="flex min-h-11 items-center justify-between gap-3 self-end rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-sm font-black text-slate-700">
+            Dia laborable
+            <input
+              className="h-5 w-5 accent-emerald-700"
+              type="checkbox"
+              checked={checklist.calendarExceptionIsWorkingDay}
+              onChange={event =>
+                checklist.setCalendarExceptionIsWorkingDay(event.target.checked)
+              }
+            />
+          </label>
+          <button
+            className="min-h-11 self-end rounded-2xl bg-emerald-800 px-4 text-sm font-black text-white shadow-[0_12px_24px_rgba(6,95,70,0.18)] transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-emerald-300"
+            type="button"
+            disabled={checklist.savingCalendar}
+            onClick={checklist.handleSaveCalendarException}>
+            Guardar
+          </button>
+        </div>
+
+        <div className="mt-5 grid max-h-[420px] gap-2 overflow-auto pr-1">
+          {checklist.calendarExceptions.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
+              Aun no hay excepciones globales.
+            </div>
+          ) : (
+            checklist.calendarExceptions.map(exception => (
+              <div
+                key={exception.id}
+                className="grid grid-cols-[minmax(130px,0.75fr)_minmax(180px,1fr)_auto_auto] items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 max-[760px]:grid-cols-1">
+                <strong className="text-sm font-black text-slate-950">
+                  {formatDateToDisplay(exception.exception_date)}
+                </strong>
+                <span className="text-sm font-bold text-slate-600">
+                  {exception.description || 'Sin descripcion'}
+                </span>
+                <span
+                  className={`rounded-full px-3 py-1.5 text-xs font-black ${
+                    exception.is_working_day
+                      ? 'bg-emerald-100 text-emerald-900'
+                      : 'bg-rose-100 text-rose-900'
+                  }`}>
+                  {exception.is_working_day ? 'Laborable' : 'No laborable'}
+                </span>
+                <button
+                  className="rounded-xl bg-white px-3 py-2 text-xs font-black text-rose-700 shadow-[0_8px_18px_rgba(15,23,42,0.06)] transition hover:bg-rose-50"
+                  type="button"
+                  onClick={() =>
+                    checklist.handleDeleteCalendarException(exception.id)
+                  }>
+                  Eliminar
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function formatDateToDisplay(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const [year, month, day] = value.split('-');
+
+  return `${day}/${month}/${year}`;
 }
 
 interface ScheduleSelectionStateProps {

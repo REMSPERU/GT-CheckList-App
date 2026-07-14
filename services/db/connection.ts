@@ -216,6 +216,20 @@ export async function initDatabase() {
           updated_at TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS local_checklist_workday_config (
+          id TEXT PRIMARY KEY,
+          work_days TEXT NOT NULL,
+          updated_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS local_checklist_workday_exceptions (
+          id TEXT PRIMARY KEY,
+          exception_date TEXT NOT NULL UNIQUE,
+          description TEXT,
+          is_working_day INTEGER NOT NULL,
+          updated_at TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS local_instrumentos (
           id TEXT PRIMARY KEY,
           instrumento TEXT,
@@ -469,6 +483,7 @@ export async function initDatabase() {
         CREATE INDEX IF NOT EXISTS idx_local_equipamentos_property_property ON local_equipamentos_property(id_property);
         CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_equipamento ON local_preguntas_equipamento(equipamento_id);
         CREATE INDEX IF NOT EXISTS idx_local_preguntas_equipamento_activa ON local_preguntas_equipamento(activa);
+        CREATE INDEX IF NOT EXISTS idx_local_checklist_workday_exceptions_date ON local_checklist_workday_exceptions(exception_date);
         CREATE INDEX IF NOT EXISTS idx_local_user_properties_user ON local_user_properties(user_id);
         CREATE INDEX IF NOT EXISTS idx_local_user_properties_property ON local_user_properties(property_id);
         CREATE INDEX IF NOT EXISTS idx_offline_maint_status ON offline_maintenance_response(status);

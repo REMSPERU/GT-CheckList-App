@@ -26,6 +26,80 @@ export interface OfflineChecklistCount {
   conflict_count: number;
 }
 
+export interface ChecklistWorkingDayValidation {
+  allowed: boolean;
+  reason: string | null;
+}
+
+function getIsoDayOfWeek(dateString: string) {
+  const date = new Date(`${dateString}T00:00:00.000Z`);
+  const day = date.getUTCDay();
+
+  return day === 0 ? 7 : day;
+}
+
+function parseWorkDays(value: unknown) {
+  if (typeof value !== 'string') {
+    return [1, 2, 3, 4, 5];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (
+      Array.isArray(parsed) &&
+      parsed.every(item => Number.isInteger(item) && item >= 1 && item <= 7)
+    ) {
+      return parsed as number[];
+    }
+  } catch {
+    // Use default weekdays when local data is malformed or not synced yet.
+  }
+
+  return [1, 2, 3, 4, 5];
+}
+
+export async function validateLocalChecklistWorkingDay(
+  dateString: string,
+): Promise<ChecklistWorkingDayValidation> {
+  await ensureInitialized();
+
+  return withLock(async () => {
+    const db = await dbPromise;
+    const exception = (await db.getFirstAsync(
+      `SELECT is_working_day
+       FROM local_checklist_workday_exceptions
+       WHERE exception_date = ?
+       LIMIT 1`,
+      [dateString],
+    )) as { is_working_day: number } | null;
+
+    if (exception) {
+      return {
+        allowed: exception.is_working_day === 1,
+        reason:
+          exception.is_working_day === 1
+            ? null
+            : 'Hoy es un dia no laborable segun el calendario de checklist.',
+      };
+    }
+
+    const config = (await db.getFirstAsync(
+      `SELECT work_days
+       FROM local_checklist_workday_config
+       LIMIT 1`,
+    )) as { work_days: string } | null;
+    const workDays = parseWorkDays(config?.work_days);
+    const allowed = workDays.includes(getIsoDayOfWeek(dateString));
+
+    return {
+      allowed,
+      reason: allowed
+        ? null
+        : 'Hoy es un dia no laborable segun el calendario de checklist.',
+    };
+  });
+}
+
 export async function saveOfflineChecklistResponse(
   input: OfflineChecklistResponseInput,
 ) {

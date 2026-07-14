@@ -179,6 +179,24 @@ function formatDateToSpanish(value: string) {
   return `${day}-${month}-${year}`;
 }
 
+function getLimaDateString(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const year = parts.find(part => part.type === 'year')?.value;
+  const month = parts.find(part => part.type === 'month')?.value;
+  const day = parts.find(part => part.type === 'day')?.value;
+
+  if (!year || !month || !day) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  return `${year}-${month}-${day}`;
+}
+
 function buildFriendlyRestrictionMessage(
   reason: string,
   windowLabel: string,
@@ -545,6 +563,35 @@ export default function ChecklistFormScreen() {
       setSchedulePreview(prev => ({ ...prev, isLoading: true }));
 
       try {
+        const calendarValidation =
+          await DatabaseService.validateLocalChecklistWorkingDay(
+            getLimaDateString(),
+          );
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!calendarValidation.allowed) {
+          setSchedulePreview({
+            isLoading: false,
+            hasSchedule: true,
+            allowed: false,
+            message:
+              calendarValidation.reason ||
+              'Hoy es un dia no laborable segun el calendario de checklist.',
+            hint: 'La regla se valido con el calendario global guardado en el dispositivo.',
+            frequency: '',
+            currentCount: 0,
+            occurrencesPerDay: null,
+            windowStart: null,
+            windowEnd: null,
+            periodStart: null,
+            periodEnd: null,
+          });
+          return;
+        }
+
         const result =
           await supabaseChecklistScheduleService.validateChecklistSubmission(
             params.buildingId,
@@ -613,11 +660,11 @@ export default function ChecklistFormScreen() {
         }
         setSchedulePreview({
           isLoading: false,
-          hasSchedule: true,
-          allowed: false,
+          hasSchedule: false,
+          allowed: true,
           message:
-            'No se pudo validar la programacion de este checklist.',
-          hint: 'Conectate a internet y vuelve a intentarlo para confirmar si corresponde llenar ahora.',
+            'No se pudo validar la programacion remota. Se usara la validacion local disponible.',
+          hint: 'El calendario global local permite llenar hoy; la sincronizacion confirmara el registro cuando vuelva la conexion.',
           frequency: '',
           currentCount: 0,
           occurrencesPerDay: null,
@@ -887,6 +934,20 @@ export default function ChecklistFormScreen() {
       let effectivePeriodEnd: string | null = null;
       let effectiveOccurrencesLimit: number | null = null;
 
+      const calendarValidation =
+        await DatabaseService.validateLocalChecklistWorkingDay(
+          getLimaDateString(),
+        );
+
+      if (!calendarValidation.allowed) {
+        showAppAlert(
+          'Checklist fuera de programacion',
+          calendarValidation.reason ||
+            'Hoy es un dia no laborable segun el calendario de checklist.',
+        );
+        return;
+      }
+
       try {
         const scheduleValidation =
           await supabaseChecklistScheduleService.validateChecklistSubmission(
@@ -934,15 +995,10 @@ export default function ChecklistFormScreen() {
           }
         }
       } catch (scheduleValidationError) {
-        console.error(
-          'Schedule validation unavailable, blocking checklist save:',
+        console.warn(
+          'Schedule validation unavailable, using local checklist validation:',
           scheduleValidationError,
         );
-        showAppAlert(
-          'No se pudo validar la programacion',
-          'No se guardo el checklist porque no se pudo confirmar que corresponde llenarlo ahora. Revisa tu conexion e intenta nuevamente.',
-        );
-        return;
       }
 
       const fallbackPeriod = getPeriodFromFrequency(effectiveFrequency);

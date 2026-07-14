@@ -1890,6 +1890,8 @@ class SyncService {
           auditSessionsResult,
           marcasResult,
           equipamentosMarcasResult,
+          checklistWorkdayConfigResult,
+          checklistWorkdayExceptionsResult,
         ] = await Promise.all([
           fetchEquiposPaginated(assignedPropertyIds || undefined),
           safeFetch(() =>
@@ -1975,6 +1977,18 @@ class SyncService {
           safeFetch(() =>
             supabase.from('equipamento_marca').select('*').limit(SYNC_ROW_LIMIT),
           ),
+          safeFetch(() =>
+            supabase
+              .from('checklist_workday_config')
+              .select('*')
+              .limit(SYNC_ROW_LIMIT),
+          ),
+          safeFetch(() =>
+            supabase
+              .from('checklist_workday_exceptions')
+              .select('*')
+              .limit(SYNC_ROW_LIMIT),
+          ),
         ]);
 
         log('[SYNC] Pull table counts', {
@@ -2007,6 +2021,10 @@ class SyncService {
         if (auditSessionsResult.failed) failedTables.push('audit_sessions');
         if (marcasResult.failed) failedTables.push('marca');
         if (equipamentosMarcasResult.failed) failedTables.push('equipamento_marca');
+        if (checklistWorkdayConfigResult.failed)
+          failedTables.push('checklist_workday_config');
+        if (checklistWorkdayExceptionsResult.failed)
+          failedTables.push('checklist_workday_exceptions');
 
         if (failedTables.length > 0) {
           console.warn(
@@ -2032,6 +2050,8 @@ class SyncService {
           sessionPhotosResult.data,
           marcasResult.data,
           equipamentosMarcasResult.data,
+          checklistWorkdayConfigResult.data,
+          checklistWorkdayExceptionsResult.data,
         );
 
         if (auditSessionsResult.data !== null) {

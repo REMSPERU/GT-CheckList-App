@@ -36,6 +36,8 @@ export async function clearMirrorTables() {
     DELETE FROM local_sistemas;
     DELETE FROM local_equipamentos;
     DELETE FROM local_preguntas_equipamento;
+    DELETE FROM local_checklist_workday_config;
+    DELETE FROM local_checklist_workday_exceptions;
     DELETE FROM local_audit_questions;
     DELETE FROM local_equipamentos_property;
     DELETE FROM offline_panel_configurations;
@@ -256,6 +258,8 @@ export async function bulkInsertMirrorData(
   sessionPhotos: any[] | null = [],
   marcas: any[] | null = null,
   equipamentosMarcas: any[] | null = null,
+  checklistWorkdayConfig: any[] | null = null,
+  checklistWorkdayExceptions: any[] | null = null,
 ) {
   await ensureInitialized();
 
@@ -406,6 +410,38 @@ export async function bulkInsertMirrorData(
               item.ponderado ?? null,
               item.created_at,
               item.updated_at,
+            ],
+          );
+        }
+
+        if (checklistWorkdayConfig !== null) {
+          await smartSyncTable(
+            db,
+            'local_checklist_workday_config',
+            checklistWorkdayConfig,
+            'id',
+            'INSERT OR REPLACE INTO local_checklist_workday_config (id, work_days, updated_at) VALUES (?, ?, ?)',
+            item => [
+              item.id,
+              JSON.stringify(item.work_days || [1, 2, 3, 4, 5]),
+              item.updated_at || null,
+            ],
+          );
+        }
+
+        if (checklistWorkdayExceptions !== null) {
+          await smartSyncTable(
+            db,
+            'local_checklist_workday_exceptions',
+            checklistWorkdayExceptions,
+            'id',
+            'INSERT OR REPLACE INTO local_checklist_workday_exceptions (id, exception_date, description, is_working_day, updated_at) VALUES (?, ?, ?, ?, ?)',
+            item => [
+              item.id,
+              item.exception_date,
+              item.description || null,
+              item.is_working_day ? 1 : 0,
+              item.updated_at || null,
             ],
           );
         }
