@@ -1,12 +1,13 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AdminPagination } from '@/components/admin/admin-pagination';
 import { EquipmentTable } from '@/components/admin/equipment-table';
 import { Alert } from '@/components/ui/alert';
 import { SelectField } from '@/components/ui/select-field';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SearchInput } from '@/components/ui/search-input';
 import { useAdminEquipments } from '@/hooks/admin/use-admin-equipments';
 
 export function mapTipoLabel(tipo: string): string {
@@ -28,6 +29,80 @@ const STATUS_OPTIONS = [
 function AdminEquipmentsContent() {
   const equipments = useAdminEquipments();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedBrandOption, setSelectedBrandOption] = useState<string>('');
+  const [customBrandText, setCustomBrandText] = useState<string>('');
+
+  useEffect(() => {
+    const currentMarca = equipments.marca;
+    if (!currentMarca) {
+      if (selectedBrandOption === 'OTRO' && customBrandText === '') {
+        return;
+      }
+      setSelectedBrandOption('');
+      setCustomBrandText('');
+      return;
+    }
+
+    const brandExists = equipments.brands.some(
+      b => b.nombre.toLowerCase() === currentMarca.toLowerCase()
+    );
+
+    if (brandExists) {
+      const match = equipments.brands.find(
+        b => b.nombre.toLowerCase() === currentMarca.toLowerCase()
+      );
+      setSelectedBrandOption(match?.nombre || currentMarca);
+      setCustomBrandText('');
+    } else {
+      setSelectedBrandOption('OTRO');
+      setCustomBrandText(currentMarca);
+    }
+  }, [equipments.marca, equipments.brands, selectedBrandOption, customBrandText]);
+
+  const renderMarcaField = () => {
+    const brandOptions = [
+      { value: '', label: 'Todas las marcas' },
+      ...equipments.brands.map(b => ({ value: b.nombre, label: b.nombre })),
+      { value: 'OTRO', label: 'Otros' },
+    ];
+
+    const handleBrandSelectChange = (val: string) => {
+      if (val === 'OTRO') {
+        setSelectedBrandOption('OTRO');
+        setCustomBrandText('');
+        equipments.handleMarcaChange('');
+      } else {
+        setSelectedBrandOption(val);
+        setCustomBrandText('');
+        equipments.handleMarcaChange(val);
+      }
+    };
+
+    return (
+      <div className="grid gap-1.5">
+        <label className="text-xs font-bold text-slate-500">Marca</label>
+        <SearchableSelect
+          value={selectedBrandOption}
+          options={brandOptions}
+          onChange={handleBrandSelectChange}
+          placeholder="Seleccionar marca..."
+        />
+        {selectedBrandOption === 'OTRO' && (
+          <input
+            type="text"
+            value={customBrandText}
+            onChange={e => {
+              const val = e.target.value;
+              setCustomBrandText(val);
+              equipments.handleMarcaChange(val);
+            }}
+            placeholder="Escriba la marca..."
+            className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f] mt-1.5"
+          />
+        )}
+      </div>
+    );
+  };
 
   const activeAdvancedCount = [
     equipments.status !== 'TODOS' ? 1 : 0,
@@ -177,7 +252,12 @@ function AdminEquipmentsContent() {
           Imprimir QRs
         </Link>
       </section>
-      <section className="grid grid-cols-[1fr_1fr_1.2fr_1fr_auto] items-center gap-2.5 max-[1200px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1">
+      <section className="grid grid-cols-[1.2fr_1.2fr_1fr_1.2fr_1fr_auto] items-center gap-2.5 max-[1200px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1">
+        <SearchInput
+          placeholder="Buscar código o ubicación"
+          value={equipments.search}
+          onChange={equipments.setSearch}
+        />
         <SearchableSelect
           value={equipments.propertyId}
           options={propertyOptions}
@@ -349,31 +429,13 @@ function AdminEquipmentsContent() {
                               ariaLabel="Filtrar por tipo de tablero"
                             />
                           </div>
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Marca</label>
-                            <input
-                              type="text"
-                              value={equipments.marca}
-                              onChange={e => equipments.handleMarcaChange(e.target.value)}
-                              placeholder="Ej. Legrand, Schneider..."
-                              className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
-                            />
-                          </div>
+                          {renderMarcaField()}
                         </>
                       )}
 
                       {isHvac && (
                         <>
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Marca</label>
-                            <input
-                              type="text"
-                              value={equipments.marca}
-                              onChange={e => equipments.handleMarcaChange(e.target.value)}
-                              placeholder="Ej. Carrier, Daikin, LG..."
-                              className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
-                            />
-                          </div>
+                          {renderMarcaField()}
                           <div className="grid gap-1.5">
                             <label className="text-xs font-bold text-slate-500">Modelo</label>
                             <input
@@ -417,16 +479,7 @@ function AdminEquipmentsContent() {
 
                       {isPump && (
                         <>
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Marca</label>
-                            <input
-                              type="text"
-                              value={equipments.marca}
-                              onChange={e => equipments.handleMarcaChange(e.target.value)}
-                              placeholder="Ej. Pedrollo, Pentax..."
-                              className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
-                            />
-                          </div>
+                          {renderMarcaField()}
                           <div className="grid gap-1.5">
                             <label className="text-xs font-bold text-slate-500">Potencia</label>
                             <input
@@ -462,16 +515,7 @@ function AdminEquipmentsContent() {
 
                       {!isElectricalPanel && !isHvac && !isPump && (
                         <>
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Marca</label>
-                            <input
-                              type="text"
-                              value={equipments.marca}
-                              onChange={e => equipments.handleMarcaChange(e.target.value)}
-                              placeholder="Marca del equipo..."
-                              className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
-                            />
-                          </div>
+                          {renderMarcaField()}
                           <div className="grid gap-1.5">
                             <label className="text-xs font-bold text-slate-500">Modelo</label>
                             <input
@@ -502,6 +546,8 @@ function AdminEquipmentsContent() {
                     <button
                       type="button"
                       onClick={() => {
+                        setSelectedBrandOption('');
+                        setCustomBrandText('');
                         equipments.clearFilters();
                         setIsFilterOpen(false);
                       }}

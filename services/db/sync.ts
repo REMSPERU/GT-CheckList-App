@@ -36,6 +36,9 @@ export async function clearMirrorTables() {
     DELETE FROM local_sistemas;
     DELETE FROM local_equipamentos;
     DELETE FROM local_preguntas_equipamento;
+    DELETE FROM local_checklist_workday_config;
+    DELETE FROM local_checklist_workday_exceptions;
+    DELETE FROM local_checklist_schedules;
     DELETE FROM local_audit_questions;
     DELETE FROM local_equipamentos_property;
     DELETE FROM offline_panel_configurations;
@@ -204,9 +207,17 @@ async function runMirrorStep(
   await withLock(
     async () => {
       const db = await dbPromise;
-      console.log(`[DEBUG] runMirrorStep (${label}) db before tx:`, db, typeof db);
+      console.log(
+        `[DEBUG] runMirrorStep (${label}) db before tx:`,
+        db,
+        typeof db,
+      );
       await db.withTransactionAsync(async () => {
-        console.log(`[DEBUG] runMirrorStep (${label}) db inside tx:`, db, typeof db);
+        console.log(
+          `[DEBUG] runMirrorStep (${label}) db inside tx:`,
+          db,
+          typeof db,
+        );
         await operation(db);
       });
     },
@@ -256,6 +267,9 @@ export async function bulkInsertMirrorData(
   sessionPhotos: any[] | null = [],
   marcas: any[] | null = null,
   equipamentosMarcas: any[] | null = null,
+  checklistWorkdayConfig: any[] | null = null,
+  checklistWorkdayExceptions: any[] | null = null,
+  checklistSchedules: any[] | null = null,
 ) {
   await ensureInitialized();
 
@@ -263,7 +277,7 @@ export async function bulkInsertMirrorData(
     async () => {
       const db = await dbPromise;
       const startedAt = Date.now();
-      
+
       await db.withTransactionAsync(async () => {
         if (equipos !== null) {
           await smartSyncTable(
@@ -301,8 +315,12 @@ export async function bulkInsertMirrorData(
               item.address || '',
               item.city || '',
               item.image_url || null,
-              item.floor !== undefined && item.floor !== null ? item.floor : null,
-              item.basement !== undefined && item.basement !== null ? item.basement : null,
+              item.floor !== undefined && item.floor !== null
+                ? item.floor
+                : null,
+              item.basement !== undefined && item.basement !== null
+                ? item.basement
+                : null,
             ],
           );
         }
@@ -410,6 +428,70 @@ export async function bulkInsertMirrorData(
           );
         }
 
+        if (checklistWorkdayConfig !== null) {
+          await smartSyncTable(
+            db,
+            'local_checklist_workday_config',
+            checklistWorkdayConfig,
+            'id',
+            'INSERT OR REPLACE INTO local_checklist_workday_config (id, work_days, updated_at) VALUES (?, ?, ?)',
+            item => [
+              item.id,
+              JSON.stringify(item.work_days || [1, 2, 3, 4, 5]),
+              item.updated_at || null,
+            ],
+          );
+        }
+
+        if (checklistWorkdayExceptions !== null) {
+          await smartSyncTable(
+            db,
+            'local_checklist_workday_exceptions',
+            checklistWorkdayExceptions,
+            'id',
+            'INSERT OR REPLACE INTO local_checklist_workday_exceptions (id, exception_date, description, is_working_day, updated_at) VALUES (?, ?, ?, ?, ?)',
+            item => [
+              item.id,
+              item.exception_date,
+              item.description || null,
+              item.is_working_day ? 1 : 0,
+              item.updated_at || null,
+            ],
+          );
+        }
+
+        if (checklistSchedules !== null) {
+          await smartSyncTable(
+            db,
+            'local_checklist_schedules',
+            checklistSchedules,
+            'id',
+            `INSERT OR REPLACE INTO local_checklist_schedules (
+              id, equipo_id, property_id, equipamento_id, frequency,
+              occurrences_per_day, window_start, window_end, timezone,
+              start_date, end_date, is_active, execution_range_days,
+              created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            item => [
+              item.id,
+              item.equipo_id || null,
+              item.property_id,
+              item.equipamento_id,
+              item.frequency,
+              item.occurrences_per_day ?? 1,
+              item.window_start,
+              item.window_end,
+              item.timezone || 'America/Lima',
+              item.start_date,
+              item.end_date || null,
+              item.is_active ? 1 : 0,
+              item.execution_range_days ?? 1,
+              item.created_at || null,
+              item.updated_at || null,
+            ],
+          );
+        }
+
         if (auditQuestions !== null) {
           await smartSyncTable(
             db,
@@ -457,7 +539,8 @@ export async function bulkInsertMirrorData(
               item.codigo,
               item.id_sesion || null,
               JSON.stringify(
-                item.user_sesion_mantenimiento?.map((um: any) => um.id_user) || [],
+                item.user_sesion_mantenimiento?.map((um: any) => um.id_user) ||
+                  [],
               ),
               new Date().toISOString(),
             ],
@@ -474,7 +557,8 @@ export async function bulkInsertMirrorData(
                 `)
               : null;
           const localSessionReferenceCount =
-            (hasLocalSessionReferences as { count?: number } | null)?.count ?? 0;
+            (hasLocalSessionReferences as { count?: number } | null)?.count ??
+            0;
 
           if (sessions.length === 0 && localSessionReferenceCount > 0) {
             console.warn(
@@ -553,10 +637,12 @@ export async function bulkInsertMirrorData(
         }
       });
 
-      console.log(`[SmartSync] Mirror data sync completed in ${Date.now() - startedAt}ms`);
+      console.log(
+        `[SmartSync] Mirror data sync completed in ${Date.now() - startedAt}ms`,
+      );
     },
     'bulkInsertMirrorData:all',
-    { maxRetries: 0 }
+    { maxRetries: 0 },
   );
 }
 

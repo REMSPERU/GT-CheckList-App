@@ -11,6 +11,8 @@ import type {
   AdminChecklistScheduleFrequency,
   AdminChecklistScheduleRow,
   AdminChecklistScheduleUpsertInput,
+  AdminChecklistWorkdayConfigRow,
+  AdminChecklistWorkdayExceptionRow,
   AdminPaginatedResult,
 } from '@/types/admin';
 
@@ -48,6 +50,8 @@ interface ChecklistScheduleProgressResponseRow {
   equipo_id: string | null;
   submitted_at: string | null;
 }
+
+const GLOBAL_WORKDAY_CONFIG_ID = '00000000-0000-0000-0000-000000000001';
 
 function parseLocalDate(value: string) {
   const [year, month, day] = value.split('-').map(Number);
@@ -683,6 +687,96 @@ export async function updateAdminChecklistQuestion(
       updated_at: new Date().toISOString(),
     })
     .eq('id', input.id);
+
+  if (error) throw error;
+}
+
+export async function getAdminChecklistWorkdayCalendar(
+  supabase: SupabaseClient,
+): Promise<{
+  config: AdminChecklistWorkdayConfigRow;
+  exceptions: AdminChecklistWorkdayExceptionRow[];
+}> {
+  const [configResult, exceptionsResult] = await Promise.all([
+    supabase
+      .from('checklist_workday_config')
+      .select('id, work_days, updated_at')
+      .eq('id', GLOBAL_WORKDAY_CONFIG_ID)
+      .maybeSingle(),
+    supabase
+      .from('checklist_workday_exceptions')
+      .select('id, exception_date, description, is_working_day, updated_at')
+      .order('exception_date', { ascending: true }),
+  ]);
+
+  if (configResult.error) throw configResult.error;
+  if (exceptionsResult.error) throw exceptionsResult.error;
+
+  const configData = configResult.data as {
+    id: string;
+    work_days: number[] | null;
+    updated_at: string | null;
+  } | null;
+
+  return {
+    config: {
+      id: configData?.id ?? GLOBAL_WORKDAY_CONFIG_ID,
+      work_days: configData?.work_days?.length
+        ? configData.work_days
+        : [1, 2, 3, 4, 5],
+      updated_at: configData?.updated_at ?? null,
+    },
+    exceptions: (exceptionsResult.data ?? []) as AdminChecklistWorkdayExceptionRow[],
+  };
+}
+
+export async function upsertAdminChecklistWorkdayConfig(
+  supabase: SupabaseClient,
+  workDays: number[],
+): Promise<void> {
+  const { error } = await supabase.from('checklist_workday_config').upsert(
+    {
+      id: GLOBAL_WORKDAY_CONFIG_ID,
+      work_days: workDays,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'id' },
+  );
+
+  if (error) throw error;
+}
+
+export async function upsertAdminChecklistWorkdayException(
+  supabase: SupabaseClient,
+  input: {
+    exceptionDate: string;
+    description: string | null;
+    isWorkingDay: boolean;
+  },
+): Promise<void> {
+  const { error } = await supabase
+    .from('checklist_workday_exceptions')
+    .upsert(
+      {
+        exception_date: input.exceptionDate,
+        description: input.description,
+        is_working_day: input.isWorkingDay,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'exception_date' },
+    );
+
+  if (error) throw error;
+}
+
+export async function deleteAdminChecklistWorkdayException(
+  supabase: SupabaseClient,
+  exceptionId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('checklist_workday_exceptions')
+    .delete()
+    .eq('id', exceptionId);
 
   if (error) throw error;
 }
