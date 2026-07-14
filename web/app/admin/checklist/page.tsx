@@ -672,141 +672,332 @@ interface GlobalCalendarPanelProps {
 
 function GlobalCalendarPanel({ checklist }: GlobalCalendarPanelProps) {
   return (
-    <section className="grid grid-cols-[minmax(320px,0.85fr)_minmax(360px,1.15fr)] gap-4 max-[980px]:grid-cols-1">
-      <section className="rounded-[28px] border border-emerald-900/10 bg-[linear-gradient(145deg,rgba(240,253,244,0.95),rgba(255,255,255,0.92))] p-5 shadow-[0_22px_54px_rgba(15,23,42,0.08)]">
-        <p className="m-0 text-xs font-black uppercase tracking-[0.18em] text-emerald-800">
-          Calendario global
-        </p>
-        <h2 className="m-0 mt-1 text-2xl font-black tracking-[-0.04em] text-slate-950">
-          Dias laborables del checklist
-        </h2>
-        <p className="mt-1.5 text-sm font-semibold text-slate-500">
-          Esta regla aplica a todos los inmuebles. Usa excepciones para feriados
-          o dias especiales sin crear configuraciones por sede.
-        </p>
+    <section className="grid grid-cols-[1.1fr_1.9fr] gap-6 max-[1120px]:grid-cols-1">
+      {/* PANEL 1: CONFIGURACION SEMANAL */}
+      <section className="flex flex-col justify-between rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.04)]">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+              <svg
+                className="h-4.5 w-4.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2.5">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+            </div>
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-emerald-800">
+              Regla Semanal
+            </span>
+          </div>
 
-        <div className="mt-5 grid grid-cols-7 gap-2 max-[640px]:grid-cols-2">
-          {WEEKDAY_OPTIONS.map(day => {
-            const active = checklist.calendarWorkDays.includes(day.value);
+          <h2 className="m-0 mt-3 text-2xl font-black tracking-[-0.04em] text-slate-900">
+            Días laborables
+          </h2>
+          <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
+            Define la regla base de qué días de la semana se permite llenar
+            checklists. Aplica a todas las sedes de forma macro.
+          </p>
 
-            return (
-              <button
-                key={day.value}
-                className={`rounded-2xl border px-3 py-4 text-center transition hover:-translate-y-0.5 ${
-                  active
-                    ? 'border-emerald-700 bg-emerald-800 text-white shadow-[0_14px_28px_rgba(6,95,70,0.20)]'
-                    : 'border-slate-200 bg-white text-slate-500 hover:border-emerald-200 hover:bg-emerald-50'
-                }`}
-                type="button"
-                onClick={() => checklist.toggleCalendarWorkDay(day.value)}>
-                <strong className="block text-lg font-black">{day.label}</strong>
-                <span className="mt-1 block text-[0.68rem] font-black uppercase tracking-[0.12em] opacity-80">
-                  {active ? 'Laborable' : 'Bloqueado'}
-                </span>
-              </button>
-            );
-          })}
+          <div className="mt-6 flex flex-col gap-2.5">
+            {WEEKDAY_OPTIONS.map(day => {
+              const active = checklist.calendarWorkDays.includes(day.value);
+
+              return (
+                <button
+                  key={day.value}
+                  type="button"
+                  onClick={() => checklist.toggleCalendarWorkDay(day.value)}
+                  className={`flex items-center justify-between rounded-2xl border px-4.5 py-3.5 text-left transition-all duration-200 ${
+                    active
+                      ? 'border-emerald-600 bg-emerald-50/40 text-slate-900 shadow-[0_4px_12px_rgba(16,185,129,0.06)]'
+                      : 'border-slate-100 bg-slate-50/50 text-slate-400 hover:border-slate-200 hover:bg-slate-50'
+                  }`}>
+                  <div className="flex items-center gap-3.5">
+                    <span
+                      className={`flex h-9 w-9 items-center justify-center rounded-xl text-[0.8rem] font-bold ${
+                        active
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}>
+                      {day.label}
+                    </span>
+                    <div>
+                      <strong className="block text-[0.95rem] font-bold text-slate-800">
+                        {day.description}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`flex h-6.5 w-6.5 items-center justify-center rounded-full transition-all ${
+                      active
+                        ? 'bg-emerald-600 text-white scale-100'
+                        : 'bg-slate-100 text-slate-300 scale-95'
+                    }`}>
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="3">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <button
-          className="mt-5 min-h-12 w-full rounded-2xl bg-slate-950 px-4 text-sm font-black text-white shadow-[0_16px_34px_rgba(15,23,42,0.20)] transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-slate-400"
           type="button"
           disabled={checklist.savingCalendar}
-          onClick={checklist.handleSaveCalendarWorkDays}>
-          {checklist.savingCalendar ? 'Guardando...' : 'Guardar dias globales'}
+          onClick={checklist.handleSaveCalendarWorkDays}
+          className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white shadow-[0_12px_28px_rgba(15,23,42,0.15)] transition-all hover:bg-emerald-950 hover:shadow-[0_12px_28px_rgba(16,185,129,0.2)] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
+          {checklist.savingCalendar ? (
+            <>
+              <div className="h-4.5 w-4.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              <span>Guardando...</span>
+            </>
+          ) : (
+            <>
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2.5">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+                />
+              </svg>
+              <span>Guardar regla semanal</span>
+            </>
+          )}
         </button>
       </section>
 
-      <section className="rounded-[28px] border border-slate-900/10 bg-white/85 p-5 shadow-[0_22px_54px_rgba(15,23,42,0.08)]">
-        <div className="mb-4 flex items-start justify-between gap-3 max-[640px]:grid">
-          <div>
-            <p className="m-0 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-              Excepciones
-            </p>
-            <h2 className="m-0 mt-1 text-2xl font-black tracking-[-0.04em] text-slate-950">
-              Feriados y overrides
-            </h2>
+      {/* PANEL 2: EXCEPCIONES Y OVERRIDES */}
+      <section className="flex flex-col gap-6 rounded-[32px] border border-slate-100 bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.04)]">
+        <div>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+                <svg
+                  className="h-4.5 w-4.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2.5">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              </div>
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                Feriados y Excepciones
+              </span>
+            </div>
+            <span className="rounded-full bg-slate-50 px-3.5 py-1 text-xs font-bold text-slate-500 border border-slate-100">
+              {checklist.calendarExceptions.length} fechas
+            </span>
           </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600">
-            {checklist.calendarExceptions.length} fechas
-          </span>
+
+          <h2 className="m-0 mt-3 text-2xl font-black tracking-[-0.04em] text-slate-900">
+            Feriados y overrides
+          </h2>
+          <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
+            Define fechas específicas que anulan la regla semanal (ej. bloquear
+            feriados nacionales o habilitar un domingo especial).
+          </p>
         </div>
 
-        <div className="grid grid-cols-[minmax(150px,0.8fr)_minmax(220px,1.2fr)_minmax(170px,0.8fr)_auto] gap-3 max-[980px]:grid-cols-2 max-[640px]:grid-cols-1">
-          <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-            Fecha
-            <input
-              className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              type="date"
-              value={checklist.calendarExceptionDate}
-              onChange={event =>
-                checklist.setCalendarExceptionDate(event.target.value)
+        {/* FORMULARIO AGREGAR EXCEPCION */}
+        <div className="rounded-2xl border border-slate-100 bg-slate-50/40 p-4.5">
+          <div className="grid grid-cols-[1fr_1.5fr_1fr_auto] items-end gap-4.5 max-[1020px]:grid-cols-2 max-[640px]:grid-cols-1">
+            <label className="grid gap-2 text-xs font-black uppercase tracking-wider text-slate-500">
+              Fecha
+              <input
+                type="date"
+                value={checklist.calendarExceptionDate}
+                onChange={event =>
+                  checklist.setCalendarExceptionDate(event.target.value)
+                }
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-[0.95rem] text-slate-900 outline-none transition-all focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10"
+              />
+            </label>
+
+            <label className="grid gap-2 text-xs font-black uppercase tracking-wider text-slate-500">
+              Descripción
+              <input
+                type="text"
+                placeholder="Ej. Feriado Nacional (Fiestas Patrias)"
+                value={checklist.calendarExceptionDescription}
+                onChange={event =>
+                  checklist.setCalendarExceptionDescription(event.target.value)
+                }
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-[0.95rem] text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/10"
+              />
+            </label>
+
+            <div className="flex h-11 flex-col justify-between gap-1 max-[640px]:flex-row max-[640px]:items-center">
+              <span className="text-[0.68rem] font-black uppercase tracking-wider text-slate-500">
+                ¿Es laborable?
+              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    checklist.setCalendarExceptionIsWorkingDay(
+                      !checklist.calendarExceptionIsWorkingDay,
+                    )
+                  }
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+                    checklist.calendarExceptionIsWorkingDay
+                      ? 'bg-emerald-600'
+                      : 'bg-slate-300'
+                  }`}>
+                  <span
+                    className={`inline-block h-4.5 w-4.5 transform rounded-full bg-white transition-transform duration-200 ${
+                      checklist.calendarExceptionIsWorkingDay
+                        ? 'translate-x-5.5'
+                        : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span
+                  className={`text-[0.8rem] font-bold ${checklist.calendarExceptionIsWorkingDay ? 'text-emerald-700' : 'text-slate-500'}`}>
+                  {checklist.calendarExceptionIsWorkingDay ? 'Sí' : 'No'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              disabled={
+                checklist.savingCalendar || !checklist.calendarExceptionDate
               }
-            />
-          </label>
-          <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-            Descripcion
-            <input
-              className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              placeholder="Ej. Feriado nacional"
-              value={checklist.calendarExceptionDescription}
-              onChange={event =>
-                checklist.setCalendarExceptionDescription(event.target.value)
-              }
-            />
-          </label>
-          <label className="flex min-h-11 items-center justify-between gap-3 self-end rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-sm font-black text-slate-700">
-            Dia laborable
-            <input
-              className="h-5 w-5 accent-emerald-700"
-              type="checkbox"
-              checked={checklist.calendarExceptionIsWorkingDay}
-              onChange={event =>
-                checklist.setCalendarExceptionIsWorkingDay(event.target.checked)
-              }
-            />
-          </label>
-          <button
-            className="min-h-11 self-end rounded-2xl bg-emerald-800 px-4 text-sm font-black text-white shadow-[0_12px_24px_rgba(6,95,70,0.18)] transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-emerald-300"
-            type="button"
-            disabled={checklist.savingCalendar}
-            onClick={checklist.handleSaveCalendarException}>
-            Guardar
-          </button>
+              onClick={checklist.handleSaveCalendarException}
+              className="flex h-11 items-center justify-center gap-1.5 rounded-xl bg-emerald-800 px-5 text-sm font-black text-white shadow-[0_8px_18px_rgba(16,185,129,0.15)] transition-all hover:bg-emerald-900 hover:shadow-[0_8px_20px_rgba(16,185,129,0.25)] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
+              <svg
+                className="h-4.5 w-4.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="3">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span>Agregar</span>
+            </button>
+          </div>
         </div>
 
-        <div className="mt-5 grid max-h-[420px] gap-2 overflow-auto pr-1">
+        {/* LISTADO DE EXCEPCIONES */}
+        <div className="flex flex-col gap-2 max-h-[360px] overflow-y-auto pr-1">
           {checklist.calendarExceptions.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
-              Aun no hay excepciones globales.
+            <div className="flex flex-col items-center justify-center gap-3.5 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 py-12 px-4 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                  />
+                </svg>
+              </div>
+              <div>
+                <strong className="block text-slate-700 text-[0.95rem] font-bold">
+                  Aún no hay excepciones globales
+                </strong>
+                <span className="block mt-1 text-slate-400 text-xs font-medium">
+                  Las excepciones guardadas se listarán en esta sección.
+                </span>
+              </div>
             </div>
           ) : (
             checklist.calendarExceptions.map(exception => (
               <div
                 key={exception.id}
-                className="grid grid-cols-[minmax(130px,0.75fr)_minmax(180px,1fr)_auto_auto] items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 max-[760px]:grid-cols-1">
-                <strong className="text-sm font-black text-slate-950">
-                  {formatDateToDisplay(exception.exception_date)}
-                </strong>
-                <span className="text-sm font-bold text-slate-600">
-                  {exception.description || 'Sin descripcion'}
-                </span>
-                <span
-                  className={`rounded-full px-3 py-1.5 text-xs font-black ${
-                    exception.is_working_day
-                      ? 'bg-emerald-100 text-emerald-900'
-                      : 'bg-rose-100 text-rose-900'
-                  }`}>
-                  {exception.is_working_day ? 'Laborable' : 'No laborable'}
-                </span>
-                <button
-                  className="rounded-xl bg-white px-3 py-2 text-xs font-black text-rose-700 shadow-[0_8px_18px_rgba(15,23,42,0.06)] transition hover:bg-rose-50"
-                  type="button"
-                  onClick={() =>
-                    checklist.handleDeleteCalendarException(exception.id)
-                  }>
-                  Eliminar
-                </button>
+                className="flex items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition-all duration-200 hover:border-slate-200 hover:bg-slate-50 max-[760px]:flex-col max-[760px]:items-start">
+                <div className="flex flex-1 items-center gap-4.5 max-[500px]:flex-col max-[500px]:items-start">
+                  <div className="flex flex-col">
+                    <strong className="text-[1.05rem] font-bold text-slate-900">
+                      {formatDateToDisplay(exception.exception_date)}
+                    </strong>
+                    <span className="mt-0.5 text-xs font-semibold text-slate-400">
+                      Fecha registrada
+                    </span>
+                  </div>
+
+                  <div className="h-6 w-px bg-slate-200 max-[500px]:hidden" />
+
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-slate-600">
+                      {exception.description || 'Sin descripción'}
+                    </span>
+                    <span className="mt-0.5 text-xs font-semibold text-slate-400">
+                      Motivo / Descripción
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3.5 max-[760px]:w-full max-[760px]:justify-between">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black border ${
+                      exception.is_working_day
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                        : 'bg-rose-50 text-rose-700 border-rose-100'
+                    }`}>
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${exception.is_working_day ? 'bg-emerald-600' : 'bg-rose-600'}`}
+                    />
+                    {exception.is_working_day ? 'Laborable' : 'No laborable'}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      checklist.handleDeleteCalendarException(exception.id)
+                    }
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-100 bg-white text-slate-400 shadow-[0_2px_6px_rgba(0,0,0,0.02)] transition-all hover:border-rose-100 hover:bg-rose-50 hover:text-rose-600 active:scale-[0.96]"
+                    title="Eliminar excepción">
+                    <svg
+                      className="h-4.5 w-4.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2.5">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))
           )}
