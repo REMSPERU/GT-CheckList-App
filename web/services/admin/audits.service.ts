@@ -400,6 +400,33 @@ async function hydrateAuditRows(
     const property = properties.get(item.property_id);
     const auditor = users.get(item.auditor_id);
 
+    const answers = mapAuditAnswers(item.audit_payload, questions, supabase);
+    const equipmentFeedback = mapEquipmentFeedback(item.audit_payload, supabase);
+
+    let feedbackOk = 0;
+    let feedbackObs = 0;
+    let feedbackPhotos = 0;
+
+    equipmentFeedback.forEach(fb => {
+      const gpComment = fb.good_practices_comment?.trim();
+      const gpPhotos = fb.good_practices_photos?.length ?? 0;
+      const oppComment = fb.improvement_opportunity_comment?.trim();
+      const oppPhotos = fb.improvement_opportunity_photos?.length ?? 0;
+
+      if (gpComment || gpPhotos > 0) {
+        feedbackOk += 1;
+        feedbackPhotos += gpPhotos;
+      }
+      if (oppComment || oppPhotos > 0) {
+        feedbackObs += 1;
+        feedbackPhotos += oppPhotos;
+      }
+    });
+
+    const computedTotalOk = answers.filter(a => a.status === 'OK').length + feedbackOk;
+    const computedTotalObs = answers.filter(a => a.status === 'OBS').length + feedbackObs;
+    const computedTotalPhotos = answers.reduce((sum, a) => sum + a.photos.length, 0) + feedbackPhotos;
+
     return {
       id: item.id,
       client_submission_id: item.client_submission_id,
@@ -417,11 +444,11 @@ async function hydrateAuditRows(
       total_questions: asNumber(summary.total_questions),
       total_applies: asNumber(summary.total_applies),
       total_not_applicable: asNumber(summary.total_not_applicable),
-      total_ok: asNumber(summary.total_ok),
-      total_obs: asNumber(summary.total_obs),
-      total_photos: asNumber(summary.total_photos),
-      answers: mapAuditAnswers(item.audit_payload, questions, supabase),
-      equipmentFeedback: mapEquipmentFeedback(item.audit_payload, supabase),
+      total_ok: computedTotalOk,
+      total_obs: computedTotalObs,
+      total_photos: computedTotalPhotos,
+      answers,
+      equipmentFeedback,
     };
   });
 }
