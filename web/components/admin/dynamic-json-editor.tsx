@@ -1,8 +1,6 @@
 'use client';
 
 import React from 'react';
-import { formatTechnicalKey } from '@/components/admin/equipment-detail-view'; // We'll need to export this or recreate it
-// Actually let's just recreate a simple label formatter
 
 function formatLabel(key: string): string {
   const lowerKey = key.toLowerCase();
