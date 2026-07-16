@@ -523,3 +523,25 @@ export async function getAdminEquipmentById(
     rawData: row,
   };
 }
+
+export async function updateAdminEquipment(
+  supabase: SupabaseClient,
+  equipmentId: string,
+  updates: Partial<{
+    codigo: string | null;
+    ubicacion: string | null;
+    detalle_ubicacion: string | null;
+    estatus: string | null;
+    config: boolean | null;
+    equipment_detail: unknown;
+  }>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('equipos')
+    .update(updates)
+    .eq('id', equipmentId);
+
+  if (error) {
+    throw error;
+  }
+}

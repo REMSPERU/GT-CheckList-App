@@ -12,6 +12,7 @@ import {
   Zap,
   XCircle,
   ChevronDown,
+  Pencil,
 } from 'lucide-react';
 
 import { StatusBadge } from '@/components/admin/status-badge';
@@ -424,6 +425,13 @@ function EquipmentInfoSection({ equipment }: { equipment: AdminEquipmentDetailRo
       </div>
 
       <div className="flex items-center gap-2">
+        <Link
+          href={`/admin/equipos/${equipment.id}/edit`}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-700 transition-colors mr-2 border border-amber-200 no-underline"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          Editar activo
+        </Link>
         <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
           Estado:
         </span>
