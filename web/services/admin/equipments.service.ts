@@ -59,44 +59,65 @@ export async function getDistinctEquipmentDetailTypes(
     propertyId?: string;
     systemId?: string;
     equipmentTypeId?: string;
-  }
+  },
 ): Promise<string[]> {
-  let query = supabase
-    .from('equipos')
-    .select('tipo:equipment_detail->>tipo')
-    .not('equipment_detail->>tipo', 'is', null);
-
-  if (filters?.propertyId) {
-    query = query.eq('id_property', filters.propertyId);
-  }
-
-  if (filters?.systemId) {
-    const matchedIds = await getEquipmentTypeIdsBySystem(
-      supabase,
-      filters.systemId,
-    );
-    query = query.in(
-      'id_equipamento',
-      matchedIds.length > 0 ? matchedIds : [EMPTY_UUID],
-    );
-  }
-
-  if (filters?.equipmentTypeId) {
-    query = query.eq('id_equipamento', filters.equipmentTypeId);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-
   const types = new Set<string>();
-  (data ?? []).forEach((item: any) => {
-    if (item && typeof item.tipo === 'string') {
-      const trimmed = item.tipo.trim();
-      if (trimmed) {
-        types.add(trimmed);
-      }
+  let pageNum = 0;
+  const pageSize = 1000;
+  let hasMore = true;
+
+  // Pre-resolve system types once if systemId is provided
+  let matchedIds: string[] | null = null;
+  if (filters?.systemId) {
+    matchedIds = await getEquipmentTypeIdsBySystem(supabase, filters.systemId);
+  }
+
+  while (hasMore) {
+    const fromIdx = pageNum * pageSize;
+    const toIdx = fromIdx + pageSize - 1;
+
+    let query = supabase
+      .from('equipos')
+      .select('tipo:equipment_detail->>tipo')
+      .not('equipment_detail->>tipo', 'is', null)
+      .range(fromIdx, toIdx);
+
+    if (filters?.propertyId) {
+      query = query.eq('id_property', filters.propertyId);
     }
-  });
+
+    if (filters?.systemId && matchedIds) {
+      query = query.in(
+        'id_equipamento',
+        matchedIds.length > 0 ? matchedIds : [EMPTY_UUID],
+      );
+    }
+
+    if (filters?.equipmentTypeId) {
+      query = query.eq('id_equipamento', filters.equipmentTypeId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      data.forEach((item: any) => {
+        if (item && typeof item.tipo === 'string') {
+          const trimmed = item.tipo.trim();
+          if (trimmed) {
+            types.add(trimmed);
+          }
+        }
+      });
+      if (data.length < pageSize) {
+        hasMore = false;
+      } else {
+        pageNum++;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
 
   return Array.from(types).sort((a, b) => a.localeCompare(b));
 }
@@ -181,7 +202,10 @@ export async function listAdminEquipments(
     const selectedType = allTypes.find(t => t.id === filters.equipmentTypeId);
     const isElectricalPanel = selectedType?.abreviatura === 'TBELEC';
     if (isElectricalPanel) {
-      query = query.eq('equipment_detail->detalle_tecnico->>fases', filters.fases);
+      query = query.eq(
+        'equipment_detail->detalle_tecnico->>fases',
+        filters.fases,
+      );
     } else {
       query = query.eq('equipment_detail->>fases', filters.fases);
     }
@@ -192,34 +216,58 @@ export async function listAdminEquipments(
     const selectedType = allTypes.find(t => t.id === filters.equipmentTypeId);
     const isElectricalPanel = selectedType?.abreviatura === 'TBELEC';
     if (isElectricalPanel) {
-      query = query.eq('equipment_detail->detalle_tecnico->>voltaje', filters.voltaje);
+      query = query.eq(
+        'equipment_detail->detalle_tecnico->>voltaje',
+        filters.voltaje,
+      );
     } else {
-      query = query.ilike('equipment_detail->>voltaje', `%${filters.voltaje.trim()}%`);
+      query = query.ilike(
+        'equipment_detail->>voltaje',
+        `%${filters.voltaje.trim()}%`,
+      );
     }
   }
 
   if (filters.tipoTablero) {
-    query = query.eq('equipment_detail->detalle_tecnico->>tipo_tablero', filters.tipoTablero);
+    query = query.eq(
+      'equipment_detail->detalle_tecnico->>tipo_tablero',
+      filters.tipoTablero,
+    );
   }
 
   if (filters.marca) {
-    query = query.ilike('equipment_detail->>marca', `%${filters.marca.trim()}%`);
+    query = query.ilike(
+      'equipment_detail->>marca',
+      `%${filters.marca.trim()}%`,
+    );
   }
 
   if (filters.modelo) {
-    query = query.ilike('equipment_detail->>modelo', `%${filters.modelo.trim()}%`);
+    query = query.ilike(
+      'equipment_detail->>modelo',
+      `%${filters.modelo.trim()}%`,
+    );
   }
 
   if (filters.serie) {
-    query = query.ilike('equipment_detail->>serie', `%${filters.serie.trim()}%`);
+    query = query.ilike(
+      'equipment_detail->>serie',
+      `%${filters.serie.trim()}%`,
+    );
   }
 
   if (filters.capacidad) {
-    query = query.ilike('equipment_detail->>capacidad', `%${filters.capacidad.trim()}%`);
+    query = query.ilike(
+      'equipment_detail->>capacidad',
+      `%${filters.capacidad.trim()}%`,
+    );
   }
 
   if (filters.potencia) {
-    query = query.ilike('equipment_detail->>potencia', `%${filters.potencia.trim()}%`);
+    query = query.ilike(
+      'equipment_detail->>potencia',
+      `%${filters.potencia.trim()}%`,
+    );
   }
 
   if (filters.rpm) {
@@ -227,7 +275,10 @@ export async function listAdminEquipments(
   }
 
   if (filters.presion) {
-    query = query.ilike('equipment_detail->>presion', `%${filters.presion.trim()}%`);
+    query = query.ilike(
+      'equipment_detail->>presion',
+      `%${filters.presion.trim()}%`,
+    );
   }
 
   if (filters.refrigerante) {
@@ -239,7 +290,10 @@ export async function listAdminEquipments(
   }
 
   if (filters.tieneVdf && filters.tieneVdf !== 'TODOS') {
-    query = query.eq('equipment_detail->>tiene_vdf', filters.tieneVdf === 'SI' ? 'true' : 'false');
+    query = query.eq(
+      'equipment_detail->>tiene_vdf',
+      filters.tieneVdf === 'SI' ? 'true' : 'false',
+    );
   }
 
   if (search) {
@@ -355,47 +409,78 @@ export async function listAdminEquipmentsForQr(
   }
 
   if (filters.fases) {
-    const selectedType = equipmentTypes.find(t => t.id === filters.equipmentTypeId);
+    const selectedType = equipmentTypes.find(
+      t => t.id === filters.equipmentTypeId,
+    );
     const isElectricalPanel = selectedType?.abreviatura === 'TBELEC';
     if (isElectricalPanel) {
-      query = query.eq('equipment_detail->detalle_tecnico->>fases', filters.fases);
+      query = query.eq(
+        'equipment_detail->detalle_tecnico->>fases',
+        filters.fases,
+      );
     } else {
       query = query.eq('equipment_detail->>fases', filters.fases);
     }
   }
 
   if (filters.voltaje) {
-    const selectedType = equipmentTypes.find(t => t.id === filters.equipmentTypeId);
+    const selectedType = equipmentTypes.find(
+      t => t.id === filters.equipmentTypeId,
+    );
     const isElectricalPanel = selectedType?.abreviatura === 'TBELEC';
     if (isElectricalPanel) {
-      query = query.eq('equipment_detail->detalle_tecnico->>voltaje', filters.voltaje);
+      query = query.eq(
+        'equipment_detail->detalle_tecnico->>voltaje',
+        filters.voltaje,
+      );
     } else {
-      query = query.ilike('equipment_detail->>voltaje', `%${filters.voltaje.trim()}%`);
+      query = query.ilike(
+        'equipment_detail->>voltaje',
+        `%${filters.voltaje.trim()}%`,
+      );
     }
   }
 
   if (filters.tipoTablero) {
-    query = query.eq('equipment_detail->detalle_tecnico->>tipo_tablero', filters.tipoTablero);
+    query = query.eq(
+      'equipment_detail->detalle_tecnico->>tipo_tablero',
+      filters.tipoTablero,
+    );
   }
 
   if (filters.marca) {
-    query = query.ilike('equipment_detail->>marca', `%${filters.marca.trim()}%`);
+    query = query.ilike(
+      'equipment_detail->>marca',
+      `%${filters.marca.trim()}%`,
+    );
   }
 
   if (filters.modelo) {
-    query = query.ilike('equipment_detail->>modelo', `%${filters.modelo.trim()}%`);
+    query = query.ilike(
+      'equipment_detail->>modelo',
+      `%${filters.modelo.trim()}%`,
+    );
   }
 
   if (filters.serie) {
-    query = query.ilike('equipment_detail->>serie', `%${filters.serie.trim()}%`);
+    query = query.ilike(
+      'equipment_detail->>serie',
+      `%${filters.serie.trim()}%`,
+    );
   }
 
   if (filters.capacidad) {
-    query = query.ilike('equipment_detail->>capacidad', `%${filters.capacidad.trim()}%`);
+    query = query.ilike(
+      'equipment_detail->>capacidad',
+      `%${filters.capacidad.trim()}%`,
+    );
   }
 
   if (filters.potencia) {
-    query = query.ilike('equipment_detail->>potencia', `%${filters.potencia.trim()}%`);
+    query = query.ilike(
+      'equipment_detail->>potencia',
+      `%${filters.potencia.trim()}%`,
+    );
   }
 
   if (filters.rpm) {
@@ -403,7 +488,10 @@ export async function listAdminEquipmentsForQr(
   }
 
   if (filters.presion) {
-    query = query.ilike('equipment_detail->>presion', `%${filters.presion.trim()}%`);
+    query = query.ilike(
+      'equipment_detail->>presion',
+      `%${filters.presion.trim()}%`,
+    );
   }
 
   if (filters.refrigerante) {
@@ -415,7 +503,10 @@ export async function listAdminEquipmentsForQr(
   }
 
   if (filters.tieneVdf && filters.tieneVdf !== 'TODOS') {
-    query = query.eq('equipment_detail->>tiene_vdf', filters.tieneVdf === 'SI' ? 'true' : 'false');
+    query = query.eq(
+      'equipment_detail->>tiene_vdf',
+      filters.tieneVdf === 'SI' ? 'true' : 'false',
+    );
   }
 
   if (search) {
