@@ -586,7 +586,7 @@ export function buildAuditReportHtml(
   </tr>
   <tr>
     <td class="meta-label">Fecha</td>
-    <td>${escapeHtml(data.scheduledFor)}</td>
+    <td>${escapeHtml(data.submittedAt)}</td>
   </tr>
 </table>
 
