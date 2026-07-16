@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
-
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import { listAdminEquipmentTypes } from '@/services/admin/equipment-types.service';
 import {
@@ -61,7 +60,7 @@ export function useAdminEquipments() {
   const [tipo, setTipo] = useState('');
   const [distinctTipos, setDistinctTipos] = useState<string[]>([]);
   const [brands, setBrands] = useState<{ id: string; nombre: string }[]>([]);
-  
+
   const [availableEquipmentTypeIds, setAvailableEquipmentTypeIds] = useState<
     string[] | null
   >(null);
@@ -213,9 +212,7 @@ export function useAdminEquipments() {
           setSystems(
             (systemsRes.data ?? []) as { id: string; nombre: string }[],
           );
-          setBrands(
-            (brandsRes.data ?? []) as { id: string; nombre: string }[],
-          );
+          setBrands((brandsRes.data ?? []) as { id: string; nombre: string }[]);
         }
       } catch (error) {
         console.error('Error loading filter options:', error);
@@ -381,20 +378,41 @@ export function useAdminEquipments() {
       }
       try {
         const supabase = getSupabaseClient();
-        const { data } = await supabase
-          .from('equipos')
-          .select('id_equipamento')
-          .eq('id_property', propertyId);
+        const allIds: string[] = [];
+        let pageNum = 0;
+        const pageSize = 1000;
+        let hasMore = true;
 
-        if (isMounted && data) {
-          const ids = Array.from(
-            new Set(
-              data
-                .map(item => item.id_equipamento)
-                .filter((id): id is string => !!id),
-            ),
-          );
-          setAvailableEquipmentTypeIds(ids);
+        while (hasMore) {
+          const fromIdx = pageNum * pageSize;
+          const toIdx = fromIdx + pageSize - 1;
+
+          const { data, error } = await supabase
+            .from('equipos')
+            .select('id_equipamento')
+            .eq('id_property', propertyId)
+            .range(fromIdx, toIdx);
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            data.forEach(item => {
+              if (item.id_equipamento) {
+                allIds.push(item.id_equipamento);
+              }
+            });
+            if (data.length < pageSize) {
+              hasMore = false;
+            } else {
+              pageNum++;
+            }
+          } else {
+            hasMore = false;
+          }
+        }
+
+        if (isMounted) {
+          setAvailableEquipmentTypeIds(Array.from(new Set(allIds)));
         }
       } catch (error) {
         console.error(
