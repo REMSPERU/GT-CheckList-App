@@ -135,7 +135,7 @@ export const ASC: TechnicalFieldConfig[] = [
   { key: 'tipo_llamada', label: 'Tipo Llamada', type: 'text' },
   { key: 'detalle_llamada', label: 'Detalle Llamada', type: 'text' },
   { key: 'llamada_anticipada', label: 'Llamada Anticipada', type: 'boolean' },
-  { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
+  { key: 'ano_operacion', label: 'Año de Operación', type: 'number' },
 ];
 
 export const MAMP: TechnicalFieldConfig[] = [

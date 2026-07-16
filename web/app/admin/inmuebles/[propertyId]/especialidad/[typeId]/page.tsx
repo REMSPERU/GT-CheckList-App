@@ -6,14 +6,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { EquipmentDetailView } from '@/components/admin/equipment-detail-view';
 import { SelectField } from '@/components/ui/select-field';
 import { mapTipoLabel } from '@/app/admin/equipos/page';
-import {
-  ArrowLeft,
-  Camera,
-  Cpu,
-  Loader2,
-  MapPin,
-  Info,
-} from 'lucide-react';
+import { ArrowLeft, Camera, Cpu, Loader2, MapPin, Info } from 'lucide-react';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import {
@@ -148,24 +141,13 @@ function SpecialtyDetailContent() {
   const equipmentIdParam = searchParams.get('equipmentId');
 
   const [property, setProperty] = useState<AdminPropertyRow | null>(null);
-  const [equipmentType, setEquipmentType] = useState<AdminEquipmentTypeRow | null>(null);
+  const [equipmentType, setEquipmentType] =
+    useState<AdminEquipmentTypeRow | null>(null);
   const [equipos, setEquipos] = useState<DBEquipo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedTipo, setSelectedTipo] = useState('');
-
-  const showTipoFilter = useMemo(() => {
-    if (!equipmentType) return false;
-    const name = equipmentType.nombre
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-    return (
-      name.includes('ventilacion mecanica') ||
-      name.includes('bombas de agua')
-    );
-  }, [equipmentType]);
 
   const distinctTipos = useMemo(() => {
     const types = new Set<string>();
@@ -184,6 +166,10 @@ function SpecialtyDetailContent() {
     return Array.from(types).sort((a, b) => a.localeCompare(b));
   }, [equipos]);
 
+  const showTipoFilter = useMemo(() => {
+    return distinctTipos.length > 0;
+  }, [distinctTipos]);
+
   const tipoOptions = useMemo(() => {
     return [
       { value: '', label: 'Todos los tipos' },
@@ -200,10 +186,7 @@ function SpecialtyDetailContent() {
       const detail = equipo.equipment_detail;
       if (detail && typeof detail === 'object') {
         const rawTipo = detail.tipo || detail.tipo_bomba;
-        return (
-          typeof rawTipo === 'string' &&
-          rawTipo.trim() === selectedTipo
-        );
+        return typeof rawTipo === 'string' && rawTipo.trim() === selectedTipo;
       }
       return false;
     });
@@ -241,7 +224,9 @@ function SpecialtyDetailContent() {
         // 2. Fetch equipments of this property and equipment type
         const { data: equiposData, error: equiposError } = await supabase
           .from('equipos')
-          .select('id, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus, equipment_detail')
+          .select(
+            'id, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus, equipment_detail',
+          )
           .eq('id_property', params.propertyId)
           .eq('id_equipamento', params.typeId);
 
@@ -344,7 +329,9 @@ function SpecialtyDetailContent() {
       <main className="grid gap-4 px-8 pb-8 pt-4 max-[640px]:px-[14px]">
         <header className="flex h-12 items-center">
           <Link
-            href={property ? `/admin/inmuebles/${property.id}` : "/admin/inmuebles"}
+            href={
+              property ? `/admin/inmuebles/${property.id}` : '/admin/inmuebles'
+            }
             className="inline-flex items-center gap-2 text-sm font-bold text-emerald-800 hover:underline">
             <ArrowLeft className="h-4 w-4" />
             <span>Volver al Inmueble</span>
@@ -390,7 +377,11 @@ function SpecialtyDetailContent() {
       {equipmentIdParam ? (
         <EquipmentDetailSection
           equipmentId={equipmentIdParam}
-          onBack={() => router.push(`/admin/inmuebles/${property.id}/especialidad/${equipmentType.id}`)}
+          onBack={() =>
+            router.push(
+              `/admin/inmuebles/${property.id}/especialidad/${equipmentType.id}`,
+            )
+          }
         />
       ) : (
         <div className="grid gap-5">
@@ -502,7 +493,8 @@ function SpecialtyDetailContent() {
                 <>
                   {filteredEquipos.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 p-8 text-center text-slate-500 font-semibold shadow-inner animate-in fade-in duration-200">
-                      No se encontraron equipos que coincidan con el tipo seleccionado.
+                      No se encontraron equipos que coincidan con el tipo
+                      seleccionado.
                     </div>
                   ) : (
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3 animate-in fade-in duration-200">
@@ -526,7 +518,8 @@ function SpecialtyDetailContent() {
                             <div className="grid gap-1 text-[11px] font-semibold text-slate-500">
                               <span className="inline-flex items-center gap-1.5">
                                 <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                                {equipo.ubicacion || 'Ubicación no especificada'}
+                                {equipo.ubicacion ||
+                                  'Ubicación no especificada'}
                               </span>
                               {equipo.detalle_ubicacion ? (
                                 <span className="inline-flex items-start gap-1.5">

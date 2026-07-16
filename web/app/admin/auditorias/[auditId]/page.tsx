@@ -252,15 +252,11 @@ export default function AdminAuditoriaDetailPage() {
         }));
       });
 
-      const feedbackOk = feedbackItems.filter(i => i.status === 'OK').length;
-      const feedbackObs = feedbackItems.filter(i => i.status === 'OBS').length;
-      const feedbackPhotos = feedbackItems.reduce((acc, i) => acc + i.photosCount, 0);
-
       const totalQuestions = audit.total_questions || allItems.length;
       const totalNotApplicable = audit.total_not_applicable;
-      const totalOk = audit.total_ok + feedbackOk;
-      const totalObs = audit.total_obs + feedbackObs;
-      const totalPhotos = audit.total_photos + feedbackPhotos;
+      const totalOk = audit.total_ok;
+      const totalObs = audit.total_obs;
+      const totalPhotos = audit.total_photos;
       const totalApplicable = (totalQuestions - totalNotApplicable) + feedbackItems.length;
 
       const reportData: AuditReportData = {
@@ -368,6 +364,8 @@ export default function AdminAuditoriaDetailPage() {
       return answers.filter(a => a.photos.length > 0);
     return answers;
   }, [answerFilter, audit?.answers]);
+
+
 
   // ── Edit helpers ──────────────────────────────────────────────────────────
 
@@ -664,15 +662,22 @@ export default function AdminAuditoriaDetailPage() {
               photos: combinedPhotos,
             };
           });
+          const feedbackOk = prev.equipmentFeedback.reduce((sum, fb) => {
+            const hasGp = fb.good_practices_comment?.trim() || fb.good_practices_photos.length > 0;
+            return sum + (hasGp ? 1 : 0);
+          }, 0);
+          const feedbackObs = prev.equipmentFeedback.reduce((sum, fb) => {
+            const hasOpp = fb.improvement_opportunity_comment?.trim() || fb.improvement_opportunity_photos.length > 0;
+            return sum + (hasOpp ? 1 : 0);
+          }, 0);
+          const feedbackPhotos = prev.equipmentFeedback.reduce((sum, fb) => sum + fb.good_practices_photos.length + fb.improvement_opportunity_photos.length, 0);
+
           return {
             ...prev,
             answers: updatedAnswers,
-            total_ok: updatedAnswers.filter(a => a.status === 'OK').length,
-            total_obs: updatedAnswers.filter(a => a.status === 'OBS').length,
-            total_photos: updatedAnswers.reduce(
-              (acc, curr) => acc + curr.photos.length,
-              0,
-            ),
+            total_ok: updatedAnswers.filter(a => a.status === 'OK').length + feedbackOk,
+            total_obs: updatedAnswers.filter(a => a.status === 'OBS').length + feedbackObs,
+            total_photos: updatedAnswers.reduce((acc, curr) => acc + curr.photos.length, 0) + feedbackPhotos,
           };
         });
       } else {
@@ -759,38 +764,57 @@ export default function AdminAuditoriaDetailPage() {
 
         setAudit(prev => {
           if (!prev) return prev;
+          const updatedFeedback = prev.equipmentFeedback.map(fb =>
+            fb.equipment_key === patch.equipment_key
+              ? {
+                  ...fb,
+                  good_practices_comment: patch.good_practices_comment,
+                  good_practices_photos: [
+                    ...fb.good_practices_photos.filter(p =>
+                      keptGpPhotoUrls.includes(getPhotoUrl(p)),
+                    ),
+                    ...uploadedGpPhotos.map(p => ({
+                      bucket: p.bucket,
+                      path: p.path,
+                      publicUrl: p.public_url,
+                    })),
+                  ],
+                  improvement_opportunity_comment:
+                    patch.improvement_opportunity_comment,
+                  improvement_opportunity_photos: [
+                    ...fb.improvement_opportunity_photos.filter(p =>
+                      keptOppPhotoUrls.includes(getPhotoUrl(p)),
+                    ),
+                    ...uploadedOppPhotos.map(p => ({
+                      bucket: p.bucket,
+                      path: p.path,
+                      publicUrl: p.public_url,
+                    })),
+                  ],
+                }
+              : fb,
+          );
+
+          const answersOk = prev.answers.filter(a => a.status === 'OK').length;
+          const answersObs = prev.answers.filter(a => a.status === 'OBS').length;
+          const answersPhotos = prev.answers.reduce((sum, a) => sum + a.photos.length, 0);
+
+          const feedbackOk = updatedFeedback.reduce((sum, fb) => {
+            const hasGp = fb.good_practices_comment?.trim() || fb.good_practices_photos.length > 0;
+            return sum + (hasGp ? 1 : 0);
+          }, 0);
+          const feedbackObs = updatedFeedback.reduce((sum, fb) => {
+            const hasOpp = fb.improvement_opportunity_comment?.trim() || fb.improvement_opportunity_photos.length > 0;
+            return sum + (hasOpp ? 1 : 0);
+          }, 0);
+          const feedbackPhotos = updatedFeedback.reduce((sum, fb) => sum + fb.good_practices_photos.length + fb.improvement_opportunity_photos.length, 0);
+
           return {
             ...prev,
-            equipmentFeedback: prev.equipmentFeedback.map(fb =>
-              fb.equipment_key === patch.equipment_key
-                ? {
-                    ...fb,
-                    good_practices_comment: patch.good_practices_comment,
-                    good_practices_photos: [
-                      ...fb.good_practices_photos.filter(p =>
-                        keptGpPhotoUrls.includes(getPhotoUrl(p)),
-                      ),
-                      ...uploadedGpPhotos.map(p => ({
-                        bucket: p.bucket,
-                        path: p.path,
-                        publicUrl: p.public_url,
-                      })),
-                    ],
-                    improvement_opportunity_comment:
-                      patch.improvement_opportunity_comment,
-                    improvement_opportunity_photos: [
-                      ...fb.improvement_opportunity_photos.filter(p =>
-                        keptOppPhotoUrls.includes(getPhotoUrl(p)),
-                      ),
-                      ...uploadedOppPhotos.map(p => ({
-                        bucket: p.bucket,
-                        path: p.path,
-                        publicUrl: p.public_url,
-                      })),
-                    ],
-                  }
-                : fb,
-            ),
+            equipmentFeedback: updatedFeedback,
+            total_ok: answersOk + feedbackOk,
+            total_obs: answersObs + feedbackObs,
+            total_photos: answersPhotos + feedbackPhotos,
           };
         });
       }

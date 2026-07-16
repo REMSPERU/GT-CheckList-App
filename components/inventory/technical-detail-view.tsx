@@ -78,11 +78,12 @@ function isFieldVisible(
 
   // Si el campo tiene un valor guardado (no nulo ni vacío), mostrarlo siempre (excepto si es booleano falso)
   const savedValue = getValueByPath(data, field.key);
+  const parsedValue = field.type === 'boolean' ? parseBoolean(savedValue) : savedValue;
   const isValueNotEmpty =
     savedValue !== null &&
     savedValue !== undefined &&
     savedValue !== '' &&
-    !(field.type === 'boolean' && savedValue === false);
+    !(field.type === 'boolean' && parsedValue === false);
 
   if (isValueNotEmpty) {
     return true;
@@ -202,10 +203,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function parseBoolean(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const norm = value.trim().toLowerCase();
+    if (norm === 'no' || norm === 'false' || norm === '0') return false;
+    if (norm === 'sí' || norm === 'si' || norm === 'true' || norm === '1') return true;
+  }
+  return !!value;
+}
+
 function getValueByPath(data: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((current, key) => {
     if (!isRecord(current)) return undefined;
-    return current[key];
+    let val = current[key];
+    if (val === undefined) {
+      if (key === 'anio_operacion') {
+        val = current['ano_operacion'];
+      } else if (key === 'ano_operacion') {
+        val = current['anio_operacion'];
+      }
+    }
+    return val;
   }, data);
 }
 
@@ -219,7 +239,7 @@ function formatFieldValue(
   }
 
   if (field.type === 'boolean') {
-    return value ? 'Sí' : 'No';
+    return parseBoolean(value) ? 'Sí' : 'No';
   }
 
   const strVal = String(value);

@@ -195,7 +195,7 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
                       )}
                     </Text>
                     <Switch
-                      value={!!value}
+                      value={parseBoolean(value)}
                       onValueChange={onChange}
                       trackColor={{ false: '#E2E8F0', true: '#06B6D4' }}
                       thumbColor="#FFFFFF"
@@ -311,10 +311,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function parseBoolean(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const norm = value.trim().toLowerCase();
+    if (norm === 'no' || norm === 'false' || norm === '0') return false;
+    if (norm === 'sí' || norm === 'si' || norm === 'true' || norm === '1') return true;
+  }
+  return !!value;
+}
+
 function getValueByPath(data: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((current, key) => {
     if (!isRecord(current)) return undefined;
-    return current[key];
+    let val = current[key];
+    if (val === undefined) {
+      if (key === 'anio_operacion') {
+        val = current['ano_operacion'];
+      } else if (key === 'ano_operacion') {
+        val = current['anio_operacion'];
+      }
+    }
+    return val;
   }, data);
 }
 
