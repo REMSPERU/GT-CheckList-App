@@ -157,21 +157,27 @@ function SpecialtyDetailContent() {
 
   const showTipoFilter = useMemo(() => {
     if (!equipmentType) return false;
-    return equipmentType.nombre
+    const name = equipmentType.nombre
       .toLowerCase()
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .includes('ventilacion mecanica');
+      .replace(/[\u0300-\u036f]/g, '');
+    return (
+      name.includes('ventilacion mecanica') ||
+      name.includes('bombas de agua')
+    );
   }, [equipmentType]);
 
   const distinctTipos = useMemo(() => {
     const types = new Set<string>();
     equipos.forEach(equipo => {
       const detail = equipo.equipment_detail;
-      if (detail && typeof detail === 'object' && typeof detail.tipo === 'string') {
-        const trimmed = detail.tipo.trim();
-        if (trimmed) {
-          types.add(trimmed);
+      if (detail && typeof detail === 'object') {
+        const rawTipo = detail.tipo || detail.tipo_bomba;
+        if (typeof rawTipo === 'string') {
+          const trimmed = rawTipo.trim();
+          if (trimmed) {
+            types.add(trimmed);
+          }
         }
       }
     });
@@ -192,12 +198,14 @@ function SpecialtyDetailContent() {
     if (!selectedTipo) return equipos;
     return equipos.filter(equipo => {
       const detail = equipo.equipment_detail;
-      return (
-        detail &&
-        typeof detail === 'object' &&
-        typeof detail.tipo === 'string' &&
-        detail.tipo.trim() === selectedTipo
-      );
+      if (detail && typeof detail === 'object') {
+        const rawTipo = detail.tipo || detail.tipo_bomba;
+        return (
+          typeof rawTipo === 'string' &&
+          rawTipo.trim() === selectedTipo
+        );
+      }
+      return false;
     });
   }, [equipos, selectedTipo]);
 
