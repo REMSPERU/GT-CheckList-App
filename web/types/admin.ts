@@ -166,6 +166,7 @@ export interface AdminChecklistScheduleRow {
   end_date: string | null;
   is_active: boolean;
   updated_at: string | null;
+  equipmentCount: number;
 }
 
 export interface AdminChecklistScheduleUpsertInput {
@@ -210,10 +211,16 @@ export interface AdminChecklistScheduleProgressItem {
   ubicacion: string | null;
   detalle_ubicacion: string | null;
   submitted_at: string | null;
+  completedOccurrences: number;
+  requiredOccurrences: number;
 }
 
 export interface AdminChecklistScheduleProgress {
   total: number;
+  requiredOccurrences: number;
+  completedOccurrences: number;
+  periodStart: string;
+  periodEnd: string;
   completed: AdminChecklistScheduleProgressItem[];
   pending: AdminChecklistScheduleProgressItem[];
 }
@@ -304,8 +311,18 @@ export interface AdminChecklistResponseFilterOptions {
 
 export interface AdminChecklistQuestionUpdateInput {
   id: string;
+  pregunta: string;
+  orden: number;
   activa: boolean;
   ponderado: string | number | null;
+}
+
+export interface AdminChecklistQuestionCreateInput {
+  equipamentoId: string;
+  pregunta: string;
+  orden: number;
+  activa: boolean;
+  ponderado: number;
 }
 
 export interface AdminAuditPhotoRef {

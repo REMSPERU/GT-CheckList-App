@@ -19,7 +19,7 @@ import {
 } from '@/utils/checklist-score';
 import { formatDateTime } from '@/utils/date';
 
-type AnswerFilter = 'all' | 'observed' | 'photos';
+type AnswerFilter = 'all' | 'observed' | 'unanswered' | 'photos';
 
 function AdminChecklistResponseDetailContent() {
   const params = useParams<{ responseId: string }>();
@@ -73,7 +73,11 @@ function AdminChecklistResponseDetailContent() {
     const answers = response?.answers ?? [];
 
     if (answerFilter === 'observed') {
-      return answers.filter(answer => answer.status_ok !== true);
+      return answers.filter(answer => answer.status_ok === false);
+    }
+
+    if (answerFilter === 'unanswered') {
+      return answers.filter(answer => answer.status_ok === null);
     }
 
     if (answerFilter === 'photos') {
@@ -220,6 +224,14 @@ function AdminChecklistResponseDetailContent() {
                 {formatDateTime(response.first_interaction_at)}
               </span>
             </div>
+            <div className="flex flex-col col-span-2">
+              <span className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">
+                ID de auditoría
+              </span>
+              <span className="font-mono text-xs text-slate-700">
+                {response.client_submission_id ?? response.id}
+              </span>
+            </div>
           </div>
         </div>
       </section>
@@ -256,7 +268,12 @@ function AdminChecklistResponseDetailContent() {
             <FilterButton
               active={answerFilter === 'observed'}
               onClick={() => setAnswerFilter('observed')}>
-              Observadas
+              Hallazgos
+            </FilterButton>
+            <FilterButton
+              active={answerFilter === 'unanswered'}
+              onClick={() => setAnswerFilter('unanswered')}>
+              Sin respuesta
             </FilterButton>
             <FilterButton
               active={answerFilter === 'photos'}
@@ -367,7 +384,8 @@ function FilterButton({ active, children, onClick }: FilterButtonProps) {
 }
 
 function AnswerCard({ answer }: { answer: AdminChecklistAnswerItem }) {
-  const isObserved = answer.status_ok !== true;
+  const isObserved = answer.status_ok === false;
+  const isUnanswered = answer.status_ok === null;
   const weight = getAnswerWeight(answer);
 
   return (
@@ -375,7 +393,9 @@ function AnswerCard({ answer }: { answer: AdminChecklistAnswerItem }) {
       className={`grid gap-3 rounded-[20px] border p-4 ${
         isObserved
           ? 'border-amber-200 bg-amber-50/60'
-          : 'border-slate-200 bg-white'
+          : isUnanswered
+            ? 'border-slate-300 bg-slate-50'
+            : 'border-slate-200 bg-white'
       }`}>
       <div className="flex items-start justify-between gap-3 max-[640px]:grid">
         <div>
@@ -390,7 +410,12 @@ function AnswerCard({ answer }: { answer: AdminChecklistAnswerItem }) {
               ? 'bg-orange-100 text-orange-900'
               : 'bg-green-100 text-green-900'
           }`}>
-          {isObserved ? 'Observada' : 'Conforme'} · {formatWeight(weight)} pts
+          {isUnanswered
+            ? 'Sin respuesta'
+            : isObserved
+              ? 'Hallazgo'
+              : 'Conforme'}{' '}
+          · {formatWeight(weight)} pts
         </span>
       </div>
 
@@ -424,10 +449,10 @@ function PhotoGrid({ photos }: { photos: AdminChecklistPhotoRef[] }) {
             target="_blank"
             rel="noreferrer"
             key={`${url}-${index}`}>
-            <span
-              className="block aspect-[4/3] bg-cover bg-center transition-transform group-hover:scale-[1.03]"
-              style={{ backgroundImage: `url(${url})` }}
-              aria-label={`Foto ${index + 1}`}
+            <img
+              className="block aspect-[4/3] w-full object-cover transition-transform group-hover:scale-[1.03]"
+              src={url!}
+              alt={`Evidencia fotográfica ${index + 1}`}
             />
             <span className="block bg-white px-3 py-2 text-sm font-bold text-emerald-900">
               Abrir foto {index + 1}
@@ -437,7 +462,9 @@ function PhotoGrid({ photos }: { photos: AdminChecklistPhotoRef[] }) {
           <div
             className="rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500 flex flex-col items-center justify-center aspect-[4/3] bg-slate-50 text-center"
             key={index}>
-            <span className="text-xl mb-1">📷🚫</span>
+            <span className="mb-1 text-xl" aria-hidden="true">
+              Foto no disponible
+            </span>
             <span className="font-semibold text-xs">Foto no disponible</span>
             <span className="text-[10px] text-slate-400">
               Archivo local no encontrado

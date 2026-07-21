@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type {
   AdminChecklistQuestionRow,
+  AdminChecklistQuestionCreateInput,
   AdminChecklistQuestionUpdateInput,
   AdminChecklistResponseFilterOptions,
   AdminChecklistResponseFilters,
@@ -300,13 +301,14 @@ export async function listAdminChecklistResponses(
 export async function listAdminChecklistSchedules(
   supabase: SupabaseClient,
 ): Promise<AdminChecklistScheduleRow[]> {
-  const [properties, equipmentTypes, schedulesResult] = await Promise.all([
-    listAdminProperties(supabase),
-    listAdminEquipmentTypes(supabase),
-    supabase
-      .from('checklist_schedules')
-      .select(
-        `
+  const [properties, equipmentTypes, schedulesResult, equipmentResult] =
+    await Promise.all([
+      listAdminProperties(supabase),
+      listAdminEquipmentTypes(supabase),
+      supabase
+        .from('checklist_schedules')
+        .select(
+          `
           id,
           property_id,
           equipamento_id,
@@ -321,18 +323,29 @@ export async function listAdminChecklistSchedules(
           is_active,
           updated_at
         `,
-      )
-      .order('updated_at', { ascending: false })
-      .limit(500),
-  ]);
+        )
+        .order('updated_at', { ascending: false })
+        .limit(500),
+      supabase
+        .from('equipos')
+        .select('id_property, id_equipamento')
+        .limit(10000),
+    ]);
 
   const { data, error } = schedulesResult;
   if (error) throw error;
+  if (equipmentResult.error) throw equipmentResult.error;
 
   const propertiesById = new Map(properties.map(item => [item.id, item]));
   const equipmentTypesById = new Map(
     equipmentTypes.map(item => [item.id, item]),
   );
+  const equipmentCounts = new Map<string, number>();
+  (equipmentResult.data ?? []).forEach(item => {
+    if (!item.id_property || !item.id_equipamento) return;
+    const key = `${item.id_property}:${item.id_equipamento}`;
+    equipmentCounts.set(key, (equipmentCounts.get(key) ?? 0) + 1);
+  });
 
   return ((data ?? []) as ChecklistScheduleQueryRow[]).map(item => {
     const property = propertiesById.get(item.property_id);
@@ -355,6 +368,8 @@ export async function listAdminChecklistSchedules(
       end_date: item.end_date,
       is_active: item.is_active,
       updated_at: item.updated_at,
+      equipmentCount:
+        equipmentCounts.get(`${item.property_id}:${item.equipamento_id}`) ?? 0,
     };
   });
 }
@@ -436,9 +451,22 @@ export async function getAdminChecklistScheduleProgress(
     startDate: string | null;
     endDate: string | null;
     executionRangeDays: number;
+    occurrencesPerDay: number;
   },
 ): Promise<AdminChecklistScheduleProgress> {
   const { periodStart, periodEnd } = getSchedulePeriodForToday(input);
+
+  if (input.endDate && periodStart > input.endDate) {
+    return {
+      total: 0,
+      requiredOccurrences: 0,
+      completedOccurrences: 0,
+      periodStart,
+      periodEnd,
+      completed: [],
+      pending: [],
+    };
+  }
 
   const { data: equipmentData, error: equipmentError } = await supabase
     .from('equipos')
@@ -454,7 +482,15 @@ export async function getAdminChecklistScheduleProgress(
   const equipmentIds = equipmentRows.map(item => item.id);
 
   if (equipmentIds.length === 0) {
-    return { total: 0, completed: [], pending: [] };
+    return {
+      total: 0,
+      requiredOccurrences: 0,
+      completedOccurrences: 0,
+      periodStart,
+      periodEnd,
+      completed: [],
+      pending: [],
+    };
   }
 
   const rangeStartUtc = new Date(`${periodStart}T00:00:00-05:00`);
@@ -471,11 +507,13 @@ export async function getAdminChecklistScheduleProgress(
 
   if (responseError) throw responseError;
 
-  const completedByEquipo = new Map<string, string>();
+  const responsesByEquipo = new Map<string, string[]>();
   ((responseData ?? []) as ChecklistScheduleProgressResponseRow[]).forEach(
     item => {
       if (item.equipo_id && item.submitted_at) {
-        completedByEquipo.set(item.equipo_id, item.submitted_at);
+        const submissions = responsesByEquipo.get(item.equipo_id) ?? [];
+        submissions.push(item.submitted_at);
+        responsesByEquipo.set(item.equipo_id, submissions);
       }
     },
   );
@@ -484,15 +522,22 @@ export async function getAdminChecklistScheduleProgress(
   const pending: AdminChecklistScheduleProgress['pending'] = [];
 
   for (const equipment of equipmentRows) {
+    const submissions = responsesByEquipo.get(equipment.id) ?? [];
+    const completedOccurrences = Math.min(
+      submissions.length,
+      input.occurrencesPerDay,
+    );
     const item = {
       equipoId: equipment.id,
       codigo: equipment.codigo,
       ubicacion: equipment.ubicacion,
       detalle_ubicacion: equipment.detalle_ubicacion,
-      submitted_at: completedByEquipo.get(equipment.id) ?? null,
+      submitted_at: submissions[0] ?? null,
+      completedOccurrences,
+      requiredOccurrences: input.occurrencesPerDay,
     };
 
-    if (item.submitted_at) {
+    if (completedOccurrences >= input.occurrencesPerDay) {
       completed.push(item);
     } else {
       pending.push(item);
@@ -501,6 +546,12 @@ export async function getAdminChecklistScheduleProgress(
 
   return {
     total: equipmentRows.length,
+    requiredOccurrences: equipmentRows.length * input.occurrencesPerDay,
+    completedOccurrences:
+      completed.reduce((sum, item) => sum + item.completedOccurrences, 0) +
+      pending.reduce((sum, item) => sum + item.completedOccurrences, 0),
+    periodStart,
+    periodEnd,
     completed,
     pending,
   };
@@ -595,7 +646,8 @@ function mapChecklistResponse(
     total_photos: item.total_photos,
     generalPhotos: item.evidencia_general_fotos ?? [],
     answers: item.respuestas_json?.respuestas ?? [],
-    estado_operatividad: (item.respuestas_json as any)?.resumen?.estado_operatividad ?? null,
+    estado_operatividad:
+      (item.respuestas_json as any)?.resumen?.estado_operatividad ?? null,
   };
 }
 
@@ -679,14 +731,57 @@ export async function updateAdminChecklistQuestion(
         ? Number(input.ponderado)
         : input.ponderado;
 
+  if (
+    input.activa &&
+    (typeof parsedWeight !== 'number' ||
+      !Number.isFinite(parsedWeight) ||
+      parsedWeight <= 0)
+  ) {
+    throw new Error(
+      'Las preguntas activas deben tener un ponderado mayor a cero.',
+    );
+  }
+
+  const questionText = input.pregunta.trim();
+  if (!questionText) throw new Error('Escribe la pregunta del checklist.');
+  if (!Number.isInteger(input.orden) || input.orden < 1) {
+    throw new Error('El orden de la pregunta debe ser un número mayor a cero.');
+  }
+
   const { error } = await supabase
     .from('preguntas_equipamento')
     .update({
       activa: input.activa,
       ponderado: parsedWeight,
+      pregunta: questionText,
+      orden: input.orden,
       updated_at: new Date().toISOString(),
     })
     .eq('id', input.id);
+
+  if (error) throw error;
+}
+
+export async function createAdminChecklistQuestion(
+  supabase: SupabaseClient,
+  input: AdminChecklistQuestionCreateInput,
+): Promise<void> {
+  const questionText = input.pregunta.trim();
+  if (!questionText) throw new Error('Escribe la pregunta del checklist.');
+  if (!Number.isInteger(input.orden) || input.orden < 1) {
+    throw new Error('El orden de la pregunta debe ser un número mayor a cero.');
+  }
+  if (!Number.isFinite(input.ponderado) || input.ponderado <= 0) {
+    throw new Error('El ponderado debe ser mayor a cero.');
+  }
+
+  const { error } = await supabase.from('preguntas_equipamento').insert({
+    equipamento_id: input.equipamentoId,
+    pregunta: questionText,
+    orden: input.orden,
+    activa: input.activa,
+    ponderado: input.ponderado,
+  });
 
   if (error) throw error;
 }
@@ -726,7 +821,8 @@ export async function getAdminChecklistWorkdayCalendar(
         : [1, 2, 3, 4, 5],
       updated_at: configData?.updated_at ?? null,
     },
-    exceptions: (exceptionsResult.data ?? []) as AdminChecklistWorkdayExceptionRow[],
+    exceptions: (exceptionsResult.data ??
+      []) as AdminChecklistWorkdayExceptionRow[],
   };
 }
 
@@ -754,17 +850,15 @@ export async function upsertAdminChecklistWorkdayException(
     isWorkingDay: boolean;
   },
 ): Promise<void> {
-  const { error } = await supabase
-    .from('checklist_workday_exceptions')
-    .upsert(
-      {
-        exception_date: input.exceptionDate,
-        description: input.description,
-        is_working_day: input.isWorkingDay,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'exception_date' },
-    );
+  const { error } = await supabase.from('checklist_workday_exceptions').upsert(
+    {
+      exception_date: input.exceptionDate,
+      description: input.description,
+      is_working_day: input.isWorkingDay,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'exception_date' },
+  );
 
   if (error) throw error;
 }
