@@ -1,8 +1,15 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import {
+  createAdminChecklistQuestion,
   deleteAdminChecklistWorkdayException,
   getAdminChecklistWorkdayCalendar,
   getAdminChecklistScheduleProgress,
@@ -85,17 +92,20 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
   const pathname = usePathname();
 
   // Helper to update URL params
-  const updateUrlParams = (updates: Record<string, string | number | null>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === null || value === '' || value === undefined) {
-        params.delete(key);
-      } else {
-        params.set(key, String(value));
-      }
-    });
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  };
+  const updateUrlParams = useCallback(
+    (updates: Record<string, string | number | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === null || value === '' || value === undefined) {
+          params.delete(key);
+        } else {
+          params.set(key, String(value));
+        }
+      });
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
 
   const [properties, setProperties] = useState<AdminPropertyRow[]>([]);
   const [equipmentTypes, setEquipmentTypes] = useState<AdminEquipmentTypeRow[]>(
@@ -150,6 +160,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     });
   const [responseTotal, setResponseTotal] = useState(0);
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
+  const [creatingQuestion, setCreatingQuestion] = useState(false);
   const [calendarWorkDays, setCalendarWorkDays] = useState<number[]>([
     1, 2, 3, 4, 5,
   ]);
@@ -211,7 +222,17 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     if (schedEqTypeVal !== selectedScheduleEquipmentType) {
       setSelectedScheduleEquipmentType(schedEqTypeVal);
     }
-  }, [searchParams]);
+  }, [
+    responsePage,
+    responseReviewStatus,
+    responseSearch,
+    searchParams,
+    selectedBuildingName,
+    selectedEquipmentType,
+    selectedQuestionEquipmentType,
+    selectedScheduleEquipmentType,
+    selectedScheduleProperty,
+  ]);
 
   // Synchronize debounced search text back to URL
   useEffect(() => {
@@ -221,7 +242,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     if (deferredResponseSearch !== urlSearch) {
       updateUrlParams({ search: deferredResponseSearch, page: 1 });
     }
-  }, [activeTab, deferredResponseSearch]);
+  }, [activeTab, deferredResponseSearch, searchParams, updateUrlParams]);
 
   useEffect(() => {
     let isMounted = true;
@@ -229,13 +250,17 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     async function loadCatalogs() {
       try {
         const supabase = getSupabaseClient();
-        const [propertyResult, equipmentResult, scheduleResult, calendarResult] =
-          await Promise.all([
-            listAdminProperties(supabase),
-            listAdminEquipmentTypes(supabase),
-            listAdminChecklistSchedules(supabase),
-            getAdminChecklistWorkdayCalendar(supabase),
-          ]);
+        const [
+          propertyResult,
+          equipmentResult,
+          scheduleResult,
+          calendarResult,
+        ] = await Promise.all([
+          listAdminProperties(supabase),
+          listAdminEquipmentTypes(supabase),
+          listAdminChecklistSchedules(supabase),
+          getAdminChecklistWorkdayCalendar(supabase),
+        ]);
 
         if (isMounted) {
           setProperties(propertyResult);
@@ -556,9 +581,8 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
           frequency: selectedSchedule.frequency,
           startDate: selectedSchedule.start_date,
           endDate: selectedSchedule.end_date,
-          executionRangeDays: getExecutionRangeLimit(
-            selectedSchedule.frequency,
-          ),
+          executionRangeDays: selectedSchedule.execution_range_days,
+          occurrencesPerDay: selectedSchedule.occurrences_per_day,
         });
 
         if (isMounted) setScheduleProgress(result);
@@ -664,6 +688,15 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     setSchedules(result);
   }
 
+  async function refreshQuestions() {
+    const supabase = getSupabaseClient();
+    const result = await listAdminChecklistQuestions(
+      supabase,
+      selectedQuestionEquipmentType || undefined,
+    );
+    setQuestions(result);
+  }
+
   async function refreshCalendar() {
     const supabase = getSupabaseClient();
     const result = await getAdminChecklistWorkdayCalendar(supabase);
@@ -764,9 +797,20 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     }));
   }
 
+  function setAllQuestionGroupsExpanded(expanded: boolean) {
+    setExpandedQuestionGroups(
+      Object.fromEntries(groupedQuestions.map(group => [group.key, expanded])),
+    );
+  }
+
   function updateQuestionDraft(
     questionId: string,
-    patch: Partial<Pick<AdminChecklistQuestionRow, 'activa' | 'ponderado'>>,
+    patch: Partial<
+      Pick<
+        AdminChecklistQuestionRow,
+        'pregunta' | 'orden' | 'activa' | 'ponderado'
+      >
+    >,
   ) {
     setQuestions(current =>
       current.map(question =>
@@ -780,9 +824,24 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
       setSavingQuestionId(question.id);
       setErrorMessage(null);
       setSuccessMessage(null);
+      const weight =
+        typeof question.ponderado === 'string'
+          ? Number(question.ponderado)
+          : question.ponderado;
+
+      if (
+        question.activa &&
+        (typeof weight !== 'number' || !Number.isFinite(weight) || weight <= 0)
+      ) {
+        throw new Error(
+          'Las preguntas activas deben tener un ponderado mayor a cero.',
+        );
+      }
       const supabase = getSupabaseClient();
       await updateAdminChecklistQuestion(supabase, {
         id: question.id,
+        pregunta: question.pregunta,
+        orden: question.orden ?? 1,
         activa: question.activa === true,
         ponderado: question.ponderado,
       });
@@ -795,6 +854,45 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
       );
     } finally {
       setSavingQuestionId(null);
+    }
+  }
+
+  async function handleCreateQuestion(input: {
+    pregunta: string;
+    orden: string;
+    ponderado: string;
+    activa: boolean;
+  }): Promise<boolean> {
+    try {
+      setCreatingQuestion(true);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+
+      if (!selectedQuestionEquipmentType) {
+        throw new Error(
+          'Selecciona un tipo de activo antes de crear una pregunta.',
+        );
+      }
+
+      await createAdminChecklistQuestion(getSupabaseClient(), {
+        equipamentoId: selectedQuestionEquipmentType,
+        pregunta: input.pregunta,
+        orden: Number(input.orden),
+        ponderado: Number(input.ponderado),
+        activa: input.activa,
+      });
+      await refreshQuestions();
+      setSuccessMessage('Pregunta creada correctamente.');
+      return true;
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo crear la pregunta de checklist',
+      );
+      return false;
+    } finally {
+      setCreatingQuestion(false);
     }
   }
 
@@ -955,9 +1053,12 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     groupedQuestions,
     expandedQuestionGroups,
     toggleQuestionGroup,
+    setAllQuestionGroupsExpanded,
     updateQuestionDraft,
     handleSaveQuestion,
     savingQuestionId,
+    handleCreateQuestion,
+    creatingQuestion,
     calendarWorkDays,
     toggleCalendarWorkDay,
     handleSaveCalendarWorkDays,

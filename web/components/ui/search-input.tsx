@@ -2,12 +2,14 @@ interface SearchInputProps {
   value: string;
   placeholder: string;
   onChange: (value: string) => void;
+  ariaLabel?: string;
 }
 
 export function SearchInput({
   value,
   placeholder,
   onChange,
+  ariaLabel = 'Buscar',
 }: SearchInputProps) {
   return (
     <input
@@ -16,6 +18,7 @@ export function SearchInput({
       placeholder={placeholder}
       value={value}
       onChange={event => onChange(event.target.value)}
+      aria-label={ariaLabel}
     />
   );
 }

@@ -40,7 +40,7 @@ export function useAdminEquipments() {
   const [items, setItems] = useState<AdminEquipmentRow[]>([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('TODOS');
-  const [propertyId, setPropertyId] = useState('');
+  const [propertyIds, setPropertyIds] = useState<string[]>([]);
   const [systemId, setSystemId] = useState('');
   const [equipmentTypeId, setEquipmentTypeId] = useState('');
   const [config, setConfig] = useState('TODOS');
@@ -84,7 +84,7 @@ export function useAdminEquipments() {
   const lastSyncedFromUrl = useRef({
     search: '',
     status: 'TODOS',
-    propertyId: '',
+    propertyIds: [] as string[],
     systemId: '',
     equipmentTypeId: '',
     config: 'TODOS',
@@ -111,7 +111,13 @@ export function useAdminEquipments() {
   useEffect(() => {
     const searchVal = searchParams.get('search') ?? '';
     const statusVal = searchParams.get('status') ?? 'TODOS';
-    const propertyVal = searchParams.get('property') ?? '';
+    const propertyVals = (
+      searchParams.get('properties') ??
+      searchParams.get('property') ??
+      ''
+    )
+      .split(',')
+      .filter(Boolean);
     const systemVal = searchParams.get('system') ?? '';
     const eqTypeVal = searchParams.get('eqType') ?? '';
     const configVal = searchParams.get('config') ?? 'TODOS';
@@ -137,7 +143,9 @@ export function useAdminEquipments() {
 
     if (searchVal !== prev.search) setSearch(searchVal);
     if (statusVal !== prev.status) setStatus(statusVal);
-    if (propertyVal !== prev.propertyId) setPropertyId(propertyVal);
+    if (propertyVals.join(',') !== prev.propertyIds.join(',')) {
+      setPropertyIds(propertyVals);
+    }
     if (systemVal !== prev.systemId) setSystemId(systemVal);
     if (eqTypeVal !== prev.equipmentTypeId) setEquipmentTypeId(eqTypeVal);
     if (configVal !== prev.config) setConfig(configVal);
@@ -162,7 +170,7 @@ export function useAdminEquipments() {
     lastSyncedFromUrl.current = {
       search: searchVal,
       status: statusVal,
-      propertyId: propertyVal,
+      propertyIds: propertyVals,
       systemId: systemVal,
       equipmentTypeId: eqTypeVal,
       config: configVal,
@@ -238,7 +246,7 @@ export function useAdminEquipments() {
       try {
         const supabase = getSupabaseClient();
         const types = await getDistinctEquipmentDetailTypes(supabase, {
-          propertyId,
+          propertyIds,
           systemId,
           equipmentTypeId,
         });
@@ -253,7 +261,7 @@ export function useAdminEquipments() {
     return () => {
       isMounted = false;
     };
-  }, [propertyId, systemId, equipmentTypeId]);
+  }, [propertyIds, systemId, equipmentTypeId]);
 
   // Reset selected detail type if it is no longer available in the newly filtered set of distinct types
   useEffect(() => {
@@ -277,7 +285,7 @@ export function useAdminEquipments() {
       try {
         const supabase = getSupabaseClient();
         const subtypes = await getDistinctEquipmentDetailSubtypes(supabase, {
-          propertyId,
+          propertyIds,
           systemId,
           equipmentTypeId,
           tipo,
@@ -293,7 +301,7 @@ export function useAdminEquipments() {
     return () => {
       isMounted = false;
     };
-  }, [propertyId, systemId, equipmentTypeId, tipo]);
+  }, [propertyIds, systemId, equipmentTypeId, tipo]);
 
   // Reset selected detail subtype if it is no longer available in distinctSubtipos
   useEffect(() => {
@@ -313,7 +321,7 @@ export function useAdminEquipments() {
   }, [
     debouncedSearch,
     status,
-    propertyId,
+    propertyIds,
     systemId,
     equipmentTypeId,
     config,
@@ -348,7 +356,7 @@ export function useAdminEquipments() {
           pageSize: PAGE_SIZE,
           search: debouncedSearch,
           status,
-          propertyId,
+          propertyIds,
           systemId,
           equipmentTypeId,
           config,
@@ -395,7 +403,7 @@ export function useAdminEquipments() {
     debouncedSearch,
     page,
     status,
-    propertyId,
+    propertyIds,
     systemId,
     equipmentTypeId,
     config,
@@ -426,7 +434,7 @@ export function useAdminEquipments() {
   useEffect(() => {
     let isMounted = true;
     async function loadAvailableTypes() {
-      if (!propertyId) {
+      if (propertyIds.length === 0) {
         if (isMounted) setAvailableEquipmentTypeIds(null);
         return;
       }
@@ -444,7 +452,7 @@ export function useAdminEquipments() {
           const { data, error } = await supabase
             .from('equipos')
             .select('id_equipamento')
-            .eq('id_property', propertyId)
+            .in('id_property', propertyIds)
             .range(fromIdx, toIdx);
 
           if (error) throw error;
@@ -479,7 +487,7 @@ export function useAdminEquipments() {
     return () => {
       isMounted = false;
     };
-  }, [propertyId]);
+  }, [propertyIds]);
 
   // Reset selected equipment type if it is no longer available in the newly filtered set
   useEffect(() => {
@@ -498,10 +506,14 @@ export function useAdminEquipments() {
     updateUrlParams({ status: nextStatus, page: 1 });
   }
 
-  function handlePropertyChange(nextPropertyId: string) {
-    setPropertyId(nextPropertyId);
+  function handlePropertyIdsChange(nextPropertyIds: string[]) {
+    setPropertyIds(nextPropertyIds);
     setPage(1);
-    updateUrlParams({ property: nextPropertyId, page: 1 });
+    updateUrlParams({
+      property: null,
+      properties: nextPropertyIds.join(',') || null,
+      page: 1,
+    });
   }
 
   function handleSystemChange(nextSystemId: string) {
@@ -685,7 +697,7 @@ export function useAdminEquipments() {
 
   function clearFilters() {
     setStatus('TODOS');
-    setPropertyId('');
+    setPropertyIds([]);
     setSystemId('');
     setEquipmentTypeId('');
     setConfig('TODOS');
@@ -709,6 +721,7 @@ export function useAdminEquipments() {
     updateUrlParams({
       status: null,
       property: null,
+      properties: null,
       system: null,
       eqType: null,
       config: null,
@@ -738,8 +751,8 @@ export function useAdminEquipments() {
     setSearch,
     status,
     handleStatusChange,
-    propertyId,
-    handlePropertyChange,
+    propertyIds,
+    handlePropertyIdsChange,
     systemId,
     handleSystemChange,
     equipmentTypeId,

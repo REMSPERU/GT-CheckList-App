@@ -57,6 +57,7 @@ export async function getDistinctEquipmentDetailTypes(
   supabase: SupabaseClient,
   filters?: {
     propertyId?: string;
+    propertyIds?: string[];
     systemId?: string;
     equipmentTypeId?: string;
   },
@@ -82,7 +83,9 @@ export async function getDistinctEquipmentDetailTypes(
       .not('equipment_detail', 'is', null)
       .range(fromIdx, toIdx);
 
-    if (filters?.propertyId) {
+    if (filters?.propertyIds?.length) {
+      query = query.in('id_property', filters.propertyIds);
+    } else if (filters?.propertyId) {
       query = query.eq('id_property', filters.propertyId);
     }
 
@@ -130,6 +133,7 @@ export async function getDistinctEquipmentDetailSubtypes(
   supabase: SupabaseClient,
   filters?: {
     propertyId?: string;
+    propertyIds?: string[];
     systemId?: string;
     equipmentTypeId?: string;
     tipo?: string;
@@ -155,7 +159,9 @@ export async function getDistinctEquipmentDetailSubtypes(
       .not('equipment_detail', 'is', null)
       .range(fromIdx, toIdx);
 
-    if (filters?.propertyId) {
+    if (filters?.propertyIds?.length) {
+      query = query.in('id_property', filters.propertyIds);
+    } else if (filters?.propertyId) {
       query = query.eq('id_property', filters.propertyId);
     }
 
@@ -240,7 +246,9 @@ export async function listAdminEquipments(
     query = query.eq('estatus', filters.status);
   }
 
-  if (filters.propertyId) {
+  if (filters.propertyIds?.length) {
+    query = query.in('id_property', filters.propertyIds);
+  } else if (filters.propertyId) {
     query = query.eq('id_property', filters.propertyId);
   }
 

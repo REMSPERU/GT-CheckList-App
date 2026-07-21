@@ -1,12 +1,13 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { AdminPagination } from '@/components/admin/admin-pagination';
 import { ChecklistQuestionGroups } from '@/components/admin/checklist-question-groups';
 import { ChecklistResponsesTable } from '@/components/admin/checklist-responses-table';
+import { ChecklistScheduleMatrix } from '@/components/admin/checklist-schedule-matrix';
 import { Alert } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { SearchableSelectField } from '@/components/ui/searchable-select-field';
@@ -61,10 +62,6 @@ const FREQUENCY_OPTIONS: {
   { value: 'MENSUAL', label: 'Mensual' },
 ];
 
-function formatTime(value: string) {
-  return value.slice(0, 5);
-}
-
 function formatDateTime(value: string | null) {
   if (!value) return '-';
 
@@ -102,6 +99,8 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
   const activeTab = routeTab;
   const checklist = useAdminChecklist(activeTab);
   const [isScheduleEditorOpen, setIsScheduleEditorOpen] = useState(false);
+  const scheduleTriggerRef = useRef<HTMLButtonElement>(null);
+  const scheduleDialogRef = useRef<HTMLDivElement>(null);
   const [scheduleListSearch, setScheduleListSearch] = useState('');
   const [scheduleListPropertyFilter, setScheduleListPropertyFilter] =
     useState('');
@@ -109,6 +108,11 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
     useState('');
   const [scheduleListStatusFilter, setScheduleListStatusFilter] =
     useState('all');
+  const [questionSearch, setQuestionSearch] = useState('');
+  const [newQuestionText, setNewQuestionText] = useState('');
+  const [newQuestionOrder, setNewQuestionOrder] = useState('1');
+  const [newQuestionWeight, setNewQuestionWeight] = useState('1');
+  const [newQuestionIsActive, setNewQuestionIsActive] = useState(true);
   const setActiveTab = (tab: AdminChecklistTab) => {
     const params = new URLSearchParams(searchParams.toString());
     const allowedParams = new Set(TAB_QUERY_PARAMS[tab]);
@@ -217,6 +221,16 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
         ),
       )
     : relatedSchedules;
+  const visibleQuestionGroups = checklist.groupedQuestions.filter(group => {
+    const term = questionSearch.trim().toLocaleLowerCase('es');
+    if (!term) return true;
+
+    return [
+      group.systemName,
+      group.equipmentName,
+      ...group.questions.map(question => question.pregunta),
+    ].some(value => value.toLocaleLowerCase('es').includes(term));
+  });
   const openCreateSchedule = () => {
     checklist.handleCreateScheduleDraft();
     setIsScheduleEditorOpen(true);
@@ -235,6 +249,24 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
     checklist.handleClearScheduleSelection();
     setIsScheduleEditorOpen(false);
   };
+  const closeScheduleEditor = () => {
+    setIsScheduleEditorOpen(false);
+    window.setTimeout(() => scheduleTriggerRef.current?.focus(), 0);
+  };
+
+  useEffect(() => {
+    if (!isScheduleEditorOpen) return;
+
+    scheduleDialogRef.current?.focus();
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsScheduleEditorOpen(false);
+        window.setTimeout(() => scheduleTriggerRef.current?.focus(), 0);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isScheduleEditorOpen]);
 
   return (
     <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
@@ -315,19 +347,132 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
         </section>
       ) : activeTab === 'questions' ? (
         <section className="grid gap-4">
-          <label className="grid gap-1.5 text-sm font-bold text-slate-600">
-            Tipo de activo
-            <SearchableSelectField
-              value={checklist.selectedQuestionEquipmentType}
-              options={equipmentOptions}
-              onChange={checklist.handleQuestionEquipmentTypeChange}
-              placeholder="Seleccionar tipo de activo"
-              ariaLabel="Filtrar preguntas por tipo de activo"
-            />
-          </label>
+          <div className="grid grid-cols-[minmax(240px,1fr)_minmax(240px,1fr)_auto] items-end gap-3 max-[900px]:grid-cols-1">
+            <label className="grid gap-1.5 text-sm font-bold text-slate-600">
+              Tipo de activo
+              <SearchableSelectField
+                value={checklist.selectedQuestionEquipmentType}
+                options={equipmentOptions}
+                onChange={checklist.handleQuestionEquipmentTypeChange}
+                placeholder="Seleccionar tipo de activo"
+                ariaLabel="Filtrar preguntas por tipo de activo"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm font-bold text-slate-600">
+              Buscar configuración
+              <SearchInput
+                value={questionSearch}
+                onChange={setQuestionSearch}
+                placeholder="Pregunta, sistema o activo"
+                ariaLabel="Buscar preguntas de checklist"
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="min-h-11 rounded-xl bg-slate-100 px-3 text-xs font-black text-slate-700 hover:bg-slate-200"
+                type="button"
+                onClick={() => checklist.setAllQuestionGroupsExpanded(true)}>
+                Expandir todo
+              </button>
+              <button
+                className="min-h-11 rounded-xl bg-slate-100 px-3 text-xs font-black text-slate-700 hover:bg-slate-200"
+                type="button"
+                onClick={() => checklist.setAllQuestionGroupsExpanded(false)}>
+                Contraer todo
+              </button>
+            </div>
+          </div>
+          <section className="grid gap-3 rounded-[22px] border border-emerald-900/15 bg-[linear-gradient(120deg,#f0fdf4,#ffffff)] p-4 shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
+            <div>
+              <p className="m-0 text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
+                Nueva pregunta
+              </p>
+              <p className="m-0 mt-1 text-sm font-semibold text-slate-600">
+                Crea preguntas para el tipo de activo seleccionado. Estarán
+                disponibles para todos sus equipos en cada inmueble.
+              </p>
+            </div>
+            <div className="grid grid-cols-[minmax(260px,1fr)_90px_120px_auto_auto] items-end gap-3 max-[960px]:grid-cols-2 max-[640px]:grid-cols-1">
+              <label className="grid gap-1.5 text-sm font-bold text-slate-700">
+                Pregunta
+                <input
+                  className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  value={newQuestionText}
+                  onChange={event => setNewQuestionText(event.target.value)}
+                  placeholder="Ej. Verificar presión de trabajo"
+                  disabled={!checklist.selectedQuestionEquipmentType}
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm font-bold text-slate-700">
+                Orden
+                <input
+                  className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  type="number"
+                  min="1"
+                  value={newQuestionOrder}
+                  onChange={event => setNewQuestionOrder(event.target.value)}
+                  disabled={!checklist.selectedQuestionEquipmentType}
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm font-bold text-slate-700">
+                Ponderado
+                <input
+                  className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={newQuestionWeight}
+                  onChange={event => setNewQuestionWeight(event.target.value)}
+                  disabled={!checklist.selectedQuestionEquipmentType}
+                />
+              </label>
+              <label className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700">
+                <input
+                  className="h-5 w-5 accent-emerald-700"
+                  type="checkbox"
+                  checked={newQuestionIsActive}
+                  onChange={event =>
+                    setNewQuestionIsActive(event.target.checked)
+                  }
+                  disabled={!checklist.selectedQuestionEquipmentType}
+                />
+                Visible
+              </label>
+              <button
+                className="min-h-11 rounded-xl bg-emerald-800 px-4 text-sm font-black text-white shadow-[0_10px_20px_rgba(6,95,70,0.18)] hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-slate-300"
+                type="button"
+                disabled={
+                  !checklist.selectedQuestionEquipmentType ||
+                  checklist.creatingQuestion
+                }
+                onClick={() =>
+                  void checklist
+                    .handleCreateQuestion({
+                      pregunta: newQuestionText,
+                      orden: newQuestionOrder,
+                      ponderado: newQuestionWeight,
+                      activa: newQuestionIsActive,
+                    })
+                    .then(created => {
+                      if (!created) return;
+                      setNewQuestionText('');
+                      setNewQuestionWeight('1');
+                      setNewQuestionOrder('1');
+                      setNewQuestionIsActive(true);
+                    })
+                }>
+                {checklist.creatingQuestion ? 'Creando...' : 'Crear pregunta'}
+              </button>
+            </div>
+            {!checklist.selectedQuestionEquipmentType ? (
+              <small className="font-bold text-amber-800">
+                Selecciona un tipo de activo para habilitar la creación.
+              </small>
+            ) : null}
+          </section>
           <ChecklistQuestionGroups
             questions={checklist.questions}
-            groups={checklist.groupedQuestions}
+            groups={visibleQuestionGroups}
             expandedGroups={checklist.expandedQuestionGroups}
             savingQuestionId={checklist.savingQuestionId}
             isLoading={checklist.isLoading}
@@ -353,6 +498,7 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
                 </p>
               </div>
               <button
+                ref={scheduleTriggerRef}
                 className="min-h-11 rounded-2xl bg-slate-950 px-4 text-sm font-black text-white shadow-[0_14px_28px_rgba(15,23,42,0.18)] transition hover:bg-emerald-900"
                 type="button"
                 onClick={openCreateSchedule}>
@@ -410,35 +556,30 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
               ) : null}
             </div>
 
-            {visibleSchedules.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm font-bold text-slate-500">
-                {relatedSchedules.length === 0
-                  ? 'No hay programaciones guardadas para los filtros seleccionados.'
-                  : 'No hay programaciones que coincidan con la busqueda.'}
-              </div>
-            ) : (
-              <div className="grid max-h-[460px] gap-3 overflow-auto pr-1">
-                {visibleSchedules.map(schedule => (
-                  <ScheduleCard
-                    key={schedule.id}
-                    schedule={schedule}
-                    selected={checklist.selectedSchedule?.id === schedule.id}
-                    onSelect={() => openExistingSchedule(schedule)}
-                  />
-                ))}
-              </div>
-            )}
+            <ChecklistScheduleMatrix
+              schedules={visibleSchedules}
+              selectedScheduleId={checklist.selectedSchedule?.id ?? null}
+              onOpenSchedule={openExistingSchedule}
+            />
           </section>
 
           {isScheduleEditorOpen ? (
             <div className="fixed inset-0 z-50 grid place-items-start overflow-auto bg-slate-950/45 px-5 py-6 backdrop-blur-sm max-[640px]:px-3">
-              <div className="mx-auto grid w-full max-w-[1180px] gap-4 rounded-[30px] border border-white/50 bg-[#eef5f1] p-4 shadow-[0_34px_90px_rgba(2,6,23,0.28)]">
+              <div
+                ref={scheduleDialogRef}
+                className="mx-auto grid w-full max-w-[1180px] gap-4 rounded-[30px] border border-white/50 bg-[#eef5f1] p-4 shadow-[0_34px_90px_rgba(2,6,23,0.28)]"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="schedule-editor-title"
+                tabIndex={-1}>
                 <div className="flex items-start justify-between gap-3 max-[640px]:grid">
                   <div>
                     <p className="m-0 text-xs font-black uppercase tracking-[0.18em] text-emerald-800">
                       Programacion de checklist
                     </p>
-                    <h2 className="m-0 mt-1 text-2xl font-black tracking-[-0.04em] text-slate-950">
+                    <h2
+                      id="schedule-editor-title"
+                      className="m-0 mt-1 text-2xl font-black tracking-[-0.04em] text-slate-950">
                       {checklist.selectedSchedule
                         ? 'Editar regla existente'
                         : 'Agregar nueva regla'}
@@ -447,7 +588,7 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
                   <button
                     className="min-h-10 rounded-2xl bg-white px-4 text-sm font-black text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.10)] hover:bg-slate-100"
                     type="button"
-                    onClick={() => setIsScheduleEditorOpen(false)}>
+                    onClick={closeScheduleEditor}>
                     Cerrar
                   </button>
                 </div>
@@ -564,8 +705,10 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
                           {getFrequencyRangeLabel(checklist.scheduleFrequency)}
                         </strong>
                         <p className="m-0 mt-1 text-xs font-semibold text-slate-500">
-                          Se guarda automaticamente segun la frecuencia
-                          seleccionada.
+                          Se guarda automáticamente según la frecuencia. Esta
+                          regla exige hasta{' '}
+                          {checklist.scheduleOccurrencesPerDay} registro(s) por
+                          activo durante cada período.
                         </p>
                       </div>
 
@@ -591,6 +734,31 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
                             value={checklist.scheduleWindowEnd}
                             onChange={event =>
                               checklist.setScheduleWindowEnd(event.target.value)
+                            }
+                          />
+                        </label>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 max-[640px]:grid-cols-1">
+                        <label className="grid gap-1.5 text-sm font-bold text-slate-600">
+                          Vigente desde
+                          <input
+                            className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                            type="date"
+                            value={checklist.scheduleStartDate}
+                            onChange={event =>
+                              checklist.setScheduleStartDate(event.target.value)
+                            }
+                          />
+                        </label>
+                        <label className="grid gap-1.5 text-sm font-bold text-slate-600">
+                          Vigente hasta (opcional)
+                          <input
+                            className="min-h-11 rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                            type="date"
+                            value={checklist.scheduleEndDate}
+                            onChange={event =>
+                              checklist.setScheduleEndDate(event.target.value)
                             }
                           />
                         </label>
@@ -713,6 +881,7 @@ function GlobalCalendarPanel({ checklist }: GlobalCalendarPanelProps) {
                   key={day.value}
                   type="button"
                   onClick={() => checklist.toggleCalendarWorkDay(day.value)}
+                  aria-pressed={active}
                   className={`flex items-center justify-between rounded-2xl border px-4.5 py-3.5 text-left transition-all duration-200 ${
                     active
                       ? 'border-emerald-600 bg-emerald-50/40 text-slate-900 shadow-[0_4px_12px_rgba(16,185,129,0.06)]'
@@ -866,6 +1035,9 @@ function GlobalCalendarPanel({ checklist }: GlobalCalendarPanelProps) {
                       !checklist.calendarExceptionIsWorkingDay,
                     )
                   }
+                  role="switch"
+                  aria-label="Definir si la excepción es laborable"
+                  aria-checked={checklist.calendarExceptionIsWorkingDay}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${
                     checklist.calendarExceptionIsWorkingDay
                       ? 'bg-emerald-600'
@@ -983,7 +1155,8 @@ function GlobalCalendarPanel({ checklist }: GlobalCalendarPanelProps) {
                       checklist.handleDeleteCalendarException(exception.id)
                     }
                     className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-100 bg-white text-slate-400 shadow-[0_2px_6px_rgba(0,0,0,0.02)] transition-all hover:border-rose-100 hover:bg-rose-50 hover:text-rose-600 active:scale-[0.96]"
-                    title="Eliminar excepción">
+                    title="Eliminar excepción"
+                    aria-label={`Eliminar excepción del ${formatDateToDisplay(exception.exception_date)}`}>
                     <svg
                       className="h-4.5 w-4.5"
                       fill="none"
@@ -1063,6 +1236,17 @@ function ScheduleEquipmentPreview({
   isLoading,
   hasSelection,
 }: ScheduleEquipmentPreviewProps) {
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
+  const totalPages = Math.max(1, Math.ceil(equipments.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * pageSize;
+  const visibleEquipments = equipments.slice(pageStart, pageStart + pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [equipments]);
+
   if (!hasSelection) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
@@ -1094,8 +1278,8 @@ function ScheduleEquipmentPreview({
         Se programarán {equipments.length} activo
         {equipments.length === 1 ? '' : 's'}:
       </p>
-      <div className="grid max-h-36 gap-1.5 overflow-auto pr-1">
-        {equipments.map(equipment => (
+      <div className="grid gap-1.5">
+        {visibleEquipments.map(equipment => (
           <div
             className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-600"
             key={equipment.id}>
@@ -1108,6 +1292,31 @@ function ScheduleEquipmentPreview({
           </div>
         ))}
       </div>
+      {equipments.length > pageSize ? (
+        <div className="flex items-center justify-between gap-2 border-t border-emerald-100 pt-2 text-xs font-bold text-emerald-900">
+          <span>
+            Mostrando {pageStart + 1}-
+            {Math.min(pageStart + pageSize, equipments.length)} de{' '}
+            {equipments.length} activos
+          </span>
+          <div className="flex gap-1.5">
+            <button
+              className="min-h-8 rounded-lg border border-emerald-200 bg-white px-2.5 disabled:cursor-not-allowed disabled:opacity-40"
+              type="button"
+              disabled={safePage <= 1}
+              onClick={() => setPage(safePage - 1)}>
+              Anterior
+            </button>
+            <button
+              className="min-h-8 rounded-lg border border-emerald-200 bg-white px-2.5 disabled:cursor-not-allowed disabled:opacity-40"
+              type="button"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage(safePage + 1)}>
+              Siguiente
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1145,8 +1354,13 @@ function ScheduleProgressPanel({
             Avance del rango actual
           </p>
           <h3 className="m-0 mt-1 text-lg font-black text-slate-950">
-            {progress.completed.length}/{progress.total} activos completados
+            {progress.completedOccurrences}/{progress.requiredOccurrences}{' '}
+            registros cumplidos
           </h3>
+          <p className="m-0 mt-1 text-xs font-semibold text-slate-500">
+            Período evaluado: {formatDateToDisplay(progress.periodStart)} al{' '}
+            {formatDateToDisplay(progress.periodEnd)}
+          </p>
         </div>
         <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-900">
           {progress.pending.length} pendientes
@@ -1201,6 +1415,9 @@ function ScheduleProgressList({
               <strong className="block text-slate-900">
                 {item.codigo || 'Sin codigo'}
               </strong>
+              <span className="mt-1 block text-xs font-black text-emerald-800">
+                {item.completedOccurrences}/{item.requiredOccurrences} registros
+              </span>
               <span className="block text-xs font-bold text-slate-500">
                 {[item.ubicacion, item.detalle_ubicacion]
                   .filter(Boolean)
@@ -1215,82 +1432,6 @@ function ScheduleProgressList({
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-interface ScheduleCardProps {
-  schedule: AdminChecklistScheduleRow;
-  selected: boolean;
-  onSelect: () => void;
-}
-
-function ScheduleCard({ schedule, selected, onSelect }: ScheduleCardProps) {
-  return (
-    <button
-      className={`grid gap-3 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(15,23,42,0.10)] ${
-        selected
-          ? 'border-emerald-700 bg-emerald-50/90'
-          : 'border-slate-200 bg-white'
-      }`}
-      type="button"
-      onClick={onSelect}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="m-0 text-base font-black text-slate-950">
-            {schedule.propertyName}
-          </h3>
-          <p className="m-0 mt-0.5 text-sm font-bold text-slate-500">
-            {schedule.systemName} · {schedule.equipmentName}
-          </p>
-        </div>
-        <span
-          className={`rounded-full px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-[0.12em] ${
-            schedule.is_active
-              ? 'bg-emerald-100 text-emerald-900'
-              : 'bg-slate-200 text-slate-600'
-          }`}>
-          {schedule.is_active ? 'Activa' : 'Pausada'}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-4 gap-2 max-[820px]:grid-cols-2 max-[640px]:grid-cols-1">
-        <ScheduleFact label="Frecuencia" value={schedule.frequency} />
-        <ScheduleFact
-          label="Veces maximas"
-          value={`${schedule.occurrences_per_day} vez${
-            schedule.occurrences_per_day === 1 ? '' : 'es'
-          }`}
-        />
-        <ScheduleFact
-          label="Rango ejec."
-          value={getFrequencyRangeLabel(schedule.frequency)}
-        />
-        <ScheduleFact
-          label="Horario"
-          value={`${formatTime(schedule.window_start)} - ${formatTime(
-            schedule.window_end,
-          )}`}
-        />
-      </div>
-    </button>
-  );
-}
-
-interface ScheduleFactProps {
-  label: string;
-  value: string;
-}
-
-function ScheduleFact({ label, value }: ScheduleFactProps) {
-  return (
-    <div className="rounded-xl bg-slate-50 px-3 py-2">
-      <span className="block text-[0.68rem] font-black uppercase tracking-[0.12em] text-slate-400">
-        {label}
-      </span>
-      <strong className="mt-0.5 block text-sm font-black text-slate-800">
-        {value}
-      </strong>
     </div>
   );
 }

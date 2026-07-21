@@ -12,7 +12,12 @@ interface ChecklistQuestionGroupsProps {
   onToggleGroup: (groupKey: string) => void;
   onUpdateQuestion: (
     questionId: string,
-    patch: Partial<Pick<AdminChecklistQuestionRow, 'activa' | 'ponderado'>>,
+    patch: Partial<
+      Pick<
+        AdminChecklistQuestionRow,
+        'pregunta' | 'orden' | 'activa' | 'ponderado'
+      >
+    >,
   ) => void;
   onSaveQuestion: (question: AdminChecklistQuestionRow) => void;
 }
@@ -105,15 +110,40 @@ export function ChecklistQuestionGroups({
                         {question.orden ?? '-'}
                       </div>
                       <div>
-                        <p className="m-0 font-semibold text-[#0c1720]">
-                          {question.pregunta}
-                        </p>
+                        <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
+                          Pregunta
+                          <input
+                            className="min-h-10 rounded-[10px] border border-slate-300 px-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                            value={question.pregunta}
+                            onChange={event =>
+                              onUpdateQuestion(question.id, {
+                                pregunta: event.target.value,
+                              })
+                            }
+                          />
+                        </label>
                         <div className="mt-3 flex flex-wrap items-end gap-2.5">
+                          <label className="grid gap-1.5 text-sm font-semibold">
+                            Orden
+                            <input
+                              className="m-0 h-9 w-[88px] rounded-[10px] border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={String(question.orden ?? 1)}
+                              onChange={event =>
+                                onUpdateQuestion(question.id, {
+                                  orden: Number(event.target.value),
+                                })
+                              }
+                            />
+                          </label>
                           <label className="grid gap-1.5 text-sm font-semibold">
                             Ponderado
                             <input
                               className="m-0 h-9 w-[120px] rounded-[10px] border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-300"
                               type="number"
+                              min="0.01"
                               step="0.01"
                               value={String(question.ponderado ?? '')}
                               onChange={event =>
@@ -124,18 +154,17 @@ export function ChecklistQuestionGroups({
                             />
                           </label>
                           <label className="grid gap-1.5 text-sm font-semibold">
-                            Activa
-                            <select
-                              className="min-h-9 rounded-[10px] border border-slate-300 bg-white px-3 py-1.5 text-[0.95rem] text-slate-900"
-                              value={question.activa ? 'true' : 'false'}
+                            Visible para técnicos
+                            <input
+                              className="h-5 w-5 accent-emerald-700"
+                              type="checkbox"
+                              checked={question.activa === true}
                               onChange={event =>
                                 onUpdateQuestion(question.id, {
-                                  activa: event.target.value === 'true',
+                                  activa: event.target.checked,
                                 })
-                              }>
-                              <option value="true">Sí</option>
-                              <option value="false">No</option>
-                            </select>
+                              }
+                            />
                           </label>
                           <span
                             className={`inline-flex h-9 items-center rounded-full px-2.5 text-xs font-extrabold ${
@@ -159,6 +188,12 @@ export function ChecklistQuestionGroups({
                           {savingQuestionId === question.id ? (
                             <small className="font-semibold text-slate-500">
                               Aplicando cambio...
+                            </small>
+                          ) : null}
+                          {question.activa &&
+                          !isValidWeight(question.ponderado) ? (
+                            <small className="basis-full font-semibold text-red-700">
+                              Define un ponderado mayor a cero antes de guardar.
                             </small>
                           ) : null}
                         </div>
@@ -216,6 +251,11 @@ function parseWeight(
 
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isValidWeight(value: AdminChecklistQuestionRow['ponderado']) {
+  const weight = parseWeight(value);
+  return weight !== null && weight > 0;
 }
 
 function formatWeight(value: number): string {
