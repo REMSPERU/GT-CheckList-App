@@ -99,6 +99,7 @@ export interface AdminEquipmentFilters {
   search?: string;
   status?: string;
   propertyId?: string;
+  propertyIds?: string[];
   systemId?: string;
   equipmentTypeId?: string;
   config?: string;

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { AdminPagination } from '@/components/admin/admin-pagination';
 import { EquipmentTable } from '@/components/admin/equipment-table';
@@ -29,6 +29,9 @@ const STATUS_OPTIONS = [
 function AdminEquipmentsContent() {
   const equipments = useAdminEquipments();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isPropertyPickerOpen, setIsPropertyPickerOpen] = useState(false);
+  const [propertySearch, setPropertySearch] = useState('');
+  const propertyPickerRef = useRef<HTMLDivElement>(null);
   const [selectedBrandOption, setSelectedBrandOption] = useState<string>('');
   const [customBrandText, setCustomBrandText] = useState<string>('');
 
@@ -63,6 +66,21 @@ function AdminEquipmentsContent() {
     selectedBrandOption,
     customBrandText,
   ]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        propertyPickerRef.current &&
+        !propertyPickerRef.current.contains(event.target as Node)
+      ) {
+        setIsPropertyPickerOpen(false);
+        setPropertySearch('');
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const renderMarcaField = () => {
     const brandOptions = [
@@ -224,13 +242,12 @@ function AdminEquipmentsContent() {
     { value: 'NO', label: 'Sin VDF' },
   ];
 
-  const propertyOptions = [
-    { value: '', label: 'Todos los inmuebles' },
-    ...equipments.properties.map(item => ({
-      value: item.id,
-      label: item.name,
-    })),
-  ];
+  const selectedProperties = equipments.properties.filter(item =>
+    equipments.propertyIds.includes(item.id),
+  );
+  const filteredProperties = equipments.properties.filter(item =>
+    item.name.toLowerCase().includes(propertySearch.toLowerCase()),
+  );
 
   const systemOptions = [
     { value: '', label: 'Todas las especialidades' },
@@ -307,12 +324,101 @@ function AdminEquipmentsContent() {
           value={equipments.search}
           onChange={equipments.setSearch}
         />
-        <SearchableSelect
-          value={equipments.propertyId}
-          options={propertyOptions}
-          onChange={equipments.handlePropertyChange}
-          placeholder="Todos los inmuebles"
-        />
+        <div ref={propertyPickerRef} className="relative min-h-11">
+          <button
+            type="button"
+            onClick={() => setIsPropertyPickerOpen(open => !open)}
+            className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-[10px] border bg-white px-3 py-2 text-left text-[0.95rem] transition-colors ${
+              selectedProperties.length > 0
+                ? 'border-emerald-800 text-emerald-950 ring-1 ring-emerald-800/15'
+                : 'border-slate-300 text-slate-500 hover:border-slate-400'
+            }`}>
+            <span className="min-w-0 truncate font-medium">
+              {selectedProperties.length === 0
+                ? 'Todos los inmuebles'
+                : selectedProperties.length === 1
+                  ? selectedProperties[0].name
+                  : `${selectedProperties.length} inmuebles seleccionados`}
+            </span>
+            <svg
+              className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${isPropertyPickerOpen ? 'rotate-180' : ''}`}
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true">
+              <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" />
+            </svg>
+          </button>
+          {isPropertyPickerOpen && (
+            <div className="absolute left-0 z-50 mt-2 w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(12,23,32,0.18)]">
+              <div className="border-b border-slate-100 p-3">
+                <input
+                  autoFocus
+                  type="search"
+                  value={propertySearch}
+                  onChange={event => setPropertySearch(event.target.value)}
+                  placeholder="Buscar inmueble..."
+                  className="min-h-10 w-full rounded-[10px] border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-emerald-800 focus:bg-white"
+                />
+              </div>
+              <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+                <span className="text-xs font-bold text-slate-500">
+                  {selectedProperties.length} seleccionado
+                  {selectedProperties.length === 1 ? '' : 's'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => equipments.handlePropertyIdsChange([])}
+                  className="text-xs font-black text-emerald-800 hover:text-emerald-950">
+                  Limpiar
+                </button>
+              </div>
+              <div className="max-h-64 overflow-y-auto p-1.5">
+                {filteredProperties.map(property => {
+                  const isSelected = equipments.propertyIds.includes(
+                    property.id,
+                  );
+                  return (
+                    <label
+                      key={property.id}
+                      className={`flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                        isSelected
+                          ? 'bg-emerald-50 text-emerald-950'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() =>
+                          equipments.handlePropertyIdsChange(
+                            isSelected
+                              ? equipments.propertyIds.filter(
+                                  id => id !== property.id,
+                                )
+                              : [...equipments.propertyIds, property.id],
+                          )
+                        }
+                        className="h-4 w-4 rounded border-slate-300 text-emerald-800 focus:ring-emerald-800"
+                      />
+                      <span className="min-w-0 flex-1 truncate font-semibold">
+                        {property.name}
+                      </span>
+                      {property.city && (
+                        <span className="text-xs text-slate-400">
+                          {property.city}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+                {filteredProperties.length === 0 && (
+                  <p className="px-3 py-5 text-center text-sm text-slate-400">
+                    No se encontraron inmuebles.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
         <SearchableSelect
           value={equipments.systemId}
           options={systemOptions}
@@ -377,14 +483,18 @@ function AdminEquipmentsContent() {
                 onClick={() => setIsFilterOpen(false)}
               />
 
-              {/* Modal Container */}
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 max-[480px]:p-2.5">
-                <div className="relative flex flex-col w-full max-w-[480px] max-h-[85vh] rounded-3xl border border-white/40 bg-[#f8faf6] shadow-[0_25px_60px_-15px_rgba(2,18,14,0.35)] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                  {/* Modal Header */}
-                  <div className="relative overflow-hidden border-b border-emerald-950/10 bg-[radial-gradient(circle_at_0%_0%,rgba(190,242,100,0.35),transparent_40%),linear-gradient(135deg,#07352f_0%,#0b1f28_100%)] px-6 py-4.5 text-white">
+              <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-[34rem] justify-end max-[640px]:max-w-full">
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="advanced-filters-title"
+                  className="relative flex h-dvh w-full flex-col overflow-hidden border-l border-white/40 bg-[#f8faf6] shadow-[-25px_0_60px_-15px_rgba(2,18,14,0.35)] animate-in slide-in-from-right duration-200">
+                  <div className="relative overflow-hidden border-b border-emerald-950/10 bg-[radial-gradient(circle_at_0%_0%,rgba(190,242,100,0.35),transparent_40%),linear-gradient(135deg,#07352f_0%,#0b1f28_100%)] px-6 py-5 text-white">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="m-0 text-lg font-black tracking-[-0.03em]">
+                        <h3
+                          id="advanced-filters-title"
+                          className="m-0 text-lg font-black tracking-[-0.03em]">
                           Filtros Avanzados
                         </h3>
                         <p className="m-0 mt-0.5 text-xs font-semibold text-emerald-50/70">
@@ -395,17 +505,15 @@ function AdminEquipmentsContent() {
                         type="button"
                         onClick={() => setIsFilterOpen(false)}
                         className="grid h-8 w-8 place-items-center rounded-full border border-white/20 bg-white/10 text-sm font-bold text-white transition hover:bg-white/20"
-                        aria-label="Cerrar modal">
+                        aria-label="Cerrar filtros">
                         x
                       </button>
                     </div>
                   </div>
 
-                  {/* Modal Body */}
-                  <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 min-h-0">
-                    {/* General section */}
-                    <div className="grid gap-3.5 border-b border-slate-100 pb-4 mb-2">
-                      <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">
+                  <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 space-y-6">
+                    <div className="grid grid-cols-2 gap-3.5 border-b border-slate-100 pb-5 max-[480px]:grid-cols-1">
+                      <span className="col-span-full text-[10px] font-black text-emerald-800 uppercase tracking-wider">
                         Campos Operativos
                       </span>
                       <div className="grid gap-1.5">
@@ -454,9 +562,8 @@ function AdminEquipmentsContent() {
                       </div>
                     </div>
 
-                    {/* Technical details section (Conditional) */}
-                    <div className="grid gap-3.5">
-                      <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">
+                    <div className="grid grid-cols-2 gap-3.5 max-[480px]:grid-cols-1">
+                      <span className="col-span-full text-[10px] font-black text-emerald-800 uppercase tracking-wider">
                         Detalle Técnico: {selectedType?.nombre || 'General'}
                       </span>
 
@@ -639,8 +746,7 @@ function AdminEquipmentsContent() {
                     </div>
                   </div>
 
-                  {/* Modal Footer */}
-                  <div className="border-t border-slate-900/10 bg-white/70 px-6 py-4 flex justify-between items-center">
+                  <div className="flex items-center justify-between border-t border-slate-900/10 bg-white/90 px-6 py-4">
                     <button
                       type="button"
                       onClick={() => {
