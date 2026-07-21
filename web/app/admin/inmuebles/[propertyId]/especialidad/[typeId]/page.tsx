@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { EquipmentDetailView } from '@/components/admin/equipment-detail-view';
 import { SelectField } from '@/components/ui/select-field';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { mapTipoLabel } from '@/app/admin/equipos/page';
 import { ArrowLeft, Camera, Cpu, Loader2, MapPin, Info } from 'lucide-react';
 
@@ -183,11 +184,12 @@ function SpecialtyDetailContent() {
   }, [equipos]);
 
   const distinctSubtipos = useMemo(() => {
+    if (!selectedTipo) return [];
     const subtypes = new Set<string>();
     equipos.forEach(equipo => {
       const detail = equipo.equipment_detail;
       const t = getEquipoTipo(detail);
-      if (selectedTipo && t !== selectedTipo) return;
+      if (t !== selectedTipo) return;
       const st = getEquipoSubtipo(detail);
       if (st) subtypes.add(st);
     });
@@ -524,21 +526,21 @@ function SpecialtyDetailContent() {
                 <div className="flex flex-wrap items-center gap-3">
                   {showTipoFilter && distinctTipos.length > 0 && (
                     <div className="w-[200px]">
-                      <SelectField
+                      <SearchableSelect
                         value={selectedTipo}
                         options={tipoOptions}
                         onChange={handleTipoChangeInmueble}
-                        ariaLabel="Filtrar por tipo"
+                        placeholder="Todos los tipos"
                       />
                     </div>
                   )}
-                  {distinctSubtipos.length > 0 && (
+                  {selectedTipo && distinctSubtipos.length > 0 && (
                     <div className="w-[200px]">
-                      <SelectField
+                      <SearchableSelect
                         value={selectedSubtipo}
                         options={subtipoOptions}
                         onChange={setSelectedSubtipo}
-                        ariaLabel="Filtrar por subtipo"
+                        placeholder="Todos los subtipos"
                       />
                     </div>
                   )}

@@ -264,10 +264,16 @@ export function useAdminEquipments() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [distinctTipos, tipo]);
 
-  // Load unique detail subtypes whenever major filters or tipo change
+  // Load unique detail subtypes ONLY when a tipo is selected
   useEffect(() => {
     let isMounted = true;
     async function loadDistinctSubtipos() {
+      if (!tipo) {
+        if (isMounted) {
+          setDistinctSubtipos([]);
+        }
+        return;
+      }
       try {
         const supabase = getSupabaseClient();
         const subtypes = await getDistinctEquipmentDetailSubtypes(supabase, {

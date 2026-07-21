@@ -298,7 +298,7 @@ function AdminEquipmentsContent() {
       </section>
       <section
         className={`grid items-center gap-2.5 max-[1200px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1 ${
-          equipments.distinctSubtipos.length > 0
+          equipments.tipo && equipments.distinctSubtipos.length > 0
             ? 'grid-cols-[1.2fr_1.1fr_1fr_1.1fr_1fr_1fr_auto]'
             : 'grid-cols-[1.2fr_1.2fr_1fr_1.2fr_1fr_auto]'
         }`}>
@@ -325,18 +325,18 @@ function AdminEquipmentsContent() {
           onChange={equipments.handleEquipmentTypeChange}
           placeholder="Todos los tipos de activo"
         />
-        <SelectField
+        <SearchableSelect
           value={equipments.tipo}
           options={tipoOptions}
           onChange={equipments.handleTipoChange}
-          ariaLabel="Filtrar por tipo"
+          placeholder="Todos los tipos"
         />
-        {equipments.distinctSubtipos.length > 0 && (
-          <SelectField
+        {equipments.tipo && equipments.distinctSubtipos.length > 0 && (
+          <SearchableSelect
             value={equipments.subtipo}
             options={subtipoOptions}
             onChange={equipments.handleSubtipoChange}
-            ariaLabel="Filtrar por subtipo"
+            placeholder="Todos los subtipos"
           />
         )}
         <div className="relative">
