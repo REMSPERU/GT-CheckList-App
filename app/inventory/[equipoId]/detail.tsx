@@ -12,7 +12,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import type { Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -46,11 +46,15 @@ export default function EquipoDetailScreen() {
   const equipamentoId = getSingleParam(params.equipamentoId);
   const equipamentoNombre = getSingleParam(params.equipamentoNombre);
   const equipamentoAbreviatura = getSingleParam(params.equipamentoAbreviatura);
+  const autoEdit =
+    getSingleParam(params.autoEdit) === 'true' ||
+    getSingleParam(params.isEditing) === 'true';
 
   const { data: equipo, isLoading } = useInventoryEquipoDetail(equipoId);
   const updateEquipo = useUpdateEquipo(equipoId, propertyId, equipamentoId);
 
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(autoEdit);
+  const hasInitializedAutoEdit = useRef(false);
 
   const abreviatura = equipo?.equipamento_abreviatura ?? equipamentoAbreviatura;
 
@@ -78,6 +82,20 @@ export default function EquipoDetailScreen() {
         (equipo?.equipment_detail as Record<string, unknown>) ?? {},
     },
   });
+
+  useEffect(() => {
+    if (!equipo || !autoEdit || hasInitializedAutoEdit.current) {
+      return;
+    }
+
+    reset({
+      detalle_ubicacion: equipo.detalle_ubicacion ?? null,
+      estatus: (equipo.estatus as 'ACTIVO' | 'INACTIVO') ?? 'ACTIVO',
+      equipment_detail:
+        (equipo.equipment_detail as Record<string, unknown>) ?? {},
+    });
+    hasInitializedAutoEdit.current = true;
+  }, [equipo, autoEdit, reset]);
 
   const handleStartEdit = useCallback(() => {
     if (!equipo) return;

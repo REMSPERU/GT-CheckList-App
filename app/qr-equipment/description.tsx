@@ -201,12 +201,34 @@ export default function QREquipmentDescriptionScreen() {
           accessibilityLabel="Volver">
           <MaterialIcons name="chevron-left" size={28} color="#111827" />
         </Pressable>
-        <View>
+        <View style={styles.headerTextWrap}>
           <Text style={styles.headerTitle}>Descripcion del equipo</Text>
           <Text style={styles.headerSubtitle}>
             Informacion local disponible
           </Text>
         </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.editButton,
+            pressed && styles.pressed,
+          ]}
+          onPress={() => {
+            router.push({
+              pathname: '/inventory/[equipoId]/detail' as never,
+              params: {
+                equipoId: routeParams.equipoId,
+                propertyId: routeParams.buildingId,
+                propertyName: routeParams.buildingName,
+                equipamentoId: routeParams.equipamentoId,
+                equipamentoNombre: routeParams.equipamentoNombre,
+                autoEdit: 'true',
+              },
+            });
+          }}
+          accessibilityLabel="Editar equipo">
+          <MaterialIcons name="edit" size={16} color="#0891B2" />
+          <Text style={styles.editButtonText}>Editar</Text>
+        </Pressable>
       </View>
 
       <ScrollView
@@ -259,6 +281,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
+  },
+  headerTextWrap: {
+    flex: 1,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFEFF',
+    borderWidth: 1,
+    borderColor: '#CFFAFE',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  editButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0891B2',
   },
   headerTitle: {
     fontSize: 19,
