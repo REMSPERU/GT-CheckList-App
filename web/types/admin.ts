@@ -108,6 +108,7 @@ export interface AdminEquipmentFilters {
   modelo?: string;
   serie?: string;
   tipo?: string;
+  subtipo?: string;
   capacidad?: string;
   potencia?: string;
   voltaje?: string;

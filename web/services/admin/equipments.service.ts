@@ -78,8 +78,8 @@ export async function getDistinctEquipmentDetailTypes(
 
     let query = supabase
       .from('equipos')
-      .select('tipo:equipment_detail->>tipo')
-      .not('equipment_detail->>tipo', 'is', null)
+      .select('equipment_detail')
+      .not('equipment_detail', 'is', null)
       .range(fromIdx, toIdx);
 
     if (filters?.propertyId) {
@@ -102,10 +102,14 @@ export async function getDistinctEquipmentDetailTypes(
 
     if (data && data.length > 0) {
       data.forEach((item: any) => {
-        if (item && typeof item.tipo === 'string') {
-          const trimmed = item.tipo.trim();
-          if (trimmed) {
-            types.add(trimmed);
+        const detail = item?.equipment_detail;
+        if (detail && typeof detail === 'object') {
+          const rawTipo = detail.tipo || detail.tipo_bomba;
+          if (typeof rawTipo === 'string') {
+            const trimmed = rawTipo.trim();
+            if (trimmed) {
+              types.add(trimmed);
+            }
           }
         }
       });
@@ -120,6 +124,90 @@ export async function getDistinctEquipmentDetailTypes(
   }
 
   return Array.from(types).sort((a, b) => a.localeCompare(b));
+}
+
+export async function getDistinctEquipmentDetailSubtypes(
+  supabase: SupabaseClient,
+  filters?: {
+    propertyId?: string;
+    systemId?: string;
+    equipmentTypeId?: string;
+    tipo?: string;
+  },
+): Promise<string[]> {
+  const subtypes = new Set<string>();
+  let pageNum = 0;
+  const pageSize = 1000;
+  let hasMore = true;
+
+  let matchedIds: string[] | null = null;
+  if (filters?.systemId) {
+    matchedIds = await getEquipmentTypeIdsBySystem(supabase, filters.systemId);
+  }
+
+  while (hasMore) {
+    const fromIdx = pageNum * pageSize;
+    const toIdx = fromIdx + pageSize - 1;
+
+    let query = supabase
+      .from('equipos')
+      .select('equipment_detail')
+      .not('equipment_detail', 'is', null)
+      .range(fromIdx, toIdx);
+
+    if (filters?.propertyId) {
+      query = query.eq('id_property', filters.propertyId);
+    }
+
+    if (filters?.systemId && matchedIds) {
+      query = query.in(
+        'id_equipamento',
+        matchedIds.length > 0 ? matchedIds : [EMPTY_UUID],
+      );
+    }
+
+    if (filters?.equipmentTypeId) {
+      query = query.eq('id_equipamento', filters.equipmentTypeId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      data.forEach((item: any) => {
+        const detail = item?.equipment_detail;
+        if (detail && typeof detail === 'object') {
+          const rawTipo = detail.tipo || detail.tipo_bomba;
+          if (filters?.tipo && rawTipo !== filters.tipo) {
+            return;
+          }
+          const rawSubtipo =
+            detail.subtipo ||
+            detail.sub_tipo ||
+            (detail.tipo && detail.tipo !== detail.tipo_bomba
+              ? detail.tipo_bomba
+              : detail.tipo_bomba && detail.tipo_bomba !== detail.tipo
+                ? detail.tipo_bomba
+                : undefined);
+          if (typeof rawSubtipo === 'string') {
+            const trimmed = rawSubtipo.trim();
+            if (trimmed) {
+              subtypes.add(trimmed);
+            }
+          }
+        }
+      });
+      if (data.length < pageSize) {
+        hasMore = false;
+      } else {
+        pageNum++;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return Array.from(subtypes).sort((a, b) => a.localeCompare(b));
 }
 
 export async function listAdminEquipments(
@@ -286,7 +374,15 @@ export async function listAdminEquipments(
   }
 
   if (filters.tipo) {
-    query = query.eq('equipment_detail->>tipo', filters.tipo);
+    query = query.or(
+      `equipment_detail->>tipo.eq.${filters.tipo},equipment_detail->>tipo_bomba.eq.${filters.tipo}`,
+    );
+  }
+
+  if (filters.subtipo) {
+    query = query.or(
+      `equipment_detail->>subtipo.eq.${filters.subtipo},equipment_detail->>sub_tipo.eq.${filters.subtipo},equipment_detail->>tipo_bomba.eq.${filters.subtipo}`,
+    );
   }
 
   if (filters.tieneVdf && filters.tieneVdf !== 'TODOS') {

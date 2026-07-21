@@ -126,16 +126,19 @@ export const BDOS: TechnicalFieldConfig[] = [
 ];
 
 export const BELEC: TechnicalFieldConfig[] = [
+  { key: 'tipo', label: 'Tipo Bomba', type: 'text' },
   { key: 'tipo_bomba', label: 'Tipo Bomba', type: 'text' },
   { key: 'marca', label: 'Marca', type: 'text' },
   { key: 'modelo', label: 'Modelo', type: 'text' },
   { key: 'capacidad_motor', label: 'Capacidad Motor', type: 'text' },
+  { key: 'capacidad_bomba', label: 'Capacidad Bomba', type: 'text' },
   {
     key: 'capacidad_bomba_gpm',
-    label: 'Capacidad Bomba',
+    label: 'Capacidad Bomba GPM',
     type: 'number',
     suffix: 'GPM',
   },
+  { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
   { key: 'ano_operacion', label: 'Año de Operación', type: 'number' },
 ];
 

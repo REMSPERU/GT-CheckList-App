@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EquipmentSummaryCard } from '@/components/qr-equipment/equipment-summary-card';
+import { TechnicalDetailView } from '@/components/inventory/technical-detail-view';
+import { getTechnicalFields } from '@/types/inventory';
 import { DatabaseService } from '@/services/database';
 import type { BaseEquipment } from '@/types/api';
 import type { QREquipmentRouteParams } from '@/types/qr-equipment';
@@ -248,12 +250,20 @@ export default function QREquipmentDescriptionScreen() {
             <ActivityIndicator color="#06B6D4" />
             <Text style={styles.loadingText}>Cargando descripcion...</Text>
           </View>
-        ) : hasStructuredDetail ? (
-          <DetailObject data={equipmentDetail} />
         ) : (
-          <View style={styles.detailCard}>
-            <Text style={styles.emptyText}>No hay descripcion registrada.</Text>
-          </View>
+          <TechnicalDetailView
+            fields={getTechnicalFields(
+              equipment?.equipamento_abreviatura ??
+                routeParams.equipoCodigo?.split('-')[1],
+              typeof equipment?.equipment_detail === 'object' &&
+                equipment?.equipment_detail !== null &&
+                'tipo' in equipment.equipment_detail &&
+                typeof equipment.equipment_detail.tipo === 'string'
+                ? equipment.equipment_detail.tipo
+                : undefined,
+            )}
+            data={equipment?.equipment_detail as Record<string, unknown> | null}
+          />
         )}
       </ScrollView>
     </SafeAreaView>

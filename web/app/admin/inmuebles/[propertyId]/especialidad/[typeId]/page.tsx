@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { EquipmentDetailView } from '@/components/admin/equipment-detail-view';
 import { SelectField } from '@/components/ui/select-field';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { mapTipoLabel } from '@/app/admin/equipos/page';
 import { ArrowLeft, Camera, Cpu, Loader2, MapPin, Info } from 'lucide-react';
 
@@ -148,23 +149,67 @@ function SpecialtyDetailContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedTipo, setSelectedTipo] = useState('');
+  const [selectedSubtipo, setSelectedSubtipo] = useState('');
+
+  const getEquipoTipo = (detail: any): string | undefined => {
+    if (!detail || typeof detail !== 'object') return undefined;
+    const rawTipo = detail.tipo || detail.tipo_bomba;
+    return typeof rawTipo === 'string' && rawTipo.trim()
+      ? rawTipo.trim()
+      : undefined;
+  };
+
+  const getEquipoSubtipo = (detail: any): string | undefined => {
+    if (!detail || typeof detail !== 'object') return undefined;
+    const rawSubtipo =
+      detail.subtipo ||
+      detail.sub_tipo ||
+      (detail.tipo && detail.tipo !== detail.tipo_bomba
+        ? detail.tipo_bomba
+        : detail.tipo_bomba && detail.tipo_bomba !== detail.tipo
+          ? detail.tipo_bomba
+          : undefined);
+    return typeof rawSubtipo === 'string' && rawSubtipo.trim()
+      ? rawSubtipo.trim()
+      : undefined;
+  };
 
   const distinctTipos = useMemo(() => {
     const types = new Set<string>();
     equipos.forEach(equipo => {
-      const detail = equipo.equipment_detail;
-      if (detail && typeof detail === 'object') {
-        const rawTipo = detail.tipo || detail.tipo_bomba;
-        if (typeof rawTipo === 'string') {
-          const trimmed = rawTipo.trim();
-          if (trimmed) {
-            types.add(trimmed);
-          }
-        }
-      }
+      const t = getEquipoTipo(equipo.equipment_detail);
+      if (t) types.add(t);
     });
     return Array.from(types).sort((a, b) => a.localeCompare(b));
   }, [equipos]);
+
+  const distinctSubtipos = useMemo(() => {
+    if (!selectedTipo) return [];
+    const subtypes = new Set<string>();
+    equipos.forEach(equipo => {
+      const detail = equipo.equipment_detail;
+      const t = getEquipoTipo(detail);
+      if (t !== selectedTipo) return;
+      const st = getEquipoSubtipo(detail);
+      if (st) subtypes.add(st);
+    });
+    return Array.from(subtypes).sort((a, b) => a.localeCompare(b));
+  }, [equipos, selectedTipo]);
+
+  useEffect(() => {
+    if (
+      selectedSubtipo &&
+      distinctSubtipos.length > 0 &&
+      !distinctSubtipos.includes(selectedSubtipo)
+    ) {
+      setSelectedSubtipo('');
+    }
+  }, [distinctSubtipos, selectedSubtipo]);
+
+  const handleTipoChangeInmueble = (newTipo: string) => {
+    setSelectedTipo(newTipo);
+    setSelectedSubtipo('');
+  };
 
   const showTipoFilter = useMemo(() => {
     return distinctTipos.length > 0;
@@ -180,17 +225,27 @@ function SpecialtyDetailContent() {
     ];
   }, [distinctTipos]);
 
+  const subtipoOptions = useMemo(() => {
+    return [
+      { value: '', label: 'Todos los subtipos' },
+      ...distinctSubtipos.map(st => ({
+        value: st,
+        label: mapTipoLabel(st),
+      })),
+    ];
+  }, [distinctSubtipos]);
+
   const filteredEquipos = useMemo(() => {
-    if (!selectedTipo) return equipos;
     return equipos.filter(equipo => {
       const detail = equipo.equipment_detail;
-      if (detail && typeof detail === 'object') {
-        const rawTipo = detail.tipo || detail.tipo_bomba;
-        return typeof rawTipo === 'string' && rawTipo.trim() === selectedTipo;
-      }
-      return false;
+      const t = getEquipoTipo(detail);
+      const st = getEquipoSubtipo(detail);
+
+      if (selectedTipo && t !== selectedTipo) return false;
+      if (selectedSubtipo && st !== selectedSubtipo) return false;
+      return true;
     });
-  }, [equipos, selectedTipo]);
+  }, [equipos, selectedTipo, selectedSubtipo]);
 
   const eqFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -468,14 +523,24 @@ function SpecialtyDetailContent() {
                     Lista filtrada por inmueble y tipo de equipo.
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   {showTipoFilter && distinctTipos.length > 0 && (
                     <div className="w-[200px]">
-                      <SelectField
+                      <SearchableSelect
                         value={selectedTipo}
                         options={tipoOptions}
-                        onChange={setSelectedTipo}
-                        ariaLabel="Filtrar por tipo"
+                        onChange={handleTipoChangeInmueble}
+                        placeholder="Todos los tipos"
+                      />
+                    </div>
+                  )}
+                  {selectedTipo && distinctSubtipos.length > 0 && (
+                    <div className="w-[200px]">
+                      <SearchableSelect
+                        value={selectedSubtipo}
+                        options={subtipoOptions}
+                        onChange={setSelectedSubtipo}
+                        placeholder="Todos los subtipos"
                       />
                     </div>
                   )}

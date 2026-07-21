@@ -15,7 +15,7 @@ export const TechnicalDetailView = memo(function TechnicalDetailView({
   fields,
   data,
 }: TechnicalDetailViewProps) {
-  if (!data || fields.length === 0) {
+  if (!data || Object.keys(data).length === 0) {
     return (
       <View style={styles.emptyWrap}>
         <Text style={styles.emptyText}>
@@ -25,12 +25,40 @@ export const TechnicalDetailView = memo(function TechnicalDetailView({
     );
   }
 
-  const sections = groupFieldsBySection(
-    fields.filter(field => isFieldVisible(field, data, fields)),
+  const visibleSchemaFields = (fields ?? []).filter(field =>
+    isFieldVisible(field, data, fields),
   );
+
+  const sections = groupFieldsBySection(visibleSchemaFields);
+
+  // Identificar llaves principales de la data que no están cubiertas por los campos del esquema
+  const schemaTopLevelKeys = new Set(
+    (fields ?? []).map(f => f.key.split('.')[0]),
+  );
+
+  const extraEntries = Object.entries(data).filter(([key, value]) => {
+    if (schemaTopLevelKeys.has(key)) return false;
+    if (value === null || value === undefined || value === '') return false;
+    if (Array.isArray(value) && value.length === 0) return false;
+    return true;
+  });
+
+  const hasSchemaContent = sections.length > 0;
+  const hasExtraContent = extraEntries.length > 0;
+
+  if (!hasSchemaContent && !hasExtraContent) {
+    return (
+      <View style={styles.emptyWrap}>
+        <Text style={styles.emptyText}>
+          Sin especificaciones técnicas registradas.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.sectionsWrap}>
+      {/* Campos definidos en el Esquema */}
       {sections.map(section => (
         <View key={section.title} style={styles.sectionWrap}>
           {section.title !== DEFAULT_SECTION ? (
@@ -41,6 +69,18 @@ export const TechnicalDetailView = memo(function TechnicalDetailView({
           </View>
         </View>
       ))}
+
+      {/* Información Adicional no Mapeada en el Esquema */}
+      {hasExtraContent ? (
+        <View style={styles.sectionWrap}>
+          {hasSchemaContent ? (
+            <Text style={styles.sectionTitle}>Información Adicional</Text>
+          ) : null}
+          <View style={styles.grid}>
+            {renderExtraEntries(extraEntries)}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 });
@@ -67,26 +107,28 @@ function isFieldVisible(
   field: TechnicalFieldConfig,
   data: Record<string, unknown>,
   allFields: TechnicalFieldConfig[],
-) {
-  // Ocultar 'observaciones' si está vacío en la vista de detalle
-  if (field.key === 'observaciones') {
-    const val = getValueByPath(data, field.key);
-    if (val === null || val === undefined || val === '') {
+): boolean {
+  const savedValue = getValueByPath(data, field.key);
+
+  // Si el campo no tiene un valor guardado (nulo, indefinido o vacío), NO mostrar en la vista de detalle
+  if (savedValue === null || savedValue === undefined || savedValue === '') {
+    return false;
+  }
+
+  // Si es un booleano falso y no es obligatorio, ocultarlo en la vista de lectura
+  if (field.type === 'boolean') {
+    const parsed = parseBoolean(savedValue);
+    if (!parsed && !field.required) {
       return false;
     }
   }
 
-  // Si el campo tiene un valor guardado (no nulo ni vacío), mostrarlo siempre (excepto si es booleano falso)
-  const savedValue = getValueByPath(data, field.key);
-  const parsedValue = field.type === 'boolean' ? parseBoolean(savedValue) : savedValue;
-  const isValueNotEmpty =
-    savedValue !== null &&
-    savedValue !== undefined &&
-    savedValue !== '' &&
-    !(field.type === 'boolean' && parsedValue === false);
-
-  if (isValueNotEmpty) {
-    return true;
+  // Si tiene condición visibleWhen
+  if (field.visibleWhen) {
+    const parentVal = getValueByPath(data, field.visibleWhen.key);
+    if (parentVal !== field.visibleWhen.equals) {
+      return false;
+    }
   }
 
   // Si es un campo de control (ej. tiene_vdf) y algún campo controlado por él tiene datos guardados, ocultar este control
@@ -102,44 +144,48 @@ function isFieldVisible(
     return false;
   }
 
-  if (!field.visibleWhen) return true;
-  return (
-    getValueByPath(data, field.visibleWhen.key) === field.visibleWhen.equals
-  );
+  return true;
 }
 
 function renderFieldGrid(
   fields: TechnicalFieldConfig[],
   data: Record<string, unknown>,
 ) {
-  const rows = [];
+  const elements = [];
+  let currentPair: TechnicalFieldConfig[] = [];
 
-  for (let i = 0; i < fields.length; i += 1) {
-    const field = fields[i];
-
-    if (field.type === 'collection') {
-      rows.push(renderCollectionCard(field, data));
-      continue;
+  const flushPair = () => {
+    if (currentPair.length === 2) {
+      elements.push(
+        <View key={`${currentPair[0].key}-${currentPair[1].key}`} style={styles.row}>
+          {renderScalarCell(currentPair[0], data)}
+          {renderScalarCell(currentPair[1], data)}
+        </View>,
+      );
+    } else if (currentPair.length === 1) {
+      elements.push(
+        <View key={currentPair[0].key} style={styles.row}>
+          {renderScalarCell(currentPair[0], data)}
+        </View>,
+      );
     }
+    currentPair = [];
+  };
 
-    const nextField = fields[i + 1];
-    const hasNextCell = nextField && nextField.type !== 'collection';
+  fields.forEach(field => {
+    if (field.type === 'collection') {
+      flushPair();
+      elements.push(renderCollectionCard(field, data));
+    } else {
+      currentPair.push(field);
+      if (currentPair.length === 2) {
+        flushPair();
+      }
+    }
+  });
 
-    rows.push(
-      <View key={field.key} style={styles.row}>
-        {renderScalarCell(field, data)}
-        {hasNextCell ? (
-          renderScalarCell(nextField, data)
-        ) : (
-          <View style={styles.cellPlaceholder} />
-        )}
-      </View>,
-    );
-
-    if (hasNextCell) i += 1;
-  }
-
-  return rows;
+  flushPair();
+  return elements;
 }
 
 function renderScalarCell(
@@ -201,6 +247,123 @@ function renderCollection(value: unknown, field: TechnicalFieldConfig) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function formatDetailLabel(key: string): string {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function formatPrimitiveValue(val: unknown): string {
+  if (val === null || val === undefined || val === '') return '—';
+  if (typeof val === 'boolean') return val ? 'Sí' : 'No';
+  return String(val);
+}
+
+function renderExtraEntries(entries: [string, unknown][]) {
+  const primitives: [string, unknown][] = [];
+  const complex: [string, unknown][] = [];
+
+  entries.forEach(([key, val]) => {
+    if (isRecord(val) || Array.isArray(val)) {
+      complex.push([key, val]);
+    } else {
+      primitives.push([key, val]);
+    }
+  });
+
+  const elements = [];
+
+  for (let i = 0; i < primitives.length; i += 2) {
+    const item1 = primitives[i];
+    const item2 = primitives[i + 1];
+
+    elements.push(
+      <View key={item1[0]} style={styles.row}>
+        <View style={styles.cell}>
+          <Text style={styles.label}>{formatDetailLabel(item1[0])}</Text>
+          <Text style={styles.value}>{formatPrimitiveValue(item1[1])}</Text>
+        </View>
+        {item2 ? (
+          <View key={item2[0]} style={styles.cell}>
+            <Text style={styles.label}>{formatDetailLabel(item2[0])}</Text>
+            <Text style={styles.value}>{formatPrimitiveValue(item2[1])}</Text>
+          </View>
+        ) : null}
+      </View>,
+    );
+  }
+
+  complex.forEach(([key, val]) => {
+    elements.push(
+      <DynamicEntryRenderer
+        key={key}
+        label={formatDetailLabel(key)}
+        value={val}
+      />,
+    );
+  });
+
+  return elements;
+}
+
+function DynamicEntryRenderer({
+  label,
+  value,
+}: {
+  label: string;
+  value: unknown;
+}) {
+  if (Array.isArray(value)) {
+    return (
+      <View style={styles.collectionCard}>
+        <Text style={styles.collectionTitle}>{label}</Text>
+        {value.map((item, index) => (
+          <View key={index} style={styles.collectionItem}>
+            <Text style={styles.collectionIndex}>#{index + 1}</Text>
+            {isRecord(item) ? (
+              <View style={styles.collectionGrid}>
+                {Object.entries(item).map(([k, v]) => (
+                  <View key={k} style={styles.collectionCell}>
+                    <Text style={styles.label}>{formatDetailLabel(k)}</Text>
+                    <Text style={styles.value}>{formatPrimitiveValue(v)}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.value}>{formatPrimitiveValue(item)}</Text>
+            )}
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  if (isRecord(value)) {
+    return (
+      <View style={styles.collectionCard}>
+        <Text style={styles.collectionTitle}>{label}</Text>
+        <View style={styles.collectionGrid}>
+          {Object.entries(value).map(([k, v]) => (
+            <View key={k} style={styles.collectionCell}>
+              <Text style={styles.label}>{formatDetailLabel(k)}</Text>
+              <Text style={styles.value}>{formatPrimitiveValue(v)}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.row}>
+      <View style={styles.cell}>
+        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.value}>{formatPrimitiveValue(value)}</Text>
+      </View>
+    </View>
+  );
 }
 
 function parseBoolean(value: unknown): boolean {
