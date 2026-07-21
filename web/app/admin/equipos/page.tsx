@@ -127,6 +127,17 @@ function AdminEquipmentsContent() {
     );
   };
 
+  const detailOptions = (key: string, allLabel: string) => [
+    { value: '', label: allLabel },
+    ...(equipments.detailFilterOptions[key] ?? []).map(value => ({
+      value,
+      label: value,
+    })),
+  ];
+
+  const hasDetailOptions = (key: string) =>
+    (equipments.detailFilterOptions[key]?.length ?? 0) > 0;
+
   const activeAdvancedCount = [
     equipments.status !== 'TODOS' ? 1 : 0,
     equipments.config !== 'TODOS' ? 1 : 0,
@@ -144,6 +155,8 @@ function AdminEquipmentsContent() {
     equipments.presion ? 1 : 0,
     equipments.refrigerante ? 1 : 0,
     equipments.tieneVdf !== 'TODOS' ? 1 : 0,
+    equipments.anioOperacion ? 1 : 0,
+    Object.keys(equipments.detailFilters).length,
     equipments.subtipo ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
@@ -206,35 +219,6 @@ function AdminEquipmentsContent() {
     typeName.includes('motor') ||
     systemName.includes('sanitar') ||
     systemName.includes('agua');
-
-  const FASES_OPTIONS = [
-    { value: '', label: 'Todas las fases' },
-    { value: 'Monofásico', label: 'Monofásico' },
-    { value: 'Trifásico', label: 'Trifásico' },
-  ];
-
-  const VOLTAJE_OPTIONS = [
-    { value: '', label: 'Todos los voltajes' },
-    { value: '220V', label: '220V' },
-    { value: '380V', label: '380V' },
-    { value: '440V', label: '440V' },
-  ];
-
-  const TIPO_TABLERO_OPTIONS = [
-    { value: '', label: 'Todos los tipos' },
-    { value: 'Distribución', label: 'Distribución' },
-    { value: 'General', label: 'General' },
-    { value: 'Fuerza', label: 'Fuerza' },
-    { value: 'Control', label: 'Control' },
-  ];
-
-  const REFRIGERANTE_OPTIONS = [
-    { value: '', label: 'Todos' },
-    { value: 'R22', label: 'R22' },
-    { value: 'R410A', label: 'R410A' },
-    { value: 'R134a', label: 'R134a' },
-    { value: 'R407C', label: 'R407C' },
-  ];
 
   const VDF_OPTIONS = [
     { value: 'TODOS', label: 'Todos' },
@@ -567,41 +551,73 @@ function AdminEquipmentsContent() {
                         Detalle Técnico: {selectedType?.nombre || 'General'}
                       </span>
 
+                      {hasDetailOptions('anio_operacion') && (
+                        <div className="grid gap-1.5">
+                          <label className="text-xs font-bold text-slate-500">
+                            Año de operación
+                          </label>
+                          <SearchableSelect
+                            value={equipments.anioOperacion}
+                            options={detailOptions(
+                              'anio_operacion',
+                              'Todos los años',
+                            )}
+                            onChange={equipments.handleAnioOperacionChange}
+                            placeholder="Todos los años"
+                          />
+                        </div>
+                      )}
+
                       {isElectricalPanel && (
                         <>
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">
-                              Fases
-                            </label>
-                            <SelectField
-                              value={equipments.fases}
-                              options={FASES_OPTIONS}
-                              onChange={equipments.handleFasesChange}
-                              ariaLabel="Filtrar por fases"
-                            />
-                          </div>
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">
-                              Voltaje
-                            </label>
-                            <SelectField
-                              value={equipments.voltaje}
-                              options={VOLTAJE_OPTIONS}
-                              onChange={equipments.handleVoltajeChange}
-                              ariaLabel="Filtrar por voltaje"
-                            />
-                          </div>
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">
-                              Tipo de Tablero
-                            </label>
-                            <SelectField
-                              value={equipments.tipoTablero}
-                              options={TIPO_TABLERO_OPTIONS}
-                              onChange={equipments.handleTipoTableroChange}
-                              ariaLabel="Filtrar por tipo de tablero"
-                            />
-                          </div>
+                          {hasDetailOptions('fases') && (
+                            <div className="grid gap-1.5">
+                              <label className="text-xs font-bold text-slate-500">
+                                Fases
+                              </label>
+                              <SelectField
+                                value={equipments.fases}
+                                options={detailOptions(
+                                  'fases',
+                                  'Todas las fases',
+                                )}
+                                onChange={equipments.handleFasesChange}
+                                ariaLabel="Filtrar por fases"
+                              />
+                            </div>
+                          )}
+                          {hasDetailOptions('voltaje') && (
+                            <div className="grid gap-1.5">
+                              <label className="text-xs font-bold text-slate-500">
+                                Voltaje
+                              </label>
+                              <SelectField
+                                value={equipments.voltaje}
+                                options={detailOptions(
+                                  'voltaje',
+                                  'Todos los voltajes',
+                                )}
+                                onChange={equipments.handleVoltajeChange}
+                                ariaLabel="Filtrar por voltaje"
+                              />
+                            </div>
+                          )}
+                          {hasDetailOptions('tipo_tablero') && (
+                            <div className="grid gap-1.5">
+                              <label className="text-xs font-bold text-slate-500">
+                                Tipo de Tablero
+                              </label>
+                              <SelectField
+                                value={equipments.tipoTablero}
+                                options={detailOptions(
+                                  'tipo_tablero',
+                                  'Todos los tipos',
+                                )}
+                                onChange={equipments.handleTipoTableroChange}
+                                ariaLabel="Filtrar por tipo de tablero"
+                              />
+                            </div>
+                          )}
                           {renderMarcaField()}
                         </>
                       )}
@@ -609,140 +625,185 @@ function AdminEquipmentsContent() {
                       {isHvac && (
                         <>
                           {renderMarcaField()}
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">
-                              Modelo
-                            </label>
-                            <input
-                              type="text"
-                              value={equipments.modelo}
-                              onChange={e =>
-                                equipments.handleModeloChange(e.target.value)
-                              }
-                              placeholder="Ej. Inverter 24k..."
-                              className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
-                            />
-                          </div>
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">
-                              Capacidad
-                            </label>
-                            <input
-                              type="text"
-                              value={equipments.capacidad}
-                              onChange={e =>
-                                equipments.handleCapacidadChange(e.target.value)
-                              }
-                              placeholder="Ej. 18000 BTU, 5 TR..."
-                              className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
-                            />
-                          </div>
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">
-                              Refrigerante
-                            </label>
-                            <SelectField
-                              value={equipments.refrigerante}
-                              options={REFRIGERANTE_OPTIONS}
-                              onChange={equipments.handleRefrigeranteChange}
-                              ariaLabel="Filtrar por refrigerante"
-                            />
-                          </div>
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">
-                              Variador de Frecuencia (VDF)
-                            </label>
-                            <SelectField
-                              value={equipments.tieneVdf}
-                              options={VDF_OPTIONS}
-                              onChange={equipments.handleTieneVdfChange}
-                              ariaLabel="Filtrar por tiene vdf"
-                            />
-                          </div>
+                          {hasDetailOptions('modelo') && (
+                            <div className="grid gap-1.5">
+                              <label className="text-xs font-bold text-slate-500">
+                                Modelo
+                              </label>
+                              <SearchableSelect
+                                value={equipments.modelo}
+                                options={detailOptions(
+                                  'modelo',
+                                  'Todos los modelos',
+                                )}
+                                onChange={equipments.handleModeloChange}
+                                placeholder="Todos los modelos"
+                              />
+                            </div>
+                          )}
+                          {hasDetailOptions('capacidad') && (
+                            <div className="grid gap-1.5">
+                              <label className="text-xs font-bold text-slate-500">
+                                Capacidad
+                              </label>
+                              <SearchableSelect
+                                value={equipments.capacidad}
+                                options={detailOptions(
+                                  'capacidad',
+                                  'Todas las capacidades',
+                                )}
+                                onChange={equipments.handleCapacidadChange}
+                                placeholder="Todas las capacidades"
+                              />
+                            </div>
+                          )}
+                          {hasDetailOptions('refrigerante') && (
+                            <div className="grid gap-1.5">
+                              <label className="text-xs font-bold text-slate-500">
+                                Refrigerante
+                              </label>
+                              <SelectField
+                                value={equipments.refrigerante}
+                                options={detailOptions(
+                                  'refrigerante',
+                                  'Todos los refrigerantes',
+                                )}
+                                onChange={equipments.handleRefrigeranteChange}
+                                ariaLabel="Filtrar por refrigerante"
+                              />
+                            </div>
+                          )}
+                          {hasDetailOptions('tiene_vdf') && (
+                            <div className="grid gap-1.5">
+                              <label className="text-xs font-bold text-slate-500">
+                                Variador de Frecuencia (VDF)
+                              </label>
+                              <SelectField
+                                value={equipments.tieneVdf}
+                                options={VDF_OPTIONS}
+                                onChange={equipments.handleTieneVdfChange}
+                                ariaLabel="Filtrar por tiene vdf"
+                              />
+                            </div>
+                          )}
                         </>
                       )}
 
                       {isPump && (
                         <>
                           {renderMarcaField()}
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">
-                              Potencia
-                            </label>
-                            <input
-                              type="text"
-                              value={equipments.potencia}
-                              onChange={e =>
-                                equipments.handlePotenciaChange(e.target.value)
-                              }
-                              placeholder="Ej. 2 HP, 1.5 kW..."
-                              className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
-                            />
-                          </div>
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">
-                              RPM
-                            </label>
-                            <input
-                              type="text"
-                              value={equipments.rpm}
-                              onChange={e =>
-                                equipments.handleRpmChange(e.target.value)
-                              }
-                              placeholder="Ej. 3450, 1750..."
-                              className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
-                            />
-                          </div>
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">
-                              Presión
-                            </label>
-                            <input
-                              type="text"
-                              value={equipments.presion}
-                              onChange={e =>
-                                equipments.handlePresionChange(e.target.value)
-                              }
-                              placeholder="Ej. 40 PSI, 3 bar..."
-                              className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
-                            />
-                          </div>
+                          {hasDetailOptions('potencia') && (
+                            <div className="grid gap-1.5">
+                              <label className="text-xs font-bold text-slate-500">
+                                Potencia
+                              </label>
+                              <SearchableSelect
+                                value={equipments.potencia}
+                                options={detailOptions(
+                                  'potencia',
+                                  'Todas las potencias',
+                                )}
+                                onChange={equipments.handlePotenciaChange}
+                                placeholder="Todas las potencias"
+                              />
+                            </div>
+                          )}
+                          {hasDetailOptions('rpm') && (
+                            <div className="grid gap-1.5">
+                              <label className="text-xs font-bold text-slate-500">
+                                RPM
+                              </label>
+                              <SearchableSelect
+                                value={equipments.rpm}
+                                options={detailOptions(
+                                  'rpm',
+                                  'Todas las velocidades',
+                                )}
+                                onChange={equipments.handleRpmChange}
+                                placeholder="Todas las velocidades"
+                              />
+                            </div>
+                          )}
+                          {hasDetailOptions('presion') && (
+                            <div className="grid gap-1.5">
+                              <label className="text-xs font-bold text-slate-500">
+                                Presión
+                              </label>
+                              <SearchableSelect
+                                value={equipments.presion}
+                                options={detailOptions(
+                                  'presion',
+                                  'Todas las presiones',
+                                )}
+                                onChange={equipments.handlePresionChange}
+                                placeholder="Todas las presiones"
+                              />
+                            </div>
+                          )}
                         </>
                       )}
 
                       {!isElectricalPanel && !isHvac && !isPump && (
                         <>
                           {renderMarcaField()}
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">
-                              Modelo
-                            </label>
-                            <input
-                              type="text"
-                              value={equipments.modelo}
-                              onChange={e =>
-                                equipments.handleModeloChange(e.target.value)
-                              }
-                              placeholder="Modelo del equipo..."
-                              className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
-                            />
-                          </div>
-                          <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">
-                              Número de Serie
-                            </label>
-                            <input
-                              type="text"
-                              value={equipments.serie}
-                              onChange={e =>
-                                equipments.handleSerieChange(e.target.value)
-                              }
-                              placeholder="N° de serie..."
-                              className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
-                            />
-                          </div>
+                          {hasDetailOptions('modelo') && (
+                            <div className="grid gap-1.5">
+                              <label className="text-xs font-bold text-slate-500">
+                                Modelo
+                              </label>
+                              <SearchableSelect
+                                value={equipments.modelo}
+                                options={detailOptions(
+                                  'modelo',
+                                  'Todos los modelos',
+                                )}
+                                onChange={equipments.handleModeloChange}
+                                placeholder="Todos los modelos"
+                              />
+                            </div>
+                          )}
+                          {hasDetailOptions('serie') && (
+                            <div className="grid gap-1.5">
+                              <label className="text-xs font-bold text-slate-500">
+                                Número de Serie
+                              </label>
+                              <SearchableSelect
+                                value={equipments.serie}
+                                options={detailOptions(
+                                  'serie',
+                                  'Todas las series',
+                                )}
+                                onChange={equipments.handleSerieChange}
+                                placeholder="Todas las series"
+                              />
+                            </div>
+                          )}
                         </>
                       )}
+
+                      {equipments.additionalDetailFilters
+                        .filter(filter => hasDetailOptions(filter.key))
+                        .map(filter => (
+                          <div key={filter.key} className="grid gap-1.5">
+                            <label className="text-xs font-bold text-slate-500">
+                              {filter.label}
+                            </label>
+                            <SearchableSelect
+                              value={equipments.detailFilters[filter.key] ?? ''}
+                              options={detailOptions(
+                                filter.key,
+                                `Todos los valores`,
+                              )}
+                              onChange={value =>
+                                equipments.handleDetailFilterChange(
+                                  filter.key,
+                                  value,
+                                )
+                              }
+                              placeholder="Todos los valores"
+                            />
+                          </div>
+                        ))}
                     </div>
                   </div>
 

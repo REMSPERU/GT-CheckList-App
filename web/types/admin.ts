@@ -119,6 +119,8 @@ export interface AdminEquipmentFilters {
   presion?: string;
   refrigerante?: string;
   tieneVdf?: string;
+  anioOperacion?: string;
+  detailFilters?: Record<string, string>;
 }
 
 export interface AdminEquipmentTypeRow {
