@@ -313,11 +313,11 @@ function AdminEquipmentsContent() {
           onChange={equipments.handlePropertyChange}
           placeholder="Todos los inmuebles"
         />
-        <SelectField
+        <SearchableSelect
           value={equipments.systemId}
           options={systemOptions}
           onChange={equipments.handleSystemChange}
-          ariaLabel="Filtrar por especialidad"
+          placeholder="Todas las especialidades"
         />
         <SearchableSelect
           value={equipments.equipmentTypeId}
