@@ -11,7 +11,10 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useCallback, useState, useEffect, memo, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -34,17 +37,17 @@ function getEquipamentoStyle(abreviatura: string) {
     string,
     { icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }
   > = {
-    TBELEC: { icon: 'flash-outline', color: '#EAB308', bg: '#FEF9C3' },     // Yellow/Amber for electrical panels
-    LUZ: { icon: 'bulb-outline', color: '#F97316', bg: '#FFEDD5' },        // Orange for emergency lights
-    PAT: { icon: 'earth-outline', color: '#10B981', bg: '#D1FAE5' },       // Green for grounding wells
-    CHAI: { icon: 'snow-outline', color: '#3B82F6', bg: '#DBEAFE' },       // Blue for air chillers
-    CHAG: { icon: 'water-outline', color: '#06B6D4', bg: '#ECFEFF' },      // Cyan for water chillers
-    TOE: { icon: 'sync-outline', color: '#0891B2', bg: '#E0F7FA' },        // Cyan for cooling towers
-    ABL: { icon: 'filter-outline', color: '#6366F1', bg: '#EEF2FF' },      // Indigo for softeners
+    TBELEC: { icon: 'flash-outline', color: '#EAB308', bg: '#FEF9C3' }, // Yellow/Amber for electrical panels
+    LUZ: { icon: 'bulb-outline', color: '#F97316', bg: '#FFEDD5' }, // Orange for emergency lights
+    PAT: { icon: 'earth-outline', color: '#10B981', bg: '#D1FAE5' }, // Green for grounding wells
+    CHAI: { icon: 'snow-outline', color: '#3B82F6', bg: '#DBEAFE' }, // Blue for air chillers
+    CHAG: { icon: 'water-outline', color: '#06B6D4', bg: '#ECFEFF' }, // Cyan for water chillers
+    TOE: { icon: 'sync-outline', color: '#0891B2', bg: '#E0F7FA' }, // Cyan for cooling towers
+    ABL: { icon: 'filter-outline', color: '#6366F1', bg: '#EEF2FF' }, // Indigo for softeners
     BBA: { icon: 'speedometer-outline', color: '#EC4899', bg: '#FCE7F3' }, // Pink for water pumps
     SPLIT: { icon: 'thermometer-outline', color: '#3B82F6', bg: '#DBEAFE' }, // Blue
-    FCU: { icon: 'refresh-outline', color: '#10B981', bg: '#D1FAE5' },     // Greenish
-    UMA: { icon: 'cube-outline', color: '#6B7280', bg: '#F3F4F6' },        // Gray
+    FCU: { icon: 'refresh-outline', color: '#10B981', bg: '#D1FAE5' }, // Greenish
+    UMA: { icon: 'cube-outline', color: '#6B7280', bg: '#F3F4F6' }, // Gray
   };
 
   return (
@@ -91,12 +94,9 @@ const InventoryEquipamentoRow = memo(function InventoryEquipamentoRow({
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={`Abrir equipos de ${item.nombre}`}>
-      <View style={[styles.equipmentIconWrap, { backgroundColor: styleConfig.bg }]}>
-        <Ionicons
-          name={styleConfig.icon}
-          size={20}
-          color={styleConfig.color}
-        />
+      <View
+        style={[styles.equipmentIconWrap, { backgroundColor: styleConfig.bg }]}>
+        <Ionicons name={styleConfig.icon} size={20} color={styleConfig.color} />
       </View>
       <View style={styles.equipmentRowBody}>
         <Text style={styles.equipmentRowTitle}>{item.nombre}</Text>
@@ -209,7 +209,7 @@ export default function InventorySystemsScreen() {
       eq =>
         normalizeSearch(eq.nombre).includes(q) ||
         normalizeSearch(eq.abreviatura).includes(q) ||
-        normalizeSearch(eq.sistema_nombre).includes(q)
+        normalizeSearch(eq.sistema_nombre).includes(q),
     );
 
     const groups: Record<string, typeof filtered> = {};
@@ -240,15 +240,19 @@ export default function InventorySystemsScreen() {
         const filteredEquipamentos = system.equipamentos.filter(
           eq =>
             normalizeSearch(eq.nombre).includes(q) ||
-            normalizeSearch(eq.abreviatura).includes(q)
+            normalizeSearch(eq.abreviatura).includes(q),
         );
 
         if (systemNombreMatches || filteredEquipamentos.length > 0) {
-          const equipmentsToUse = filteredEquipamentos.length > 0
-            ? filteredEquipamentos
-            : system.equipamentos;
+          const equipmentsToUse =
+            filteredEquipamentos.length > 0
+              ? filteredEquipamentos
+              : system.equipamentos;
 
-          const sumEquipos = equipmentsToUse.reduce((acc, eq) => acc + (eq.equipos_count ?? 0), 0);
+          const sumEquipos = equipmentsToUse.reduce(
+            (acc, eq) => acc + (eq.equipos_count ?? 0),
+            0,
+          );
 
           return {
             ...system,
@@ -300,6 +304,20 @@ export default function InventorySystemsScreen() {
     setExpandedSystemId(current => (current === systemId ? null : systemId));
   }, []);
 
+  const handleViewAllEquipos = useCallback(() => {
+    router.push({
+      pathname: '/inventory/[equipamentoId]/equipos' as never,
+      params: {
+        equipamentoId: 'all',
+        equipamentoNombre: 'Todos los Activos',
+        propertyId,
+        propertyName,
+        propertyAddress,
+        propertyImageUrl,
+      },
+    });
+  }, [router, propertyId, propertyName, propertyAddress, propertyImageUrl]);
+
   const onRefresh = useCallback(async () => {
     try {
       await syncService.triggerSync('inventory-systems-refresh', {
@@ -315,7 +333,9 @@ export default function InventorySystemsScreen() {
     ({ item }) => (
       <InventorySystemCard
         item={item}
-        isExpanded={searchText.trim().length > 0 ? true : expandedSystemId === item.id}
+        isExpanded={
+          searchText.trim().length > 0 ? true : expandedSystemId === item.id
+        }
         onToggle={handleToggleSystem}
         onPressEquipamento={handleEquipamentoPress}
       />
@@ -375,10 +395,20 @@ export default function InventorySystemsScreen() {
         <Ionicons name="layers-outline" size={18} color="#0891B2" />
         <Text style={styles.sectionTitle}>Sistemas</Text>
         {systems && (
-          <Text style={styles.sectionCount}>
-            ({filteredSystems.length})
-          </Text>
+          <Text style={styles.sectionCount}>({filteredSystems.length})</Text>
         )}
+        <View style={styles.sectionSpacer} />
+        <Pressable
+          style={({ pressed }) => [
+            styles.allAssetsBtn,
+            pressed && styles.pressed,
+          ]}
+          onPress={handleViewAllEquipos}
+          accessibilityRole="button"
+          accessibilityLabel="Ver todos los activos del inmueble">
+          <Ionicons name="cube-outline" size={14} color="#0891B2" />
+          <Text style={styles.allAssetsBtnText}>Ver todos los activos</Text>
+        </Pressable>
       </View>
 
       {/* Search */}
@@ -420,7 +450,8 @@ export default function InventorySystemsScreen() {
           renderItem={renderItem}
           contentContainerStyle={[
             styles.list,
-            (!filteredSystems || filteredSystems.length === 0) && styles.listEmpty,
+            (!filteredSystems || filteredSystems.length === 0) &&
+              styles.listEmpty,
           ]}
           showsVerticalScrollIndicator={false}
           refreshing={isRefetching}
@@ -471,7 +502,10 @@ export default function InventorySystemsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Agregar Tipo de Equipo</Text>
               <Pressable
-                style={({ pressed }) => [styles.modalCloseButton, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.modalCloseButton,
+                  pressed && styles.pressed,
+                ]}
                 onPress={() => setModalVisible(false)}
                 accessibilityLabel="Cerrar modal">
                 <Ionicons name="close" size={22} color="#0F172A" />
@@ -505,13 +539,21 @@ export default function InventorySystemsScreen() {
               {groupedAllEquipamentos.length === 0 ? (
                 <View style={styles.modalEmptyState}>
                   <Ionicons name="cube-outline" size={40} color="#CBD5E1" />
-                  <Text style={styles.modalEmptyText}>No se encontraron tipos de equipo</Text>
+                  <Text style={styles.modalEmptyText}>
+                    No se encontraron tipos de equipo
+                  </Text>
                 </View>
               ) : (
                 groupedAllEquipamentos.map(group => (
-                  <View key={group.sistema_nombre} style={styles.modalSystemGroup}>
+                  <View
+                    key={group.sistema_nombre}
+                    style={styles.modalSystemGroup}>
                     <View style={styles.modalSystemHeader}>
-                      <Ionicons name="layers-outline" size={14} color="#0891B2" />
+                      <Ionicons
+                        name="layers-outline"
+                        size={14}
+                        color="#0891B2"
+                      />
                       <Text style={styles.modalSystemTitle}>
                         {group.sistema_nombre.toUpperCase()}
                       </Text>
@@ -673,6 +715,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#94A3B8',
     fontWeight: '500',
+  },
+  sectionSpacer: {
+    flex: 1,
+  },
+  allAssetsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#ECFEFF',
+    borderWidth: 1,
+    borderColor: '#CFFAFE',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  allAssetsBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0891B2',
   },
   list: {
     paddingHorizontal: 16,

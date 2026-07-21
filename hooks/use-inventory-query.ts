@@ -91,16 +91,20 @@ export function useInventoryEquipamentos(
  * Reads from local SQLite mirror (offline-first).
  * Includes both ACTIVO and INACTIVO equipos.
  */
-export function useInventoryEquipos(propertyId: string, equipamentoId: string) {
+export function useInventoryEquipos(
+  propertyId: string,
+  equipamentoId?: string,
+) {
+  const reqEquipamentoId = equipamentoId || 'all';
   return useQuery<InventoryEquipo[], Error>({
-    queryKey: inventoryKeys.equipos(propertyId, equipamentoId),
+    queryKey: inventoryKeys.equipos(propertyId, reqEquipamentoId),
     networkMode: 'always',
     queryFn: () =>
       DatabaseService.getInventoryEquiposByEquipamento(
         propertyId,
-        equipamentoId,
+        reqEquipamentoId,
       ) as Promise<InventoryEquipo[]>,
-    enabled: !!propertyId && !!equipamentoId,
+    enabled: !!propertyId,
     staleTime: 30_000,
   });
 }
