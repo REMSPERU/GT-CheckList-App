@@ -6,6 +6,7 @@ import { listAdminEquipmentTypes } from '@/services/admin/equipment-types.servic
 import {
   listAdminEquipments,
   getDistinctEquipmentDetailTypes,
+  getDistinctEquipmentDetailSubtypes,
 } from '@/services/admin/equipments.service';
 import { listAdminProperties } from '@/services/admin/properties.service';
 import type {
@@ -58,7 +59,9 @@ export function useAdminEquipments() {
   const [refrigerante, setRefrigerante] = useState('');
   const [tieneVdf, setTieneVdf] = useState('TODOS');
   const [tipo, setTipo] = useState('');
+  const [subtipo, setSubtipo] = useState('');
   const [distinctTipos, setDistinctTipos] = useState<string[]>([]);
+  const [distinctSubtipos, setDistinctSubtipos] = useState<string[]>([]);
   const [brands, setBrands] = useState<{ id: string; nombre: string }[]>([]);
 
   const [availableEquipmentTypeIds, setAvailableEquipmentTypeIds] = useState<
@@ -100,6 +103,7 @@ export function useAdminEquipments() {
     refrigerante: '',
     tieneVdf: 'TODOS',
     tipo: '',
+    subtipo: '',
     page: 1,
   });
 
@@ -126,6 +130,7 @@ export function useAdminEquipments() {
     const refrigVal = searchParams.get('refrigerante') ?? '';
     const tieneVdfVal = searchParams.get('tieneVdf') ?? 'TODOS';
     const tipoVal = searchParams.get('tipo') ?? '';
+    const subtipoVal = searchParams.get('subtipo') ?? '';
     const pageVal = Number(searchParams.get('page') ?? '1');
 
     const prev = lastSyncedFromUrl.current;
@@ -151,6 +156,7 @@ export function useAdminEquipments() {
     if (refrigVal !== prev.refrigerante) setRefrigerante(refrigVal);
     if (tieneVdfVal !== prev.tieneVdf) setTieneVdf(tieneVdfVal);
     if (tipoVal !== prev.tipo) setTipo(tipoVal);
+    if (subtipoVal !== prev.subtipo) setSubtipo(subtipoVal);
     if (pageVal !== prev.page) setPage(pageVal);
 
     lastSyncedFromUrl.current = {
@@ -175,6 +181,7 @@ export function useAdminEquipments() {
       refrigerante: refrigVal,
       tieneVdf: tieneVdfVal,
       tipo: tipoVal,
+      subtipo: subtipoVal,
       page: pageVal,
     };
   }, [searchParams]);
@@ -257,6 +264,44 @@ export function useAdminEquipments() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [distinctTipos, tipo]);
 
+  // Load unique detail subtypes whenever major filters or tipo change
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDistinctSubtipos() {
+      try {
+        const supabase = getSupabaseClient();
+        const subtypes = await getDistinctEquipmentDetailSubtypes(supabase, {
+          propertyId,
+          systemId,
+          equipmentTypeId,
+          tipo,
+        });
+        if (isMounted) {
+          setDistinctSubtipos(subtypes);
+        }
+      } catch (error) {
+        console.error('Error loading distinct detail subtypes:', error);
+      }
+    }
+    void loadDistinctSubtipos();
+    return () => {
+      isMounted = false;
+    };
+  }, [propertyId, systemId, equipmentTypeId, tipo]);
+
+  // Reset selected detail subtype if it is no longer available in distinctSubtipos
+  useEffect(() => {
+    if (
+      subtipo &&
+      distinctSubtipos.length > 0 &&
+      !distinctSubtipos.includes(subtipo)
+    ) {
+      setSubtipo('');
+      updateUrlParams({ subtipo: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [distinctSubtipos, subtipo]);
+
   useEffect(() => {
     setPage(1);
   }, [
@@ -281,6 +326,7 @@ export function useAdminEquipments() {
     refrigerante,
     tieneVdf,
     tipo,
+    subtipo,
   ]);
 
   useEffect(() => {
@@ -315,6 +361,7 @@ export function useAdminEquipments() {
           refrigerante,
           tieneVdf,
           tipo,
+          subtipo,
         });
         if (isMounted) {
           setItems(result.items);
@@ -361,6 +408,7 @@ export function useAdminEquipments() {
     refrigerante,
     tieneVdf,
     tipo,
+    subtipo,
   ]);
 
   const totalPages = useMemo(
@@ -466,6 +514,7 @@ export function useAdminEquipments() {
     setRefrigerante('');
     setTieneVdf('TODOS');
     setTipo('');
+    setSubtipo('');
     setPage(1);
     updateUrlParams({
       system: nextSystemId,
@@ -483,6 +532,7 @@ export function useAdminEquipments() {
       refrigerante: null,
       tieneVdf: null,
       tipo: null,
+      subtipo: null,
       page: 1,
     });
   }
@@ -502,6 +552,7 @@ export function useAdminEquipments() {
     setRefrigerante('');
     setTieneVdf('TODOS');
     setTipo('');
+    setSubtipo('');
     setPage(1);
     updateUrlParams({
       eqType: nextEquipmentTypeId,
@@ -518,6 +569,7 @@ export function useAdminEquipments() {
       refrigerante: null,
       tieneVdf: null,
       tipo: null,
+      subtipo: null,
       page: 1,
     });
   }
@@ -614,8 +666,15 @@ export function useAdminEquipments() {
 
   function handleTipoChange(nextTipo: string) {
     setTipo(nextTipo);
+    setSubtipo('');
     setPage(1);
-    updateUrlParams({ tipo: nextTipo || null, page: 1 });
+    updateUrlParams({ tipo: nextTipo || null, subtipo: null, page: 1 });
+  }
+
+  function handleSubtipoChange(nextSubtipo: string) {
+    setSubtipo(nextSubtipo);
+    setPage(1);
+    updateUrlParams({ subtipo: nextSubtipo || null, page: 1 });
   }
 
   function clearFilters() {
@@ -639,6 +698,7 @@ export function useAdminEquipments() {
     setRefrigerante('');
     setTieneVdf('TODOS');
     setTipo('');
+    setSubtipo('');
     setPage(1);
     updateUrlParams({
       status: null,
@@ -661,6 +721,7 @@ export function useAdminEquipments() {
       refrigerante: null,
       tieneVdf: null,
       tipo: null,
+      subtipo: null,
       page: 1,
     });
   }
@@ -710,6 +771,9 @@ export function useAdminEquipments() {
     tipo,
     handleTipoChange,
     distinctTipos,
+    subtipo,
+    handleSubtipoChange,
+    distinctSubtipos,
     clearFilters,
     availableEquipmentTypeIds,
     properties,

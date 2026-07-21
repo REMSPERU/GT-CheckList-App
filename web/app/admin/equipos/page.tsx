@@ -44,12 +44,12 @@ function AdminEquipmentsContent() {
     }
 
     const brandExists = equipments.brands.some(
-      b => b.nombre.toLowerCase() === currentMarca.toLowerCase()
+      b => b.nombre.toLowerCase() === currentMarca.toLowerCase(),
     );
 
     if (brandExists) {
       const match = equipments.brands.find(
-        b => b.nombre.toLowerCase() === currentMarca.toLowerCase()
+        b => b.nombre.toLowerCase() === currentMarca.toLowerCase(),
       );
       setSelectedBrandOption(match?.nombre || currentMarca);
       setCustomBrandText('');
@@ -57,7 +57,12 @@ function AdminEquipmentsContent() {
       setSelectedBrandOption('OTRO');
       setCustomBrandText(currentMarca);
     }
-  }, [equipments.marca, equipments.brands, selectedBrandOption, customBrandText]);
+  }, [
+    equipments.marca,
+    equipments.brands,
+    selectedBrandOption,
+    customBrandText,
+  ]);
 
   const renderMarcaField = () => {
     const brandOptions = [
@@ -121,8 +126,8 @@ function AdminEquipmentsContent() {
     equipments.presion ? 1 : 0,
     equipments.refrigerante ? 1 : 0,
     equipments.tieneVdf !== 'TODOS' ? 1 : 0,
+    equipments.subtipo ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
-
 
   const CONFIG_OPTIONS = [
     { value: 'TODOS', label: 'Todas las configuraciones' },
@@ -132,28 +137,57 @@ function AdminEquipmentsContent() {
 
   const cityOptions = [
     { value: '', label: 'Todas las ciudades' },
-    ...Array.from(new Set(equipments.properties.map(p => p.city).filter((c): c is string => !!c)))
-      .map(city => ({ value: city, label: city }))
+    ...Array.from(
+      new Set(
+        equipments.properties.map(p => p.city).filter((c): c is string => !!c),
+      ),
+    ).map(city => ({ value: city, label: city })),
   ];
 
   const frequencyOptions = [
     { value: '', label: 'Todas las frecuencias' },
-    ...Array.from(new Set(equipments.equipmentTypes.map(t => t.frecuencia).filter((f): f is string => !!f)))
-      .map(freq => ({ value: freq, label: freq }))
+    ...Array.from(
+      new Set(
+        equipments.equipmentTypes
+          .map(t => t.frecuencia)
+          .filter((f): f is string => !!f),
+      ),
+    ).map(freq => ({ value: freq, label: freq })),
   ];
 
-  const selectedSystem = equipments.systems.find(s => s.id === equipments.systemId);
+  const selectedSystem = equipments.systems.find(
+    s => s.id === equipments.systemId,
+  );
   const systemName = selectedSystem?.nombre?.toLowerCase() ?? '';
 
-  const selectedType = equipments.equipmentTypes.find(t => t.id === equipments.equipmentTypeId);
+  const selectedType = equipments.equipmentTypes.find(
+    t => t.id === equipments.equipmentTypeId,
+  );
   const typeAbbr = selectedType?.abreviatura ?? '';
   const typeName = selectedType?.nombre?.toLowerCase() ?? '';
 
-  const isElectricalPanel = typeAbbr === 'TBELEC' || typeName.includes('tablero') || systemName.includes('electr');
-  
-  const isHvac = typeAbbr === 'HVAC' || typeAbbr === 'AC' || typeAbbr === 'EXTRAC' || typeName.includes('aire') || typeName.includes('extractor') || typeName.includes('chiller') || typeName.includes('ventilad') || systemName.includes('hvac') || systemName.includes('mecan');
-  
-  const isPump = typeAbbr === 'BOMBA' || typeName.includes('bomba') || typeName.includes('motor') || systemName.includes('sanitar') || systemName.includes('agua');
+  const isElectricalPanel =
+    typeAbbr === 'TBELEC' ||
+    typeName.includes('tablero') ||
+    systemName.includes('electr');
+
+  const isHvac =
+    typeAbbr === 'HVAC' ||
+    typeAbbr === 'AC' ||
+    typeAbbr === 'EXTRAC' ||
+    typeName.includes('aire') ||
+    typeName.includes('extractor') ||
+    typeName.includes('chiller') ||
+    typeName.includes('ventilad') ||
+    systemName.includes('hvac') ||
+    systemName.includes('mecan');
+
+  const isPump =
+    typeAbbr === 'BOMBA' ||
+    typeName.includes('bomba') ||
+    typeName.includes('motor') ||
+    systemName.includes('sanitar') ||
+    systemName.includes('agua');
 
   const FASES_OPTIONS = [
     { value: '', label: 'Todas las fases' },
@@ -208,7 +242,9 @@ function AdminEquipmentsContent() {
 
   // Dynamically filter equipment types if a system is selected
   let filteredEquipmentTypes = equipments.systemId
-    ? equipments.equipmentTypes.filter(item => item.systemId === equipments.systemId)
+    ? equipments.equipmentTypes.filter(
+        item => item.systemId === equipments.systemId,
+      )
     : equipments.equipmentTypes;
 
   // Dynamically filter equipment types to only those present in the selected property
@@ -235,6 +271,14 @@ function AdminEquipmentsContent() {
     })),
   ];
 
+  const subtipoOptions = [
+    { value: '', label: 'Todos los subtipos' },
+    ...equipments.distinctSubtipos.map(st => ({
+      value: st,
+      label: mapTipoLabel(st),
+    })),
+  ];
+
   return (
     <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-slate-900/10 bg-white/80 px-4 py-3 shadow-sm">
@@ -252,7 +296,12 @@ function AdminEquipmentsContent() {
           Imprimir QRs
         </Link>
       </section>
-      <section className="grid grid-cols-[1.2fr_1.2fr_1fr_1.2fr_1fr_auto] items-center gap-2.5 max-[1200px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1">
+      <section
+        className={`grid items-center gap-2.5 max-[1200px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1 ${
+          equipments.distinctSubtipos.length > 0
+            ? 'grid-cols-[1.2fr_1.1fr_1fr_1.1fr_1fr_1fr_auto]'
+            : 'grid-cols-[1.2fr_1.2fr_1fr_1.2fr_1fr_auto]'
+        }`}>
         <SearchInput
           placeholder="Buscar código o ubicación"
           value={equipments.search}
@@ -282,6 +331,14 @@ function AdminEquipmentsContent() {
           onChange={equipments.handleTipoChange}
           ariaLabel="Filtrar por tipo"
         />
+        {equipments.distinctSubtipos.length > 0 && (
+          <SelectField
+            value={equipments.subtipo}
+            options={subtipoOptions}
+            onChange={equipments.handleSubtipoChange}
+            ariaLabel="Filtrar por subtipo"
+          />
+        )}
         <div className="relative">
           <button
             type="button"
@@ -290,16 +347,14 @@ function AdminEquipmentsContent() {
               activeAdvancedCount > 0
                 ? 'border-emerald-800 bg-emerald-50 text-emerald-950 hover:bg-emerald-100/80 ring-2 ring-emerald-800/10'
                 : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-            }`}
-          >
+            }`}>
             <svg
               className="h-5 w-5"
               fill="none"
               stroke="currentColor"
               strokeWidth={2}
               viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
+              xmlns="http://www.w3.org/2000/svg">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -321,11 +376,10 @@ function AdminEquipmentsContent() {
                 className="fixed inset-0 z-40 bg-[#061711]/60 backdrop-blur-sm transition-opacity duration-300"
                 onClick={() => setIsFilterOpen(false)}
               />
-              
+
               {/* Modal Container */}
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 max-[480px]:p-2.5">
                 <div className="relative flex flex-col w-full max-w-[480px] max-h-[85vh] rounded-3xl border border-white/40 bg-[#f8faf6] shadow-[0_25px_60px_-15px_rgba(2,18,14,0.35)] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                  
                   {/* Modal Header */}
                   <div className="relative overflow-hidden border-b border-emerald-950/10 bg-[radial-gradient(circle_at_0%_0%,rgba(190,242,100,0.35),transparent_40%),linear-gradient(135deg,#07352f_0%,#0b1f28_100%)] px-6 py-4.5 text-white">
                     <div className="flex items-center justify-between">
@@ -341,8 +395,7 @@ function AdminEquipmentsContent() {
                         type="button"
                         onClick={() => setIsFilterOpen(false)}
                         className="grid h-8 w-8 place-items-center rounded-full border border-white/20 bg-white/10 text-sm font-bold text-white transition hover:bg-white/20"
-                        aria-label="Cerrar modal"
-                      >
+                        aria-label="Cerrar modal">
                         x
                       </button>
                     </div>
@@ -350,14 +403,15 @@ function AdminEquipmentsContent() {
 
                   {/* Modal Body */}
                   <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4 min-h-0">
-                    
                     {/* General section */}
                     <div className="grid gap-3.5 border-b border-slate-100 pb-4 mb-2">
                       <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">
                         Campos Operativos
                       </span>
                       <div className="grid gap-1.5">
-                        <label className="text-xs font-bold text-slate-500">Estado</label>
+                        <label className="text-xs font-bold text-slate-500">
+                          Estado
+                        </label>
                         <SelectField
                           value={equipments.status}
                           options={STATUS_OPTIONS}
@@ -366,7 +420,9 @@ function AdminEquipmentsContent() {
                         />
                       </div>
                       <div className="grid gap-1.5">
-                        <label className="text-xs font-bold text-slate-500">Configuración</label>
+                        <label className="text-xs font-bold text-slate-500">
+                          Configuración
+                        </label>
                         <SelectField
                           value={equipments.config}
                           options={CONFIG_OPTIONS}
@@ -375,7 +431,9 @@ function AdminEquipmentsContent() {
                         />
                       </div>
                       <div className="grid gap-1.5">
-                        <label className="text-xs font-bold text-slate-500">Ciudad</label>
+                        <label className="text-xs font-bold text-slate-500">
+                          Ciudad
+                        </label>
                         <SelectField
                           value={equipments.city}
                           options={cityOptions}
@@ -384,7 +442,9 @@ function AdminEquipmentsContent() {
                         />
                       </div>
                       <div className="grid gap-1.5">
-                        <label className="text-xs font-bold text-slate-500">Frecuencia de Mantenimiento</label>
+                        <label className="text-xs font-bold text-slate-500">
+                          Frecuencia de Mantenimiento
+                        </label>
                         <SelectField
                           value={equipments.frecuencia}
                           options={frequencyOptions}
@@ -403,7 +463,9 @@ function AdminEquipmentsContent() {
                       {isElectricalPanel && (
                         <>
                           <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Fases</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              Fases
+                            </label>
                             <SelectField
                               value={equipments.fases}
                               options={FASES_OPTIONS}
@@ -412,7 +474,9 @@ function AdminEquipmentsContent() {
                             />
                           </div>
                           <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Voltaje</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              Voltaje
+                            </label>
                             <SelectField
                               value={equipments.voltaje}
                               options={VOLTAJE_OPTIONS}
@@ -421,7 +485,9 @@ function AdminEquipmentsContent() {
                             />
                           </div>
                           <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Tipo de Tablero</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              Tipo de Tablero
+                            </label>
                             <SelectField
                               value={equipments.tipoTablero}
                               options={TIPO_TABLERO_OPTIONS}
@@ -437,27 +503,37 @@ function AdminEquipmentsContent() {
                         <>
                           {renderMarcaField()}
                           <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Modelo</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              Modelo
+                            </label>
                             <input
                               type="text"
                               value={equipments.modelo}
-                              onChange={e => equipments.handleModeloChange(e.target.value)}
+                              onChange={e =>
+                                equipments.handleModeloChange(e.target.value)
+                              }
                               placeholder="Ej. Inverter 24k..."
                               className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
                             />
                           </div>
                           <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Capacidad</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              Capacidad
+                            </label>
                             <input
                               type="text"
                               value={equipments.capacidad}
-                              onChange={e => equipments.handleCapacidadChange(e.target.value)}
+                              onChange={e =>
+                                equipments.handleCapacidadChange(e.target.value)
+                              }
                               placeholder="Ej. 18000 BTU, 5 TR..."
                               className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
                             />
                           </div>
                           <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Refrigerante</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              Refrigerante
+                            </label>
                             <SelectField
                               value={equipments.refrigerante}
                               options={REFRIGERANTE_OPTIONS}
@@ -466,7 +542,9 @@ function AdminEquipmentsContent() {
                             />
                           </div>
                           <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Variador de Frecuencia (VDF)</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              Variador de Frecuencia (VDF)
+                            </label>
                             <SelectField
                               value={equipments.tieneVdf}
                               options={VDF_OPTIONS}
@@ -481,31 +559,43 @@ function AdminEquipmentsContent() {
                         <>
                           {renderMarcaField()}
                           <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Potencia</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              Potencia
+                            </label>
                             <input
                               type="text"
                               value={equipments.potencia}
-                              onChange={e => equipments.handlePotenciaChange(e.target.value)}
+                              onChange={e =>
+                                equipments.handlePotenciaChange(e.target.value)
+                              }
                               placeholder="Ej. 2 HP, 1.5 kW..."
                               className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
                             />
                           </div>
                           <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">RPM</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              RPM
+                            </label>
                             <input
                               type="text"
                               value={equipments.rpm}
-                              onChange={e => equipments.handleRpmChange(e.target.value)}
+                              onChange={e =>
+                                equipments.handleRpmChange(e.target.value)
+                              }
                               placeholder="Ej. 3450, 1750..."
                               className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
                             />
                           </div>
                           <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Presión</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              Presión
+                            </label>
                             <input
                               type="text"
                               value={equipments.presion}
-                              onChange={e => equipments.handlePresionChange(e.target.value)}
+                              onChange={e =>
+                                equipments.handlePresionChange(e.target.value)
+                              }
                               placeholder="Ej. 40 PSI, 3 bar..."
                               className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
                             />
@@ -517,21 +607,29 @@ function AdminEquipmentsContent() {
                         <>
                           {renderMarcaField()}
                           <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Modelo</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              Modelo
+                            </label>
                             <input
                               type="text"
                               value={equipments.modelo}
-                              onChange={e => equipments.handleModeloChange(e.target.value)}
+                              onChange={e =>
+                                equipments.handleModeloChange(e.target.value)
+                              }
                               placeholder="Modelo del equipo..."
                               className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
                             />
                           </div>
                           <div className="grid gap-1.5">
-                            <label className="text-xs font-bold text-slate-500">Número de Serie</label>
+                            <label className="text-xs font-bold text-slate-500">
+                              Número de Serie
+                            </label>
                             <input
                               type="text"
                               value={equipments.serie}
-                              onChange={e => equipments.handleSerieChange(e.target.value)}
+                              onChange={e =>
+                                equipments.handleSerieChange(e.target.value)
+                              }
                               placeholder="N° de serie..."
                               className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 outline-none focus:border-[#07352f]"
                             />
@@ -551,15 +649,13 @@ function AdminEquipmentsContent() {
                         equipments.clearFilters();
                         setIsFilterOpen(false);
                       }}
-                      className="text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors"
-                    >
+                      className="text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors">
                       Restablecer todo
                     </button>
                     <button
                       type="button"
                       onClick={() => setIsFilterOpen(false)}
-                      className="rounded-full bg-[#0c1720] px-5 py-2.5 text-xs font-black text-white shadow-sm hover:bg-[#07352f] transition-all"
-                    >
+                      className="rounded-full bg-[#0c1720] px-5 py-2.5 text-xs font-black text-white shadow-sm hover:bg-[#07352f] transition-all">
                       Aplicar filtros
                     </button>
                   </div>
@@ -591,12 +687,15 @@ function AdminEquipmentsContent() {
 
 export default function AdminEquipmentsPage() {
   return (
-    <Suspense fallback={
-      <div className="grid min-h-[400px] place-items-center gap-3">
-        <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
-        <p className="text-sm text-slate-500 font-medium">Cargando activos...</p>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="grid min-h-[400px] place-items-center gap-3">
+          <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
+          <p className="text-sm text-slate-500 font-medium">
+            Cargando activos...
+          </p>
+        </div>
+      }>
       <AdminEquipmentsContent />
     </Suspense>
   );
