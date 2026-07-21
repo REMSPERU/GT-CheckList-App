@@ -39,6 +39,68 @@ type AdminPropertyDetailRow = {
 
 const EMPTY_UUID = '00000000-0000-0000-0000-000000000000';
 
+const DETAIL_FILTER_KEYS = [
+  'marca',
+  'modelo',
+  'serie',
+  'capacidad',
+  'potencia',
+  'rpm',
+  'presion',
+  'refrigerante',
+  'tiene_vdf',
+  'fases',
+  'voltaje',
+  'tipo_tablero',
+  'anio_operacion',
+] as const;
+
+const OPERATION_YEAR_KEYS = [
+  'anio_operacion',
+  'ano_operacion',
+  'anio_operacion_motor',
+  'ano_operacion_motor',
+  'motor_ano',
+  'bomba_ano',
+  'ano_tablero',
+] as const;
+
+export const ADDITIONAL_DETAIL_FILTERS = [
+  { key: 'numero_unidad', label: 'Número de unidad' },
+  { key: 'capacidad_bomba', label: 'Capacidad de bomba' },
+  { key: 'capacidad_motor', label: 'Capacidad de motor' },
+  { key: 'capacidad_enfriamiento', label: 'Capacidad de enfriamiento' },
+  { key: 'capacidad_flujo', label: 'Capacidad de flujo' },
+  { key: 'tipo_refrigerante', label: 'Tipo de refrigerante' },
+  { key: 'tipo_compresor', label: 'Tipo de compresor' },
+  { key: 'tipo_sistema', label: 'Tipo de sistema' },
+  { key: 'estado_sistema', label: 'Estado del sistema' },
+  { key: 'tipo_transferencia', label: 'Tipo de transferencia' },
+  { key: 'tipo_llamada', label: 'Tipo de llamada' },
+  { key: 'tipo_vidrio', label: 'Tipo de vidrio' },
+  { key: 'sistema_operacion', label: 'Sistema operativo' },
+  { key: 'software_marca', label: 'Marca de software' },
+  { key: 'tiene_servidor', label: 'Tiene servidor' },
+  { key: 'vdf.tiene_vdf', label: 'VDF integrado' },
+] as const;
+
+function getDetailValue(detail: Record<string, unknown>, key: string): unknown {
+  return key.split('.').reduce<unknown>((value, segment) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+      return null;
+    return (value as Record<string, unknown>)[segment];
+  }, detail);
+}
+
+function getDetailJsonPath(key: string): string {
+  const segments = key.split('.');
+  return segments
+    .map((segment, index) =>
+      index === segments.length - 1 ? `->>${segment}` : `->${segment}`,
+    )
+    .reduce((path, segment) => `${path}${segment}`, 'equipment_detail');
+}
+
 async function getEquipmentTypeIdsBySystem(
   supabase: SupabaseClient,
   systemId: string,
@@ -51,6 +113,104 @@ async function getEquipmentTypeIdsBySystem(
   if (error) throw error;
 
   return (data ?? []).map(item => item.id as string);
+}
+
+/** Gets selectable technical-detail values for the current inventory scope. */
+export async function getEquipmentDetailFilterOptions(
+  supabase: SupabaseClient,
+  filters?: {
+    propertyIds?: string[];
+    systemId?: string;
+    equipmentTypeId?: string;
+  },
+): Promise<Record<string, string[]>> {
+  const values = new Map<string, Set<string>>(
+    DETAIL_FILTER_KEYS.map(key => [key, new Set<string>()]),
+  );
+  let matchedIds: string[] | null = null;
+  if (filters?.systemId) {
+    matchedIds = await getEquipmentTypeIdsBySystem(supabase, filters.systemId);
+  }
+
+  let pageNum = 0;
+  const pageSize = 1000;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from('equipos')
+      .select('equipment_detail')
+      .not('equipment_detail', 'is', null)
+      .range(pageNum * pageSize, pageNum * pageSize + pageSize - 1);
+
+    if (filters?.propertyIds?.length) {
+      query = query.in('id_property', filters.propertyIds);
+    }
+    if (matchedIds) {
+      query = query.in(
+        'id_equipamento',
+        matchedIds.length > 0 ? matchedIds : [EMPTY_UUID],
+      );
+    }
+    if (filters?.equipmentTypeId) {
+      query = query.eq('id_equipamento', filters.equipmentTypeId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    for (const row of data ?? []) {
+      const detail = row.equipment_detail;
+      if (!detail || typeof detail !== 'object' || Array.isArray(detail))
+        continue;
+
+      const record = detail as Record<string, unknown>;
+      const technical =
+        record.detalle_tecnico &&
+        typeof record.detalle_tecnico === 'object' &&
+        !Array.isArray(record.detalle_tecnico)
+          ? (record.detalle_tecnico as Record<string, unknown>)
+          : null;
+
+      for (const key of DETAIL_FILTER_KEYS) {
+        const value =
+          key === 'anio_operacion'
+            ? OPERATION_YEAR_KEYS.map(yearKey => record[yearKey]).find(
+                year => year !== null && year !== undefined && year !== '',
+              )
+            : (technical?.[key] ?? record[key]);
+        if (typeof value === 'string' && value.trim()) {
+          values.get(key)?.add(value.trim());
+        } else if (typeof value === 'number' || typeof value === 'boolean') {
+          values.get(key)?.add(String(value));
+        }
+      }
+
+      for (const filter of ADDITIONAL_DETAIL_FILTERS) {
+        const value = getDetailValue(record, filter.key);
+        if (typeof value === 'string' && value.trim()) {
+          values.set(filter.key, values.get(filter.key) ?? new Set<string>());
+          values.get(filter.key)?.add(value.trim());
+        } else if (typeof value === 'number' || typeof value === 'boolean') {
+          values.set(filter.key, values.get(filter.key) ?? new Set<string>());
+          values.get(filter.key)?.add(String(value));
+        }
+      }
+    }
+
+    if (!data || data.length < pageSize) {
+      hasMore = false;
+    } else {
+      pageNum++;
+    }
+  }
+
+  return Object.fromEntries(
+    Array.from(values, ([key, options]) => [
+      key,
+      Array.from(options).sort((a, b) => a.localeCompare(b)),
+    ]),
+  );
 }
 
 export async function getDistinctEquipmentDetailTypes(
@@ -398,6 +558,19 @@ export async function listAdminEquipments(
       'equipment_detail->>tiene_vdf',
       filters.tieneVdf === 'SI' ? 'true' : 'false',
     );
+  }
+
+  if (filters.anioOperacion) {
+    query = query.or(
+      OPERATION_YEAR_KEYS.map(
+        key => `equipment_detail->>${key}.eq.${filters.anioOperacion}`,
+      ).join(','),
+    );
+  }
+
+  for (const filter of ADDITIONAL_DETAIL_FILTERS) {
+    const value = filters.detailFilters?.[filter.key];
+    if (value) query = query.eq(getDetailJsonPath(filter.key), value);
   }
 
   if (search) {

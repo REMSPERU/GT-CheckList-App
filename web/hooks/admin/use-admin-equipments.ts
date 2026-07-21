@@ -7,6 +7,8 @@ import {
   listAdminEquipments,
   getDistinctEquipmentDetailTypes,
   getDistinctEquipmentDetailSubtypes,
+  getEquipmentDetailFilterOptions,
+  ADDITIONAL_DETAIL_FILTERS,
 } from '@/services/admin/equipments.service';
 import { listAdminProperties } from '@/services/admin/properties.service';
 import type {
@@ -58,11 +60,18 @@ export function useAdminEquipments() {
   const [presion, setPresion] = useState('');
   const [refrigerante, setRefrigerante] = useState('');
   const [tieneVdf, setTieneVdf] = useState('TODOS');
+  const [anioOperacion, setAnioOperacion] = useState('');
+  const [detailFilters, setDetailFilters] = useState<Record<string, string>>(
+    {},
+  );
   const [tipo, setTipo] = useState('');
   const [subtipo, setSubtipo] = useState('');
   const [distinctTipos, setDistinctTipos] = useState<string[]>([]);
   const [distinctSubtipos, setDistinctSubtipos] = useState<string[]>([]);
   const [brands, setBrands] = useState<{ id: string; nombre: string }[]>([]);
+  const [detailFilterOptions, setDetailFilterOptions] = useState<
+    Record<string, string[]>
+  >({});
 
   const [availableEquipmentTypeIds, setAvailableEquipmentTypeIds] = useState<
     string[] | null
@@ -102,6 +111,8 @@ export function useAdminEquipments() {
     presion: '',
     refrigerante: '',
     tieneVdf: 'TODOS',
+    anioOperacion: '',
+    detailFilters: {} as Record<string, string>,
     tipo: '',
     subtipo: '',
     page: 1,
@@ -135,6 +146,25 @@ export function useAdminEquipments() {
     const presionVal = searchParams.get('presion') ?? '';
     const refrigVal = searchParams.get('refrigerante') ?? '';
     const tieneVdfVal = searchParams.get('tieneVdf') ?? 'TODOS';
+    const anioOperacionVal = searchParams.get('anioOperacion') ?? '';
+    let detailFiltersVal: Record<string, string> = {};
+    try {
+      const savedFilters = searchParams.get('detailFilters');
+      const parsedFilters: unknown = savedFilters
+        ? JSON.parse(savedFilters)
+        : null;
+      if (parsedFilters && typeof parsedFilters === 'object') {
+        detailFiltersVal = Object.fromEntries(
+          Object.entries(parsedFilters).filter(
+            ([key, value]) =>
+              typeof value === 'string' &&
+              ADDITIONAL_DETAIL_FILTERS.some(filter => filter.key === key),
+          ),
+        );
+      }
+    } catch {
+      detailFiltersVal = {};
+    }
     const tipoVal = searchParams.get('tipo') ?? '';
     const subtipoVal = searchParams.get('subtipo') ?? '';
     const pageVal = Number(searchParams.get('page') ?? '1');
@@ -163,6 +193,13 @@ export function useAdminEquipments() {
     if (presionVal !== prev.presion) setPresion(presionVal);
     if (refrigVal !== prev.refrigerante) setRefrigerante(refrigVal);
     if (tieneVdfVal !== prev.tieneVdf) setTieneVdf(tieneVdfVal);
+    if (anioOperacionVal !== prev.anioOperacion)
+      setAnioOperacion(anioOperacionVal);
+    if (
+      JSON.stringify(detailFiltersVal) !== JSON.stringify(prev.detailFilters)
+    ) {
+      setDetailFilters(detailFiltersVal);
+    }
     if (tipoVal !== prev.tipo) setTipo(tipoVal);
     if (subtipoVal !== prev.subtipo) setSubtipo(subtipoVal);
     if (pageVal !== prev.page) setPage(pageVal);
@@ -188,6 +225,8 @@ export function useAdminEquipments() {
       presion: presionVal,
       refrigerante: refrigVal,
       tieneVdf: tieneVdfVal,
+      anioOperacion: anioOperacionVal,
+      detailFilters: detailFiltersVal,
       tipo: tipoVal,
       subtipo: subtipoVal,
       page: pageVal,
@@ -303,6 +342,27 @@ export function useAdminEquipments() {
     };
   }, [propertyIds, systemId, equipmentTypeId, tipo]);
 
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDetailFilterOptions() {
+      try {
+        const supabase = getSupabaseClient();
+        const options = await getEquipmentDetailFilterOptions(supabase, {
+          propertyIds,
+          systemId,
+          equipmentTypeId,
+        });
+        if (isMounted) setDetailFilterOptions(options);
+      } catch (error) {
+        console.error('Error loading equipment detail filter options:', error);
+      }
+    }
+    void loadDetailFilterOptions();
+    return () => {
+      isMounted = false;
+    };
+  }, [propertyIds, systemId, equipmentTypeId]);
+
   // Reset selected detail subtype if it is no longer available in distinctSubtipos
   useEffect(() => {
     if (
@@ -339,6 +399,8 @@ export function useAdminEquipments() {
     presion,
     refrigerante,
     tieneVdf,
+    anioOperacion,
+    detailFilters,
     tipo,
     subtipo,
   ]);
@@ -374,6 +436,8 @@ export function useAdminEquipments() {
           presion,
           refrigerante,
           tieneVdf,
+          anioOperacion,
+          detailFilters,
           tipo,
           subtipo,
         });
@@ -421,6 +485,8 @@ export function useAdminEquipments() {
     presion,
     refrigerante,
     tieneVdf,
+    anioOperacion,
+    detailFilters,
     tipo,
     subtipo,
   ]);
@@ -531,6 +597,8 @@ export function useAdminEquipments() {
     setPresion('');
     setRefrigerante('');
     setTieneVdf('TODOS');
+    setAnioOperacion('');
+    setDetailFilters({});
     setTipo('');
     setSubtipo('');
     setPage(1);
@@ -549,6 +617,8 @@ export function useAdminEquipments() {
       presion: null,
       refrigerante: null,
       tieneVdf: null,
+      anioOperacion: null,
+      detailFilters: null,
       tipo: null,
       subtipo: null,
       page: 1,
@@ -569,6 +639,8 @@ export function useAdminEquipments() {
     setPresion('');
     setRefrigerante('');
     setTieneVdf('TODOS');
+    setAnioOperacion('');
+    setDetailFilters({});
     setTipo('');
     setSubtipo('');
     setPage(1);
@@ -586,6 +658,8 @@ export function useAdminEquipments() {
       presion: null,
       refrigerante: null,
       tieneVdf: null,
+      anioOperacion: null,
+      detailFilters: null,
       tipo: null,
       subtipo: null,
       page: 1,
@@ -682,6 +756,27 @@ export function useAdminEquipments() {
     updateUrlParams({ tieneVdf: nextTieneVdf, page: 1 });
   }
 
+  function handleAnioOperacionChange(nextAnioOperacion: string) {
+    setAnioOperacion(nextAnioOperacion);
+    setPage(1);
+    updateUrlParams({ anioOperacion: nextAnioOperacion || null, page: 1 });
+  }
+
+  function handleDetailFilterChange(key: string, value: string) {
+    const nextFilters = { ...detailFilters };
+    if (value) nextFilters[key] = value;
+    else delete nextFilters[key];
+    setDetailFilters(nextFilters);
+    setPage(1);
+    updateUrlParams({
+      detailFilters:
+        Object.keys(nextFilters).length > 0
+          ? JSON.stringify(nextFilters)
+          : null,
+      page: 1,
+    });
+  }
+
   function handleTipoChange(nextTipo: string) {
     setTipo(nextTipo);
     setSubtipo('');
@@ -715,6 +810,8 @@ export function useAdminEquipments() {
     setPresion('');
     setRefrigerante('');
     setTieneVdf('TODOS');
+    setAnioOperacion('');
+    setDetailFilters({});
     setTipo('');
     setSubtipo('');
     setPage(1);
@@ -739,6 +836,8 @@ export function useAdminEquipments() {
       presion: null,
       refrigerante: null,
       tieneVdf: null,
+      anioOperacion: null,
+      detailFilters: null,
       tipo: null,
       subtipo: null,
       page: 1,
@@ -787,6 +886,11 @@ export function useAdminEquipments() {
     handleRefrigeranteChange,
     tieneVdf,
     handleTieneVdfChange,
+    anioOperacion,
+    handleAnioOperacionChange,
+    detailFilters,
+    handleDetailFilterChange,
+    additionalDetailFilters: ADDITIONAL_DETAIL_FILTERS,
     tipo,
     handleTipoChange,
     distinctTipos,
@@ -799,6 +903,7 @@ export function useAdminEquipments() {
     systems,
     equipmentTypes,
     brands,
+    detailFilterOptions,
     page,
     setPage: (nextPage: number) => {
       setPage(nextPage);
