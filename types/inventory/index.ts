@@ -147,6 +147,8 @@ export const EQUIPMENT_TECHNICAL_FIELD_ALIASES: Record<string, string> = {
   RED_HUMEDA: 'RH',
   RHUM: 'RH',
   // Bombas
+  BA: 'BELEC',
+  BBA: 'BELEC',
   BOMBA_DOSIFICADORA: 'BDOS',
   BDOP: 'BDOS',
   BDTQ: 'BDOS',

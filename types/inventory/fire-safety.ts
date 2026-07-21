@@ -26,21 +26,29 @@ export const SIN: TechnicalFieldConfig[] = [
 
 export const PCF: TechnicalFieldConfig[] = [
   { key: 'indice', label: 'Índice', type: 'number' },
+  { key: 'cantidad', label: 'Cantidad', type: 'number' },
   { key: 'ubicacion_detalle', label: 'Ubicación Detalle', type: 'text' },
+  { key: 'marca_puerta', label: 'Marca Puerta', type: 'text' },
   { key: 'puerta_marca', label: 'Marca Puerta', type: 'text' },
+  { key: 'modelo_puerta', label: 'Modelo Puerta', type: 'text' },
   { key: 'puerta_modelo', label: 'Modelo Puerta', type: 'text' },
+  { key: 'tipo_cierre', label: 'Tipo Cierre', type: 'text' },
   { key: 'cierre_tipo', label: 'Tipo Cierre', type: 'text' },
+  { key: 'marca_cierre', label: 'Marca Cierre', type: 'text' },
   { key: 'cierre_marca', label: 'Marca Cierre', type: 'text' },
+  { key: 'modelo_cierre', label: 'Modelo Cierre', type: 'text' },
   { key: 'cierre_modelo', label: 'Modelo Cierre', type: 'text' },
+  { key: 'tiene_barra_antipanico', label: 'Tiene Barra Antipánico', type: 'text' },
   {
     key: 'barra_antipanico',
     label: 'Barra Antipánico',
     type: 'select',
     options: YES_NO_OPTIONS,
   },
+  { key: 'marca_barra', label: 'Marca Barra', type: 'text' },
   { key: 'barra_marca', label: 'Marca Barra', type: 'text' },
+  { key: 'modelo_barra', label: 'Modelo Barra', type: 'text' },
   { key: 'barra_modelo', label: 'Modelo Barra', type: 'text' },
-  { key: 'cantidad', label: 'Cantidad', type: 'number' },
 ];
 
 export const BJOCK: TechnicalFieldConfig[] = [

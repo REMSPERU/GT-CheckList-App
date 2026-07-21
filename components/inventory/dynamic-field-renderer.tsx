@@ -6,6 +6,7 @@ import {
   Switch,
   Pressable,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { Controller, useWatch } from 'react-hook-form';
 import type { Control, FieldValues, Path } from 'react-hook-form';
@@ -20,6 +21,8 @@ interface DynamicFieldRendererProps<T extends FieldValues> {
   equipamentoId?: string | null;
   equipamentoAbreviatura?: string | null;
   equipamentoNombre?: string | null;
+  /** Datos existentes en equipment_detail para detectar llaves no mapeadas en el esquema */
+  existingData?: Record<string, unknown> | null;
 }
 
 /**
@@ -35,11 +38,23 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
   equipamentoId,
   equipamentoAbreviatura,
   equipamentoNombre,
+  existingData,
 }: DynamicFieldRendererProps<T>) {
   const detailValue = useWatch({
     control,
     name: fieldPrefix as Path<T>,
   }) as Record<string, unknown> | undefined;
+
+  const currentData = detailValue ?? existingData ?? {};
+  const schemaTopLevelKeys = new Set(
+    (fields ?? []).map(f => f.key.split('.')[0]),
+  );
+
+  const extraKeys = Object.keys(currentData).filter(key => {
+    if (schemaTopLevelKeys.has(key)) return false;
+    const val = currentData[key];
+    return val !== null && val !== undefined && val !== '';
+  });
 
   return (
     <View style={styles.wrap}>
@@ -292,11 +307,79 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
           />
         );
       })}
+
+      {extraKeys.length > 0 ? (
+        <View style={styles.extraSectionWrap}>
+          <Text style={styles.extraSectionTitle}>Campos Adicionales</Text>
+          {extraKeys.map(extraKey => {
+            const extraPath = `${fieldPrefix}.${extraKey}` as Path<T>;
+            const rawVal = currentData[extraKey];
+            const isComplex = typeof rawVal === 'object' && rawVal !== null;
+
+            return (
+              <Controller
+                key={extraKey}
+                control={control}
+                name={extraPath}
+                render={({ field: { value, onChange, onBlur }, fieldState }) => (
+                  <View style={styles.fieldWrap}>
+                    <Text style={styles.label}>{formatDetailLabel(extraKey)}</Text>
+                    {isComplex ? (
+                      <TextInput
+                        style={[styles.input, styles.inputMultiline]}
+                        value={
+                          typeof value === 'object' && value !== null
+                            ? JSON.stringify(value, null, 2)
+                            : String(value ?? '')
+                        }
+                        onChangeText={text => {
+                          try {
+                            onChange(JSON.parse(text));
+                          } catch {
+                            onChange(text);
+                          }
+                        }}
+                        onBlur={onBlur}
+                        multiline
+                        numberOfLines={4}
+                        textAlignVertical="top"
+                        placeholder="Formato JSON"
+                        placeholderTextColor="#94A3B8"
+                      />
+                    ) : (
+                      <TextInput
+                        style={[
+                          styles.input,
+                          fieldState.error && styles.inputError,
+                        ]}
+                        value={value != null ? String(value) : ''}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        placeholder={`Ingresa ${formatDetailLabel(extraKey).toLowerCase()}`}
+                        placeholderTextColor="#94A3B8"
+                      />
+                    )}
+                    {fieldState.error && (
+                      <Text style={styles.error}>{fieldState.error.message}</Text>
+                    )}
+                  </View>
+                )}
+              />
+            );
+          })}
+        </View>
+      ) : null}
     </View>
   );
 }) as <T extends FieldValues>(
   props: DynamicFieldRendererProps<T>,
 ) => ReactElement;
+
+function formatDetailLabel(key: string): string {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, letter => letter.toUpperCase());
+}
 
 function buildEmptyItem(fields: TechnicalFieldConfig[] | undefined) {
   return (fields ?? []).reduce<Record<string, unknown>>((item, field) => {
@@ -471,5 +554,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#DC2626',
+  },
+  extraSectionWrap: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    gap: 12,
+  },
+  extraSectionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  inputMultiline: {
+    minHeight: 80,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 12,
   },
 });

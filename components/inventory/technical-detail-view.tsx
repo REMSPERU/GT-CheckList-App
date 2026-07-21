@@ -15,7 +15,7 @@ export const TechnicalDetailView = memo(function TechnicalDetailView({
   fields,
   data,
 }: TechnicalDetailViewProps) {
-  if (!data || fields.length === 0) {
+  if (!data || Object.keys(data).length === 0) {
     return (
       <View style={styles.emptyWrap}>
         <Text style={styles.emptyText}>
@@ -25,12 +25,40 @@ export const TechnicalDetailView = memo(function TechnicalDetailView({
     );
   }
 
-  const sections = groupFieldsBySection(
-    fields.filter(field => isFieldVisible(field, data, fields)),
+  const visibleSchemaFields = (fields ?? []).filter(field =>
+    isFieldVisible(field, data, fields),
   );
+
+  const sections = groupFieldsBySection(visibleSchemaFields);
+
+  // Identificar llaves principales de la data que no están cubiertas por los campos del esquema
+  const schemaTopLevelKeys = new Set(
+    (fields ?? []).map(f => f.key.split('.')[0]),
+  );
+
+  const extraEntries = Object.entries(data).filter(([key, value]) => {
+    if (schemaTopLevelKeys.has(key)) return false;
+    if (value === null || value === undefined || value === '') return false;
+    if (Array.isArray(value) && value.length === 0) return false;
+    return true;
+  });
+
+  const hasSchemaContent = sections.length > 0;
+  const hasExtraContent = extraEntries.length > 0;
+
+  if (!hasSchemaContent && !hasExtraContent) {
+    return (
+      <View style={styles.emptyWrap}>
+        <Text style={styles.emptyText}>
+          Sin especificaciones técnicas registradas.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.sectionsWrap}>
+      {/* Campos definidos en el Esquema */}
       {sections.map(section => (
         <View key={section.title} style={styles.sectionWrap}>
           {section.title !== DEFAULT_SECTION ? (
@@ -41,6 +69,24 @@ export const TechnicalDetailView = memo(function TechnicalDetailView({
           </View>
         </View>
       ))}
+
+      {/* Información Adicional no Mapeada en el Esquema */}
+      {hasExtraContent ? (
+        <View style={styles.sectionWrap}>
+          {hasSchemaContent ? (
+            <Text style={styles.sectionTitle}>Información Adicional</Text>
+          ) : null}
+          <View style={styles.grid}>
+            {extraEntries.map(([key, value]) => (
+              <DynamicEntryRenderer
+                key={key}
+                label={formatDetailLabel(key)}
+                value={value}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 });
@@ -199,8 +245,75 @@ function renderCollection(value: unknown, field: TechnicalFieldConfig) {
   });
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+function formatDetailLabel(key: string): string {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function formatPrimitiveValue(val: unknown): string {
+  if (val === null || val === undefined || val === '') return '—';
+  if (typeof val === 'boolean') return val ? 'Sí' : 'No';
+  return String(val);
+}
+
+function DynamicEntryRenderer({
+  label,
+  value,
+}: {
+  label: string;
+  value: unknown;
+}) {
+  if (Array.isArray(value)) {
+    return (
+      <View style={styles.collectionCard}>
+        <Text style={styles.collectionTitle}>{label}</Text>
+        {value.map((item, index) => (
+          <View key={index} style={styles.collectionItem}>
+            <Text style={styles.collectionIndex}>#{index + 1}</Text>
+            {isRecord(item) ? (
+              <View style={styles.collectionGrid}>
+                {Object.entries(item).map(([k, v]) => (
+                  <View key={k} style={styles.collectionCell}>
+                    <Text style={styles.label}>{formatDetailLabel(k)}</Text>
+                    <Text style={styles.value}>{formatPrimitiveValue(v)}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.value}>{formatPrimitiveValue(item)}</Text>
+            )}
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  if (isRecord(value)) {
+    return (
+      <View style={styles.collectionCard}>
+        <Text style={styles.collectionTitle}>{label}</Text>
+        <View style={styles.collectionGrid}>
+          {Object.entries(value).map(([k, v]) => (
+            <View key={k} style={styles.collectionCell}>
+              <Text style={styles.label}>{formatDetailLabel(k)}</Text>
+              <Text style={styles.value}>{formatPrimitiveValue(v)}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.row}>
+      <View style={styles.cell}>
+        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.value}>{formatPrimitiveValue(value)}</Text>
+      </View>
+      <View style={styles.cellPlaceholder} />
+    </View>
+  );
 }
 
 function parseBoolean(value: unknown): boolean {

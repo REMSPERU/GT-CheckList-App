@@ -316,6 +316,10 @@ export default function EquipoDetailScreen() {
                     equipamentoId={equipo?.id_equipamento ?? equipamentoId}
                     equipamentoAbreviatura={abreviatura}
                     equipamentoNombre={displayNombre}
+                    existingData={
+                      (equipo?.equipment_detail as Record<string, unknown>) ??
+                      {}
+                    }
                   />
                 </View>
               )}

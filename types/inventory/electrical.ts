@@ -1,27 +1,12 @@
 import type { TechnicalFieldConfig } from './common';
 
 export const TBELEC: TechnicalFieldConfig[] = [
-  {
-    key: 'tipo_tablero',
-    label: 'Tipo Tablero',
-    type: 'select',
-    options: [
-      { label: 'General', value: 'General' },
-      { label: 'Distribución', value: 'Distribución' },
-      { label: 'Sub-distribución', value: 'Sub-distribución' },
-      { label: 'Sección', value: 'Sección' },
-    ],
-  },
   { key: 'rotulo', label: 'Rótulo', type: 'text' },
-  {
-    key: 'fases',
-    label: 'Fases',
-    type: 'select',
-    options: [
-      { label: 'Monofásico', value: 'Monofásico' },
-      { label: 'Trifásico', value: 'Trifásico' },
-    ],
-  },
+  { key: 'tipo_tablero', label: 'Tipo Tablero', type: 'text' },
+  { key: 'detalle_tecnico.tipo_tablero', label: 'Montaje Tablero', type: 'text', section: 'Detalle Técnico' },
+  { key: 'detalle_tecnico.fases', label: 'Fases', type: 'text', section: 'Detalle Técnico' },
+  { key: 'detalle_tecnico.voltaje', label: 'Voltaje', type: 'number', suffix: 'V', section: 'Detalle Técnico' },
+  { key: 'fases', label: 'Fases', type: 'text' },
   { key: 'voltaje', label: 'Voltaje', type: 'number', suffix: 'V' },
 ];
 
