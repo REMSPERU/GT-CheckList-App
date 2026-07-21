@@ -15,13 +15,32 @@ export const RH: TechnicalFieldConfig[] = [
 
 export const SIN: TechnicalFieldConfig[] = [
   { key: 'tipo_sistema', label: 'Tipo Sistema', type: 'text' },
-  { key: 'estado_sistema', label: 'Estado Sistema', type: 'boolean' },
+  { key: 'estado_sistema', label: 'Estado Sistema', type: 'text' },
   {
     key: 'ubicacion_central',
     label: 'Ubicación de Central',
     type: 'text',
   },
+  { key: 'tipo', label: 'Tipo', type: 'text' },
+  { key: 'sub_tipo', label: 'Sub Tipo', type: 'text' },
+  { key: 'marca', label: 'Marca', type: 'text' },
+  { key: 'modelo', label: 'Modelo', type: 'text' },
+  { key: 'ubicacion', label: 'Ubicación Específica', type: 'text' },
+  { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
   { key: 'observaciones', label: 'Observaciones', type: 'text' },
+  {
+    key: 'subcomponentes',
+    label: 'Subcomponentes / Dispositivos',
+    type: 'collection',
+    fields: [
+      { key: 'tipo', label: 'Tipo', type: 'text' },
+      { key: 'sub_tipo', label: 'Sub Tipo', type: 'text' },
+      { key: 'marca', label: 'Marca', type: 'text' },
+      { key: 'modelo', label: 'Modelo', type: 'text' },
+      { key: 'ubicacion', label: 'Ubicación', type: 'text' },
+      { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
+    ],
+  },
 ];
 
 export const PCF: TechnicalFieldConfig[] = [
@@ -49,6 +68,16 @@ export const PCF: TechnicalFieldConfig[] = [
   { key: 'barra_marca', label: 'Marca Barra', type: 'text' },
   { key: 'modelo_barra', label: 'Modelo Barra', type: 'text' },
   { key: 'barra_modelo', label: 'Modelo Barra', type: 'text' },
+  {
+    key: 'subcomponentes',
+    label: 'Subcomponentes',
+    type: 'collection',
+    fields: [
+      { key: 'tipo', label: 'Tipo', type: 'text' },
+      { key: 'marca', label: 'Marca', type: 'text' },
+      { key: 'modelo', label: 'Modelo', type: 'text' },
+    ],
+  },
 ];
 
 export const BJOCK: TechnicalFieldConfig[] = [
@@ -57,6 +86,7 @@ export const BJOCK: TechnicalFieldConfig[] = [
   { key: 'motor_potencia', label: 'Potencia Motor', type: 'text' },
   { key: 'bomba_capacidad', label: 'Capacidad Bomba', type: 'text' },
   { key: 'ano_operacion', label: 'Año de Operación', type: 'number' },
+  { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
   {
     key: 'marca_tablero',
     label: 'Marca Tablero',
@@ -74,6 +104,17 @@ export const BJOCK: TechnicalFieldConfig[] = [
     label: 'Año Tablero',
     type: 'number',
     section: 'Tablero de Control',
+  },
+  {
+    key: 'subcomponentes',
+    label: 'Subcomponentes / Tablero Control',
+    type: 'collection',
+    fields: [
+      { key: 'tipo', label: 'Tipo', type: 'text' },
+      { key: 'marca', label: 'Marca', type: 'text' },
+      { key: 'modelo', label: 'Modelo', type: 'text' },
+      { key: 'ano_operacion', label: 'Año', type: 'number' },
+    ],
   },
 ];
 
@@ -114,4 +155,16 @@ export const BINC: TechnicalFieldConfig[] = [
   },
   { key: 'vacuometro', label: 'Vacuómetro', type: 'text' },
   { key: 'tanque_combustible', label: 'Tanque Combustible', type: 'text' },
+  {
+    key: 'subcomponentes',
+    label: 'Subcomponentes',
+    type: 'collection',
+    fields: [
+      { key: 'tipo', label: 'Tipo', type: 'text' },
+      { key: 'marca', label: 'Marca', type: 'text' },
+      { key: 'modelo', label: 'Modelo', type: 'text' },
+      { key: 'capacidad', label: 'Capacidad', type: 'text' },
+      { key: 'ubicacion', label: 'Ubicación', type: 'text' },
+    ],
+  },
 ];

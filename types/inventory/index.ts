@@ -102,6 +102,11 @@ export const EQUIPMENT_TECHNICAL_FIELD_ALIASES: Record<string, string> = {
   VENT: 'VFOR',
   VF: 'VFOR',
   VENTILACION_FORZADA: 'VFOR',
+  EXA: 'VFOR',
+  EXM: 'VFOR',
+  INA: 'VFOR',
+  JF: 'VFOR',
+  PRE: 'VFOR',
   // Autocontenidos
   AUTO: 'AUTOC',
   AUTOCONTENIDO: 'AUTOC',

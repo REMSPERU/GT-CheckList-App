@@ -161,83 +161,74 @@ export const TOE: TechnicalFieldConfig[] = [
 ];
 
 export const SPLIT: TechnicalFieldConfig[] = [
+  { key: 'tipo', label: 'Tipo', type: 'text' },
   { key: 'marca', label: 'Marca', type: 'text', required: true },
   { key: 'modelo', label: 'Modelo', type: 'text', required: true },
   {
     key: 'capacidad_enfriamiento',
-    label: 'Capacidad',
-    type: 'number',
-    suffix: 'BTU',
+    label: 'Capacidad Enfriamiento',
+    type: 'text',
   },
+  { key: 'refrigerante', label: 'Refrigerante', type: 'text' },
   {
     key: 'tipo_refrigerante',
     label: 'Refrigerante',
-    type: 'select',
-    options: [
-      { label: 'R134A', value: 'R134A' },
-      { label: 'R410A', value: 'R410A' },
-      { label: 'R22', value: 'R22' },
-      { label: 'R32', value: 'R32' },
-    ],
+    type: 'text',
   },
-  { key: 'voltaje', label: 'Voltaje', type: 'number', suffix: 'V' },
+  { key: 'voltaje', label: 'Voltaje', type: 'text' },
   { key: 'ano_operacion', label: 'Año de Operación', type: 'number' },
+  { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
+  { key: 'cantidad_total', label: 'Cantidad Total', type: 'number' },
+  { key: 'marca_catalogo', label: 'Marca Catálogo', type: 'text' },
 ];
 
 export const FCU: TechnicalFieldConfig[] = [
+  { key: 'tipo', label: 'Tipo', type: 'text' },
   { key: 'marca', label: 'Marca', type: 'text', required: true },
   { key: 'modelo', label: 'Modelo', type: 'text', required: true },
   {
     key: 'capacidad_enfriamiento',
-    label: 'Capacidad',
-    type: 'number',
-    suffix: 'BTU',
+    label: 'Capacidad Enfriamiento',
+    type: 'text',
   },
+  { key: 'refrigerante', label: 'Refrigerante', type: 'text' },
   {
     key: 'tipo_refrigerante',
     label: 'Refrigerante',
-    type: 'select',
-    options: [
-      { label: 'AGUA', value: 'AGUA' },
-      { label: 'R134A', value: 'R134A' },
-      { label: 'R410A', value: 'R410A' },
-      { label: 'R22', value: 'R22' },
-      { label: 'R32', value: 'R32' },
-    ],
+    type: 'text',
   },
-  { key: 'voltaje', label: 'Voltaje', type: 'number', suffix: 'V' },
+  { key: 'voltaje', label: 'Voltaje', type: 'text' },
   { key: 'ano_operacion', label: 'Año de Operación', type: 'number' },
+  { key: 'cantidad_total', label: 'Cantidad Total', type: 'number' },
 ];
 
 export const UMA: TechnicalFieldConfig[] = [
+  { key: 'tipo', label: 'Tipo', type: 'text' },
   { key: 'marca', label: 'Marca', type: 'text', required: true },
   { key: 'modelo', label: 'Modelo', type: 'text', required: true },
   {
     key: 'capacidad_enfriamiento',
-    label: 'Capacidad',
-    type: 'number',
-    suffix: 'TR',
+    label: 'Capacidad Enfriamiento',
+    type: 'text',
   },
+  { key: 'refrigerante', label: 'Refrigerante', type: 'text' },
   {
     key: 'tipo_refrigerante',
     label: 'Refrigerante',
-    type: 'select',
-    options: [
-      { label: 'R134A', value: 'R134A' },
-      { label: 'R410A', value: 'R410A' },
-      { label: 'R22', value: 'R22' },
-    ],
+    type: 'text',
   },
-  { key: 'voltaje', label: 'Voltaje', type: 'number', suffix: 'V' },
+  { key: 'voltaje', label: 'Voltaje', type: 'text' },
   { key: 'ano_operacion', label: 'Año de Operación', type: 'number' },
+  { key: 'cantidad_total', label: 'Cantidad Total', type: 'number' },
 ];
 
 export const AUTOC: TechnicalFieldConfig[] = [
   { key: 'numero_unidad', label: 'Número de Unidad', type: 'number' },
   { key: 'marca', label: 'Marca', type: 'text', required: true },
   { key: 'modelo', label: 'Modelo', type: 'text', required: true },
-  { key: 'capacidad_enfriamiento', label: 'Capacidad', type: 'text' },
+  { key: 'capacidad_enfriamiento', label: 'Capacidad Enfriamiento', type: 'text' },
   { key: 'tipo_refrigerante', label: 'Refrigerante', type: 'text' },
+  { key: 'refrigerante', label: 'Refrigerante', type: 'text' },
   { key: 'voltaje', label: 'Voltaje', type: 'text' },
   { key: 'ano_operacion', label: 'Año de Operación', type: 'number' },
 ];
@@ -286,13 +277,37 @@ export const VFOR: TechnicalFieldConfig[] = [
 ];
 
 export const VRF: TechnicalFieldConfig[] = [
+  { key: 'tipo', label: 'Tipo', type: 'text' },
+  { key: 'marca', label: 'Marca', type: 'text' },
+  { key: 'modelo', label: 'Modelo', type: 'text' },
   { key: 'numero_unidad', label: 'Número de Unidad', type: 'number' },
+  { key: 'unidad', label: 'Unidad', type: 'text' },
   { key: 'ubicacion', label: 'Ubicación General', type: 'text' },
+  { key: 'voltaje', label: 'Voltaje', type: 'text' },
+  { key: 'capacidad', label: 'Capacidad', type: 'text' },
   { key: 'refrigerante', label: 'Refrigerante', type: 'text' },
+  { key: 'ano_operacion', label: 'Año de Operación', type: 'number' },
+  { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
   {
     key: 'observaciones',
     label: 'Observaciones',
     type: 'text',
     multiline: true,
+  },
+  {
+    key: 'subcomponentes',
+    label: 'Subcomponentes (Evaporadores / Condensadores)',
+    type: 'collection',
+    fields: [
+      { key: 'tipo', label: 'Tipo', type: 'text' },
+      { key: 'marca', label: 'Marca', type: 'text' },
+      { key: 'modelo', label: 'Modelo', type: 'text' },
+      { key: 'unidad', label: 'Unidad', type: 'text' },
+      { key: 'ubicacion', label: 'Ubicación', type: 'text' },
+      { key: 'capacidad', label: 'Capacidad', type: 'text' },
+      { key: 'refrigerante', label: 'Refrigerante', type: 'text' },
+      { key: 'voltaje', label: 'Voltaje', type: 'text' },
+      { key: 'anio_operacion', label: 'Año', type: 'number' },
+    ],
   },
 ];

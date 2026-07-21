@@ -2,6 +2,11 @@ import type { TechnicalFieldConfig } from './common';
 import { ACCESS_DEVICE_FIELDS } from './common';
 
 export const CCTV: TechnicalFieldConfig[] = [
+  { key: 'tipo', label: 'Tipo', type: 'text' },
+  { key: 'marca', label: 'Marca', type: 'text' },
+  { key: 'modelo', label: 'Modelo', type: 'text' },
+  { key: 'ubicacion', label: 'Ubicación', type: 'text' },
+  { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
   { key: 'sistema_operacion', label: 'Sistema Operación', type: 'text' },
   { key: 'software_nombre', label: 'Software', type: 'text' },
   { key: 'software_marca', label: 'Marca Software', type: 'text' },
