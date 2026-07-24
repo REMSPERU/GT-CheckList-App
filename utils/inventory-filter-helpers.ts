@@ -123,3 +123,16 @@ export function getDistinctSubtipos(
   }
   return Array.from(subtypesSet).sort((a, b) => a.localeCompare(b));
 }
+
+/**
+ * Obtiene la lista única y ordenada de Ubicaciones presentes en un conjunto de equipos.
+ */
+export function getDistinctUbicaciones(equipos: InventoryEquipo[]): string[] {
+  const ubicacionesSet = new Set<string>();
+  for (const eq of equipos) {
+    if (eq.ubicacion && eq.ubicacion.trim().length > 0) {
+      ubicacionesSet.add(eq.ubicacion.trim());
+    }
+  }
+  return Array.from(ubicacionesSet).sort((a, b) => a.localeCompare(b));
+}
