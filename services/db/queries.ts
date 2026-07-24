@@ -73,10 +73,10 @@ export async function getLocalPropertyById(id: string) {
   await ensureInitialized();
   return withLock(async () => {
     const db = await dbPromise;
-    const row = await db.getFirstAsync(
+    const row = (await db.getFirstAsync(
       'SELECT * FROM local_properties WHERE id = ?',
       [id],
-    ) as any;
+    )) as any;
     if (!row) return null;
     return {
       id: row.id,
@@ -96,7 +96,6 @@ export async function getLocalPropertyById(id: string) {
     };
   });
 }
-
 
 export async function getEquipamentosByProperty(propertyId: string) {
   await ensureInitialized();
@@ -839,9 +838,7 @@ export async function getInventoryEquipamentosBySystem(
           GROUP BY e.id, e.nombre, e.abreviatura, e.frecuencia, e.id_sistema
           ORDER BY e.nombre ASC
         `,
-      isSinSistema
-        ? [propertyId]
-        : [propertyId, sistemaId],
+      isSinSistema ? [propertyId] : [propertyId, sistemaId],
     )) as any[];
 
     return rows.map(row => ({
@@ -896,14 +893,14 @@ export async function getAllInventoryEquipamentos() {
  */
 export async function getInventoryEquiposByEquipamento(
   propertyId: string,
-  equipamentoId: string,
+  equipamentoId?: string,
 ) {
   await ensureInitialized();
   return withLock(async () => {
     const db = await dbPromise;
 
-    const rows = (await db.getAllAsync(
-      `
+    const isAll = !equipamentoId || equipamentoId === 'all';
+    const query = `
         SELECT
           eq.id,
           eq.id_property,
@@ -921,11 +918,12 @@ export async function getInventoryEquiposByEquipamento(
         JOIN local_equipamentos e ON e.id = eq.id_equipamento
         LEFT JOIN local_sistemas s ON s.id = e.id_sistema
         WHERE eq.id_property = ?
-          AND eq.id_equipamento = ?
+          ${isAll ? '' : 'AND eq.id_equipamento = ?'}
         ORDER BY eq.codigo ASC
-      `,
-      [propertyId, equipamentoId],
-    )) as any[];
+      `;
+    const params = isAll ? [propertyId] : [propertyId, equipamentoId];
+
+    const rows = (await db.getAllAsync(query, params)) as any[];
 
     return rows.map(row => {
       let equipment_detail: Record<string, unknown> | null = null;

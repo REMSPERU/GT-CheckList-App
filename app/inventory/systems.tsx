@@ -11,7 +11,10 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useCallback, useState, useEffect, memo, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -34,17 +37,17 @@ function getEquipamentoStyle(abreviatura: string) {
     string,
     { icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }
   > = {
-    TBELEC: { icon: 'flash-outline', color: '#EAB308', bg: '#FEF9C3' },     // Yellow/Amber for electrical panels
-    LUZ: { icon: 'bulb-outline', color: '#F97316', bg: '#FFEDD5' },        // Orange for emergency lights
-    PAT: { icon: 'earth-outline', color: '#10B981', bg: '#D1FAE5' },       // Green for grounding wells
-    CHAI: { icon: 'snow-outline', color: '#3B82F6', bg: '#DBEAFE' },       // Blue for air chillers
-    CHAG: { icon: 'water-outline', color: '#06B6D4', bg: '#ECFEFF' },      // Cyan for water chillers
-    TOE: { icon: 'sync-outline', color: '#0891B2', bg: '#E0F7FA' },        // Cyan for cooling towers
-    ABL: { icon: 'filter-outline', color: '#6366F1', bg: '#EEF2FF' },      // Indigo for softeners
+    TBELEC: { icon: 'flash-outline', color: '#EAB308', bg: '#FEF9C3' }, // Yellow/Amber for electrical panels
+    LUZ: { icon: 'bulb-outline', color: '#F97316', bg: '#FFEDD5' }, // Orange for emergency lights
+    PAT: { icon: 'earth-outline', color: '#10B981', bg: '#D1FAE5' }, // Green for grounding wells
+    CHAI: { icon: 'snow-outline', color: '#3B82F6', bg: '#DBEAFE' }, // Blue for air chillers
+    CHAG: { icon: 'water-outline', color: '#06B6D4', bg: '#ECFEFF' }, // Cyan for water chillers
+    TOE: { icon: 'sync-outline', color: '#0891B2', bg: '#E0F7FA' }, // Cyan for cooling towers
+    ABL: { icon: 'filter-outline', color: '#6366F1', bg: '#EEF2FF' }, // Indigo for softeners
     BBA: { icon: 'speedometer-outline', color: '#EC4899', bg: '#FCE7F3' }, // Pink for water pumps
     SPLIT: { icon: 'thermometer-outline', color: '#3B82F6', bg: '#DBEAFE' }, // Blue
-    FCU: { icon: 'refresh-outline', color: '#10B981', bg: '#D1FAE5' },     // Greenish
-    UMA: { icon: 'cube-outline', color: '#6B7280', bg: '#F3F4F6' },        // Gray
+    FCU: { icon: 'refresh-outline', color: '#10B981', bg: '#D1FAE5' }, // Greenish
+    UMA: { icon: 'cube-outline', color: '#6B7280', bg: '#F3F4F6' }, // Gray
   };
 
   return (
@@ -91,12 +94,9 @@ const InventoryEquipamentoRow = memo(function InventoryEquipamentoRow({
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={`Abrir equipos de ${item.nombre}`}>
-      <View style={[styles.equipmentIconWrap, { backgroundColor: styleConfig.bg }]}>
-        <Ionicons
-          name={styleConfig.icon}
-          size={20}
-          color={styleConfig.color}
-        />
+      <View
+        style={[styles.equipmentIconWrap, { backgroundColor: styleConfig.bg }]}>
+        <Ionicons name={styleConfig.icon} size={20} color={styleConfig.color} />
       </View>
       <View style={styles.equipmentRowBody}>
         <Text style={styles.equipmentRowTitle}>{item.nombre}</Text>
@@ -134,28 +134,47 @@ const InventorySystemCard = memo(function InventorySystemCard({
       <Pressable
         style={({ pressed }) => [
           styles.systemHeader,
+          isExpanded && styles.systemHeaderExpanded,
           pressed && styles.pressed,
         ]}
         onPress={handleToggle}
         accessibilityRole="button"
         accessibilityLabel={`Abrir sistema ${item.nombre}`}
         accessibilityHint="Despliega los equipamientos del sistema">
-        <View style={styles.systemIconWrap}>
-          <Ionicons name="layers-outline" size={22} color="#0891B2" />
+        <View
+          style={[
+            styles.systemIconWrap,
+            isExpanded && styles.systemIconWrapExpanded,
+          ]}>
+          <Ionicons
+            name="layers-outline"
+            size={20}
+            color={isExpanded ? '#0891B2' : '#64748B'}
+          />
         </View>
         <View style={styles.systemHeaderBody}>
-          <Text style={styles.systemTitle}>{item.nombre}</Text>
+          <Text
+            style={[
+              styles.systemTitle,
+              isExpanded && styles.systemTitleExpanded,
+            ]}>
+            {item.nombre}
+          </Text>
           <Text style={styles.systemSubtitle}>
             {item.equipamentos.length} tipo
             {item.equipamentos.length !== 1 ? 's' : ''} · {item.equipos_count}{' '}
             equipo{item.equipos_count !== 1 ? 's' : ''}
           </Text>
         </View>
-        <View style={styles.systemChevronWrap}>
+        <View
+          style={[
+            styles.systemChevronWrap,
+            isExpanded && styles.systemChevronWrapExpanded,
+          ]}>
           <Ionicons
             name={isExpanded ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color="#64748B"
+            size={18}
+            color={isExpanded ? '#0891B2' : '#94A3B8'}
           />
         </View>
       </Pressable>
@@ -209,7 +228,7 @@ export default function InventorySystemsScreen() {
       eq =>
         normalizeSearch(eq.nombre).includes(q) ||
         normalizeSearch(eq.abreviatura).includes(q) ||
-        normalizeSearch(eq.sistema_nombre).includes(q)
+        normalizeSearch(eq.sistema_nombre).includes(q),
     );
 
     const groups: Record<string, typeof filtered> = {};
@@ -240,15 +259,19 @@ export default function InventorySystemsScreen() {
         const filteredEquipamentos = system.equipamentos.filter(
           eq =>
             normalizeSearch(eq.nombre).includes(q) ||
-            normalizeSearch(eq.abreviatura).includes(q)
+            normalizeSearch(eq.abreviatura).includes(q),
         );
 
         if (systemNombreMatches || filteredEquipamentos.length > 0) {
-          const equipmentsToUse = filteredEquipamentos.length > 0
-            ? filteredEquipamentos
-            : system.equipamentos;
+          const equipmentsToUse =
+            filteredEquipamentos.length > 0
+              ? filteredEquipamentos
+              : system.equipamentos;
 
-          const sumEquipos = equipmentsToUse.reduce((acc, eq) => acc + (eq.equipos_count ?? 0), 0);
+          const sumEquipos = equipmentsToUse.reduce(
+            (acc, eq) => acc + (eq.equipos_count ?? 0),
+            0,
+          );
 
           return {
             ...system,
@@ -300,6 +323,20 @@ export default function InventorySystemsScreen() {
     setExpandedSystemId(current => (current === systemId ? null : systemId));
   }, []);
 
+  const handleViewAllEquipos = useCallback(() => {
+    router.push({
+      pathname: '/inventory/[equipamentoId]/equipos' as never,
+      params: {
+        equipamentoId: 'all',
+        equipamentoNombre: 'Todos los Activos',
+        propertyId,
+        propertyName,
+        propertyAddress,
+        propertyImageUrl,
+      },
+    });
+  }, [router, propertyId, propertyName, propertyAddress, propertyImageUrl]);
+
   const onRefresh = useCallback(async () => {
     try {
       await syncService.triggerSync('inventory-systems-refresh', {
@@ -315,7 +352,9 @@ export default function InventorySystemsScreen() {
     ({ item }) => (
       <InventorySystemCard
         item={item}
-        isExpanded={searchText.trim().length > 0 ? true : expandedSystemId === item.id}
+        isExpanded={
+          searchText.trim().length > 0 ? true : expandedSystemId === item.id
+        }
         onToggle={handleToggleSystem}
         onPressEquipamento={handleEquipamentoPress}
       />
@@ -375,10 +414,20 @@ export default function InventorySystemsScreen() {
         <Ionicons name="layers-outline" size={18} color="#0891B2" />
         <Text style={styles.sectionTitle}>Sistemas</Text>
         {systems && (
-          <Text style={styles.sectionCount}>
-            ({filteredSystems.length})
-          </Text>
+          <Text style={styles.sectionCount}>({filteredSystems.length})</Text>
         )}
+        <View style={styles.sectionSpacer} />
+        <Pressable
+          style={({ pressed }) => [
+            styles.allAssetsBtn,
+            pressed && styles.pressed,
+          ]}
+          onPress={handleViewAllEquipos}
+          accessibilityRole="button"
+          accessibilityLabel="Ver todos los activos del inmueble">
+          <Ionicons name="cube-outline" size={14} color="#0891B2" />
+          <Text style={styles.allAssetsBtnText}>Ver todos los activos</Text>
+        </Pressable>
       </View>
 
       {/* Search */}
@@ -420,7 +469,8 @@ export default function InventorySystemsScreen() {
           renderItem={renderItem}
           contentContainerStyle={[
             styles.list,
-            (!filteredSystems || filteredSystems.length === 0) && styles.listEmpty,
+            (!filteredSystems || filteredSystems.length === 0) &&
+              styles.listEmpty,
           ]}
           showsVerticalScrollIndicator={false}
           refreshing={isRefetching}
@@ -471,7 +521,10 @@ export default function InventorySystemsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Agregar Tipo de Equipo</Text>
               <Pressable
-                style={({ pressed }) => [styles.modalCloseButton, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.modalCloseButton,
+                  pressed && styles.pressed,
+                ]}
                 onPress={() => setModalVisible(false)}
                 accessibilityLabel="Cerrar modal">
                 <Ionicons name="close" size={22} color="#0F172A" />
@@ -505,13 +558,21 @@ export default function InventorySystemsScreen() {
               {groupedAllEquipamentos.length === 0 ? (
                 <View style={styles.modalEmptyState}>
                   <Ionicons name="cube-outline" size={40} color="#CBD5E1" />
-                  <Text style={styles.modalEmptyText}>No se encontraron tipos de equipo</Text>
+                  <Text style={styles.modalEmptyText}>
+                    No se encontraron tipos de equipo
+                  </Text>
                 </View>
               ) : (
                 groupedAllEquipamentos.map(group => (
-                  <View key={group.sistema_nombre} style={styles.modalSystemGroup}>
+                  <View
+                    key={group.sistema_nombre}
+                    style={styles.modalSystemGroup}>
                     <View style={styles.modalSystemHeader}>
-                      <Ionicons name="layers-outline" size={14} color="#0891B2" />
+                      <Ionicons
+                        name="layers-outline"
+                        size={14}
+                        color="#0891B2"
+                      />
                       <Text style={styles.modalSystemTitle}>
                         {group.sistema_nombre.toUpperCase()}
                       </Text>
@@ -674,6 +735,25 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontWeight: '500',
   },
+  sectionSpacer: {
+    flex: 1,
+  },
+  allAssetsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#ECFEFF',
+    borderWidth: 1,
+    borderColor: '#CFFAFE',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  allAssetsBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0891B2',
+  },
   list: {
     paddingHorizontal: 16,
     paddingBottom: 100,
@@ -713,75 +793,96 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   systemCard: {
-    borderRadius: 18,
+    borderRadius: 16,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     overflow: 'hidden',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   systemCardExpanded: {
-    borderColor: '#CBD5E1',
+    borderColor: '#0891B2',
+    borderWidth: 1,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   systemHeader: {
-    minHeight: 72,
+    minHeight: 68,
     paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  systemHeaderExpanded: {
+    backgroundColor: '#FAFAF9',
+  },
+  systemTitleExpanded: {
+    color: '#0891B2',
   },
   systemIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 15,
-    backgroundColor: '#ECFEFF',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  systemIconWrapExpanded: {
+    backgroundColor: '#ECFEFF',
     borderColor: '#CFFAFE',
   },
   systemHeaderBody: {
     flex: 1,
   },
   systemTitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#0F172A',
-    fontWeight: '800',
+    fontWeight: '700',
   },
   systemSubtitle: {
-    marginTop: 3,
+    marginTop: 2,
     fontSize: 12,
     color: '#64748B',
-    fontWeight: '600',
+    fontWeight: '500',
   },
   systemChevronWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  systemChevronWrapExpanded: {
+    backgroundColor: '#ECFEFF',
+  },
   equipmentPanel: {
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: '#F1F5F9',
     backgroundColor: '#F8FAFC',
-    padding: 8,
-    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    borderLeftWidth: 2.5,
+    borderLeftColor: '#0891B2',
   },
   equipmentRow: {
-    minHeight: 62,
-    borderRadius: 14,
+    minHeight: 58,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 11,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,

@@ -4,6 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { EquipmentStatusBadge } from './equipment-status-badge';
 import { translateUbicacion } from '@/types/inventory';
 import type { InventoryEquipo } from '@/types/inventory';
+import {
+  extractEquipoTipo,
+  extractEquipoSubtipo,
+} from '@/utils/inventory-filter-helpers';
 
 interface EquipoCardProps {
   item: InventoryEquipo;
@@ -18,6 +22,12 @@ export const EquipoCard = memo(function EquipoCard({
   const hasDetalle =
     item.detalle_ubicacion && item.detalle_ubicacion.trim().length > 0;
 
+  const tipo = extractEquipoTipo(
+    item.equipment_detail,
+    item.equipamento_nombre,
+  );
+  const subtipo = extractEquipoSubtipo(item.equipment_detail);
+
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
@@ -31,6 +41,25 @@ export const EquipoCard = memo(function EquipoCard({
           {item.codigo}
         </Text>
       </View>
+
+      {(tipo || subtipo) && (
+        <View style={styles.tagRow}>
+          {tipo && (
+            <View style={styles.tipoBadge}>
+              <Text style={styles.tipoText} numberOfLines={1}>
+                {tipo}
+              </Text>
+            </View>
+          )}
+          {subtipo && (
+            <View style={styles.subtipoBadge}>
+              <Text style={styles.subtipoText} numberOfLines={1}>
+                {subtipo}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
 
       <View style={styles.detailRow}>
         <View style={styles.ubicacionWrap}>
@@ -85,6 +114,39 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     letterSpacing: 0.2,
     flex: 1,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    paddingRight: 28,
+  },
+  tipoBadge: {
+    backgroundColor: '#ECFEFF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#CFFAFE',
+  },
+  tipoText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0891B2',
+  },
+  subtipoBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  subtipoText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
   },
   detailRow: {
     flexDirection: 'row',
