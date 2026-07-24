@@ -70,6 +70,18 @@ export interface AdminEquipmentQrRow {
   detalle_ubicacion: string | null;
 }
 
+export interface AdminEquipmentExportRow {
+  id: string;
+  codigo: string | null;
+  propertyName: string;
+  equipmentName: string;
+  tipo: string | null;
+  subtipo: string | null;
+  ubicacion: string | null;
+  detalle_ubicacion: string | null;
+}
+
+
 export interface AdminEquipmentDetailRow extends AdminEquipmentRow {
   id_property: string | null;
   id_equipamento: string | null;

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type {
   AdminEquipmentDetailRow,
+  AdminEquipmentExportRow,
   AdminEquipmentFilters,
   AdminEquipmentQrRow,
   AdminEquipmentRow,
@@ -913,3 +914,263 @@ export async function updateAdminEquipment(
     throw error;
   }
 }
+
+export async function listAdminEquipmentsForExport(
+  supabase: SupabaseClient,
+  filters: Omit<AdminEquipmentFilters, 'page' | 'pageSize'>,
+): Promise<AdminEquipmentExportRow[]> {
+  const search = filters.search?.trim();
+  const [equipmentTypes, properties] = await Promise.all([
+    listAdminEquipmentTypes(supabase),
+    listAdminProperties(supabase),
+  ]);
+  const equipmentTypesById = new Map(
+    equipmentTypes.map(item => [item.id, item]),
+  );
+  const propertiesById = new Map(properties.map(item => [item.id, item]));
+
+  let query = supabase
+    .from('equipos')
+    .select(
+      'id, codigo, id_property, id_equipamento, ubicacion, detalle_ubicacion, estatus, config, equipment_detail',
+    )
+    .order('codigo', { ascending: true });
+
+  if (filters.status && filters.status !== 'TODOS') {
+    query = query.eq('estatus', filters.status);
+  }
+
+  if (filters.propertyIds?.length) {
+    query = query.in('id_property', filters.propertyIds);
+  } else if (filters.propertyId) {
+    query = query.eq('id_property', filters.propertyId);
+  }
+
+  if (filters.systemId) {
+    const matchedIds = await getEquipmentTypeIdsBySystem(
+      supabase,
+      filters.systemId,
+    );
+    query = query.in(
+      'id_equipamento',
+      matchedIds.length > 0 ? matchedIds : [EMPTY_UUID],
+    );
+  }
+
+  if (filters.equipmentTypeId) {
+    query = query.eq('id_equipamento', filters.equipmentTypeId);
+  }
+
+  if (filters.config && filters.config !== 'TODOS') {
+    query = query.eq('config', filters.config === 'SI');
+  }
+
+  if (filters.city) {
+    const matchedPropIds = properties
+      .filter(p => p.city === filters.city)
+      .map(p => p.id);
+    query = query.in(
+      'id_property',
+      matchedPropIds.length > 0 ? matchedPropIds : [EMPTY_UUID],
+    );
+  }
+
+  if (filters.frecuencia) {
+    const matchedTypeIds = equipmentTypes
+      .filter(t => t.frecuencia === filters.frecuencia)
+      .map(t => t.id);
+    query = query.in(
+      'id_equipamento',
+      matchedTypeIds.length > 0 ? matchedTypeIds : [EMPTY_UUID],
+    );
+  }
+
+  if (filters.fases) {
+    const selectedType = equipmentTypes.find(
+      t => t.id === filters.equipmentTypeId,
+    );
+    const isElectricalPanel = selectedType?.abreviatura === 'TBELEC';
+    if (isElectricalPanel) {
+      query = query.eq(
+        'equipment_detail->detalle_tecnico->>fases',
+        filters.fases,
+      );
+    } else {
+      query = query.eq('equipment_detail->>fases', filters.fases);
+    }
+  }
+
+  if (filters.voltaje) {
+    const selectedType = equipmentTypes.find(
+      t => t.id === filters.equipmentTypeId,
+    );
+    const isElectricalPanel = selectedType?.abreviatura === 'TBELEC';
+    if (isElectricalPanel) {
+      query = query.eq(
+        'equipment_detail->detalle_tecnico->>voltaje',
+        filters.voltaje,
+      );
+    } else {
+      query = query.ilike(
+        'equipment_detail->>voltaje',
+        `%${filters.voltaje.trim()}%`,
+      );
+    }
+  }
+
+  if (filters.tipoTablero) {
+    query = query.eq(
+      'equipment_detail->detalle_tecnico->>tipo_tablero',
+      filters.tipoTablero,
+    );
+  }
+
+  if (filters.marca) {
+    query = query.ilike(
+      'equipment_detail->>marca',
+      `%${filters.marca.trim()}%`,
+    );
+  }
+
+  if (filters.modelo) {
+    query = query.ilike(
+      'equipment_detail->>modelo',
+      `%${filters.modelo.trim()}%`,
+    );
+  }
+
+  if (filters.serie) {
+    query = query.ilike(
+      'equipment_detail->>serie',
+      `%${filters.serie.trim()}%`,
+    );
+  }
+
+  if (filters.capacidad) {
+    query = query.ilike(
+      'equipment_detail->>capacidad',
+      `%${filters.capacidad.trim()}%`,
+    );
+  }
+
+  if (filters.potencia) {
+    query = query.ilike(
+      'equipment_detail->>potencia',
+      `%${filters.potencia.trim()}%`,
+    );
+  }
+
+  if (filters.rpm) {
+    query = query.ilike('equipment_detail->>rpm', `%${filters.rpm.trim()}%`);
+  }
+
+  if (filters.presion) {
+    query = query.ilike(
+      'equipment_detail->>presion',
+      `%${filters.presion.trim()}%`,
+    );
+  }
+
+  if (filters.refrigerante) {
+    query = query.eq('equipment_detail->>refrigerante', filters.refrigerante);
+  }
+
+  if (filters.tipo) {
+    query = query.or(
+      `equipment_detail->>tipo.eq.${filters.tipo},equipment_detail->>tipo_bomba.eq.${filters.tipo}`,
+    );
+  }
+
+  if (filters.subtipo) {
+    query = query.or(
+      `equipment_detail->>subtipo.eq.${filters.subtipo},equipment_detail->>sub_tipo.eq.${filters.subtipo},equipment_detail->>tipo_bomba.eq.${filters.subtipo}`,
+    );
+  }
+
+  if (filters.tieneVdf && filters.tieneVdf !== 'TODOS') {
+    query = query.eq(
+      'equipment_detail->>tiene_vdf',
+      filters.tieneVdf === 'SI' ? 'true' : 'false',
+    );
+  }
+
+  if (filters.anioOperacion) {
+    query = query.or(
+      OPERATION_YEAR_KEYS.map(
+        key => `equipment_detail->>${key}.eq.${filters.anioOperacion}`,
+      ).join(','),
+    );
+  }
+
+  for (const filter of ADDITIONAL_DETAIL_FILTERS) {
+    const value = filters.detailFilters?.[filter.key];
+    if (value) query = query.eq(getDetailJsonPath(filter.key), value);
+  }
+
+  if (search) {
+    query = query.or(
+      `ubicacion.ilike.%${search}%,detalle_ubicacion.ilike.%${search}%`,
+    );
+  }
+
+  const allRows: AdminEquipmentExportRow[] = [];
+  const batchSize = 1000;
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await query.range(from, from + batchSize - 1);
+    if (error) throw error;
+
+    const rows = (data ?? []).map((item: any) => {
+      const property = item.id_property
+        ? propertiesById.get(item.id_property)
+        : null;
+      const equipmentType = item.id_equipamento
+        ? equipmentTypesById.get(item.id_equipamento)
+        : null;
+      const detail =
+        item.equipment_detail && typeof item.equipment_detail === 'object'
+          ? (item.equipment_detail as Record<string, unknown>)
+          : null;
+
+      const rawTipo = detail
+        ? (detail.tipo || detail.tipo_bomba || null)
+        : null;
+      const rawSubtipo = detail
+        ? (detail.subtipo ||
+           detail.sub_tipo ||
+           (detail.tipo && detail.tipo !== detail.tipo_bomba
+             ? detail.tipo_bomba
+             : null))
+        : null;
+
+      return {
+        id: item.id,
+        codigo: item.codigo ?? null,
+        propertyName: property?.name ?? 'Sin inmueble',
+        equipmentName: equipmentType?.nombre ?? 'Sin tipo',
+        tipo:
+          typeof rawTipo === 'string' && rawTipo.trim()
+            ? rawTipo.trim()
+            : null,
+        subtipo:
+          typeof rawSubtipo === 'string' && rawSubtipo.trim()
+            ? rawSubtipo.trim()
+            : null,
+        ubicacion: item.ubicacion ?? null,
+        detalle_ubicacion: item.detalle_ubicacion ?? null,
+      };
+    });
+
+    allRows.push(...rows);
+
+    if ((data ?? []).length < batchSize) {
+      break;
+    }
+
+    from += batchSize;
+  }
+
+  return allRows;
+}
+
