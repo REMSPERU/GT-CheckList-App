@@ -9,6 +9,7 @@ import { SelectField } from '@/components/ui/select-field';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { SearchInput } from '@/components/ui/search-input';
 import { useAdminEquipments } from '@/hooks/admin/use-admin-equipments';
+import { ExportEquipmentButton } from '@/components/admin/export-equipment-button';
 
 export function mapTipoLabel(tipo: string): string {
   const upper = tipo.toUpperCase().trim();
@@ -291,11 +292,42 @@ function AdminEquipmentsContent() {
             Consulta activos y genera etiquetas QR imprimibles.
           </p>
         </div>
-        <Link
-          className="rounded-full bg-emerald-800 px-4 py-2.5 text-sm font-black text-white no-underline shadow-sm transition-colors hover:bg-[#0c1720]"
-          href="/admin/equipos/qr">
-          Imprimir QRs
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <ExportEquipmentButton
+            filters={{
+              search: equipments.search,
+              status: equipments.status,
+              propertyIds: equipments.propertyIds,
+              systemId: equipments.systemId,
+              equipmentTypeId: equipments.equipmentTypeId,
+              config: equipments.config,
+              city: equipments.city,
+              frecuencia: equipments.frecuencia,
+              fases: equipments.fases,
+              voltaje: equipments.voltaje,
+              tipoTablero: equipments.tipoTablero,
+              marca: equipments.marca,
+              modelo: equipments.modelo,
+              serie: equipments.serie,
+              capacidad: equipments.capacidad,
+              potencia: equipments.potencia,
+              rpm: equipments.rpm,
+              presion: equipments.presion,
+              refrigerante: equipments.refrigerante,
+              tieneVdf: equipments.tieneVdf,
+              anioOperacion: equipments.anioOperacion,
+              detailFilters: equipments.detailFilters,
+              tipo: equipments.tipo,
+              subtipo: equipments.subtipo,
+            }}
+            activeFilterCount={activeAdvancedCount}
+          />
+          <Link
+            className="rounded-full bg-emerald-800 px-4 py-2.5 text-sm font-black text-white no-underline shadow-sm transition-colors hover:bg-[#0c1720]"
+            href="/admin/equipos/qr">
+            Imprimir QRs
+          </Link>
+        </div>
       </section>
       <section
         className={`grid items-center gap-2.5 max-[1200px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1 ${

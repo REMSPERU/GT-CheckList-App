@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { EquipmentDetailView } from '@/components/admin/equipment-detail-view';
-import { SelectField } from '@/components/ui/select-field';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { mapTipoLabel } from '@/app/admin/equipos/page';
 import { ArrowLeft, Camera, Cpu, Loader2, MapPin, Info } from 'lucide-react';

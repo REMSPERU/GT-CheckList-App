@@ -3,7 +3,6 @@
 import React from 'react';
 import {
   Zap,
-  Cpu,
   CheckCircle2,
   XCircle,
   GitBranch,

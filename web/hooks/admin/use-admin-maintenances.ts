@@ -87,6 +87,7 @@ export function useAdminMaintenances() {
     if (debouncedSearch !== urlSearch) {
       updateUrlParams({ search: debouncedSearch });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
 
   // Load filter options once on mount
