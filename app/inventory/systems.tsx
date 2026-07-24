@@ -134,28 +134,47 @@ const InventorySystemCard = memo(function InventorySystemCard({
       <Pressable
         style={({ pressed }) => [
           styles.systemHeader,
+          isExpanded && styles.systemHeaderExpanded,
           pressed && styles.pressed,
         ]}
         onPress={handleToggle}
         accessibilityRole="button"
         accessibilityLabel={`Abrir sistema ${item.nombre}`}
         accessibilityHint="Despliega los equipamientos del sistema">
-        <View style={styles.systemIconWrap}>
-          <Ionicons name="layers-outline" size={22} color="#0891B2" />
+        <View
+          style={[
+            styles.systemIconWrap,
+            isExpanded && styles.systemIconWrapExpanded,
+          ]}>
+          <Ionicons
+            name="layers-outline"
+            size={20}
+            color={isExpanded ? '#0891B2' : '#64748B'}
+          />
         </View>
         <View style={styles.systemHeaderBody}>
-          <Text style={styles.systemTitle}>{item.nombre}</Text>
+          <Text
+            style={[
+              styles.systemTitle,
+              isExpanded && styles.systemTitleExpanded,
+            ]}>
+            {item.nombre}
+          </Text>
           <Text style={styles.systemSubtitle}>
             {item.equipamentos.length} tipo
             {item.equipamentos.length !== 1 ? 's' : ''} · {item.equipos_count}{' '}
             equipo{item.equipos_count !== 1 ? 's' : ''}
           </Text>
         </View>
-        <View style={styles.systemChevronWrap}>
+        <View
+          style={[
+            styles.systemChevronWrap,
+            isExpanded && styles.systemChevronWrapExpanded,
+          ]}>
           <Ionicons
             name={isExpanded ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color="#64748B"
+            size={18}
+            color={isExpanded ? '#0891B2' : '#94A3B8'}
           />
         </View>
       </Pressable>
@@ -774,75 +793,96 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   systemCard: {
-    borderRadius: 18,
+    borderRadius: 16,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     overflow: 'hidden',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   systemCardExpanded: {
-    borderColor: '#CBD5E1',
+    borderColor: '#0891B2',
+    borderWidth: 1,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   systemHeader: {
-    minHeight: 72,
+    minHeight: 68,
     paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
+    gap: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  systemHeaderExpanded: {
+    backgroundColor: '#FAFAF9',
+  },
+  systemTitleExpanded: {
+    color: '#0891B2',
   },
   systemIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 15,
-    backgroundColor: '#ECFEFF',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  systemIconWrapExpanded: {
+    backgroundColor: '#ECFEFF',
     borderColor: '#CFFAFE',
   },
   systemHeaderBody: {
     flex: 1,
   },
   systemTitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#0F172A',
-    fontWeight: '800',
+    fontWeight: '700',
   },
   systemSubtitle: {
-    marginTop: 3,
+    marginTop: 2,
     fontSize: 12,
     color: '#64748B',
-    fontWeight: '600',
+    fontWeight: '500',
   },
   systemChevronWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  systemChevronWrapExpanded: {
+    backgroundColor: '#ECFEFF',
+  },
   equipmentPanel: {
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: '#F1F5F9',
     backgroundColor: '#F8FAFC',
-    padding: 8,
-    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    borderLeftWidth: 2.5,
+    borderLeftColor: '#0891B2',
   },
   equipmentRow: {
-    minHeight: 62,
-    borderRadius: 14,
+    minHeight: 58,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 11,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
