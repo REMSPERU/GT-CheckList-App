@@ -19,6 +19,7 @@ import { StatusBadge } from '@/components/admin/status-badge';
 import { Alert } from '@/components/ui/alert';
 import type { AdminEquipmentDetailRow } from '@/types/admin';
 import { formatDateTime } from '@/utils/date';
+import { formatUbicacion } from '@/lib/ubicacion';
 import { ElectricalPanelDetail } from '@/components/admin/electrical-panel-detail';
 
 interface EquipmentDetailViewProps {
@@ -106,7 +107,8 @@ export function EquipmentDetailView({
             Activo No Encontrado
           </h3>
           <p className="mt-1 text-xs text-slate-500 font-medium">
-            El identificador del activo no es válido o fue eliminado del sistema.
+            El identificador del activo no es válido o fue eliminado del
+            sistema.
           </p>
         </section>
       </main>
@@ -215,7 +217,7 @@ export function EquipmentDetailView({
                     Zona / Sector
                   </span>
                   <span className="mt-1 inline-flex items-center rounded-lg bg-emerald-50/50 border border-emerald-100/50 px-2 py-1 text-xs font-bold text-emerald-800">
-                    {equipment.ubicacion}
+                    {formatUbicacion(equipment.ubicacion)}
                   </span>
                 </div>
               )}
@@ -296,7 +298,9 @@ export function EquipmentDetailView({
               </div>
 
               <div className="flex justify-between items-center gap-2 border-t border-slate-50 pt-2.5">
-                <span className="font-semibold text-slate-400">Actualizado</span>
+                <span className="font-semibold text-slate-400">
+                  Actualizado
+                </span>
                 <span className="font-mono text-slate-700 text-[11px] font-medium text-right">
                   {formatDateTime(
                     firstDate(equipment.updated_at, equipment.updated),
@@ -395,7 +399,11 @@ function DetailHeader({
   );
 }
 
-function EquipmentInfoSection({ equipment }: { equipment: AdminEquipmentDetailRow }) {
+function EquipmentInfoSection({
+  equipment,
+}: {
+  equipment: AdminEquipmentDetailRow;
+}) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="space-y-1">
@@ -427,8 +435,7 @@ function EquipmentInfoSection({ equipment }: { equipment: AdminEquipmentDetailRo
       <div className="flex items-center gap-2">
         <Link
           href={`/admin/equipos/${equipment.id}/edit`}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-700 transition-colors mr-2 border border-amber-200 no-underline"
-        >
+          className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-700 transition-colors mr-2 border border-amber-200 no-underline">
           <Pencil className="w-3.5 h-3.5" />
           Editar activo
         </Link>
@@ -633,26 +640,26 @@ function SubcomponentCard({ item, index }: SubcomponentCardProps) {
       </div>
       {/* Contenido de la tarjeta */}
       <div className="grid grid-cols-2 gap-2.5 p-3.5 max-[480px]:grid-cols-1">
-        {isRecord(item)
-          ? Object.entries(item)
-              .filter(([k]) => k !== 'tipo')
-              .map(([k, v]) => (
-                <div
-                  key={k}
-                  className="rounded-lg border border-slate-100 bg-slate-50/50 p-2.5">
-                  <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                    {formatTechnicalKey(k)}
-                  </span>
-                  <span className="mt-0.5 block break-words text-[12px] font-semibold text-slate-800">
-                    {formatUnknown(v)}
-                  </span>
-                </div>
-              ))
-          : (
-            <span className="col-span-2 text-[12px] font-semibold text-slate-700">
-              {formatUnknown(item)}
-            </span>
-          )}
+        {isRecord(item) ? (
+          Object.entries(item)
+            .filter(([k]) => k !== 'tipo')
+            .map(([k, v]) => (
+              <div
+                key={k}
+                className="rounded-lg border border-slate-100 bg-slate-50/50 p-2.5">
+                <span className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                  {formatTechnicalKey(k)}
+                </span>
+                <span className="mt-0.5 block break-words text-[12px] font-semibold text-slate-800">
+                  {formatUnknown(v)}
+                </span>
+              </div>
+            ))
+        ) : (
+          <span className="col-span-2 text-[12px] font-semibold text-slate-700">
+            {formatUnknown(item)}
+          </span>
+        )}
       </div>
     </div>
   );

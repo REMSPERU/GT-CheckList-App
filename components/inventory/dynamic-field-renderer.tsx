@@ -51,6 +51,7 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
   );
 
   const extraKeys = Object.keys(currentData).filter(key => {
+    if (RESERVED_DETAIL_KEYS.has(key)) return false;
     if (schemaTopLevelKeys.has(key)) return false;
     const val = currentData[key];
     return val !== null && val !== undefined && val !== '';
@@ -321,9 +322,14 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
                 key={extraKey}
                 control={control}
                 name={extraPath}
-                render={({ field: { value, onChange, onBlur }, fieldState }) => (
+                render={({
+                  field: { value, onChange, onBlur },
+                  fieldState,
+                }) => (
                   <View style={styles.fieldWrap}>
-                    <Text style={styles.label}>{formatDetailLabel(extraKey)}</Text>
+                    <Text style={styles.label}>
+                      {formatDetailLabel(extraKey)}
+                    </Text>
                     {isComplex ? (
                       <TextInput
                         style={[styles.input, styles.inputMultiline]}
@@ -360,7 +366,9 @@ export const DynamicFieldRenderer = memo(function DynamicFieldRenderer<
                       />
                     )}
                     {fieldState.error && (
-                      <Text style={styles.error}>{fieldState.error.message}</Text>
+                      <Text style={styles.error}>
+                        {fieldState.error.message}
+                      </Text>
                     )}
                   </View>
                 )}
@@ -400,7 +408,8 @@ function parseBoolean(value: unknown): boolean {
   if (typeof value === 'string') {
     const norm = value.trim().toLowerCase();
     if (norm === 'no' || norm === 'false' || norm === '0') return false;
-    if (norm === 'sí' || norm === 'si' || norm === 'true' || norm === '1') return true;
+    if (norm === 'sí' || norm === 'si' || norm === 'true' || norm === '1')
+      return true;
   }
   return !!value;
 }
@@ -573,3 +582,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
+
+const RESERVED_DETAIL_KEYS = new Set(['tipo', 'origen_equipo_id']);

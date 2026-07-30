@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import type { AdminEquipmentExportRow } from '@/types/admin';
 import { mapTipoLabel } from '@/app/admin/equipos/page';
+import { formatUbicacion } from '@/lib/ubicacion';
 
 export async function exportEquipmentsToExcel(
   rows: AdminEquipmentExportRow[],
@@ -38,7 +39,12 @@ export async function exportEquipmentsToExcel(
   worksheet.mergeCells('A1:H1');
   const titleCell = worksheet.getCell('A1');
   titleCell.value = 'REPORTE DE ACTIVOS E INVENTARIO - GEMA';
-  titleCell.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+  titleCell.font = {
+    name: 'Calibri',
+    size: 14,
+    bold: true,
+    color: { argb: 'FFFFFFFF' },
+  };
   titleCell.fill = {
     type: 'pattern',
     pattern: 'solid',
@@ -49,7 +55,12 @@ export async function exportEquipmentsToExcel(
 
   // 2. Metadata Rows (Rows 2-4)
   const metaStyleLabel = {
-    font: { name: 'Calibri', size: 10.5, bold: true, color: { argb: 'FF07352F' } },
+    font: {
+      name: 'Calibri',
+      size: 10.5,
+      bold: true,
+      color: { argb: 'FF07352F' },
+    },
     alignment: { vertical: 'middle', horizontal: 'left' as const },
   };
 
@@ -129,7 +140,12 @@ export async function exportEquipmentsToExcel(
   headerTitles.forEach((title, idx) => {
     const cell = headerRow.getCell(idx + 1);
     cell.value = title;
-    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.font = {
+      name: 'Calibri',
+      size: 11,
+      bold: true,
+      color: { argb: 'FFFFFFFF' },
+    };
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
@@ -155,7 +171,7 @@ export async function exportEquipmentsToExcel(
       row.equipmentName || 'Sin tipo',
       row.tipo ? mapTipoLabel(row.tipo) : '-',
       row.subtipo ? mapTipoLabel(row.subtipo) : '-',
-      row.ubicacion || '-',
+      formatUbicacion(row.ubicacion),
       row.detalle_ubicacion || '-',
     ];
 

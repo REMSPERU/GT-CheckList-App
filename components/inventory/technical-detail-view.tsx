@@ -37,6 +37,7 @@ export const TechnicalDetailView = memo(function TechnicalDetailView({
   );
 
   const extraEntries = Object.entries(data).filter(([key, value]) => {
+    if (key === 'origen_equipo_id') return false;
     if (schemaTopLevelKeys.has(key)) return false;
     if (value === null || value === undefined || value === '') return false;
     if (Array.isArray(value) && value.length === 0) return false;
@@ -76,9 +77,7 @@ export const TechnicalDetailView = memo(function TechnicalDetailView({
           {hasSchemaContent ? (
             <Text style={styles.sectionTitle}>Información Adicional</Text>
           ) : null}
-          <View style={styles.grid}>
-            {renderExtraEntries(extraEntries)}
-          </View>
+          <View style={styles.grid}>{renderExtraEntries(extraEntries)}</View>
         </View>
       ) : null}
     </View>
@@ -157,7 +156,9 @@ function renderFieldGrid(
   const flushPair = () => {
     if (currentPair.length === 2) {
       elements.push(
-        <View key={`${currentPair[0].key}-${currentPair[1].key}`} style={styles.row}>
+        <View
+          key={`${currentPair[0].key}-${currentPair[1].key}`}
+          style={styles.row}>
           {renderScalarCell(currentPair[0], data)}
           {renderScalarCell(currentPair[1], data)}
         </View>,
@@ -372,7 +373,8 @@ function parseBoolean(value: unknown): boolean {
   if (typeof value === 'string') {
     const norm = value.trim().toLowerCase();
     if (norm === 'no' || norm === 'false' || norm === '0') return false;
-    if (norm === 'sí' || norm === 'si' || norm === 'true' || norm === '1') return true;
+    if (norm === 'sí' || norm === 'si' || norm === 'true' || norm === '1')
+      return true;
   }
   return !!value;
 }

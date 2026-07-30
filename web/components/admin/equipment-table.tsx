@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 import type { AdminEquipmentRow } from '@/types/admin';
+import { formatUbicacion } from '@/lib/ubicacion';
 
 import { AdminTableShell } from './admin-table-shell';
 import { StatusBadge } from './status-badge';
@@ -69,7 +70,9 @@ export function EquipmentTable({
                 </td>
                 <td className={TD_CLASS}>{item.equipmentName}</td>
                 <td className={TD_CLASS}>
-                  <strong className="block">{item.ubicacion ?? '-'}</strong>
+                  <strong className="block">
+                    {formatUbicacion(item.ubicacion)}
+                  </strong>
                   <small className="mt-1 block text-slate-500">
                     {item.detalle_ubicacion ?? ''}
                   </small>

@@ -13,12 +13,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCallback } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import type { Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Ionicons } from '@expo/vector-icons';
 import { DynamicFieldRenderer } from '@/components/inventory/dynamic-field-renderer';
-import { getTechnicalFields } from '@/types/inventory';
+import {
+  getTechnicalFields,
+  SEGV_COMPONENT_TYPE_OPTIONS,
+} from '@/types/inventory';
 import {
   equipoCreateBaseSchema,
   ESTATUS_OPTIONS,
@@ -42,7 +45,6 @@ export default function AddEquipoScreen() {
   const propertyId = getSingleParam(params.propertyId);
   const propertyName = getSingleParam(params.propertyName);
 
-  const techFields = getTechnicalFields(equipamentoAbreviatura);
   const createEquipo = useCreateEquipo();
 
   const {
@@ -61,6 +63,19 @@ export default function AddEquipoScreen() {
     },
   });
 
+  const isSegv = ['SEGV', 'SEGVEH', 'SEGURIDAD_VEHICULAR'].includes(
+    equipamentoAbreviatura.trim().toUpperCase(),
+  );
+  const selectedSegvType = useWatch({
+    control,
+    name: 'equipment_detail.tipo',
+  });
+  const techFields = isSegv
+    ? typeof selectedSegvType === 'string' && selectedSegvType
+      ? getTechnicalFields(equipamentoAbreviatura, selectedSegvType)
+      : []
+    : getTechnicalFields(equipamentoAbreviatura);
+
   const handleAutoCode = useCallback(async () => {
     try {
       const prefix = equipamentoAbreviatura || 'EQ';
@@ -74,6 +89,14 @@ export default function AddEquipoScreen() {
   const onSubmit = useCallback(
     async (values: EquipoCreateFormValues) => {
       try {
+        if (isSegv && !selectedSegvType) {
+          Alert.alert(
+            'Tipo requerido',
+            'Selecciona el tipo de activo vehicular antes de guardar.',
+          );
+          return;
+        }
+
         await createEquipo.mutateAsync({
           id_property: propertyId,
           id_equipamento: equipamentoId,
@@ -94,7 +117,7 @@ export default function AddEquipoScreen() {
         Alert.alert('Error', message);
       }
     },
-    [createEquipo, equipamentoId, propertyId, router],
+    [createEquipo, equipamentoId, isSegv, propertyId, router, selectedSegvType],
   );
 
   return (
@@ -278,6 +301,44 @@ export default function AddEquipoScreen() {
               />
             </View>
           </View>
+
+          {isSegv ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Tipo de Activo Vehicular</Text>
+              <Controller
+                control={control}
+                name="equipment_detail.tipo"
+                render={({ field: { value } }) => (
+                  <View style={styles.optionsWrap}>
+                    {SEGV_COMPONENT_TYPE_OPTIONS.map(option => (
+                      <Pressable
+                        key={option.value}
+                        style={[
+                          styles.optionChip,
+                          value === option.value && styles.optionChipSelected,
+                        ]}
+                        onPress={() =>
+                          setValue(
+                            'equipment_detail',
+                            { tipo: option.value },
+                            { shouldDirty: true },
+                          )
+                        }>
+                        <Text
+                          style={[
+                            styles.optionChipText,
+                            value === option.value &&
+                              styles.optionChipTextSelected,
+                          ]}>
+                          {option.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              />
+            </View>
+          ) : null}
 
           {/* Sección: Especificaciones Técnicas */}
           {techFields.length > 0 && (

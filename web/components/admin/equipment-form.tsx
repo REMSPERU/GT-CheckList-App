@@ -7,6 +7,7 @@ import type { AdminEquipmentDetailRow } from '@/types/admin';
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import { updateAdminEquipment } from '@/services/admin/equipments.service';
 import { DynamicJsonEditor } from './dynamic-json-editor';
+import { UBICACION_OPTIONS } from '@/lib/ubicacion';
 
 interface EquipmentFormProps {
   equipment: AdminEquipmentDetailRow;
@@ -21,13 +22,21 @@ export function EquipmentForm({ equipment, backHref }: EquipmentFormProps) {
   // Form State
   const [codigo, setCodigo] = useState(equipment.codigo ?? '');
   const [ubicacion, setUbicacion] = useState(equipment.ubicacion ?? '');
-  const [detalleUbicacion, setDetalleUbicacion] = useState(equipment.detalle_ubicacion ?? '');
+  const [detalleUbicacion, setDetalleUbicacion] = useState(
+    equipment.detalle_ubicacion ?? '',
+  );
   const [estatus, setEstatus] = useState(equipment.estatus ?? 'Operativo');
   const [config, setConfig] = useState(equipment.config ?? false);
-  const [equipmentDetail, setEquipmentDetail] = useState<unknown>(equipment.equipment_detail ?? {});
+  const [equipmentDetail, setEquipmentDetail] = useState<unknown>(
+    equipment.equipment_detail ?? {},
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!ubicacion) {
+      setError('Selecciona una ubicación válida.');
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
 
@@ -47,30 +56,36 @@ export function EquipmentForm({ equipment, backHref }: EquipmentFormProps) {
       router.refresh();
     } catch (err) {
       console.error('Error al actualizar el activo:', err);
-      setError(err instanceof Error ? err.message : 'Error desconocido al actualizar');
+      setError(
+        err instanceof Error ? err.message : 'Error desconocido al actualizar',
+      );
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-6 px-8 pb-8 pt-4 max-[640px]:px-[14px]">
+    <form
+      onSubmit={handleSubmit}
+      className="grid gap-6 px-8 pb-8 pt-4 max-[640px]:px-[14px]">
       <header className="flex flex-col gap-4 border-b border-slate-200/60 pb-5">
         <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={() => router.push(backHref)}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 px-3.5 py-2 text-xs font-bold text-slate-600 transition-all duration-200 hover:-translate-x-0.5 active:translate-x-0 active:scale-95 shadow-sm border border-slate-200/40 cursor-pointer"
-          >
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 px-3.5 py-2 text-xs font-bold text-slate-600 transition-all duration-200 hover:-translate-x-0.5 active:translate-x-0 active:scale-95 shadow-sm border border-slate-200/40 cursor-pointer">
             <ArrowLeft className="w-3.5 h-3.5" />
             Cancelar
           </button>
-          
+
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-bold text-white transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-bold text-white transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+            {isSubmitting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5" />
+            )}
             {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
           </button>
         </div>
@@ -98,7 +113,7 @@ export function EquipmentForm({ equipment, backHref }: EquipmentFormProps) {
             <h2 className="text-[13px] font-black uppercase tracking-[0.12em] text-slate-800 border-b border-slate-100 pb-3">
               Información Básica
             </h2>
-            
+
             <div className="space-y-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -107,7 +122,7 @@ export function EquipmentForm({ equipment, backHref }: EquipmentFormProps) {
                 <input
                   type="text"
                   value={codigo}
-                  onChange={(e) => setCodigo(e.target.value)}
+                  onChange={e => setCodigo(e.target.value)}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
@@ -118,9 +133,8 @@ export function EquipmentForm({ equipment, backHref }: EquipmentFormProps) {
                 </label>
                 <select
                   value={estatus}
-                  onChange={(e) => setEstatus(e.target.value)}
-                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
-                >
+                  onChange={e => setEstatus(e.target.value)}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white">
                   <option value="Operativo">Operativo</option>
                   <option value="Inoperativo">Inoperativo</option>
                   <option value="En Mantenimiento">En Mantenimiento</option>
@@ -134,10 +148,12 @@ export function EquipmentForm({ equipment, backHref }: EquipmentFormProps) {
                   type="checkbox"
                   id="config"
                   checked={config}
-                  onChange={(e) => setConfig(e.target.checked)}
+                  onChange={e => setConfig(e.target.checked)}
                   className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                 />
-                <label htmlFor="config" className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                <label
+                  htmlFor="config"
+                  className="text-xs font-bold uppercase tracking-wider text-slate-600">
                   ¿Configurado?
                 </label>
               </div>
@@ -148,19 +164,23 @@ export function EquipmentForm({ equipment, backHref }: EquipmentFormProps) {
             <h2 className="text-[13px] font-black uppercase tracking-[0.12em] text-slate-800 border-b border-slate-100 pb-3">
               Ubicación
             </h2>
-            
+
             <div className="space-y-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                   Zona / Sector
                 </label>
-                <input
-                  type="text"
+                <select
                   value={ubicacion}
-                  onChange={(e) => setUbicacion(e.target.value)}
-                  placeholder="Ej: Azotea, Sótano 1"
-                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
+                  onChange={e => setUbicacion(e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                  <option value="">Selecciona una ubicación</option>
+                  {UBICACION_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -169,7 +189,7 @@ export function EquipmentForm({ equipment, backHref }: EquipmentFormProps) {
                 </label>
                 <textarea
                   value={detalleUbicacion}
-                  onChange={(e) => setDetalleUbicacion(e.target.value)}
+                  onChange={e => setDetalleUbicacion(e.target.value)}
                   rows={3}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
@@ -188,10 +208,10 @@ export function EquipmentForm({ equipment, backHref }: EquipmentFormProps) {
               Edita los valores técnicos específicos de este activo.
             </p>
           </div>
-          
-          <DynamicJsonEditor 
-            data={equipmentDetail} 
-            onChange={setEquipmentDetail} 
+
+          <DynamicJsonEditor
+            data={equipmentDetail}
+            onChange={setEquipmentDetail}
           />
         </div>
       </div>

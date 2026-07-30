@@ -12,6 +12,7 @@ import { Alert } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { SearchableSelectField } from '@/components/ui/searchable-select-field';
 import { SelectField } from '@/components/ui/select-field';
+import { formatUbicacion } from '@/lib/ubicacion';
 import {
   type AdminChecklistTab,
   useAdminChecklist,
@@ -1286,7 +1287,7 @@ function ScheduleEquipmentPreview({
             <strong className="block text-sm text-slate-950">
               {equipment.codigo || 'Sin codigo'}
             </strong>
-            {[equipment.ubicacion, equipment.detalle_ubicacion]
+            {[formatUbicacion(equipment.ubicacion), equipment.detalle_ubicacion]
               .filter(Boolean)
               .join(' - ') || 'Sin ubicacion'}
           </div>
@@ -1419,7 +1420,7 @@ function ScheduleProgressList({
                 {item.completedOccurrences}/{item.requiredOccurrences} registros
               </span>
               <span className="block text-xs font-bold text-slate-500">
-                {[item.ubicacion, item.detalle_ubicacion]
+                {[formatUbicacion(item.ubicacion), item.detalle_ubicacion]
                   .filter(Boolean)
                   .join(' - ') || 'Sin ubicacion'}
               </span>

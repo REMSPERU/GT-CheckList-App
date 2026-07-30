@@ -113,7 +113,7 @@ Cuando la aplicación va a renderizar o editar las especificaciones técnicas de
 | Abreviaturas / Aliases Supabase | Esquema Exportado | Nombre del Equipo | Campos Mapeados |
 |---|---|---|---|
 | `SEGPEAT`, `SEGP` | `SEGP` | Acceso peatonal | `software_nombre`, `software_marca`, `software_version`, `tiene_servidor`, `subcomponentes` |
-| `SEGVEH`, `SEGV` | `SEGV` | Acceso vehicular | `software_nombre`, `software_marca`, `software_version`, `tiene_servidor`, `subcomponentes` |
+| `SEGVEH`, `SEGV` | `SEGV` | Acceso vehicular | Legado: `software_nombre`, `software_marca`, `software_version`, `tiene_servidor`, `subcomponentes`. Nuevo: un activo físico por fila, identificado por `equipment_detail.tipo`. |
 | `CCTV` | `CCTV` | Circuito cerrado de televisión | `tipo`, `marca`, `modelo`, `ubicacion`, `anio_operacion`, `sistema_operacion`, `software_nombre`, `software_marca`, `software_version`, `tiene_servidor`, `subcomponentes` |
 | `ASC`, `ASCENSOR` | `ASC` | Ascensores | `marca`, `modelo`, `capacidad`, `tipo_llamada`, `detalle_llamada`, `llamada_anticipada`, `ano_operacion` |
 | `MAMP`, `MAMPARA` | `MAMP` | Mamparas | `marca`, `modelo_freno`, `tipo_vidrio`, `tipo_vidrio_otros`, `ubicacion` |
@@ -123,7 +123,63 @@ Cuando la aplicación va a renderizar o editar las especificaciones técnicas de
 
 ---
 
-## 3. Instrucciones Paso a Paso para Modificar o Agregar Mapeos
+## 3. Acceso Vehicular Individual (`SEGV`)
+
+`SEGV` sigue siendo el único tipo de equipamento de acceso vehicular. No se
+crean filas adicionales en `equipamentos`. Cada activo físico es una fila
+independiente en `equipos`, conserva el mismo `id_equipamento` de `SEGV` y se
+identifica mediante `equipment_detail.tipo`.
+
+| Tipo JSON | Uso | Campos principales |
+|---|---|---|
+| `tranquera` | Barrera vehicular física | `marca`, `modelo`, `ubicacion`, `anio_operacion` |
+| `tecnologia_acceso` | Método de acceso configurado | `sub_tipo`, `ubicacion`, `observaciones` |
+| `dispositivo_tecnologia` | Lector UHF, cámara de placas u otro dispositivo físico | `sub_tipo`, `marca`, `modelo`, `ubicacion`, `anio_operacion` |
+| `servidor_vehicular` | Servidor físico de acceso vehicular | `marca`, `modelo`, `ubicacion`, `anio_operacion` |
+| `controlador_vehicular` | Equipo lógico que registra el software de operación | `software_nombre`, `software_version`, `marca`, `modelo`, `ubicacion` |
+
+Ejemplo de una tranquera individual:
+
+```json
+{
+  "tipo": "tranquera",
+  "marca": "CAME",
+  "modelo": "G4000",
+  "ubicacion": "Piso 1",
+  "anio_operacion": "2017"
+}
+```
+
+### Creación en la app
+
+Al crear un activo bajo `SEGV`, la app solicita primero el tipo de activo. Esta
+selección se guarda en `equipment_detail.tipo` y no se edita posteriormente.
+Para cambiar un tipo registrado por error, se crea el activo correcto y se
+marca el anterior como `INACTIVO`.
+
+El código de inventario se genera como `CODIGOINMUEBLE-SEGV-001`. El contador
+usa tres cifras y continúa como `100` cuando corresponde.
+
+### Migración desde el modelo agrupado
+
+Los registros antiguos guardan sus activos en
+`equipment_detail.subcomponentes`. La migración debe:
+
+1. Crear una fila `equipos` por cada subcomponente y por cada dispositivo
+   anidado.
+2. Crear un `controlador_vehicular` cuando el registro original tenga software.
+3. Guardar `origen_equipo_id` en cada activo nuevo para trazabilidad.
+4. Marcar el registro agrupado original como `INACTIVO` y conservar sus
+   mantenimientos históricos.
+5. Probar primero dentro de una transacción terminada en `ROLLBACK`; solo usar
+   `COMMIT` después de validar los resultados.
+
+`origen_equipo_id` es un campo técnico interno. Se conserva durante la
+sincronización, no se presenta ni se permite editar en el formulario.
+
+---
+
+## 4. Instrucciones Paso a Paso para Modificar o Agregar Mapeos
 
 ### Escenario 1: Quieres agregar un nuevo ALIAS (ej. un nuevo código de abreviatura de Supabase)
 1. Abre [`types/inventory/index.ts`](file:///c:/REMS/GT-CheckList-App/types/inventory/index.ts).
@@ -156,7 +212,7 @@ Cuando la aplicación va a renderizar o editar las especificaciones técnicas de
 
 ---
 
-## 4. Garantías del Motor Híbrido (Seguridad de Datos)
+## 5. Garantías del Motor Híbrido (Seguridad de Datos)
 
 Aunque edites o no un esquema:
 1. **Visibilidad inteligente**: Los campos que estén vacíos o nulos en la BD se ocultan automáticamente (no muestran guiones feos `—`).

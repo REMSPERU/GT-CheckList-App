@@ -21,6 +21,7 @@ import { MaintenanceStatusEnum } from '@/types/api';
 import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '@/services/db';
 import { getSessionNotes } from '@/services/supabase-session-notes.service';
+import { translateUbicacion } from '@/types/inventory';
 import {
   pdfReportService as newPdfReportService,
   ReportType,
@@ -601,7 +602,7 @@ export default function SessionHistoryScreen() {
             label: maint.equipos?.nombre || maint.equipos?.codigo || 'N/A',
             type: 'POZO A TIERRA',
             model: 'N/A',
-            location: maint.equipos?.ubicacion || 'N/A',
+            location: translateUbicacion(maint.equipos?.ubicacion),
             detalle_ubicacion: maint.equipos?.detalle_ubicacion || '',
             voltage: detail.preMeasurement || undefined,
             amperage: detail.postMeasurement || undefined,
@@ -749,7 +750,7 @@ export default function SessionHistoryScreen() {
           model:
             maint.equipos?.equipment_detail?.detalle_tecnico?.modelo ||
             'ADOSADO',
-          location: maint.equipos?.ubicacion || 'N/A',
+          location: translateUbicacion(maint.equipos?.ubicacion),
           detalle_ubicacion: maint.equipos?.detalle_ubicacion || '',
           voltage: firstMeasurement?.voltage,
           amperage: firstMeasurement?.amperage,

@@ -9,6 +9,7 @@ import { mapTipoLabel } from '@/app/admin/equipos/page';
 import { ArrowLeft, Camera, Cpu, Loader2, MapPin, Info } from 'lucide-react';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
+import { formatUbicacion } from '@/lib/ubicacion';
 import {
   listAdminEquipmentTypes,
   updateAdminEquipmentTypeImage,
@@ -582,8 +583,7 @@ function SpecialtyDetailContent() {
                             <div className="grid gap-1 text-[11px] font-semibold text-slate-500">
                               <span className="inline-flex items-center gap-1.5">
                                 <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                                {equipo.ubicacion ||
-                                  'Ubicación no especificada'}
+                                {formatUbicacion(equipo.ubicacion)}
                               </span>
                               {equipo.detalle_ubicacion ? (
                                 <span className="inline-flex items-start gap-1.5">

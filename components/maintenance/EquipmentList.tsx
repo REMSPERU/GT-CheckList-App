@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import type { BaseEquipment } from '@/types/api';
 import type { SyncStatus } from '@/services/sync-queue';
+import { translateUbicacion } from '@/types/inventory';
 
 export interface EquipmentListProps<T extends BaseEquipment> {
   items: T[];
@@ -212,7 +213,7 @@ export function EquipmentList<T extends BaseEquipment>({
                 style={styles.badgeIcon}
               />
               <Text style={styles.itemLocation}>
-                {item.ubicacion}
+                {translateUbicacion(item.ubicacion)}
                 {item.detalle_ubicacion ? ` - ${item.detalle_ubicacion}` : ''}
               </Text>
             </View>
