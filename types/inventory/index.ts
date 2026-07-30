@@ -6,6 +6,7 @@ import * as fireSafety from './fire-safety';
 import * as securityTelecom from './security-telecom';
 
 export * from './common';
+export { SEGV_COMPONENT_TYPE_OPTIONS } from './security-telecom';
 
 export const EQUIPMENT_TECHNICAL_FIELDS: Record<
   string,
@@ -412,9 +413,22 @@ export function getTechnicalFields(
   abreviatura: string | null | undefined,
   tipoSubcomponente?: string | null | undefined,
 ): TechnicalFieldConfig[] {
+  const normalizedAbbreviation = abreviatura
+    ?.trim()
+    .toUpperCase()
+    .replace(/[\s/-]+/g, '_');
+  const equipmentKey = normalizedAbbreviation
+    ? (EQUIPMENT_TECHNICAL_FIELD_ALIASES[normalizedAbbreviation] ??
+      normalizedAbbreviation)
+    : undefined;
+
   // 1. Si tenemos un tipo de subcomponente (ej. "camara", "Gabinete"), intentamos mapearlo primero
   if (tipoSubcomponente) {
     const normalizedSub = tipoSubcomponente.trim().toLowerCase();
+
+    const segvFields =
+      securityTelecom.SEGV_COMPONENT_TECHNICAL_FIELDS[normalizedSub];
+    if (equipmentKey === 'SEGV' && segvFields) return segvFields;
 
     // Si coincide con algo específico (gabinete, camara, pqs, etc.)
     if (SUBCOMPONENT_TECHNICAL_FIELDS[normalizedSub]) {
@@ -454,14 +468,8 @@ export function getTechnicalFields(
 
     // Si no coincide con ningún subcomponente conocido, intentamos buscar el esquema por la abreviatura del equipo principal
     if (abreviatura) {
-      const normalizedMain = abreviatura
-        .trim()
-        .toUpperCase()
-        .replace(/[\s/-]+/g, '_');
-      const key =
-        EQUIPMENT_TECHNICAL_FIELD_ALIASES[normalizedMain] ?? normalizedMain;
-      if (EQUIPMENT_TECHNICAL_FIELDS[key]) {
-        return EQUIPMENT_TECHNICAL_FIELDS[key];
+      if (equipmentKey && EQUIPMENT_TECHNICAL_FIELDS[equipmentKey]) {
+        return EQUIPMENT_TECHNICAL_FIELDS[equipmentKey];
       }
     }
 
@@ -471,12 +479,7 @@ export function getTechnicalFields(
 
   // 2. Si no es subcomponente, usamos la abreviatura del equipo principal
   if (!abreviatura) return getGenericFields();
-  const normalized = abreviatura
-    .trim()
-    .toUpperCase()
-    .replace(/[\s/-]+/g, '_');
-  const key = EQUIPMENT_TECHNICAL_FIELD_ALIASES[normalized] ?? normalized;
-  return EQUIPMENT_TECHNICAL_FIELDS[key] ?? getGenericFields();
+  return EQUIPMENT_TECHNICAL_FIELDS[equipmentKey ?? ''] ?? getGenericFields();
 }
 
 function getGenericFields(): TechnicalFieldConfig[] {

@@ -115,13 +115,13 @@ export const SEGV: TechnicalFieldConfig[] = [
         type: 'select',
         options: [
           { label: 'Tranqueras', value: 'tranquera' },
-          { label: 'Tecnologías de Acceso', value: 'tecnologias_acceso' },
+          { label: 'Tecnologías de Acceso', value: 'tecnologia_acceso' },
           {
             label: 'Dispositivos Tecnología',
-            value: 'dispositivos_tecnologia',
+            value: 'dispositivo_tecnologia',
           },
           { label: 'Controladores de Acceso', value: 'controladores_acceso' },
-          { label: 'Servidor', value: 'servidor' },
+          { label: 'Servidor Vehicular', value: 'servidor_vehicular' },
         ],
       },
       { key: 'cantidad', label: 'Cantidad', type: 'number' },
@@ -132,6 +132,77 @@ export const SEGV: TechnicalFieldConfig[] = [
     ],
   },
 ];
+
+export const SEGV_COMPONENT_TYPE_OPTIONS = [
+  { label: 'Tranquera', value: 'tranquera' },
+  { label: 'Tecnología de acceso', value: 'tecnologia_acceso' },
+  { label: 'Dispositivo de tecnología', value: 'dispositivo_tecnologia' },
+  { label: 'Servidor vehicular', value: 'servidor_vehicular' },
+  { label: 'Controlador vehicular', value: 'controlador_vehicular' },
+];
+
+const ACCESS_TECHNOLOGY_SUBTYPE_OPTIONS = [
+  { label: 'Convencional', value: 'CONVENCIONAL' },
+  { label: 'Lector UHF', value: 'LECTOR_UHF' },
+  { label: 'Lector de placas', value: 'LECTOR_PLACAS' },
+];
+
+const SEGV_LOCATION_FIELDS: TechnicalFieldConfig[] = [
+  { key: 'ubicacion', label: 'Ubicación', type: 'text' },
+  { key: 'anio_operacion', label: 'Año de Operación', type: 'number' },
+];
+
+/** Campos de los activos físicos individuales de Seguridad Vehicular. */
+export const SEGV_COMPONENT_TECHNICAL_FIELDS: Record<
+  string,
+  TechnicalFieldConfig[]
+> = {
+  tranquera: [
+    { key: 'marca', label: 'Marca', type: 'text', required: true },
+    { key: 'modelo', label: 'Modelo', type: 'text', required: true },
+    ...SEGV_LOCATION_FIELDS,
+  ],
+  tecnologia_acceso: [
+    {
+      key: 'sub_tipo',
+      label: 'Tecnología de Acceso',
+      type: 'select',
+      options: ACCESS_TECHNOLOGY_SUBTYPE_OPTIONS,
+      required: true,
+    },
+    { key: 'ubicacion', label: 'Ubicación', type: 'text' },
+    {
+      key: 'observaciones',
+      label: 'Observaciones',
+      type: 'text',
+      multiline: true,
+    },
+  ],
+  dispositivo_tecnologia: [
+    {
+      key: 'sub_tipo',
+      label: 'Tecnología de Acceso',
+      type: 'select',
+      options: ACCESS_TECHNOLOGY_SUBTYPE_OPTIONS,
+      required: true,
+    },
+    { key: 'marca', label: 'Marca', type: 'text', required: true },
+    { key: 'modelo', label: 'Modelo', type: 'text', required: true },
+    ...SEGV_LOCATION_FIELDS,
+  ],
+  servidor_vehicular: [
+    { key: 'marca', label: 'Marca', type: 'text', required: true },
+    { key: 'modelo', label: 'Modelo', type: 'text', required: true },
+    ...SEGV_LOCATION_FIELDS,
+  ],
+  controlador_vehicular: [
+    { key: 'marca', label: 'Marca', type: 'text' },
+    { key: 'modelo', label: 'Modelo', type: 'text' },
+    { key: 'ubicacion', label: 'Ubicación', type: 'text' },
+    { key: 'software_nombre', label: 'Software', type: 'text', required: true },
+    { key: 'software_version', label: 'Versión de Software', type: 'text' },
+  ],
+};
 
 export const ASC: TechnicalFieldConfig[] = [
   { key: 'marca', label: 'Marca', type: 'text' },
