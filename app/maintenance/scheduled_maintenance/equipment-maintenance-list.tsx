@@ -28,6 +28,7 @@ import { DatabaseService } from '@/services/database';
 import { ensureImagePermission } from '@/lib/image-permissions';
 import { supabase } from '@/lib/supabase';
 import { syncService } from '@/services/sync';
+import { translateUbicacion } from '@/types/inventory';
 
 interface EquipmentInfo {
   id: string;
@@ -207,7 +208,9 @@ const MaintenanceCard = React.memo(function MaintenanceCard({
       <View style={styles.infoRow}>
         <Ionicons name="location-outline" size={18} color="#4B5563" />
         <Text style={styles.infoLabel}>Ubicación:</Text>
-        <Text style={styles.infoValue}>{equipment.ubicacion || 'N/A'}</Text>
+        <Text style={styles.infoValue}>
+          {translateUbicacion(equipment.ubicacion)}
+        </Text>
       </View>
 
       {equipment.detalle_ubicacion ? (
@@ -264,9 +267,11 @@ export default function EquipmentMaintenanceListScreen() {
 
       const refreshOnFocus = async () => {
         try {
-          void syncService.triggerSync('equipment-maintenance-list-focus', { pushOnly: true }).catch(error => {
-            console.error('Focus push failed in equipment list:', error);
-          });
+          void syncService
+            .triggerSync('equipment-maintenance-list-focus', { pushOnly: true })
+            .catch(error => {
+              console.error('Focus push failed in equipment list:', error);
+            });
         } catch (error) {
           console.error('Focus sync failed in equipment list:', error);
         } finally {
@@ -430,7 +435,9 @@ export default function EquipmentMaintenanceListScreen() {
     setIsManualSyncing(true);
 
     try {
-      await syncService.triggerSync('equipment-maintenance-list-manual-sync', { force: true });
+      await syncService.triggerSync('equipment-maintenance-list-manual-sync', {
+        force: true,
+      });
       await refetch();
     } catch (error) {
       console.error('Manual sync failed in equipment list:', error);
@@ -496,7 +503,9 @@ export default function EquipmentMaintenanceListScreen() {
 
       // Trigger background sync
       syncService
-        .triggerSync('equipment-maintenance-list-post-photos', { pushOnly: true })
+        .triggerSync('equipment-maintenance-list-post-photos', {
+          pushOnly: true,
+        })
         .catch(err => console.error('Background sync failed:', err));
 
       // Close modal and navigate

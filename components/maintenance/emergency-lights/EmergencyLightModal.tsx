@@ -13,6 +13,8 @@ import type {
   EquipmentHistoryAction,
   EquipmentHistoryEntry,
 } from '@/types/api';
+import { UbicacionSelector } from '@/components/inventory/ubicacion-selector';
+import { translateUbicacion } from '@/types/inventory';
 
 const HISTORY_ACTION_LABELS: Record<EquipmentHistoryAction, string> = {
   INSERT: 'Creado',
@@ -57,6 +59,7 @@ export interface EmergencyLightFormData {
 }
 
 export interface EmergencyLightModalProps {
+  propertyId: string;
   visible: boolean;
   onClose: () => void;
   onSave: (data: EmergencyLightFormData) => Promise<void>;
@@ -70,6 +73,7 @@ export interface EmergencyLightModalProps {
 }
 
 export function EmergencyLightModal({
+  propertyId,
   visible,
   onClose,
   onSave,
@@ -199,7 +203,22 @@ export function EmergencyLightModal({
             style={styles.scrollContent}
             showsVerticalScrollIndicator={false}>
             {renderField('Código', codigo, setCodigo, 'LE-001', isCreateMode)}
-            {renderField('Ubicación', ubicacion, setUbicacion, 'Ej: Piso 1')}
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Ubicación</Text>
+              {isViewMode ? (
+                <View style={styles.viewValue}>
+                  <Text style={styles.viewValueText}>
+                    {translateUbicacion(ubicacion)}
+                  </Text>
+                </View>
+              ) : (
+                <UbicacionSelector
+                  propertyId={propertyId}
+                  value={ubicacion}
+                  onChange={setUbicacion}
+                />
+              )}
+            </View>
             {renderField(
               'Detalle Ubicación',
               detalleUbicacion,

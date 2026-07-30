@@ -503,7 +503,7 @@ function getGenericSubcomponentFields(): TechnicalFieldConfig[] {
 /**
  * Traduce el valor de `ubicacion` al texto que se muestra en la UI.
  * Reglas del ayuda.md:
- * - "AZOTEA" / "SEMISOTANO" → texto tal cual
+ * - "AZOTEA" / "SEMISOTANO" / "MEZANINE" → texto legible
  * - Número positivo (ej. "3") → "Piso 3"
  * - Empieza con "-S" (ej. "-S2") → "Sótano 2"
  */
@@ -515,6 +515,7 @@ export function translateUbicacion(
   const upper = ubicacion.trim().toUpperCase();
   if (upper === 'AZOTEA') return 'Azotea';
   if (upper === 'SEMISOTANO') return 'Semisótano';
+  if (upper === 'MEZANINE') return 'Mezanine';
 
   if (upper.startsWith('-S')) {
     const num = upper.slice(2);

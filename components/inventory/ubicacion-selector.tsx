@@ -53,7 +53,12 @@ export function UbicacionSelector({
 
     // Especiales
     opts.push({ label: 'Azotea', value: 'AZOTEA', category: 'special' });
-    opts.push({ label: 'Semisótano', value: 'SEMISOTANO', category: 'special' });
+    opts.push({
+      label: 'Semisótano',
+      value: 'SEMISOTANO',
+      category: 'special',
+    });
+    opts.push({ label: 'Mezanine', value: 'MEZANINE', category: 'special' });
 
     // Pisos
     for (let i = 1; i <= floorLimit; i += 1) {
@@ -62,7 +67,11 @@ export function UbicacionSelector({
 
     // Sótanos
     for (let i = 1; i <= basementLimit; i += 1) {
-      opts.push({ label: `Sótano ${i}`, value: `-S${i}`, category: 'basement' });
+      opts.push({
+        label: `Sótano ${i}`,
+        value: `-S${i}`,
+        category: 'basement',
+      });
     }
 
     return opts;
@@ -72,9 +81,10 @@ export function UbicacionSelector({
   const filteredOptions = useMemo(() => {
     if (searchText.trim().length > 0) {
       const query = searchText.toLowerCase().trim();
-      return allOptions.filter(opt =>
-        opt.label.toLowerCase().includes(query) ||
-        opt.value.toLowerCase().includes(query)
+      return allOptions.filter(
+        opt =>
+          opt.label.toLowerCase().includes(query) ||
+          opt.value.toLowerCase().includes(query),
       );
     }
     return allOptions.filter(opt => opt.category === activeTab);
@@ -251,7 +261,9 @@ export function UbicacionSelector({
             {isLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#0891B2" />
-                <Text style={styles.loadingText}>Cargando opciones del edificio...</Text>
+                <Text style={styles.loadingText}>
+                  Cargando opciones del edificio...
+                </Text>
               </View>
             ) : (
               /* Options List */
@@ -293,7 +305,9 @@ export function UbicacionSelector({
                 ListEmptyComponent={
                   <View style={styles.emptyContainer}>
                     <Ionicons name="search-outline" size={36} color="#CBD5E1" />
-                    <Text style={styles.emptyText}>No se encontraron ubicaciones</Text>
+                    <Text style={styles.emptyText}>
+                      No se encontraron ubicaciones
+                    </Text>
                   </View>
                 }
               />

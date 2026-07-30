@@ -184,7 +184,9 @@ export default function EmergencyLightsScreen() {
         }, 10000); // 10s timeout
 
         try {
-          await syncService.triggerSync('emergency-lights-refresh', { force: true });
+          await syncService.triggerSync('emergency-lights-refresh', {
+            force: true,
+          });
           clearTimeout(timeoutId);
           resolve();
         } catch (err) {
@@ -474,6 +476,7 @@ export default function EmergencyLightsScreen() {
 
       {/* Create/Edit Light Modal */}
       <EmergencyLightModal
+        propertyId={building?.id ?? ''}
         visible={showLightModal}
         onClose={() => setShowLightModal(false)}
         onSave={handleSaveLight}

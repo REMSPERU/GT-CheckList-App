@@ -22,6 +22,7 @@ import type { BaseEquipment, EquipamentoResponse } from '@/types/api';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
 import { supabase } from '@/lib/supabase';
+import { translateUbicacion } from '@/types/inventory';
 import {
   supabaseChecklistScheduleService,
   type ChecklistSchedule,
@@ -253,7 +254,10 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
     onPress(item);
   }, [item, onPress]);
 
-  const locationText = [item.ubicacion, item.detalle_ubicacion]
+  const locationText = [
+    translateUbicacion(item.ubicacion),
+    item.detalle_ubicacion,
+  ]
     .filter(Boolean)
     .join(' - ');
 
@@ -429,7 +433,7 @@ export default function EquipmentChecklistListScreen() {
       e =>
         normalizeSearch(e.codigo || '').includes(q) ||
         normalizeSearch(e.ubicacion || '').includes(q) ||
-        normalizeSearch(e.detalle_ubicacion || '').includes(q)
+        normalizeSearch(e.detalle_ubicacion || '').includes(q),
     );
   }, [equipos, searchText]);
 

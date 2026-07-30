@@ -27,6 +27,7 @@ import type {
   AdminPropertyRow,
 } from '@/types/admin';
 import { useDebouncedValue } from '@/hooks/admin/use-debounced-value';
+import { formatUbicacion } from '@/lib/ubicacion';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -593,7 +594,7 @@ const QrPrintCard = memo(function QrPrintCard({
       <div className="qr-print-meta grid gap-1 text-center text-[0.62rem] font-semibold leading-tight text-slate-500">
         <span>{item.equipmentName}</span>
         <span>
-          {[item.ubicacion, item.detalle_ubicacion]
+          {[formatUbicacion(item.ubicacion), item.detalle_ubicacion]
             .filter(Boolean)
             .join(' · ') || '-'}
         </span>
