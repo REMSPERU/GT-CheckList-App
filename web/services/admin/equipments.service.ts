@@ -1159,6 +1159,11 @@ export async function listAdminEquipmentsForExport(
             : null,
         ubicacion: item.ubicacion ?? null,
         detalle_ubicacion: item.detalle_ubicacion ?? null,
+        estatus: item.estatus ?? null,
+        config: item.config ?? null,
+        technicalDetails: extractTechnicalDetails(detail),
+        componentesResumen: summarizeComponents(detail),
+        rawDetail: detail,
       };
     });
 
@@ -1173,4 +1178,171 @@ export async function listAdminEquipmentsForExport(
 
   return allRows;
 }
+
+export function summarizeComponents(
+  detail: Record<string, unknown> | null,
+): string | null {
+  if (!detail) return null;
+  const parts: string[] = [];
+
+  if (Array.isArray(detail.itgs) && detail.itgs.length > 0) {
+    const itgSummaries = detail.itgs.map((itg: any, index: number) => {
+      const label = itg.prefijo || `ITG-${index + 1}`;
+      const amp = itg.amperaje ? `${itg.amperaje}A` : '';
+      const phases = itg.fases ? `${itg.fases}F` : '';
+      const specs = [phases, amp].filter(Boolean).join(' ');
+      const itmCount = Array.isArray(itg.itms) ? itg.itms.length : 0;
+      const feeds = itg.suministra ? ` [${itg.suministra}]` : '';
+      return `${label}${specs ? ` (${specs})` : ''}${feeds}: ${itmCount} ITMs`;
+    });
+    parts.push(`ITGs: ${itgSummaries.join('; ')}`);
+  }
+
+  if (Array.isArray(detail.componentes) && detail.componentes.length > 0) {
+    const compSummaries = detail.componentes.map((comp: any) => {
+      const type = comp.tipo || 'Componente';
+      const count = Array.isArray(comp.items) ? comp.items.length : 0;
+      return `${type} (${count})`;
+    });
+    parts.push(`Componentes: ${compSummaries.join(', ')}`);
+  }
+
+  if (
+    detail.condiciones_especiales &&
+    typeof detail.condiciones_especiales === 'object'
+  ) {
+    const active = Object.entries(
+      detail.condiciones_especiales as Record<string, boolean>,
+    )
+      .filter(([, val]) => val === true)
+      .map(([key]) => key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim());
+    if (active.length > 0) {
+      parts.push(`Condiciones: ${active.join(', ')}`);
+    }
+  }
+
+  return parts.length > 0 ? parts.join(' | ') : null;
+}
+
+export function extractTechnicalDetails(
+  detail: Record<string, unknown> | null,
+): Record<string, string | number | boolean | null> {
+  if (!detail) return {};
+  const result: Record<string, string | number | boolean | null> = {};
+
+  const getStr = (val: unknown): string | null => {
+    if (val === null || val === undefined || val === '') return null;
+    if (typeof val === 'boolean') return val ? 'Sí' : 'No';
+    return String(val).trim();
+  };
+
+  const getBoolStr = (val: unknown): string | null => {
+    if (val === true || val === 'true') return 'Sí';
+    if (val === false || val === 'false') return 'No';
+    return getStr(val);
+  };
+
+  const tech =
+    detail.detalle_tecnico && typeof detail.detalle_tecnico === 'object'
+      ? (detail.detalle_tecnico as Record<string, unknown>)
+      : {};
+
+  // Standard Known Technical Fields
+  result['marca'] = getStr(detail.marca);
+  result['modelo'] = getStr(detail.modelo);
+  result['serie'] = getStr(detail.serie);
+  result['capacidad'] = getStr(
+    detail.capacidad ||
+      detail.capacidad_bomba ||
+      detail.capacidad_motor ||
+      detail.capacidad_enfriamiento ||
+      detail.capacidad_flujo,
+  );
+  result['potencia'] = getStr(detail.potencia);
+  result['voltaje'] = getStr(detail.voltaje || tech.voltaje);
+  result['fases'] = getStr(detail.fases || tech.fases);
+  result['rpm'] = getStr(detail.rpm);
+  result['presion'] = getStr(detail.presion);
+  result['refrigerante'] = getStr(
+    detail.refrigerante || detail.tipo_refrigerante,
+  );
+  result['tiene_vdf'] = getBoolStr(
+    detail.tiene_vdf ?? (detail.vdf as any)?.tiene_vdf,
+  );
+  result['anio_operacion'] = getStr(
+    detail.anio_operacion ||
+      detail.ano_operacion ||
+      detail.anio_operacion_motor ||
+      detail.ano_operacion_motor,
+  );
+  result['tipo_tablero'] = getStr(detail.tipo_tablero || tech.tipo_tablero);
+  result['rotulo'] = getStr(detail.rotulo);
+  result['numero_unidad'] = getStr(detail.numero_unidad);
+  result['tipo_compresor'] = getStr(detail.tipo_compresor);
+  result['tipo_sistema'] = getStr(detail.tipo_sistema);
+  result['estado_sistema'] = getStr(detail.estado_sistema);
+  result['tipo_transferencia'] = getStr(detail.tipo_transferencia);
+  result['tipo_vidrio'] = getStr(detail.tipo_vidrio);
+  result['software_marca'] = getStr(detail.software_marca);
+  result['sistema_operacion'] = getStr(detail.sistema_operacion);
+  result['tiene_servidor'] = getBoolStr(detail.tiene_servidor);
+
+  // Sub-JSON objects scanner (e.g. vdf, motor, bomba, compresor, etc.)
+  const subObjectsToScan = [
+    'vdf',
+    'motor',
+    'bomba',
+    'compresor',
+    'evaporador',
+    'condensador',
+    'generador',
+  ];
+  for (const subKey of subObjectsToScan) {
+    const subObj = detail[subKey];
+    if (subObj && typeof subObj === 'object' && !Array.isArray(subObj)) {
+      const rec = subObj as Record<string, unknown>;
+      for (const [k, v] of Object.entries(rec)) {
+        if (k === 'id' || k.endsWith('_id') || k.startsWith('id_')) continue;
+        const valStr = getStr(v);
+        if (valStr !== null) {
+          result[`${subKey}_${k}`] = valStr;
+        }
+      }
+    }
+  }
+
+  // Generic Scanner for any other scalar properties in detail
+  for (const [k, v] of Object.entries(detail)) {
+    if (
+      k === 'id' ||
+      k.endsWith('_id') ||
+      k.startsWith('id_') ||
+      k === 'itgs' ||
+      k === 'componentes' ||
+      k === 'condiciones_especiales' ||
+      k === 'detalle_tecnico' ||
+      k === 'tipo' ||
+      k === 'subtipo' ||
+      k === 'sub_tipo' ||
+      k === 'tipo_bomba' ||
+      subObjectsToScan.includes(k)
+    ) {
+      continue;
+    }
+
+    if (
+      typeof v === 'string' ||
+      typeof v === 'number' ||
+      typeof v === 'boolean'
+    ) {
+      if (!(k in result) || result[k] === null) {
+        result[k] = getStr(v);
+      }
+    }
+  }
+
+  return result;
+}
+
+
 

@@ -79,7 +79,13 @@ export interface AdminEquipmentExportRow {
   subtipo: string | null;
   ubicacion: string | null;
   detalle_ubicacion: string | null;
+  estatus: string | null;
+  config: boolean | null;
+  technicalDetails: Record<string, string | number | boolean | null>;
+  componentesResumen: string | null;
+  rawDetail: Record<string, unknown> | null;
 }
+
 
 
 export interface AdminEquipmentDetailRow extends AdminEquipmentRow {
