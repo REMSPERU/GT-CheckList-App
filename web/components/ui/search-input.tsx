@@ -1,8 +1,12 @@
+import { Search } from 'lucide-react';
+import { Input } from './input';
+
 interface SearchInputProps {
   value: string;
   placeholder: string;
   onChange: (value: string) => void;
   ariaLabel?: string;
+  className?: string;
 }
 
 export function SearchInput({
@@ -10,15 +14,18 @@ export function SearchInput({
   placeholder,
   onChange,
   ariaLabel = 'Buscar',
+  className = '',
 }: SearchInputProps) {
   return (
-    <input
-      className="m-0 w-full max-w-[520px] rounded-[10px] border border-slate-300 bg-white/90 px-3 py-2.5 text-base outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-300"
+    <Input
       type="search"
+      leftIcon={<Search size={16} />}
       placeholder={placeholder}
       value={value}
       onChange={event => onChange(event.target.value)}
       aria-label={ariaLabel}
+      className={`max-w-[520px] ${className}`}
     />
   );
 }
+

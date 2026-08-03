@@ -1,5 +1,90 @@
 @import 'tailwindcss';
 
+@theme {
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-background-page: var(--background-page);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-border: var(--surface-border);
+
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+
+  --color-sidebar-from: var(--sidebar-from);
+  --color-sidebar-to: var(--sidebar-to);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-text: var(--sidebar-active-text);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --color-status-success: var(--status-success);
+  --color-status-success-bg: var(--status-success-bg);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-bg: var(--status-warning-bg);
+  --color-status-danger: var(--status-danger);
+  --color-status-danger-bg: var(--status-danger-bg);
+  --color-status-info: var(--status-info);
+  --color-status-info-bg: var(--status-info-bg);
+}
+
+:root {
+  /* Brand Theme Colors */
+  --primary: #064e3b;
+  --primary-hover: #022c22;
+  --primary-active: #064e3b;
+  --primary-foreground: #ffffff;
+
+  /* Secondary & Neutral Elements */
+  --secondary: #e2ece9;
+  --secondary-hover: #d1e2dd;
+  --secondary-foreground: #0f172a;
+
+  /* Accent Colors (Lime / Cyan highlight) */
+  --accent: #d9f99d;
+  --accent-foreground: #022c22;
+
+  /* Surface & Background (Con contraste y tinte suave) */
+  --background-page: #e6f1ee;
+  --surface: #ffffff;
+  --surface-subtle: #f4faf8;
+  --surface-hover: #ebf5f2;
+  --surface-border: rgba(8, 47, 42, 0.12);
+
+  /* Typography */
+  --text-main: #0c1720;
+  --text-muted: #475569;
+
+  /* Sidebar Theme Gradient & Active state */
+  --sidebar-from: #082f2a;
+  --sidebar-to: #0b1f28;
+  --sidebar-active: #d9f99d;
+  --sidebar-active-text: #022c22;
+  --sidebar-text: #ecfdf5;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+
+  /* Status Colors */
+  --status-success: #166534;
+  --status-success-bg: #dcfce7;
+  --status-warning: #854d0e;
+  --status-warning-bg: #fef9c3;
+  --status-danger: #991b1b;
+  --status-danger-bg: #fee2e2;
+  --status-info: #075985;
+  --status-info-bg: #e0f2fe;
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -12,9 +97,9 @@
   body {
     min-height: 100vh;
     margin: 0;
-    color: #0f172a;
+    color: var(--text-main);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: radial-gradient(circle at top right, #dcebf2 0%, #f4f6fb 35%);
+    background: radial-gradient(circle at top right, #dcebf2 0%, var(--background-page) 35%);
   }
 
   a {
