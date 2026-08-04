@@ -1,4 +1,3 @@
-import { Input } from '@/components/ui/input';
 import type { ReactNode } from 'react';
 
 interface AuthFormFieldProps {
@@ -19,9 +18,10 @@ export function AuthFormField({
   minLength,
 }: AuthFormFieldProps) {
   return (
-    <div className="mt-2">
-      <Input
-        label={typeof label === 'string' ? label : undefined}
+    <label className="text-sm font-bold text-slate-700">
+      {label}
+      <input
+        className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-4 focus:ring-emerald-700/10"
         type={type}
         autoComplete={autoComplete}
         required
@@ -29,7 +29,6 @@ export function AuthFormField({
         value={value}
         onChange={event => onChange(event.target.value)}
       />
-    </div>
+    </label>
   );
 }
-

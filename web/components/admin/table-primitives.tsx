@@ -2,9 +2,9 @@ import type { ReactNode } from 'react';
 
 export const TABLE_CLASS = 'w-full min-w-[860px] border-collapse';
 export const TH_CLASS =
-  'sticky top-0 z-10 border-b border-surface-border bg-secondary/80 px-[18px] py-3.5 text-left align-top text-xs font-bold uppercase tracking-[0.08em] text-text-muted backdrop-blur-sm';
+  'sticky top-0 z-10 border-b border-slate-100 bg-slate-50 px-[18px] py-3.5 text-left align-top text-xs uppercase tracking-[0.08em] text-slate-500';
 export const TD_CLASS =
-  'border-b border-surface-border px-[18px] py-3.5 text-left align-top text-[0.92rem] text-text-main';
+  'border-b border-slate-100 px-[18px] py-3.5 text-left align-top text-[0.92rem] text-[#0c1720]';
 
 interface TableHeadersProps {
   headers: string[];
@@ -35,4 +35,3 @@ export function ResponsiveTable({ children }: ResponsiveTableProps) {
     </div>
   );
 }
-

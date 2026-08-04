@@ -8,9 +8,8 @@ export function Alert({ children, variant = 'error' }: AlertProps) {
 
   const className =
     variant === 'success'
-      ? 'mt-4 rounded-xl border border-status-success/20 bg-status-success-bg px-4 py-3 text-sm font-semibold text-status-success'
-      : 'mt-3 rounded-xl border border-status-danger/20 bg-status-danger-bg px-3.5 py-2.5 text-sm font-semibold text-status-danger';
+      ? 'mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800'
+      : 'mt-3 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2.5 text-[0.95rem] text-red-800';
 
   return <div className={className}>{children}</div>;
 }
-
