@@ -51,6 +51,75 @@ function formatHeaderLabel(key: string): string {
   return key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
 }
 
+function getColLetter(colIdx: number): string {
+  let letter = '';
+  while (colIdx > 0) {
+    const temp = (colIdx - 1) % 26;
+    letter = String.fromCharCode(65 + temp) + letter;
+    colIdx = Math.floor((colIdx - temp - 1) / 26);
+  }
+  return letter;
+}
+
+function getRowValForLength(
+  r: AdminEquipmentExportRow,
+  colIdx: number,
+  activeTechFields: TechFieldConfig[],
+  hasComponentSummary: boolean,
+): string | null {
+  const baseVals = [
+    r.propertyName,
+    r.codigo,
+    r.equipmentName,
+    r.tipo ? mapTipoLabel(r.tipo) : '',
+    r.subtipo ? mapTipoLabel(r.subtipo) : '',
+    r.estatus,
+    r.config ? 'Sí' : 'No',
+    r.ubicacion,
+    r.detalle_ubicacion,
+  ];
+
+  if (colIdx - 1 < baseVals.length) {
+    return baseVals[colIdx - 1] ?? null;
+  }
+
+  const techIdx = colIdx - 1 - baseVals.length;
+  if (techIdx < activeTechFields.length) {
+    const key = activeTechFields[techIdx].key;
+    const val = r.technicalDetails?.[key];
+    return val !== null && val !== undefined ? String(val) : null;
+  }
+
+  if (hasComponentSummary) {
+    return r.componentesResumen ?? null;
+  }
+
+  return null;
+}
+
+function getSafeSheetName(name: string, usedNames: Set<string>): string {
+  let sanitized = name
+    .replace(/[\/\\?*:[\]]/g, '')
+    .trim();
+
+  if (!sanitized) sanitized = 'Activos';
+
+  if (sanitized.length > 28) {
+    sanitized = sanitized.slice(0, 28).trim();
+  }
+
+  let finalName = sanitized;
+  let counter = 1;
+  while (usedNames.has(finalName.toLowerCase())) {
+    counter++;
+    const suffix = ` (${counter})`;
+    finalName = `${sanitized.slice(0, 31 - suffix.length)}${suffix}`;
+  }
+
+  usedNames.add(finalName.toLowerCase());
+  return finalName;
+}
+
 export async function exportEquipmentsToExcel(
   rows: AdminEquipmentExportRow[],
   filterSummary?: string,
@@ -59,80 +128,8 @@ export async function exportEquipmentsToExcel(
   workbook.creator = 'GEMA App';
   workbook.created = new Date();
 
-  // 1. SCAN DATASET FOR ALL ACTIVE TECHNICAL KEYS (INCLUDING NESTED SUB-JSON KEYS LIKE VDF, MOTOR, ETC.)
-  const allPresentKeys = new Set<string>();
-  rows.forEach(r => {
-    if (r.technicalDetails) {
-      Object.entries(r.technicalDetails).forEach(([k, v]) => {
-        if (v !== null && v !== undefined && String(v).trim() !== '') {
-          allPresentKeys.add(k);
-        }
-      });
-    }
-  });
+  const usedSheetNames = new Set<string>();
 
-  const sortedActiveKeys = Array.from(allPresentKeys).sort((a, b) => {
-    const idxA = ALL_TECHNICAL_FIELDS.findIndex(f => f.key === a);
-    const idxB = ALL_TECHNICAL_FIELDS.findIndex(f => f.key === b);
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-    if (idxA !== -1) return -1;
-    if (idxB !== -1) return 1;
-    return a.localeCompare(b);
-  });
-
-  const activeTechFields: TechFieldConfig[] = sortedActiveKeys.map(key => {
-    const predefined = ALL_TECHNICAL_FIELDS.find(f => f.key === key);
-    const label = predefined ? predefined.label : formatHeaderLabel(key);
-    return {
-      key,
-      label,
-      width: predefined ? predefined.width : Math.max(16, label.length + 4),
-    };
-  });
-
-  const hasComponentSummary = rows.some(
-    r => r.componentesResumen && r.componentesResumen.trim() !== '',
-  );
-
-  // 2. CREATE MAIN WORKSHEET ("Resumen de Activos")
-  const worksheet = workbook.addWorksheet('Resumen de Activos', {
-    views: [{ showGridLines: true }],
-  });
-
-  const dateStr = new Date().toLocaleString('es-PE', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-  // Base Columns
-  const baseHeaders = [
-    { label: '#', width: 8 },
-    { label: 'Inmueble', width: 25 },
-    { label: 'Código de Activo', width: 20 },
-    { label: 'Tipo de Activo', width: 26 },
-    { label: 'Tipo', width: 22 },
-    { label: 'Subtipo', width: 22 },
-    { label: 'Estado', width: 12 },
-    { label: 'Configurado', width: 12 },
-    { label: 'Ubicación', width: 24 },
-    { label: 'Detalle Ubicación', width: 28 },
-  ];
-
-  const dynamicHeaders = [
-    ...baseHeaders,
-    ...activeTechFields.map(f => ({ label: f.label, width: f.width })),
-  ];
-
-  if (hasComponentSummary) {
-    dynamicHeaders.push({ label: 'Resumen Componentes / ITGs', width: 35 });
-  }
-
-  worksheet.columns = dynamicHeaders.map(h => ({ width: h.width }));
-
-  // Excel Cell Styles
   const thinBorder: Partial<ExcelJS.Borders> = {
     top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
     bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
@@ -147,170 +144,214 @@ export async function exportEquipmentsToExcel(
     right: { style: 'thin', color: { argb: 'FF0D4F46' } },
   };
 
-  const metaStyleLabel = {
-    font: {
-      name: 'Calibri',
-      size: 10.5,
-      bold: true,
-      color: { argb: 'FF07352F' },
-    },
-    alignment: { vertical: 'middle', horizontal: 'left' as const },
-  };
+  const baseHeaders = [
+    { label: '#', width: 8 },
+    { label: 'Inmueble', width: 25 },
+    { label: 'Código de Activo', width: 20 },
+    { label: 'Tipo de Activo', width: 26 },
+    { label: 'Tipo', width: 22 },
+    { label: 'Subtipo', width: 22 },
+    { label: 'Estado', width: 12 },
+    { label: 'Configurado', width: 12 },
+    { label: 'Ubicación', width: 24 },
+    { label: 'Detalle Ubicación', width: 28 },
+  ];
 
-  const metaStyleVal = {
-    font: { name: 'Calibri', size: 10.5, color: { argb: 'FF1F2937' } },
-    alignment: { vertical: 'middle', horizontal: 'left' as const },
-  };
-
-  const totalCols = dynamicHeaders.length;
-  const colLetterTo = getColLetter(totalCols);
-
-  // Title Banner
-  worksheet.mergeCells(`A1:${colLetterTo}1`);
-  const titleCell = worksheet.getCell('A1');
-  titleCell.value = 'REPORTE DE ACTIVOS E INVENTARIO - GEMA';
-  titleCell.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
-  titleCell.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FF07352F' },
-  };
-  titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-  worksheet.getRow(1).height = 32;
-
-  // Metadata Rows
-  worksheet.mergeCells('A2:B2');
-  const r2Label = worksheet.getCell('A2');
-  r2Label.value = 'Fecha de generación:';
-  Object.assign(r2Label, metaStyleLabel);
-
-  worksheet.mergeCells(`C2:${colLetterTo}2`);
-  const r2Val = worksheet.getCell('C2');
-  r2Val.value = dateStr;
-  Object.assign(r2Val, metaStyleVal);
-  worksheet.getRow(2).height = 20;
-
-  worksheet.mergeCells('A3:B3');
-  const r3Label = worksheet.getCell('A3');
-  r3Label.value = 'Total de registros:';
-  Object.assign(r3Label, metaStyleLabel);
-
-  worksheet.mergeCells(`C3:${colLetterTo}3`);
-  const r3Val = worksheet.getCell('C3');
-  r3Val.value = `${rows.length} activos exportados (${activeTechFields.length} columnas técnicas activas)`;
-  Object.assign(r3Val, metaStyleVal);
-  worksheet.getRow(3).height = 20;
-
-  worksheet.mergeCells('A4:B4');
-  const r4Label = worksheet.getCell('A4');
-  r4Label.value = 'Filtros aplicados:';
-  Object.assign(r4Label, metaStyleLabel);
-
-  worksheet.mergeCells(`C4:${colLetterTo}4`);
-  const r4Val = worksheet.getCell('C4');
-  r4Val.value = filterSummary || 'Todos los activos sin restricciones';
-  Object.assign(r4Val, metaStyleVal);
-  worksheet.getRow(4).height = 20;
-
-  worksheet.getRow(5).height = 12;
-
-  // Table Headers (Row 6)
-  const headerRow = worksheet.getRow(6);
-  headerRow.height = 26;
-
-  dynamicHeaders.forEach((h, idx) => {
-    const cell = headerRow.getCell(idx + 1);
-    cell.value = h.label;
-    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-    cell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FF07352F' },
-    };
-    cell.alignment = {
-      vertical: 'middle',
-      horizontal: idx === 0 || idx === 2 || idx === 6 || idx === 7 ? 'center' : 'left',
-    };
-    cell.border = headerBorder;
+  // Group rows by Asset Type (equipmentName)
+  const groupsMap = new Map<string, AdminEquipmentExportRow[]>();
+  rows.forEach(r => {
+    const key = (r.equipmentName || r.tipo || 'Sin Tipo').trim();
+    if (!groupsMap.has(key)) {
+      groupsMap.set(key, []);
+    }
+    groupsMap.get(key)!.push(r);
   });
 
-  // Table Data Rows (Row 7+)
-  rows.forEach((row, index) => {
-    const rowIndex = 7 + index;
-    const dataRow = worksheet.getRow(rowIndex);
-    dataRow.height = 22;
-
-    const values: (string | number)[] = [
-      index + 1,
-      row.propertyName || 'Sin inmueble',
-      row.codigo || '-',
-      row.equipmentName || 'Sin tipo',
-      row.tipo ? mapTipoLabel(row.tipo) : '-',
-      row.subtipo ? mapTipoLabel(row.subtipo) : '-',
-      row.estatus || '-',
-      row.config ? 'Sí' : 'No',
-      row.ubicacion || '-',
-      row.detalle_ubicacion || '-',
-    ];
-
-    activeTechFields.forEach(tf => {
-      const val = row.technicalDetails?.[tf.key];
-      values.push(val !== null && val !== undefined && String(val).trim() !== '' ? String(val) : '-');
+  // Helper to calculate active tech fields for a set of rows
+  const getActiveTechFields = (subsetRows: AdminEquipmentExportRow[]): TechFieldConfig[] => {
+    const presentKeys = new Set<string>();
+    subsetRows.forEach(r => {
+      if (r.technicalDetails) {
+        Object.entries(r.technicalDetails).forEach(([k, v]) => {
+          if (v !== null && v !== undefined && String(v).trim() !== '') {
+            presentKeys.add(k);
+          }
+        });
+      }
     });
 
-    if (hasComponentSummary) {
-      values.push(row.componentesResumen || '-');
+    const sorted = Array.from(presentKeys).sort((a, b) => {
+      const idxA = ALL_TECHNICAL_FIELDS.findIndex(f => f.key === a);
+      const idxB = ALL_TECHNICAL_FIELDS.findIndex(f => f.key === b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    return sorted.map(key => {
+      const predefined = ALL_TECHNICAL_FIELDS.find(f => f.key === key);
+      const label = predefined ? predefined.label : formatHeaderLabel(key);
+      return {
+        key,
+        label,
+        width: predefined ? predefined.width : Math.max(16, label.length + 4),
+      };
+    });
+  };
+
+  // Helper function to render a structured equipment table sheet
+  const renderEquipmentSheet = (
+    sheetName: string,
+    subsetRows: AdminEquipmentExportRow[],
+    techFields: TechFieldConfig[],
+  ) => {
+    const safeName = getSafeSheetName(sheetName, usedSheetNames);
+    const worksheet = workbook.addWorksheet(safeName, {
+      views: [{ state: 'frozen', ySplit: 1, showGridLines: true }],
+    });
+
+    const hasCompSummary = subsetRows.some(
+      r => r.componentesResumen && r.componentesResumen.trim() !== '',
+    );
+
+    const headers = [
+      ...baseHeaders,
+      ...techFields.map(f => ({ label: f.label, width: f.width })),
+    ];
+
+    if (hasCompSummary) {
+      headers.push({ label: 'Resumen Componentes / ITGs', width: 35 });
     }
 
-    const isZebra = index % 2 === 1;
-    const rowFillColor = isZebra ? 'FFF4F8F6' : 'FFFFFFFF';
+    worksheet.columns = headers.map(h => ({ width: h.width }));
+    const totalCols = headers.length;
+    const colLetterTo = getColLetter(totalCols);
 
-    values.forEach((val, colIdx) => {
-      const cell = dataRow.getCell(colIdx + 1);
-      cell.value = val;
-      cell.font = {
-        name: 'Calibri',
-        size: 10.5,
-        bold: colIdx === 2,
-        color: { argb: colIdx === 2 ? 'FF0F172A' : 'FF334155' },
-      };
+    // Table Headers (Row 1)
+    const headerRow = worksheet.getRow(1);
+    headerRow.height = 26;
+
+    headers.forEach((h, idx) => {
+      const cell = headerRow.getCell(idx + 1);
+      cell.value = h.label;
+      cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: rowFillColor },
+        fgColor: { argb: 'FF07352F' },
       };
       cell.alignment = {
         vertical: 'middle',
-        horizontal: colIdx === 0 || colIdx === 2 || colIdx === 6 || colIdx === 7 ? 'center' : 'left',
+        horizontal: idx === 0 || idx === 2 || idx === 6 || idx === 7 ? 'center' : 'left',
       };
-      cell.border = thinBorder;
+      cell.border = headerBorder;
     });
-  });
 
-  // AutoFilter
-  const lastRowIndex = 6 + rows.length;
-  worksheet.autoFilter = {
-    from: 'A6',
-    to: `${colLetterTo}${lastRowIndex}`,
+    // Table Data Rows (Row 2+)
+    subsetRows.forEach((row, index) => {
+      const rowIndex = 2 + index;
+      const dataRow = worksheet.getRow(rowIndex);
+      dataRow.height = 22;
+
+      const values: (string | number)[] = [
+        index + 1,
+        row.propertyName || 'Sin inmueble',
+        row.codigo || '-',
+        row.equipmentName || 'Sin tipo',
+        row.tipo ? mapTipoLabel(row.tipo) : '-',
+        row.subtipo ? mapTipoLabel(row.subtipo) : '-',
+        row.estatus || '-',
+        row.config ? 'Sí' : 'No',
+        row.ubicacion || '-',
+        row.detalle_ubicacion || '-',
+      ];
+
+      techFields.forEach(tf => {
+        const val = row.technicalDetails?.[tf.key];
+        values.push(
+          val !== null && val !== undefined && String(val).trim() !== ''
+            ? String(val)
+            : '-',
+        );
+      });
+
+      if (hasCompSummary) {
+        values.push(row.componentesResumen || '-');
+      }
+
+      const isZebra = index % 2 === 1;
+      const rowFillColor = isZebra ? 'FFF4F8F6' : 'FFFFFFFF';
+
+      values.forEach((val, colIdx) => {
+        const cell = dataRow.getCell(colIdx + 1);
+        cell.value = val;
+        cell.font = {
+          name: 'Calibri',
+          size: 10.5,
+          bold: colIdx === 2,
+          color: { argb: colIdx === 2 ? 'FF0F172A' : 'FF334155' },
+        };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: rowFillColor },
+        };
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal:
+            colIdx === 0 || colIdx === 2 || colIdx === 6 || colIdx === 7
+              ? 'center'
+              : 'left',
+        };
+        cell.border = thinBorder;
+      });
+    });
+
+    // AutoFilter
+    const lastRowIndex = 1 + subsetRows.length;
+    worksheet.autoFilter = {
+      from: 'A1',
+      to: `${colLetterTo}${lastRowIndex}`,
+    };
+
+    // Auto Column Widths
+    worksheet.columns.forEach((col, colIdx) => {
+      let maxLen = headers[colIdx]?.width || 12;
+      if (colIdx === 0) {
+        col.width = 8;
+        return;
+      }
+      subsetRows.forEach(r => {
+        const rowVal = getRowValForLength(r, colIdx, techFields, hasCompSummary);
+        if (rowVal) {
+          maxLen = Math.max(maxLen, String(rowVal).length + 3);
+        }
+      });
+      col.width = Math.min(maxLen, 55);
+    });
   };
 
-  // Adjust column widths based on actual contents
-  worksheet.columns.forEach((col, colIdx) => {
-    let maxLen = dynamicHeaders[colIdx]?.width || 12;
-    if (colIdx === 0) {
-      col.width = 8;
-      return;
-    }
-    rows.forEach(r => {
-      const rowVal = getRowValForLength(r, colIdx, activeTechFields, hasComponentSummary);
-      if (rowVal) {
-        maxLen = Math.max(maxLen, String(rowVal).length + 3);
-      }
-    });
-    col.width = Math.min(maxLen, 55);
+  // 1. CREATE MAIN SUMMARY TAB ("Resumen General")
+  const allTechFields = getActiveTechFields(rows);
+  const summaryTechFields = groupsMap.size === 1 ? allTechFields : [];
+  renderEquipmentSheet(
+    'Resumen General',
+    rows,
+    summaryTechFields,
+  );
+
+  // 2. CREATE SEPARATE TABS FOR EACH ASSET TYPE
+  groupsMap.forEach((groupRows, groupName) => {
+    const typeTechFields = getActiveTechFields(groupRows);
+    renderEquipmentSheet(
+      groupName,
+      groupRows,
+      typeTechFields,
+    );
   });
 
-  // 3. CREATE SECOND SHEET ("Detalle Componentes & ITGs") IF COMPONENTS OR ITGS EXIST
+  // 3. CREATE SHEET ("Detalle Componentes & ITGs") IF DETAILED ITGS OR COMPONENTS EXIST
   const hasDetailedComponents = rows.some(r => {
     const detail = r.rawDetail;
     if (!detail) return false;
@@ -320,8 +361,9 @@ export async function exportEquipmentsToExcel(
   });
 
   if (hasDetailedComponents) {
-    const detailSheet = workbook.addWorksheet('Detalle Componentes & ITGs', {
-      views: [{ showGridLines: true }],
+    const safeDetailName = getSafeSheetName('Detalle Componentes & ITGs', usedSheetNames);
+    const detailSheet = workbook.addWorksheet(safeDetailName, {
+      views: [{ state: 'frozen', ySplit: 1, showGridLines: true }],
     });
 
     const compHeaders = [
@@ -344,21 +386,8 @@ export async function exportEquipmentsToExcel(
 
     detailSheet.columns = compHeaders.map(h => ({ width: h.width }));
 
-    // Title Banner
-    detailSheet.mergeCells('A1:O1');
-    const compTitle = detailSheet.getCell('A1');
-    compTitle.value = 'DESGLOSE DE COMPONENTES INTERNOS E INTERRUPTORES (ITGs / ITMs)';
-    compTitle.font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
-    compTitle.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FF07352F' },
-    };
-    compTitle.alignment = { vertical: 'middle', horizontal: 'center' };
-    detailSheet.getRow(1).height = 30;
-
-    // Header Row
-    const compHeaderRow = detailSheet.getRow(2);
+    // Header Row (Row 1)
+    const compHeaderRow = detailSheet.getRow(1);
     compHeaderRow.height = 24;
     compHeaders.forEach((h, idx) => {
       const cell = compHeaderRow.getCell(idx + 1);
@@ -369,11 +398,14 @@ export async function exportEquipmentsToExcel(
         pattern: 'solid',
         fgColor: { argb: 'FF0D4F46' },
       };
-      cell.alignment = { vertical: 'middle', horizontal: idx === 0 || idx === 2 || idx === 8 || idx === 9 || idx === 10 ? 'center' : 'left' };
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: idx === 0 || idx === 2 || idx === 8 || idx === 9 || idx === 10 ? 'center' : 'left',
+      };
       cell.border = headerBorder;
     });
 
-    let compRowIndex = 3;
+    let compRowIndex = 2;
     let seq = 1;
 
     rows.forEach(r => {
@@ -524,7 +556,7 @@ export async function exportEquipmentsToExcel(
     });
 
     detailSheet.autoFilter = {
-      from: 'A2',
+      from: 'A1',
       to: `O${compRowIndex - 1}`,
     };
   }
@@ -544,50 +576,4 @@ export async function exportEquipmentsToExcel(
   anchor.download = filename;
   anchor.click();
   window.URL.revokeObjectURL(url);
-}
-
-function getColLetter(colIdx: number): string {
-  let letter = '';
-  while (colIdx > 0) {
-    const temp = (colIdx - 1) % 26;
-    letter = String.fromCharCode(65 + temp) + letter;
-    colIdx = Math.floor((colIdx - temp - 1) / 26);
-  }
-  return letter;
-}
-
-function getRowValForLength(
-  r: AdminEquipmentExportRow,
-  colIdx: number,
-  activeTechFields: TechFieldConfig[],
-  hasComponentSummary: boolean,
-): string | null {
-  const baseVals = [
-    r.propertyName,
-    r.codigo,
-    r.equipmentName,
-    r.tipo ? mapTipoLabel(r.tipo) : '',
-    r.subtipo ? mapTipoLabel(r.subtipo) : '',
-    r.estatus,
-    r.config ? 'Sí' : 'No',
-    r.ubicacion,
-    r.detalle_ubicacion,
-  ];
-
-  if (colIdx - 1 < baseVals.length) {
-    return baseVals[colIdx - 1] ?? null;
-  }
-
-  const techIdx = colIdx - 1 - baseVals.length;
-  if (techIdx < activeTechFields.length) {
-    const key = activeTechFields[techIdx].key;
-    const val = r.technicalDetails?.[key];
-    return val !== null && val !== undefined ? String(val) : null;
-  }
-
-  if (hasComponentSummary) {
-    return r.componentesResumen ?? null;
-  }
-
-  return null;
 }
