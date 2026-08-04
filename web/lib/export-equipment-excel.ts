@@ -547,12 +547,11 @@ export async function exportEquipmentsToExcel(
 }
 
 function getColLetter(colIdx: number): string {
-  let temp = '';
   let letter = '';
   while (colIdx > 0) {
-    temp = (colIdx - 1) % 26;
+    const temp = (colIdx - 1) % 26;
     letter = String.fromCharCode(65 + temp) + letter;
-    colIdx = (colIdx - temp - 1) / 26;
+    colIdx = Math.floor((colIdx - temp - 1) / 26);
   }
   return letter;
 }
