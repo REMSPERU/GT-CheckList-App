@@ -639,6 +639,46 @@ export default function EquipmentChecklistListScreen() {
     }
   }, [building?.id, equipamento?.id, loadData]);
 
+  useEffect(() => {
+    const targetEquipoId = getSingleParam(params.equipoId);
+    if (targetEquipoId && building?.id && equipamento?.id && !isLoading) {
+      const targetEquipo = equipos.find(e => e.id === targetEquipoId);
+      router.replace({
+        pathname: '/checklist/form',
+        params: {
+          buildingId: building.id,
+          buildingName: building.name,
+          equipamentoId: equipamento.id,
+          equipamentoNombre: equipamento.nombre,
+          frecuencia:
+            scheduleState.frequency || equipamento.frecuencia || 'MENSUAL',
+          equipoId: targetEquipoId,
+          equipoCodigo:
+            targetEquipo?.codigo ?? getSingleParam(params.equipoCodigo) ?? '',
+          equipoUbicacion:
+            targetEquipo?.ubicacion ??
+            getSingleParam(params.equipoUbicacion) ??
+            '',
+          equipoDetalleUbicacion:
+            targetEquipo?.detalle_ubicacion ??
+            getSingleParam(params.equipoDetalleUbicacion) ??
+            '',
+        },
+      });
+    }
+  }, [
+    building,
+    equipamento,
+    equipos,
+    isLoading,
+    params.equipoCodigo,
+    params.equipoDetalleUbicacion,
+    params.equipoId,
+    params.equipoUbicacion,
+    router,
+    scheduleState.frequency,
+  ]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
