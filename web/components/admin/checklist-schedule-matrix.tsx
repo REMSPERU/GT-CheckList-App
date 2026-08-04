@@ -83,6 +83,11 @@ export function ChecklistScheduleMatrix({
                     {formatTime(schedule.window_start)} -{' '}
                     {formatTime(schedule.window_end)}
                   </span>
+                  {formatWorkDays(schedule.work_days) ? (
+                    <span className="mt-1 inline-flex rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[0.7rem] font-bold text-amber-800">
+                      Días: {formatWorkDays(schedule.work_days)}
+                    </span>
+                  ) : null}
                 </td>
                 <td className="px-4 py-3 align-top text-xs font-semibold text-slate-600">
                   <span className="block">
@@ -142,6 +147,21 @@ export function ChecklistScheduleMatrix({
       </div>
     </div>
   );
+}
+
+const DAY_LABELS: Record<number, string> = {
+  1: 'Lun',
+  2: 'Mar',
+  3: 'Mié',
+  4: 'Jue',
+  5: 'Vie',
+  6: 'Sáb',
+  7: 'Dom',
+};
+
+function formatWorkDays(workDays: number[] | null) {
+  if (!workDays || workDays.length === 0) return null;
+  return workDays.map(d => DAY_LABELS[d] ?? d).join(', ');
 }
 
 function formatTime(value: string) {

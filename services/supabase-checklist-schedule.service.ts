@@ -22,6 +22,7 @@ export interface ChecklistSchedule {
   start_date: string | null;
   end_date: string | null;
   is_active: boolean;
+  work_days: number[] | null;
   created_by: string | null;
   updated_by: string | null;
   created_at: string;
@@ -40,6 +41,7 @@ export interface ChecklistScheduleUpsertInput {
   startDate?: string | null;
   endDate?: string | null;
   isActive?: boolean;
+  workDays?: number[] | null;
   userId: string;
 }
 
@@ -99,6 +101,7 @@ class SupabaseChecklistScheduleService {
       start_date: input.startDate ?? null,
       end_date: input.endDate ?? null,
       is_active: input.isActive ?? true,
+      work_days: input.workDays ?? null,
       created_by: input.userId,
       updated_by: input.userId,
     };

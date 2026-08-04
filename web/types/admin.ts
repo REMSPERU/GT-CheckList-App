@@ -186,6 +186,7 @@ export interface AdminChecklistScheduleRow {
   start_date: string | null;
   end_date: string | null;
   is_active: boolean;
+  work_days: number[] | null;
   updated_at: string | null;
   equipmentCount: number;
 }
@@ -202,6 +203,7 @@ export interface AdminChecklistScheduleUpsertInput {
   startDate?: string | null;
   endDate?: string | null;
   isActive: boolean;
+  workDays?: number[] | null;
   userId: string;
 }
 

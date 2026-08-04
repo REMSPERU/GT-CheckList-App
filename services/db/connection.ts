@@ -244,6 +244,7 @@ export async function initDatabase() {
           end_date TEXT,
           is_active INTEGER NOT NULL DEFAULT 1,
           execution_range_days INTEGER NOT NULL DEFAULT 1,
+          work_days TEXT,
           created_at TEXT,
           updated_at TEXT
         );
@@ -855,6 +856,16 @@ export async function initDatabase() {
       );
     } catch (error) {
       console.error('Migration failed to create brands tables:', error);
+    }
+
+    // Migration v1.14: Add work_days column to local_checklist_schedules
+    try {
+      await db.execAsync(
+        `ALTER TABLE local_checklist_schedules ADD COLUMN work_days TEXT;`,
+      );
+      console.log('Migration: Added work_days to local_checklist_schedules');
+    } catch {
+      // Column already exists
     }
 
     console.log('Database initialized');

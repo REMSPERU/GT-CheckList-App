@@ -470,8 +470,8 @@ export async function bulkInsertMirrorData(
               id, equipo_id, property_id, equipamento_id, frequency,
               occurrences_per_day, window_start, window_end, timezone,
               start_date, end_date, is_active, execution_range_days,
-              created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              work_days, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             item => [
               item.id,
               item.equipo_id || null,
@@ -486,6 +486,9 @@ export async function bulkInsertMirrorData(
               item.end_date || null,
               item.is_active ? 1 : 0,
               item.execution_range_days ?? 1,
+              Array.isArray(item.work_days) && item.work_days.length > 0
+                ? JSON.stringify(item.work_days)
+                : null,
               item.created_at || null,
               item.updated_at || null,
             ],

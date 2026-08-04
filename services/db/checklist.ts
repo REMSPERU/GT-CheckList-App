@@ -38,24 +38,28 @@ function getIsoDayOfWeek(dateString: string) {
   return day === 0 ? 7 : day;
 }
 
-function parseWorkDays(value: unknown) {
+function parseWorkDays(
+  value: unknown,
+  fallback: number[] | null = [1, 2, 3, 4, 5],
+): number[] | null {
   if (typeof value !== 'string') {
-    return [1, 2, 3, 4, 5];
+    return fallback;
   }
 
   try {
     const parsed = JSON.parse(value);
     if (
       Array.isArray(parsed) &&
+      parsed.length > 0 &&
       parsed.every(item => Number.isInteger(item) && item >= 1 && item <= 7)
     ) {
       return parsed as number[];
     }
   } catch {
-    // Use default weekdays when local data is malformed or not synced yet.
+    // Use fallback when local data is malformed or not synced yet.
   }
 
-  return [1, 2, 3, 4, 5];
+  return fallback;
 }
 
 export async function validateLocalChecklistWorkingDay(
@@ -298,6 +302,7 @@ interface LocalChecklistScheduleRow {
   end_date: string | null;
   is_active: number;
   execution_range_days: number;
+  work_days: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -386,13 +391,50 @@ export async function validateLocalChecklistSchedule(
     const anchorDateString = schedule.start_date;
 
     // 1. Working day calendar validation
-    const workdayVal = await validateLocalChecklistWorkingDay(localDateString);
-    if (!workdayVal.allowed) {
+    let isWorkingDayAllowed = true;
+    let workingDayReason: string | null = null;
+
+    // First check global exception dates
+    const exception = (await db.getFirstAsync(
+      `SELECT is_working_day
+       FROM local_checklist_workday_exceptions
+       WHERE exception_date = ?
+       LIMIT 1`,
+      [localDateString],
+    )) as { is_working_day: number } | null;
+
+    if (exception && exception.is_working_day === 0) {
+      isWorkingDayAllowed = false;
+      workingDayReason =
+        'Hoy es un dia no laborable segun el calendario de checklist.';
+    } else if (schedule.work_days) {
+      // Use schedule-specific work_days if defined and non-empty
+      const scheduleWorkDays = parseWorkDays(schedule.work_days, null);
+      if (scheduleWorkDays && scheduleWorkDays.length > 0) {
+        const isoDay = getIsoDayOfWeek(localDateString);
+        if (!scheduleWorkDays.includes(isoDay)) {
+          isWorkingDayAllowed = false;
+          workingDayReason =
+            'Hoy es un dia no laborable segun el calendario de checklist.';
+        }
+      } else {
+        const workdayVal = await validateLocalChecklistWorkingDay(localDateString);
+        isWorkingDayAllowed = workdayVal.allowed;
+        workingDayReason = workdayVal.reason;
+      }
+    } else {
+      // Fallback to global workday config
+      const workdayVal = await validateLocalChecklistWorkingDay(localDateString);
+      isWorkingDayAllowed = workdayVal.allowed;
+      workingDayReason = workdayVal.reason;
+    }
+
+    if (!isWorkingDayAllowed) {
       return {
         has_schedule: true,
         allowed: false,
         reason:
-          workdayVal.reason ||
+          workingDayReason ||
           'Hoy es un dia no laborable segun el calendario de checklist.',
         schedule_id: schedule.id,
         frequency: schedule.frequency,

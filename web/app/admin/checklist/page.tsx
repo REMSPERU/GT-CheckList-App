@@ -765,6 +765,44 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
                         </label>
                       </div>
 
+                      <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-600">
+                            Dias laborables (opcional)
+                          </span>
+                          <span className="text-xs font-bold text-slate-400">
+                            {checklist.scheduleWorkDays.length === 0
+                              ? 'Hereda calendario global'
+                              : `${checklist.scheduleWorkDays.length} dia(s) seleccionado(s)`}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Si no seleccionas ninguno, la regla usara los dias laborables globales.
+                        </p>
+                        <div className="mt-2.5 flex flex-wrap gap-1.5">
+                          {WEEKDAY_OPTIONS.map(opt => {
+                            const isSelected =
+                              checklist.scheduleWorkDays.includes(opt.value);
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                title={opt.description}
+                                onClick={() =>
+                                  checklist.toggleScheduleWorkDay(opt.value)
+                                }
+                                className={`min-h-9 rounded-xl px-3 text-xs font-black transition ${
+                                  isSelected
+                                    ? 'bg-emerald-800 text-white shadow-sm'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}>
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       <label className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm font-black text-slate-700">
                         Programacion activa
                         <input

@@ -37,6 +37,7 @@ interface ChecklistScheduleQueryRow {
   start_date: string | null;
   end_date: string | null;
   is_active: boolean;
+  work_days: number[] | null;
   updated_at: string | null;
 }
 
@@ -321,6 +322,7 @@ export async function listAdminChecklistSchedules(
           start_date,
           end_date,
           is_active,
+          work_days,
           updated_at
         `,
         )
@@ -367,6 +369,7 @@ export async function listAdminChecklistSchedules(
       start_date: item.start_date,
       end_date: item.end_date,
       is_active: item.is_active,
+      work_days: item.work_days ?? null,
       updated_at: item.updated_at,
       equipmentCount:
         equipmentCounts.get(`${item.property_id}:${item.equipamento_id}`) ?? 0,
@@ -391,6 +394,7 @@ export async function upsertAdminChecklistSchedule(
       start_date: input.startDate ?? null,
       end_date: input.endDate ?? null,
       is_active: input.isActive,
+      work_days: input.workDays ?? null,
       created_by: input.userId,
       updated_by: input.userId,
     },

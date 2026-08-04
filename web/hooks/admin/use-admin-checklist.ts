@@ -129,6 +129,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
   const [scheduleStartDate, setScheduleStartDate] = useState('');
   const [scheduleEndDate, setScheduleEndDate] = useState('');
   const [scheduleIsActive, setScheduleIsActive] = useState(true);
+  const [scheduleWorkDays, setScheduleWorkDays] = useState<number[]>([]);
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [scheduleProgress, setScheduleProgress] =
     useState<AdminChecklistScheduleProgress | null>(null);
@@ -311,6 +312,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     setScheduleStartDate(currentSchedule?.start_date ?? '');
     setScheduleEndDate(currentSchedule?.end_date ?? '');
     setScheduleIsActive(currentSchedule?.is_active ?? true);
+    setScheduleWorkDays(currentSchedule?.work_days ?? []);
   }, [schedules, selectedScheduleEquipmentType, selectedScheduleProperty]);
 
   useEffect(() => {
@@ -658,6 +660,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     setScheduleStartDate('');
     setScheduleEndDate('');
     setScheduleIsActive(true);
+    setScheduleWorkDays([]);
     setScheduleEquipments([]);
     setScheduleProgress(null);
     setSuccessMessage(null);
@@ -774,6 +777,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
         startDate: scheduleStartDate || getTodayInLima(),
         endDate: scheduleEndDate || null,
         isActive: scheduleIsActive,
+        workDays: scheduleWorkDays.length > 0 ? scheduleWorkDays : null,
         userId: user.id,
       });
 
@@ -1042,6 +1046,15 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     setScheduleEndDate,
     scheduleIsActive,
     setScheduleIsActive,
+    scheduleWorkDays,
+    setScheduleWorkDays,
+    toggleScheduleWorkDay: (day: number) => {
+      setScheduleWorkDays(prev =>
+        prev.includes(day)
+          ? prev.filter(d => d !== day)
+          : [...prev, day].sort((a, b) => a - b),
+      );
+    },
     savingSchedule,
     handleSelectSchedule,
     handleCreateScheduleDraft,
