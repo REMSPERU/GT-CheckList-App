@@ -1,4 +1,5 @@
 import type { AdminMetric } from '@/types/admin';
+import { Card } from '../ui/card';
 
 interface MetricCardGridProps {
   metrics: AdminMetric[];
@@ -13,21 +14,24 @@ export function MetricCardGrid({ metrics, isLoading }: MetricCardGridProps) {
       {isLoading
         ? Array.from({ length: 5 }).map((_, index) => (
             <div
-              className="min-h-[150px] animate-pulse rounded-[20px] border border-slate-900/10 bg-white/80 p-[18px] shadow-[0_20px_60px_rgba(12,23,32,0.08)]"
+              className="min-h-[140px] animate-pulse rounded-2xl border border-surface-border bg-surface/60 p-[18px]"
               key={index}
             />
           ))
         : metrics.map(metric => (
-            <article
-              className="grid min-h-[150px] content-between rounded-[20px] border border-slate-900/10 bg-white/80 p-[18px] shadow-[0_20px_60px_rgba(12,23,32,0.08)]"
+            <Card
+              className="grid min-h-[140px] content-between p-[18px] bg-surface/90 shadow-[0_12px_30px_rgba(8,47,42,0.06)] backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(8,47,42,0.12)] border border-surface-border"
               key={metric.label}>
-              <span className="text-slate-500">{metric.label}</span>
-              <strong className="text-[2.6rem] font-bold tracking-[-0.07em] text-[#0c1720]">
+              <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                {metric.label}
+              </span>
+              <strong className="text-[2.4rem] font-black tracking-[-0.07em] text-primary">
                 {metric.value.toLocaleString('en-US')}
               </strong>
-              <small className="text-slate-500">{metric.note}</small>
-            </article>
+              <small className="text-xs font-semibold text-text-muted">{metric.note}</small>
+            </Card>
           ))}
     </section>
   );
 }
+
