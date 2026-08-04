@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '@/services/db';
+import NetInfo from '@react-native-community/netinfo';
 
 export type ChecklistScheduleFrequency =
   | 'DIARIA'
@@ -58,32 +59,61 @@ export interface ChecklistScheduleValidation {
   period_start: string | null;
   period_end: string | null;
 }
-
-interface ValidateChecklistScheduleParams {
-  p_property_id: string;
-  p_equipamento_id: string;
-  p_submitted_at: string;
-  p_equipo_id?: string;
-}
-
 class SupabaseChecklistScheduleService {
   async getScheduleByScope(
     propertyId: string,
     equipamentoId: string,
   ): Promise<ChecklistSchedule | null> {
-    const { data, error } = await supabase
-      .from('checklist_schedules')
-      .select('*')
-      .eq('property_id', propertyId)
-      .eq('equipamento_id', equipamentoId)
-      .limit(1)
-      .maybeSingle();
+    // 100% Offline-First: Read from local SQLite mirror table first
+    const localSchedule =
+      await DatabaseService.getLocalChecklistScheduleByScope(
+        propertyId,
+        equipamentoId,
+      );
 
-    if (error) {
-      throw error;
+    if (localSchedule) {
+      return localSchedule as ChecklistSchedule;
     }
 
-    return (data as ChecklistSchedule | null) ?? null;
+    // Fallback to Supabase only if not in local DB and online
+    try {
+      const netInfo = await NetInfo.fetch().catch(() => ({
+        isConnected: true,
+      }));
+      if (netInfo.isConnected === false) {
+        return null;
+      }
+
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const queryPromise = supabase
+        .from('checklist_schedules')
+        .select('*')
+        .eq('property_id', propertyId)
+        .eq('equipamento_id', equipamentoId)
+        .limit(1)
+        .maybeSingle();
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Remote getScheduleByScope timeout (2s limit)'));
+        }, 2000);
+      });
+
+      const { data, error } = await Promise.race([
+        queryPromise,
+        timeoutPromise,
+      ]).finally(() => {
+        if (timeoutId) clearTimeout(timeoutId);
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      return (data as ChecklistSchedule | null) ?? null;
+    } catch {
+      return null;
+    }
   }
 
   async upsertSchedule(
@@ -124,74 +154,26 @@ class SupabaseChecklistScheduleService {
     equipamentoId: string,
     equipoId?: string,
   ): Promise<ChecklistScheduleValidation> {
-    try {
-      const params: ValidateChecklistScheduleParams = {
-        p_property_id: propertyId,
-        p_equipamento_id: equipamentoId,
-        p_submitted_at: new Date().toISOString(),
-      };
+    // 100% Offline-First: Always validate against local SQLite mirror first (instant < 5ms)
+    const localResult = await DatabaseService.validateLocalChecklistSchedule(
+      propertyId,
+      equipamentoId,
+      equipoId || null,
+    );
 
-      if (equipoId) {
-        params.p_equipo_id = equipoId;
-      }
-
-      const { data, error } = await supabase.rpc(
-        'validate_checklist_schedule',
-        params,
-      );
-
-      if (error) {
-        throw error;
-      }
-
-      const firstRow = Array.isArray(data) ? data[0] : data;
-
-      return {
-        has_schedule: !!firstRow?.has_schedule,
-        allowed: !!firstRow?.allowed,
-        reason: firstRow?.reason || null,
-        schedule_id: firstRow?.schedule_id || null,
-        frequency: (firstRow?.frequency ||
-          null) as ChecklistScheduleFrequency | null,
-        occurrences_per_day:
-          typeof firstRow?.occurrences_per_day === 'number'
-            ? firstRow.occurrences_per_day
-            : null,
-        window_start: firstRow?.window_start || null,
-        window_end: firstRow?.window_end || null,
-        current_count:
-          typeof firstRow?.current_count === 'number'
-            ? firstRow.current_count
-            : 0,
-        period_start: firstRow?.period_start || null,
-        period_end: firstRow?.period_end || null,
-      };
-    } catch (rpcError) {
-      console.warn(
-        '[SCHEDULE-SERVICE] Remote validation failed, falling back to local database validation:',
-        rpcError,
-      );
-
-      const localResult = await DatabaseService.validateLocalChecklistSchedule(
-        propertyId,
-        equipamentoId,
-        equipoId || null,
-      );
-
-      return {
-        has_schedule: localResult.has_schedule,
-        allowed: localResult.allowed,
-        reason: localResult.reason,
-        schedule_id: localResult.schedule_id,
-        frequency: localResult.frequency as ChecklistScheduleFrequency | null,
-        occurrences_per_day: localResult.occurrences_per_day,
-        window_start: localResult.window_start,
-        window_end: localResult.window_end,
-        current_count: localResult.current_count,
-        period_start: localResult.period_start,
-        period_end: localResult.period_end,
-      };
-    }
+    return {
+      has_schedule: localResult.has_schedule,
+      allowed: localResult.allowed,
+      reason: localResult.reason,
+      schedule_id: localResult.schedule_id,
+      frequency: localResult.frequency as ChecklistScheduleFrequency | null,
+      occurrences_per_day: localResult.occurrences_per_day,
+      window_start: localResult.window_start,
+      window_end: localResult.window_end,
+      current_count: localResult.current_count,
+      period_start: localResult.period_start,
+      period_end: localResult.period_end,
+    };
   }
 }
 

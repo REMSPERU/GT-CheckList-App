@@ -242,7 +242,10 @@ function buildFriendlyRestrictionMessage(
 
   return {
     message: 'Este checklist esta restringido en este momento.',
-    hint: windowLabel !== '-' ? `Horario configurado: ${windowLabel}.` : 'Por favor verifique la programación.',
+    hint:
+      windowLabel !== '-'
+        ? `Horario configurado: ${windowLabel}.`
+        : 'Por favor verifique la programación.',
   };
 }
 
@@ -288,8 +291,7 @@ function buildChecklistAnswersJson(
     };
   });
 
-  const scorableResponses =
-    operationalStatus === 'stand_by' ? [] : respuestas;
+  const scorableResponses = operationalStatus === 'stand_by' ? [] : respuestas;
   const totalObservadas = scorableResponses.filter(
     item => item.status_ok === false,
   ).length;
@@ -863,20 +865,27 @@ export default function ChecklistFormScreen() {
   }, [answers, generalPhotoUris.length, operationalStatus, questions]);
 
   const checkAlreadySubmitted = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('checklist_response')
-      .select('id')
-      .eq('equipo_id', params.equipoId)
-      .eq('frequency', frecuencia)
-      .eq('period_start', periodStart)
-      .limit(1);
-
-    if (error) {
-      throw error;
-    }
-
-    return (data || []).length > 0;
-  }, [frecuencia, params.equipoId, periodStart]);
+    const localCounts = await DatabaseService.getChecklistCountsByEquipo(
+      params.buildingId,
+      params.equipamentoId,
+      frecuencia,
+      periodStart,
+    );
+    const existing = localCounts.find(
+      item => item.equipo_id === params.equipoId,
+    );
+    return (
+      !!existing &&
+      Number(existing.synced_count || 0) + Number(existing.pending_count || 0) >
+        0
+    );
+  }, [
+    frecuencia,
+    params.buildingId,
+    params.equipamentoId,
+    params.equipoId,
+    periodStart,
+  ]);
 
   const handleSave = useCallback(async () => {
     if (schedulePreview.isLoading) {
@@ -970,7 +979,8 @@ export default function ChecklistFormScreen() {
                 : '-';
             const rangeLabel =
               scheduleValidation.period_start && scheduleValidation.period_end
-                ? scheduleValidation.period_start === scheduleValidation.period_end
+                ? scheduleValidation.period_start ===
+                  scheduleValidation.period_end
                   ? `${formatDateToSpanish(scheduleValidation.period_start)}`
                   : `${formatDateToSpanish(scheduleValidation.period_start)} a ${formatDateToSpanish(scheduleValidation.period_end)}`
                 : '-';
@@ -984,9 +994,10 @@ export default function ChecklistFormScreen() {
         } else {
           const alreadyExists = await checkAlreadySubmitted();
           if (alreadyExists) {
-            const periodStr = periodStart === periodEnd
-              ? `para la fecha ${periodStartLabel}`
-              : `para el periodo ${periodStartLabel} a ${periodEndLabel}`;
+            const periodStr =
+              periodStart === periodEnd
+                ? `para la fecha ${periodStartLabel}`
+                : `para el periodo ${periodStartLabel} a ${periodEndLabel}`;
             showAppAlert(
               'Checklist ya registrado',
               `Este equipo ya tiene checklist ${frecuencia.toLowerCase()} ${periodStr}.`,
@@ -1028,9 +1039,10 @@ export default function ChecklistFormScreen() {
         effectiveOccurrencesLimit !== null &&
         existingLocalCount >= effectiveOccurrencesLimit
       ) {
-        const periodStr = schedulePeriod.periodStart === schedulePeriod.periodEnd
-          ? `para la fecha ${formatDateToSpanish(schedulePeriod.periodStart)}`
-          : `para el rango ${formatDateToSpanish(schedulePeriod.periodStart)} a ${formatDateToSpanish(schedulePeriod.periodEnd)}`;
+        const periodStr =
+          schedulePeriod.periodStart === schedulePeriod.periodEnd
+            ? `para la fecha ${formatDateToSpanish(schedulePeriod.periodStart)}`
+            : `para el rango ${formatDateToSpanish(schedulePeriod.periodStart)} a ${formatDateToSpanish(schedulePeriod.periodEnd)}`;
         showAppAlert(
           'Checklist ya registrado',
           `Este equipo ya alcanzo el limite local ${periodStr}.`,
@@ -1039,9 +1051,10 @@ export default function ChecklistFormScreen() {
       }
 
       if (!checklistScheduleId && existingLocalCount > 0) {
-        const periodStr = schedulePeriod.periodStart === schedulePeriod.periodEnd
-          ? `para la fecha ${formatDateToSpanish(schedulePeriod.periodStart)}`
-          : `para el periodo ${formatDateToSpanish(schedulePeriod.periodStart)} a ${formatDateToSpanish(schedulePeriod.periodEnd)}`;
+        const periodStr =
+          schedulePeriod.periodStart === schedulePeriod.periodEnd
+            ? `para la fecha ${formatDateToSpanish(schedulePeriod.periodStart)}`
+            : `para el periodo ${formatDateToSpanish(schedulePeriod.periodStart)} a ${formatDateToSpanish(schedulePeriod.periodEnd)}`;
         showAppAlert(
           'Checklist ya registrado',
           `Este equipo ya tiene checklist ${effectiveFrequency.toLowerCase()} local ${periodStr}.`,
@@ -1299,11 +1312,13 @@ export default function ChecklistFormScreen() {
           </Text>
 
           <View style={styles.operationalStatusOptions}>
-            {([
-              ['operativo', 'Operativo'],
-              ['stand_by', 'Stand by'],
-              ['inoperativo', 'Inoperativo'],
-            ] as const).map(([value, label]) => {
+            {(
+              [
+                ['operativo', 'Operativo'],
+                ['stand_by', 'Stand by'],
+                ['inoperativo', 'Inoperativo'],
+              ] as const
+            ).map(([value, label]) => {
               const isSelected = operationalStatus === value;
 
               return (

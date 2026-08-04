@@ -21,7 +21,6 @@ import { Image } from 'expo-image';
 import type { BaseEquipment, EquipamentoResponse } from '@/types/api';
 import { DatabaseService } from '@/services/database';
 import { syncService } from '@/services/sync';
-import { supabase } from '@/lib/supabase';
 import { translateUbicacion } from '@/types/inventory';
 import {
   supabaseChecklistScheduleService,
@@ -501,71 +500,13 @@ export default function EquipmentChecklistListScreen() {
           return;
         }
 
-        const equipmentIds = equipmentRows.map(item => item.id);
         const localCounts = await DatabaseService.getChecklistCountsByEquipo(
           building.id,
           equipamento.id,
           effectiveFrequency,
           periodStart,
         );
-        const { data, error } = await supabase
-          .from('checklist_response')
-          .select('equipo_id')
-          .eq('frequency', effectiveFrequency)
-          .eq('period_start', periodStart)
-          .in('equipo_id', equipmentIds);
 
-        if (error) {
-          throw error;
-        }
-
-        const counts = (data || []).reduce<Record<string, number>>(
-          (acc, row) => {
-            const equipoId = String(row.equipo_id || '');
-            if (!equipoId) {
-              return acc;
-            }
-            acc[equipoId] = (acc[equipoId] || 0) + 1;
-            return acc;
-          },
-          {},
-        );
-
-        const pendingCounts = localCounts.reduce<Record<string, number>>(
-          (acc, row) => {
-            acc[row.equipo_id] = Number(row.pending_count || 0);
-            return acc;
-          },
-          {},
-        );
-        const conflictCounts = localCounts.reduce<Record<string, number>>(
-          (acc, row) => {
-            acc[row.equipo_id] = Number(row.conflict_count || 0);
-            return acc;
-          },
-          {},
-        );
-
-        setSubmittedCountByEquipo(counts);
-        setPendingSyncCountByEquipo(pendingCounts);
-        setConflictCountByEquipo(conflictCounts);
-        const completedCount = equipmentRows.reduce(
-          (acc, item) =>
-            counts[item.id] > 0 || pendingCounts[item.id] > 0 ? acc + 1 : acc,
-          0,
-        );
-        setProgressSummary({
-          completed: completedCount,
-          total: equipmentRows.length,
-        });
-      } catch (error) {
-        console.error('Error loading checklist status:', error);
-        const localCounts = await DatabaseService.getChecklistCountsByEquipo(
-          building.id,
-          equipamento.id,
-          effectiveFrequency,
-          periodStart,
-        );
         const syncedCounts = localCounts.reduce<Record<string, number>>(
           (acc, row) => {
             acc[row.equipo_id] = Number(row.synced_count || 0);
@@ -587,24 +528,24 @@ export default function EquipmentChecklistListScreen() {
           },
           {},
         );
+
         setSubmittedCountByEquipo(syncedCounts);
         setPendingSyncCountByEquipo(pendingCounts);
         setConflictCountByEquipo(conflictCounts);
+
+        const completedCount = equipmentRows.reduce(
+          (acc, item) =>
+            syncedCounts[item.id] > 0 || pendingCounts[item.id] > 0
+              ? acc + 1
+              : acc,
+          0,
+        );
         setProgressSummary({
-          completed: equipmentRows.reduce(
-            (acc, item) =>
-              syncedCounts[item.id] > 0 || pendingCounts[item.id] > 0
-                ? acc + 1
-                : acc,
-            0,
-          ),
+          completed: completedCount,
           total: equipmentRows.length,
         });
-        setScheduleState(prev => ({
-          ...prev,
-          message:
-            'No se pudo validar la programación. Deslice para actualizar.',
-        }));
+      } catch (error) {
+        console.error('Error loading checklist status:', error);
       }
     },
     [building?.id, equipamento?.frecuencia, equipamento?.id],
