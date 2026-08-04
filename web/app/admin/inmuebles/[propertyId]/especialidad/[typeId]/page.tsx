@@ -4,9 +4,21 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { EquipmentDetailView } from '@/components/admin/equipment-detail-view';
+import { EquipmentExcelTable } from '@/components/admin/equipment-excel-table';
+import { ViewModeToggle, type ViewMode } from '@/components/admin/view-mode-toggle';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { mapTipoLabel } from '@/app/admin/equipos/page';
-import { ArrowLeft, Camera, Cpu, Loader2, MapPin, Info } from 'lucide-react';
+import {
+  ArrowLeft,
+  Camera,
+  Cpu,
+  Loader2,
+  MapPin,
+  Info,
+  LayoutGrid,
+  Table,
+  ExternalLink,
+} from 'lucide-react';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
 import { formatUbicacion } from '@/lib/ubicacion';
@@ -135,6 +147,127 @@ interface DBEquipo {
   equipment_detail?: any;
 }
 
+interface DynamicColumn {
+  key: string;
+  label: string;
+}
+
+function getDynamicColumns(equipos: DBEquipo[]): DynamicColumn[] {
+  const keySet = new Set<string>();
+
+  equipos.forEach(equipo => {
+    const detail = equipo.equipment_detail;
+    if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+      Object.keys(detail).forEach(k => {
+        const lowerK = k.toLowerCase().trim();
+        if (
+          k === 'id' ||
+          k.endsWith('_id') ||
+          k.startsWith('id_') ||
+          lowerK === 'id' ||
+          lowerK.endsWith(' id') ||
+          lowerK.startsWith('id ')
+        ) {
+          return;
+        }
+        if (
+          lowerK === 'marca_catalogo' ||
+          lowerK === 'marca catalogo' ||
+          lowerK === 'marca_otro' ||
+          lowerK === 'marca otro' ||
+          lowerK === 'tiene_vdf' ||
+          lowerK === 'tiene vdf'
+        ) {
+          return;
+        }
+        keySet.add(k);
+      });
+    }
+  });
+
+  const dictionary: Record<string, string> = {
+    tipo: 'Tipo',
+    subtipo: 'Subtipo',
+    tipo_bomba: 'Tipo de Bomba',
+    marca: 'Marca',
+    modelo: 'Modelo',
+    serie: 'N° Serie',
+    capacidad: 'Capacidad',
+    potencia: 'Potencia',
+    voltaje: 'Voltaje (V)',
+    corriente: 'Corriente (A)',
+    fases: 'Fases',
+    presion: 'Presión',
+    temperatura: 'Temperatura',
+    rpm: 'RPM',
+    frecuencia: 'Frecuencia (Hz)',
+    refrigerante: 'Refrigerante',
+    vdf: 'VDF',
+    aceite: 'Tipo Aceite',
+    filtro: 'Filtro',
+    ubicacion_exacta: 'Ubicación Exacta',
+    anio_operacion: 'Año Operación',
+    año_operacion: 'Año Operación',
+  };
+
+  const priorityKeys = [
+    'subtipo',
+    'tipo',
+    'tipo_bomba',
+    'marca',
+    'modelo',
+    'serie',
+    'capacidad',
+    'potencia',
+    'voltaje',
+    'fases',
+    'presion',
+    'rpm',
+    'vdf',
+  ];
+
+  const keysArray = Array.from(keySet).sort((a, b) => {
+    const idxA = priorityKeys.indexOf(a.toLowerCase());
+    const idxB = priorityKeys.indexOf(b.toLowerCase());
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.localeCompare(b);
+  });
+
+  return keysArray.map(key => ({
+    key,
+    label:
+      dictionary[key.toLowerCase()] ??
+      key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+  }));
+}
+
+function formatCellValue(value: unknown): React.ReactNode {
+  if (value === null || value === undefined || value === '') return '-';
+  if (typeof value === 'boolean') {
+    return value ? (
+      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+        Sí
+      </span>
+    ) : (
+      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+        No
+      </span>
+    );
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value);
+  }
+  if (typeof value === 'object') {
+    if (Array.isArray(value)) {
+      return `${value.length} ítems`;
+    }
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
 function SpecialtyDetailContent() {
   const params = useParams<{ propertyId: string; typeId: string }>();
   const router = useRouter();
@@ -173,6 +306,22 @@ function SpecialtyDetailContent() {
       ? rawSubtipo.trim()
       : undefined;
   };
+
+  const filteredEquipos = useMemo(() => {
+    return equipos.filter(equipo => {
+      const detail = equipo.equipment_detail;
+      const t = getEquipoTipo(detail);
+      const st = getEquipoSubtipo(detail);
+
+      if (selectedTipo && t !== selectedTipo) return false;
+      if (selectedSubtipo && st !== selectedSubtipo) return false;
+      return true;
+    });
+  }, [equipos, selectedTipo, selectedSubtipo]);
+
+  const dynamicColumns = useMemo(() => {
+    return getDynamicColumns(filteredEquipos);
+  }, [filteredEquipos]);
 
   const distinctTipos = useMemo(() => {
     const types = new Set<string>();
@@ -235,17 +384,9 @@ function SpecialtyDetailContent() {
     ];
   }, [distinctSubtipos]);
 
-  const filteredEquipos = useMemo(() => {
-    return equipos.filter(equipo => {
-      const detail = equipo.equipment_detail;
-      const t = getEquipoTipo(detail);
-      const st = getEquipoSubtipo(detail);
-
-      if (selectedTipo && t !== selectedTipo) return false;
-      if (selectedSubtipo && st !== selectedSubtipo) return false;
-      return true;
-    });
-  }, [equipos, selectedTipo, selectedSubtipo]);
+  const viewModeState = useState<'grid' | 'table'>('grid');
+  const viewMode = viewModeState[0];
+  const setViewMode = viewModeState[1];
 
   const eqFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -524,8 +665,11 @@ function SpecialtyDetailContent() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
+                  {/* Selector de Layout Modular */}
+                  <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+
                   {showTipoFilter && distinctTipos.length > 0 && (
-                    <div className="w-[200px]">
+                    <div className="w-[180px]">
                       <SearchableSelect
                         value={selectedTipo}
                         options={tipoOptions}
@@ -535,7 +679,7 @@ function SpecialtyDetailContent() {
                     </div>
                   )}
                   {selectedTipo && distinctSubtipos.length > 0 && (
-                    <div className="w-[200px]">
+                    <div className="w-[180px]">
                       <SearchableSelect
                         value={selectedSubtipo}
                         options={subtipoOptions}
@@ -561,7 +705,7 @@ function SpecialtyDetailContent() {
                       No se encontraron equipos que coincidan con el tipo
                       seleccionado.
                     </div>
-                  ) : (
+                  ) : viewMode === 'grid' ? (
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3 animate-in fade-in duration-200">
                       {filteredEquipos.map(equipo => (
                         <Link
@@ -596,6 +740,13 @@ function SpecialtyDetailContent() {
                         </Link>
                       ))}
                     </div>
+                  ) : (
+                    <EquipmentExcelTable
+                      equipos={filteredEquipos}
+                      propertyId={property.id}
+                      equipmentTypeId={equipmentType.id}
+                      dynamicColumns={dynamicColumns}
+                    />
                   )}
                 </>
               )}
