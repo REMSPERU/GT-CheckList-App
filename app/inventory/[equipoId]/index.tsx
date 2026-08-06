@@ -75,25 +75,27 @@ export default function EquipoHubScreen() {
 
   const handleChecklist = useCallback(() => {
     router.push({
-      pathname: '/checklist',
+      pathname: '/checklist/form',
       params: {
-        buildingId: propertyId,
-        buildingName: propertyName,
-        equipamentoId,
+        buildingId: equipo?.id_property ?? propertyId,
+        buildingName: equipo?.property_name ?? propertyName,
+        equipamentoId: equipo?.id_equipamento ?? equipamentoId,
         equipamentoNombre: displayNombre,
-        equipamentoFrecuencia: equipo?.equipamento_frecuencia ?? 'MENSUAL',
+        frecuencia: equipo?.equipamento_frecuencia ?? 'MENSUAL',
         equipamentoAbreviatura: displayAbreviatura,
         equipoId: equipoId,
         equipoCodigo: equipo?.codigo ?? '',
+        equipoUbicacion: equipo?.ubicacion ?? '',
+        equipoDetalleUbicacion: equipo?.detalle_ubicacion ?? '',
       },
     });
   }, [
     router,
+    equipo,
     propertyId,
     propertyName,
     equipamentoId,
     displayNombre,
-    equipo,
     displayAbreviatura,
     equipoId,
   ]);

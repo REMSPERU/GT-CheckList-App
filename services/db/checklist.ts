@@ -418,13 +418,15 @@ export async function validateLocalChecklistSchedule(
             'Hoy es un dia no laborable segun el calendario de checklist.';
         }
       } else {
-        const workdayVal = await validateLocalChecklistWorkingDay(localDateString);
+        const workdayVal =
+          await validateLocalChecklistWorkingDay(localDateString);
         isWorkingDayAllowed = workdayVal.allowed;
         workingDayReason = workdayVal.reason;
       }
     } else {
       // Fallback to global workday config
-      const workdayVal = await validateLocalChecklistWorkingDay(localDateString);
+      const workdayVal =
+        await validateLocalChecklistWorkingDay(localDateString);
       isWorkingDayAllowed = workdayVal.allowed;
       workingDayReason = workdayVal.reason;
     }
@@ -684,4 +686,46 @@ function getChecklistTargetDateForMonth(
   const targetDayStr = String(targetDay).padStart(2, '0');
 
   return `${targetYearStr}-${targetMonthStr}-${targetDayStr}`;
+}
+
+export async function getLocalChecklistScheduleByScope(
+  propertyId: string,
+  equipamentoId: string,
+) {
+  await ensureInitialized();
+
+  return withLock(async () => {
+    const db = await dbPromise;
+    const row = (await db.getFirstAsync(
+      `SELECT * FROM local_checklist_schedules
+       WHERE property_id = ?
+         AND equipamento_id = ?
+         AND is_active = 1
+       LIMIT 1`,
+      [propertyId, equipamentoId],
+    )) as LocalChecklistScheduleRow | null;
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      property_id: row.property_id,
+      equipamento_id: row.equipamento_id,
+      equipo_id: row.equipo_id,
+      frequency: row.frequency as any,
+      occurrences_per_day: row.occurrences_per_day,
+      execution_range_days: row.execution_range_days,
+      window_start: row.window_start,
+      window_end: row.window_end,
+      timezone: row.timezone,
+      start_date: row.start_date,
+      end_date: row.end_date,
+      is_active: !!row.is_active,
+      work_days: row.work_days ? JSON.parse(row.work_days) : null,
+      created_by: null,
+      updated_by: null,
+      created_at: row.created_at || '',
+      updated_at: row.updated_at || '',
+    };
+  });
 }

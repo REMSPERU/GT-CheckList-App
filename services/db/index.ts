@@ -94,6 +94,7 @@ import {
   getChecklistCountsByEquipo,
   validateLocalChecklistWorkingDay,
   validateLocalChecklistSchedule,
+  getLocalChecklistScheduleByScope,
 } from './checklist';
 import {
   createEquipment,
