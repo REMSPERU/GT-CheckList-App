@@ -17,6 +17,14 @@ import {
   FolderOpen,
   X,
   AlertCircle,
+  Zap,
+  Droplets,
+  Flame,
+  ArrowUpDown,
+  Wind,
+  Plug,
+  Video,
+  Building2,
 } from 'lucide-react';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
@@ -94,50 +102,64 @@ function getSystemImage(systemName: string): string {
   return 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80';
 }
 
-function getSystemEmoji(systemName: string): string {
+function SystemIcon({
+  systemName,
+  className = 'h-4 w-4',
+}: {
+  systemName: string;
+  className?: string;
+}) {
   const normalized = systemName.toLowerCase();
-  if (normalized.includes('electr') || normalized.includes('tabler'))
-    return '⚡';
+  if (normalized.includes('electr') || normalized.includes('tabler')) {
+    return <Zap className={className} />;
+  }
   if (
     normalized.includes('agua') ||
     normalized.includes('bomb') ||
     normalized.includes('hidro') ||
     normalized.includes('sanit')
-  )
-    return '🚰';
+  ) {
+    return <Droplets className={className} />;
+  }
   if (
     normalized.includes('incendio') ||
     normalized.includes('fuego') ||
     normalized.includes('extintor') ||
     normalized.includes('aci')
-  )
-    return '🔥';
+  ) {
+    return <Flame className={className} />;
+  }
   if (
     normalized.includes('ascensor') ||
     normalized.includes('elevad') ||
     normalized.includes('vertical')
-  )
-    return '🛗';
+  ) {
+    return <ArrowUpDown className={className} />;
+  }
   if (
     normalized.includes('aire') ||
     normalized.includes('acondicion') ||
     normalized.includes('hvac') ||
-    normalized.includes('ventilac')
-  )
-    return '❄️';
+    normalized.includes('ventilac') ||
+    normalized.includes('chiller')
+  ) {
+    return <Wind className={className} />;
+  }
   if (
     normalized.includes('grupo') ||
     normalized.includes('generad') ||
     normalized.includes('electrog')
-  )
-    return '🔌';
+  ) {
+    return <Plug className={className} />;
+  }
   if (
     normalized.includes('cctv') ||
     normalized.includes('seguridad') ||
     normalized.includes('camar')
-  )
-    return '📹';
-  return '🏢';
+  ) {
+    return <Video className={className} />;
+  }
+  return <Building2 className={className} />;
 }
 
 interface DBEquipo {
@@ -890,9 +912,7 @@ function PropertyDetailContent() {
                     className="grid gap-4 bg-slate-50/40 border border-slate-200/50 rounded-2xl p-5 shadow-sm">
                     {/* System Group Header */}
                     <h3 className="m-0 flex items-center gap-2 border-b border-slate-200 pb-3 text-xs font-black uppercase tracking-widest text-slate-700">
-                      <span className="text-base">
-                        {getSystemEmoji(system.nombre)}
-                      </span>
+                      <SystemIcon systemName={system.nombre} className="h-4 w-4 text-emerald-800 shrink-0" />
                       <span>{system.nombre}</span>
                       <span className="ml-auto rounded-full bg-white border border-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">
                         {system.totalEquipos.toLocaleString('en-US')} activo

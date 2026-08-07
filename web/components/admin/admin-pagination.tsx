@@ -12,9 +12,9 @@ export function AdminPagination({
   setPage,
 }: AdminPaginationProps) {
   return (
-    <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50/30 px-4 py-2 text-xs font-medium text-slate-500">
+    <div className="flex items-center justify-between sm:justify-end gap-2 border-t border-slate-200 bg-slate-50/30 px-4 py-2 text-xs font-medium text-slate-500">
       <button
-        className="m-0 h-8 rounded-lg border border-slate-200 bg-white px-3 font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+        className="m-0 min-h-[44px] rounded-lg border border-slate-200 bg-white px-4 font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
         type="button"
         disabled={page <= 1 || isLoading}
         onClick={() => setPage(Math.max(1, page - 1))}>
@@ -24,7 +24,7 @@ export function AdminPagination({
         Pág. {page} de {totalPages}
       </span>
       <button
-        className="m-0 h-8 rounded-lg border border-slate-200 bg-white px-3 font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 transition-colors"
+        className="m-0 min-h-[44px] rounded-lg border border-slate-200 bg-white px-4 font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
         type="button"
         disabled={page >= totalPages || isLoading}
         onClick={() => setPage(Math.min(totalPages, page + 1))}>

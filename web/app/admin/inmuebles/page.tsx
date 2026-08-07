@@ -8,41 +8,43 @@ import { Alert } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
 import { useAdminProperties } from '@/hooks/admin/use-admin-properties';
 
+import { Plus } from 'lucide-react';
+
 function AdminPropertiesContent() {
   const properties = useAdminProperties();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   return (
-    <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
-      <section className="flex items-center justify-between gap-3 max-[640px]:flex-col max-[640px]:items-stretch">
-        <div className="flex-1 max-w-lg">
-          <SearchInput
-            placeholder="Buscar nombre, ciudad o direccion"
-            value={properties.search}
-            onChange={properties.setSearch}
-          />
+    <main className="grid gap-5 px-6 lg:px-8 py-6">
+      <section className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-1 items-center gap-3 max-w-2xl max-[640px]:flex-col max-[640px]:items-stretch">
+          <div className="flex-1">
+            <SearchInput
+              placeholder="Buscar nombre, ciudad o dirección..."
+              value={properties.search}
+              onChange={properties.setSearch}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              properties.handleStatusChange(
+                properties.status === 'inactive' ? 'active' : 'inactive',
+              )
+            }
+            className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-[10px] border border-slate-300 bg-white px-3.5 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50">
+            <span className={`h-2 w-2 rounded-full ${properties.status === 'inactive' ? 'bg-slate-400' : 'bg-emerald-500'}`} />
+            {properties.status === 'inactive' ? 'Ver Activos' : 'Ver Inactivos'}
+          </button>
         </div>
         <button
           type="button"
           onClick={() => setIsDrawerOpen(true)}
-          className="rounded-full bg-emerald-800 px-5 py-2.5 text-sm font-black text-white hover:bg-emerald-950 transition shadow-sm max-[640px]:w-full text-center shrink-0">
-          ➕ Nuevo Inmueble
+          className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#072e27] px-5 text-sm font-bold text-white shadow-xs border border-emerald-950/20 transition hover:bg-[#05221d] max-[640px]:w-full">
+          <Plus size={18} strokeWidth={2} />
+          <span>Nuevo Inmueble</span>
         </button>
       </section>
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() =>
-            properties.handleStatusChange(
-              properties.status === 'inactive' ? 'active' : 'inactive',
-            )
-          }
-          className="rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-xs font-black text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-800">
-          {properties.status === 'inactive'
-            ? 'Ver inmuebles activos'
-            : 'Ver dados de baja'}
-        </button>
-      </div>
       <Alert>{properties.errorMessage}</Alert>
       <PropertiesGrid
         items={properties.filteredItems}

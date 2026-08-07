@@ -60,6 +60,9 @@ function RecursiveEditor({ value, onChange, label, readOnly }: RecursiveEditorPr
 
   // Handle primitives
   if (typeof value === 'string' || typeof value === 'number') {
+    const isNumber = typeof value === 'number';
+    const isInvalidNumber = isNumber && Number.isNaN(value);
+
     return (
       <div className="flex flex-col gap-1.5">
         {label && (
@@ -68,15 +71,29 @@ function RecursiveEditor({ value, onChange, label, readOnly }: RecursiveEditorPr
           </label>
         )}
         <input
-          type={typeof value === 'number' ? 'number' : 'text'}
-          value={value}
+          type={isNumber ? 'number' : 'text'}
+          value={Number.isNaN(value) ? '' : value}
           onChange={(e) => {
             const val = e.target.value;
-            onChange(typeof value === 'number' ? (val === '' ? 0 : Number(val)) : val);
+            if (isNumber) {
+              const parsed = parseFloat(val);
+              onChange(val === '' ? 0 : Number.isNaN(parsed) ? 0 : parsed);
+            } else {
+              onChange(val);
+            }
           }}
           disabled={readOnly}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-slate-50"
+          className={`rounded-lg border px-3 py-2 text-sm text-slate-800 transition focus-visible:outline-none focus-visible:ring-2 disabled:bg-slate-50 ${
+            isInvalidNumber
+              ? 'border-red-300 bg-red-50/50 focus-visible:ring-red-500'
+              : 'border-slate-200 focus-visible:border-emerald-700 focus-visible:ring-emerald-700'
+          }`}
         />
+        {isInvalidNumber && (
+          <span className="text-[0.7rem] font-medium text-red-600">
+            Por favor ingresa un número válido
+          </span>
+        )}
       </div>
     );
   }

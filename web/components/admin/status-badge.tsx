@@ -1,10 +1,10 @@
 interface StatusBadgeProps {
-  children: string | null;
+  children?: string | null;
 }
 
 type BadgeVariant = 'success' | 'warning' | 'danger' | 'neutral' | 'info';
 
-function getVariant(status: string | null): BadgeVariant {
+function getVariant(status?: string | null): BadgeVariant {
   if (!status) return 'neutral';
   const normalized = status.toUpperCase();
 
@@ -43,15 +43,15 @@ function getVariant(status: string | null): BadgeVariant {
 
 const VARIANT_CLASSES: Record<BadgeVariant, string> = {
   success:
-    'bg-emerald-50 text-emerald-900 ring-emerald-600/20',
+    'bg-emerald-50 text-emerald-950 border border-emerald-300/80 font-bold',
   warning:
-    'bg-amber-50 text-amber-900 ring-amber-500/20',
+    'bg-amber-50 text-amber-950 border border-amber-300/80 font-bold',
   danger:
-    'bg-rose-50 text-rose-900 ring-rose-500/20',
+    'bg-rose-50 text-rose-950 border border-rose-300/80 font-bold',
   info:
-    'bg-sky-50 text-sky-900 ring-sky-500/20',
+    'bg-sky-50 text-sky-950 border border-sky-300/80 font-bold',
   neutral:
-    'bg-slate-100 text-slate-700 ring-slate-200',
+    'bg-slate-100 text-slate-800 border border-slate-300/80 font-semibold',
 };
 
 export function StatusBadge({ children }: StatusBadgeProps) {
@@ -60,7 +60,7 @@ export function StatusBadge({ children }: StatusBadgeProps) {
 
   return (
     <span
-      className={`inline-flex min-h-7 items-center rounded-full px-2.5 py-1 text-xs font-extrabold ring-1 ring-inset ${classes}`}>
+      className={`inline-flex items-center rounded-md px-2.5 py-1 text-[0.72rem] tracking-tight shadow-2xs ${classes}`}>
       {children ?? '-'}
     </span>
   );

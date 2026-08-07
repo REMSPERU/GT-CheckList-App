@@ -15,10 +15,8 @@ export function AdminTableShell({
 }: AdminTableShellProps) {
   return (
     <section
-      className={`overflow-hidden rounded-[22px] border bg-white/80 shadow-[0_20px_60px_rgba(12,23,32,0.08)] ${
-        accent ? 'border-emerald-800/25' : 'border-slate-900/10'
-      } ${className}`}>
-      <div className="border-b border-slate-200 bg-slate-50/40 px-4 py-2 text-[0.72rem] font-bold uppercase tracking-wider text-slate-500">
+      className={`overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col min-h-0 ${className}`}>
+      <div className="border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-600 shrink-0">
         {summary}
       </div>
       {children}

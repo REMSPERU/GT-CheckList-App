@@ -9,7 +9,9 @@ import { SelectField } from '@/components/ui/select-field';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { SearchInput } from '@/components/ui/search-input';
 import { useAdminEquipments } from '@/hooks/admin/use-admin-equipments';
+import { QrCode } from 'lucide-react';
 import { ExportEquipmentButton } from '@/components/admin/export-equipment-button';
+import { PageHeader } from '@/components/ui/page-header';
 
 export function mapTipoLabel(tipo: string): string {
   const upper = tipo.toUpperCase().trim();
@@ -282,59 +284,51 @@ function AdminEquipmentsContent() {
   ];
 
   return (
-    <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-slate-900/10 bg-white/80 px-4 py-3 shadow-sm">
-        <div>
-          <h1 className="m-0 text-xl font-black tracking-[-0.04em] text-[#0c1720]">
-            Activos
-          </h1>
-          <p className="m-0 mt-1 text-sm font-semibold text-slate-500">
-            Consulta activos y genera etiquetas QR imprimibles.
-          </p>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <ExportEquipmentButton
-            filters={{
-              search: equipments.search,
-              status: equipments.status,
-              propertyIds: equipments.propertyIds,
-              systemId: equipments.systemId,
-              equipmentTypeId: equipments.equipmentTypeId,
-              config: equipments.config,
-              city: equipments.city,
-              frecuencia: equipments.frecuencia,
-              fases: equipments.fases,
-              voltaje: equipments.voltaje,
-              tipoTablero: equipments.tipoTablero,
-              marca: equipments.marca,
-              modelo: equipments.modelo,
-              serie: equipments.serie,
-              capacidad: equipments.capacidad,
-              potencia: equipments.potencia,
-              rpm: equipments.rpm,
-              presion: equipments.presion,
-              refrigerante: equipments.refrigerante,
-              tieneVdf: equipments.tieneVdf,
-              anioOperacion: equipments.anioOperacion,
-              detailFilters: equipments.detailFilters,
-              tipo: equipments.tipo,
-              subtipo: equipments.subtipo,
-            }}
-            activeFilterCount={activeAdvancedCount}
-          />
-          <Link
-            className="rounded-full bg-emerald-800 px-4 py-2.5 text-sm font-black text-white no-underline shadow-sm transition-colors hover:bg-[#0c1720]"
-            href="/admin/equipos/qr">
-            Imprimir QRs
-          </Link>
-        </div>
-      </section>
-      <section
-        className={`grid items-center gap-2.5 max-[1200px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1 ${
-          equipments.tipo && equipments.distinctSubtipos.length > 0
-            ? 'grid-cols-[1.2fr_1.1fr_1fr_1.1fr_1fr_1fr_auto]'
-            : 'grid-cols-[1.2fr_1.2fr_1fr_1.2fr_1fr_auto]'
-        }`}>
+    <main className="grid gap-5 px-6 lg:px-8 py-6">
+      <PageHeader
+        title="Activos"
+        description="Consulta de activos e impresión de código QR."
+        actions={
+          <>
+            <ExportEquipmentButton
+              filters={{
+                search: equipments.search,
+                status: equipments.status,
+                propertyIds: equipments.propertyIds,
+                systemId: equipments.systemId,
+                equipmentTypeId: equipments.equipmentTypeId,
+                config: equipments.config,
+                city: equipments.city,
+                frecuencia: equipments.frecuencia,
+                fases: equipments.fases,
+                voltaje: equipments.voltaje,
+                tipoTablero: equipments.tipoTablero,
+                marca: equipments.marca,
+                modelo: equipments.modelo,
+                serie: equipments.serie,
+                capacidad: equipments.capacidad,
+                potencia: equipments.potencia,
+                rpm: equipments.rpm,
+                presion: equipments.presion,
+                refrigerante: equipments.refrigerante,
+                tieneVdf: equipments.tieneVdf,
+                anioOperacion: equipments.anioOperacion,
+                detailFilters: equipments.detailFilters,
+                tipo: equipments.tipo,
+                subtipo: equipments.subtipo,
+              }}
+              activeFilterCount={activeAdvancedCount}
+            />
+            <Link
+              className="flex h-10 items-center gap-2 rounded-lg bg-[#072e27] px-4 text-xs font-semibold text-white no-underline shadow-xs border border-emerald-950/20 transition-colors hover:bg-[#05221d]"
+              href="/admin/equipos/qr">
+              <QrCode size={15} strokeWidth={1.75} />
+              <span>Imprimir QRs</span>
+            </Link>
+          </>
+        }
+      />
+      <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 items-center gap-3">
         <SearchInput
           placeholder="Buscar código o ubicación"
           value={equipments.search}

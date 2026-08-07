@@ -24,15 +24,13 @@ export default function LoginPage() {
           onChange={login.setEmail}
         />
         <AuthFormField
-          label={
-            <span className="flex items-center justify-between gap-3">
-              Contrasena
-              <Link
-                className="text-xs font-black text-emerald-800 underline-offset-4 hover:underline"
-                href="/forgot-password">
-                Olvide mi contrasena
-              </Link>
-            </span>
+          label="Contraseña"
+          action={
+            <Link
+              className="text-xs font-bold text-emerald-800 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded px-1"
+              href="/forgot-password">
+              Olvidé mi contraseña
+            </Link>
           }
           type="password"
           autoComplete="current-password"
