@@ -23,13 +23,6 @@ export function ConfirmationDialog({
   onConfirm,
   onCancel,
 }: ConfirmationDialogProps) {
-  if (!open) return null;
-
-  const confirmClass =
-    variant === 'danger'
-      ? 'bg-red-700 hover:bg-red-800'
-      : 'bg-slate-950 hover:bg-emerald-900';
-
   // Cerrar con Escape
   useEffect(() => {
     if (!open) return;
@@ -40,13 +33,20 @@ export function ConfirmationDialog({
     return () => document.removeEventListener('keydown', handler);
   }, [open, onCancel]);
 
+  if (!open) return null;
+
+  const confirmClass =
+    variant === 'danger'
+      ? 'bg-rose-600 hover:bg-rose-700 focus-visible:ring-rose-500'
+      : 'bg-[#072e27] hover:bg-[#05221d] focus-visible:ring-emerald-800';
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 px-4 backdrop-blur-[2px]">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirmation-dialog-title"
-        className="w-full max-w-[420px] overflow-hidden rounded-3xl border border-white/70 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.28)]">
+        className="w-full max-w-[420px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
         <div className="border-b border-slate-100 bg-slate-50/80 px-5 py-4">
           <p
             id="confirmation-dialog-title"
@@ -65,7 +65,7 @@ export function ConfirmationDialog({
               type="button"
               disabled={isLoading}
               onClick={onCancel}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-60">
+              className="h-11 rounded-lg border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-60">
               {cancelLabel}
             </button>
             <button
@@ -73,7 +73,7 @@ export function ConfirmationDialog({
               disabled={isLoading}
               aria-busy={isLoading}
               onClick={onConfirm}
-              className={`h-10 rounded-xl px-4 text-sm font-black text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${confirmClass} ${variant === 'danger' ? 'focus-visible:ring-red-500' : 'focus-visible:ring-emerald-500'}`}>
+              className={`h-11 rounded-lg px-4 text-sm font-bold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${confirmClass} ${variant === 'danger' ? 'focus-visible:ring-rose-500' : 'focus-visible:ring-emerald-500'}`}>
               {isLoading ? 'Procesando...' : confirmLabel}
             </button>
           </div>
