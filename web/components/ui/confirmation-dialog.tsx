@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -30,6 +30,16 @@ export function ConfirmationDialog({
       ? 'bg-red-700 hover:bg-red-800'
       : 'bg-slate-950 hover:bg-emerald-900';
 
+  // Cerrar con Escape
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open, onCancel]);
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 px-4 backdrop-blur-[2px]">
       <section
@@ -55,14 +65,15 @@ export function ConfirmationDialog({
               type="button"
               disabled={isLoading}
               onClick={onCancel}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
+              className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-60">
               {cancelLabel}
             </button>
             <button
               type="button"
               disabled={isLoading}
+              aria-busy={isLoading}
               onClick={onConfirm}
-              className={`h-10 rounded-xl px-4 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${confirmClass}`}>
+              className={`h-10 rounded-xl px-4 text-sm font-black text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${confirmClass} ${variant === 'danger' ? 'focus-visible:ring-red-500' : 'focus-visible:ring-emerald-500'}`}>
               {isLoading ? 'Procesando...' : confirmLabel}
             </button>
           </div>

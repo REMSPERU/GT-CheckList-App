@@ -1,4 +1,7 @@
-import type { ReactNode } from 'react';
+'use client';
+
+import { type ReactNode, useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
 
 interface AdminModalProps {
   open: boolean;
@@ -21,11 +24,61 @@ export function AdminModal({
   maxWidthClassName = 'max-w-[720px]',
   onClose,
 }: AdminModalProps) {
+  const dialogRef = useRef<HTMLElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    // Guardar el elemento activo antes de abrir el modal
+    previousFocusRef.current = document.activeElement as HTMLElement;
+
+    // Escuchar Escape para cerrar
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+
+      // Focus trap: mantener foco dentro del modal
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        } else if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    // Enfocar el primer elemento del modal
+    const firstFocusable = dialogRef.current?.querySelector<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    firstFocusable?.focus();
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      // Restaurar foco al elemento previo al cerrar
+      previousFocusRef.current?.focus();
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[#061711]/65 px-4 py-6 backdrop-blur-[5px]">
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-[#061711]/65 px-4 py-6 backdrop-blur-[5px]"
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose();
+      }}>
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="admin-modal-title"
@@ -35,7 +88,7 @@ export function AdminModal({
           <div className="relative flex items-start justify-between gap-4">
             <div className="min-w-0">
               {eyebrow && (
-                <p className="mb-1 text-[0.68rem] font-black uppercase tracking-[0.22em] text-lime-200">
+                <p className="mb-1 text-[0.68rem] font-black uppercase tracking-[0.16em] text-lime-200">
                   {eyebrow}
                 </p>
               )}
@@ -53,9 +106,9 @@ export function AdminModal({
             <button
               type="button"
               onClick={onClose}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/20 bg-white/10 text-xl font-black leading-none text-white transition hover:bg-white/20"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300"
               aria-label="Cerrar modal">
-              x
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
         </div>

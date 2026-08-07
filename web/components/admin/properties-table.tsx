@@ -18,20 +18,30 @@ export function PropertiesTable({ items, isLoading }: PropertiesTableProps) {
             headers={['Codigo', 'Nombre', 'Ciudad', 'Direccion']}
           />
           <tbody>
-            {items.map(item => (
-              <tr key={item.id}>
-                {[
-                  item.code ?? '-',
-                  item.name,
-                  item.city ?? '-',
-                  item.address ?? '-',
-                ].map((value, index) => (
-                  <td className={TD_CLASS} key={`${item.id}-${index}`}>
-                    {value}
-                  </td>
-                ))}
+            {items.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={4}
+                  className="border-b border-slate-100 px-[18px] py-10 text-center text-sm text-slate-400">
+                  No se encontraron inmuebles registrados.
+                </td>
               </tr>
-            ))}
+            ) : (
+              items.map(item => (
+                <tr key={item.id}>
+                  {[
+                    item.code ?? '-',
+                    item.name,
+                    item.city ?? '-',
+                    item.address ?? '-',
+                  ].map((value, index) => (
+                    <td className={TD_CLASS} key={`${item.id}-${index}`}>
+                      {value}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </ResponsiveTable>

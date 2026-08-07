@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-07T13:59:30Z",
+  "title": "Design System: GEMA Web Admin",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Deep Emerald Teal",
+        "canonical": "#082f2a",
+        "tonalRamp": ["#020c0b", "#051d1a", "#082f2a", "#0d4c44", "#13695e", "#1b8779", "#43a89a", "#95d6cc", "#e2f4f1"]
+      },
+      "primary-dark": {
+        "role": "primary",
+        "displayName": "Dark Forest Teal",
+        "canonical": "#07352f",
+        "tonalRamp": ["#020e0d", "#04211d", "#07352f", "#0c544a", "#127366", "#1c9282", "#45b3a3", "#97dcd1", "#e3f5f2"]
+      },
+      "secondary": {
+        "role": "secondary",
+        "displayName": "Slate Navy Dark",
+        "canonical": "#0b1f28",
+        "tonalRamp": ["#03080b", "#07141b", "#0b1f28", "#123342", "#1a495e", "#24617c", "#3e85a5", "#8bc3db", "#e2f1f7"]
+      },
+      "accent": {
+        "role": "accent",
+        "displayName": "Vibrant Lime Accent",
+        "canonical": "#d9f99d",
+        "tonalRamp": ["#2e3d06", "#4a630a", "#678a0e", "#86b312", "#a7de17", "#c4f545", "#d9f99d", "#edfcce", "#f8fee6"]
+      },
+      "neutral-bg": {
+        "role": "neutral",
+        "displayName": "Mint Canvas BG",
+        "canonical": "#edf5f3",
+        "tonalRamp": ["#0f1715", "#1e2f2b", "#324d47", "#4a7068", "#68968c", "#8bbdb3", "#b3dad2", "#edf5f3", "#f8fbfb"]
+      },
+      "neutral-card": {
+        "role": "neutral",
+        "displayName": "Pure White Card",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#111111", "#222222", "#444444", "#666666", "#888888", "#aaaaaa", "#cccccc", "#eeeeee", "#ffffff"]
+      },
+      "neutral-text": {
+        "role": "neutral",
+        "displayName": "Slate Deep Text",
+        "canonical": "#0c1720",
+        "tonalRamp": ["#04080b", "#080f15", "#0c1720", "#162838", "#223d54", "#305574", "#48769c", "#8eb4d4", "#e4eff7"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display Hero Title", "purpose": "Títulos de vista principal y resúmenes ejecutivos." },
+      "headline": { "displayName": "Modal & Card Headline", "purpose": "Encabezados de modales y tarjetas destacadas." },
+      "title": { "displayName": "Section Title", "purpose": "Subtítulos y encabezados de columnas." },
+      "body": { "displayName": "Standard Body Text", "purpose": "Cuerpo de texto en celdas de tablas, formularios y descripciones." },
+      "label": { "displayName": "Eyebrow & Technical Badge", "purpose": "Antetítulos en mayúsculas y etiquetas de estado." }
+    },
+    "shadows": [
+      { "name": "card-ambient", "value": "0 20px 60px rgba(12, 23, 32, 0.08)", "purpose": "Sombra envolvente suave para tarjetas y paneles principales." },
+      { "name": "modal-deep", "value": "0 34px 120px rgba(2, 18, 14, 0.38)", "purpose": "Sombra flotante de alto impacto para ventanas emergentes." }
+    ],
+    "motion": [
+      { "name": "ease-sidebar", "value": "transition-[grid-template-columns] duration-300", "purpose": "Transición suave al colapsar/expandir el menú lateral." },
+      { "name": "hover-fade", "value": "transition-all duration-200", "purpose": "Micro-interacciones en botones e items navegables." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "980px" },
+      { "name": "lg", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Botón primario de acción de sistema.",
+      "html": "<button class=\"ds-btn-primary\">Guardar cambios</button>",
+      "css": ".ds-btn-primary { background: #0f172a; color: #ffffff; padding: 9px 14px; border-radius: 10px; font-weight: 700; font-size: 14px; border: none; cursor: pointer; transition: background 0.2s; } .ds-btn-primary:hover { background: #064e3b; }"
+    },
+    {
+      "name": "Nav Active Item",
+      "kind": "nav",
+      "refersTo": "button-accent",
+      "description": "Elemento activo de navegación lateral.",
+      "html": "<a class=\"ds-nav-item ds-nav-active\"><span class=\"ds-nav-icon\">📊</span><span>Dashboard</span></a>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; font-weight: 600; font-size: 14px; text-decoration: none; color: #d1fae5; transition: all 0.2s; } .ds-nav-active { background: #d9f99d; color: #042f2e; }"
+    },
+    {
+      "name": "Status Badge Success",
+      "kind": "chip",
+      "refersTo": "status-success",
+      "description": "Badge de estado completado o correcto.",
+      "html": "<span class=\"ds-status-badge ds-status-success\">Completado</span>",
+      "css": ".ds-status-badge { display: inline-flex; align-items: center; min-height: 28px; border-radius: 9999px; padding: 4px 10px; font-size: 12px; font-weight: 800; } .ds-status-success { background: #dcfce7; color: #14532d; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Operations Command Deck",
+    "overview": "GEMA Web Admin es una interfaz de supervisión operativa y ejecutiva diseñada para brindar máxima claridad, contraste técnico y solidez estructural sobre una paleta verde esmeralda con acentos en lima.",
+    "keyCharacteristics": [
+      "Esmeralda y Lima de Alto Contraste",
+      "Glassmorphism Traslúcido con backdrop-blur",
+      "Estructura Modular Amplia con esquinas suaves (24px-28px)",
+      "Tipografía Técnica Ajustada Segoe UI"
+    ],
+    "rules": [
+      { "name": "The High-Visibility Accent Rule", "body": "El acento lima (#d9f99d) se reserva para elementos activos y llamadas a la acción (≤10%).", "section": "colors" },
+      { "name": "The Eyebrow-Title Contrast Rule", "body": "Todo título importante va precedido por un antetítulo uppercase en letra pequeña (11px).", "section": "typography" },
+      { "name": "The Glass-Layering Rule", "body": "Elementos flotantes usan fondos semi-transparentes con desenfoque de fondo.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do usar antetítulos (eyebrows) en mayúsculas pequeñas con amplio espaciado antes de encabezados.",
+      "Do mantener cabeceras de tabla pegajosas (sticky) con fondo ligero para listas extensas.",
+      "Do utilizar el fondo de gradiente mint suave para mantener la frescura visual."
+    ],
+    "donts": [
+      "Don't saturar la pantalla con el verde lima de acento.",
+      "Don't remover las esquinas redondeadas suavizadas (rounded-3xl).",
+      "Don't aplicar sombras duras o negras puras."
+    ]
+  }
+}

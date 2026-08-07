@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 
 import { useAdminSession } from '@/hooks/auth/use-admin-session';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 interface AdminShellProps {
   children: ReactNode;
@@ -65,6 +66,8 @@ export function AdminShell({ children }: AdminShellProps) {
   const router = useRouter();
   const { user, isCheckingSession, handleSignOut } = useAdminSession();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('admin-sidebar-collapsed');
@@ -94,12 +97,25 @@ export function AdminShell({ children }: AdminShellProps) {
     });
   };
 
+  const handleSignOutConfirmed = async () => {
+    setIsSigningOut(true);
+    await handleSignOut();
+    setIsSigningOut(false);
+    setShowSignOutConfirm(false);
+  };
+
   if (isCheckingSession) {
     return (
-      <main className="grid min-h-screen place-items-center gap-3 bg-[#eef3f2]">
-        <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
+      <div
+        className="grid min-h-screen place-items-center gap-3 bg-[#eef3f2]"
+        role="status"
+        aria-label="Validando sesión">
+        <div
+          className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800"
+          aria-hidden="true"
+        />
         <p>Validando sesion...</p>
-      </main>
+      </div>
     );
   }
 
@@ -171,19 +187,23 @@ export function AdminShell({ children }: AdminShellProps) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center rounded-xl p-3 font-semibold no-underline hover:bg-lime-200 hover:text-teal-950 transition-all ${
+                  className={`flex items-center rounded-xl p-3 font-semibold no-underline transition-all hover:bg-lime-200 hover:text-teal-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300 ${
                     isCollapsed ? 'justify-center' : 'gap-3'
                   } ${
                     isActive ? 'bg-lime-200 text-teal-950' : 'text-emerald-100'
                   }`}
+                  aria-current={isActive ? 'page' : undefined}
                   title={item.label}>
                   <IconComponent
                     size={18}
                     strokeWidth={1.5}
                     className="shrink-0"
+                    aria-hidden="true"
                   />
-                  {!isCollapsed && (
+                  {!isCollapsed ? (
                     <span className="whitespace-nowrap">{item.label}</span>
+                  ) : (
+                    <span className="sr-only">{item.label}</span>
                   )}
                 </Link>
               );
@@ -194,12 +214,13 @@ export function AdminShell({ children }: AdminShellProps) {
         {/* Collapsible toggle button */}
         <button
           onClick={toggleSidebar}
-          className="mt-auto flex cursor-pointer items-center justify-center rounded-xl p-2.5 text-emerald-100 transition-colors hover:bg-white/10 hover:text-white max-[980px]:hidden"
+          className="mt-auto flex cursor-pointer items-center justify-center rounded-xl p-2.5 text-emerald-100 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300 max-[980px]:hidden"
           title={isCollapsed ? 'Expandir menú' : 'Contraer menú'}
           aria-label={isCollapsed ? 'Expandir menú' : 'Contraer menú'}>
           <PanelLeftDashed
             size={18}
             strokeWidth={1.5}
+            aria-hidden="true"
             className={`transition-transform duration-300 ${
               isCollapsed ? 'rotate-180' : ''
             }`}
@@ -232,19 +253,32 @@ export function AdminShell({ children }: AdminShellProps) {
               )}
             </h1>
           </div>
-          <div className="flex items-center gap-3 text-sm text-slate-500 max-[640px]:flex-col max-[640px]:items-stretch">
-            <span>{user?.email}</span>
-            <button
-              className="m-0 h-9 w-auto rounded-[10px] border-0 bg-slate-900 px-3.5 text-sm font-bold text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
-              type="button"
-              onClick={handleSignOut}>
-              Salir
-            </button>
-          </div>
+            <div className="flex items-center gap-3 text-sm text-slate-500 max-[640px]:flex-col max-[640px]:items-stretch">
+              <span>{user?.email}</span>
+              <button
+                className="m-0 h-9 w-auto rounded-[10px] border-0 bg-slate-900 px-3.5 text-sm font-bold text-white transition hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                onClick={() => setShowSignOutConfirm(true)}>
+                Salir
+              </button>
+            </div>
         </header>
 
         {children}
       </div>
+
+      {/* Confirmación de cierre de sesión */}
+      <ConfirmationDialog
+        open={showSignOutConfirm}
+        title="¿Cerrar sesión?"
+        description="Se cerrará tu sesión activa. Asegúrate de haber guardado cualquier cambio pendiente antes de continuar."
+        confirmLabel="Sí, cerrar sesión"
+        cancelLabel="Cancelar"
+        variant="danger"
+        isLoading={isSigningOut}
+        onConfirm={handleSignOutConfirmed}
+        onCancel={() => setShowSignOutConfirm(false)}
+      />
     </div>
   );
 }
