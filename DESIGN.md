@@ -76,7 +76,7 @@ components:
 
 **Creative North Star: "The Executive Operations Deck"**
 
-GEMA Web Admin es una interfaz corporativa de supervisión operativa para administradores de edificios y gerentes de facilidades. Combina la sobriedad de un software industrial de gestión edilicia con una estructura limpia, clara y estructurada.
+GEMA Web Admin es una interfaz corporativa de supervisión operativa para administradores de edificios y gerentes de facilidades. Combina la sobriedad de un software industrial de gestión de  activos con una estructura limpia, clara y estructurada.
 
 El sistema visual prioriza la densidad de información escaneable, destacando datos clave en tablas técnicas de alta legibilidad, bordes platino estructurados y tarjetas corporativas limpias.
 

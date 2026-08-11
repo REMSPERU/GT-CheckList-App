@@ -181,7 +181,8 @@ export function AdminShell({ children }: AdminShellProps) {
       return 'Inventario · Inmuebles';
     if (pathname.startsWith('/admin/mantenimientos'))
       return 'Operaciones · Mantenimientos';
-    if (pathname.startsWith('/admin/checklist')) return 'Monitoreo · Checklists';
+    if (pathname.startsWith('/admin/checklist'))
+      return 'Monitoreo · Checklists';
     if (pathname.startsWith('/admin/auditorias'))
       return 'Monitoreo · Auditorías';
     if (pathname.startsWith('/admin/usuarios')) return 'Sistema · Usuarios';
@@ -198,7 +199,7 @@ export function AdminShell({ children }: AdminShellProps) {
   };
 
   const userRoleDisplay = user?.role
-    ? roleLabelMap[user.role] ?? user.role
+    ? (roleLabelMap[user.role] ?? user.role)
     : 'Usuario';
 
   return (
@@ -236,10 +237,13 @@ export function AdminShell({ children }: AdminShellProps) {
                   </div>
                   <div className="flex flex-col min-w-0 transition-opacity duration-200">
                     <span className="text-xs font-bold tracking-tight text-slate-100 leading-none">
-                      GEMA <span className="text-slate-400 font-normal text-xs">Admin</span>
+                      GEMA{' '}
+                      <span className="text-slate-400 font-normal text-xs">
+                        Admin
+                      </span>
                     </span>
                     <span className="text-[10px] font-semibold text-slate-400 tracking-wide mt-0.5">
-                      Plataforma Edilicia
+                      Plataforma
                     </span>
                   </div>
                 </Link>
@@ -299,7 +303,8 @@ export function AdminShell({ children }: AdminShellProps) {
                   {visibleItems.map(item => {
                     const isActive =
                       pathname === item.href ||
-                      (item.href !== '/admin' && pathname.startsWith(item.href));
+                      (item.href !== '/admin' &&
+                        pathname.startsWith(item.href));
 
                     const IconComponent = item.icon;
 
@@ -316,7 +321,6 @@ export function AdminShell({ children }: AdminShellProps) {
                             : 'text-slate-300 font-medium hover:bg-slate-800/60 hover:text-slate-100'
                         }`}
                         aria-current={isActive ? 'page' : undefined}>
-
                         <IconComponent
                           size={17}
                           strokeWidth={isActive ? 2 : 1.75}
@@ -328,7 +332,8 @@ export function AdminShell({ children }: AdminShellProps) {
                         />
 
                         {isExpanded && (
-                          <span className={`truncate text-xs ${ isActive ? 'font-semibold text-slate-100' : 'font-medium text-slate-300' }`}>
+                          <span
+                            className={`truncate text-xs ${isActive ? 'font-semibold text-slate-100' : 'font-medium text-slate-300'}`}>
                             {item.label}
                           </span>
                         )}
@@ -430,4 +435,3 @@ export function AdminShell({ children }: AdminShellProps) {
     </div>
   );
 }
-
