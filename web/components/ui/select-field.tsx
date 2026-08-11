@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 interface SelectOption {
   value: string;
   label: string;
@@ -11,7 +13,7 @@ interface SelectFieldProps {
   ariaLabel?: string;
 }
 
-export function SelectField({
+export const SelectField = memo(function SelectField({
   value,
   options,
   onChange,
@@ -22,7 +24,7 @@ export function SelectField({
     <select
       className={
         className ??
-        'min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900'
+        'min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3.5 py-2.5 text-[0.95rem] font-medium text-slate-900 outline-none transition-colors focus:border-[#07352f] focus:ring-1 focus:ring-emerald-800/20'
       }
       value={value}
       onChange={event => onChange(event.target.value)}
@@ -34,4 +36,5 @@ export function SelectField({
       ))}
     </select>
   );
-}
+});
+

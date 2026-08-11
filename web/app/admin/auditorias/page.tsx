@@ -27,7 +27,7 @@ export default function AdminAuditoriasPage() {
   ];
 
   return (
-    <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
+    <main className="grid gap-5 px-6 lg:px-8 py-6">
       <Alert>{audits.errorMessage}</Alert>
 
       <section className="grid gap-4">

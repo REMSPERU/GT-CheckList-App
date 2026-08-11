@@ -53,3 +53,10 @@ app-example
 
 # Supabase CLI local state
 supabase/.temp/
+
+# Agent review and critique artifacts
+.codex/
+.impeccable/
+web/.impeccable/
+.github/hooks/
+

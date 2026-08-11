@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { EquipmentDetailView } from '@/components/admin/equipment-detail-view';
 import { EquipmentExcelTable } from '@/components/admin/equipment-excel-table';
-import { ViewModeToggle, type ViewMode } from '@/components/admin/view-mode-toggle';
+import { ViewModeToggle } from '@/components/admin/view-mode-toggle';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { mapTipoLabel } from '@/app/admin/equipos/page';
 import {
@@ -15,9 +15,14 @@ import {
   Loader2,
   MapPin,
   Info,
-  LayoutGrid,
-  Table,
-  ExternalLink,
+  Zap,
+  Droplets,
+  Flame,
+  ArrowUpDown,
+  Wind,
+  Plug,
+  Video,
+  Building2,
 } from 'lucide-react';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
@@ -91,50 +96,64 @@ function getSystemImage(systemName: string): string {
   return 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80';
 }
 
-function getSystemEmoji(systemName: string): string {
+function SystemIcon({
+  systemName,
+  className = 'h-4 w-4',
+}: {
+  systemName: string;
+  className?: string;
+}) {
   const normalized = systemName.toLowerCase();
-  if (normalized.includes('electr') || normalized.includes('tabler'))
-    return '⚡';
+  if (normalized.includes('electr') || normalized.includes('tabler')) {
+    return <Zap className={className} />;
+  }
   if (
     normalized.includes('agua') ||
     normalized.includes('bomb') ||
     normalized.includes('hidro') ||
     normalized.includes('sanit')
-  )
-    return '🚰';
+  ) {
+    return <Droplets className={className} />;
+  }
   if (
     normalized.includes('incendio') ||
     normalized.includes('fuego') ||
     normalized.includes('extintor') ||
     normalized.includes('aci')
-  )
-    return '🔥';
+  ) {
+    return <Flame className={className} />;
+  }
   if (
     normalized.includes('ascensor') ||
     normalized.includes('elevad') ||
     normalized.includes('vertical')
-  )
-    return '🛗';
+  ) {
+    return <ArrowUpDown className={className} />;
+  }
   if (
     normalized.includes('aire') ||
     normalized.includes('acondicion') ||
     normalized.includes('hvac') ||
-    normalized.includes('ventilac')
-  )
-    return '❄️';
+    normalized.includes('ventilac') ||
+    normalized.includes('chiller')
+  ) {
+    return <Wind className={className} />;
+  }
   if (
     normalized.includes('grupo') ||
     normalized.includes('generad') ||
     normalized.includes('electrog')
-  )
-    return '🔌';
+  ) {
+    return <Plug className={className} />;
+  }
   if (
     normalized.includes('cctv') ||
     normalized.includes('seguridad') ||
     normalized.includes('camar')
-  )
-    return '📹';
-  return '🏢';
+  ) {
+    return <Video className={className} />;
+  }
+  return <Building2 className={className} />;
 }
 
 interface DBEquipo {
@@ -243,30 +262,7 @@ function getDynamicColumns(equipos: DBEquipo[]): DynamicColumn[] {
   }));
 }
 
-function formatCellValue(value: unknown): React.ReactNode {
-  if (value === null || value === undefined || value === '') return '-';
-  if (typeof value === 'boolean') {
-    return value ? (
-      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200">
-        Sí
-      </span>
-    ) : (
-      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
-        No
-      </span>
-    );
-  }
-  if (typeof value === 'string' || typeof value === 'number') {
-    return String(value);
-  }
-  if (typeof value === 'object') {
-    if (Array.isArray(value)) {
-      return `${value.length} ítems`;
-    }
-    return JSON.stringify(value);
-  }
-  return String(value);
-}
+
 
 function SpecialtyDetailContent() {
   const params = useParams<{ propertyId: string; typeId: string }>();
@@ -615,11 +611,11 @@ function SpecialtyDetailContent() {
               <div className="relative grid gap-5 p-6 text-white md:grid-cols-[1fr_auto] md:items-end">
                 <div className="grid gap-3">
                   <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-100/90">
-                    <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 backdrop-blur">
-                      {getSystemEmoji(equipmentType.systemName)}{' '}
-                      {equipmentType.systemName}
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1 backdrop-blur">
+                      <SystemIcon systemName={equipmentType.systemName} className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>{equipmentType.systemName}</span>
                     </span>
-                    <span className="rounded-full border border-lime-300/30 bg-lime-300 px-3 py-1 text-[#061e1b]">
+                    <span className="rounded-full border border-emerald-500/30 bg-emerald-950/70 px-3 py-1 text-emerald-200">
                       {equipmentType.frecuencia || 'Sin frecuencia'}
                     </span>
                   </div>

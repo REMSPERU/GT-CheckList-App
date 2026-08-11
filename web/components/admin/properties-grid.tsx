@@ -1,7 +1,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { Building2, MapPin } from 'lucide-react';
 
 import type { AdminPropertyRow } from '@/types/admin';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 interface PropertiesGridProps {
   items: AdminPropertyRow[];
@@ -15,8 +17,8 @@ export function PropertiesGrid({ items, isLoading }: PropertiesGridProps) {
         {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="animate-pulse rounded-[22px] border border-slate-200 bg-white/70 shadow-[0_8px_32px_rgba(15,23,42,0.06)]">
-            <div className="aspect-[16/10] rounded-t-[22px] bg-slate-200" />
+            className="animate-pulse rounded-2xl border border-slate-200 bg-white/70 shadow-xs">
+            <div className="aspect-[16/10] rounded-t-2xl bg-slate-200" />
             <div className="grid gap-3 p-5">
               <div className="h-5 w-3/4 rounded-lg bg-slate-200" />
               <div className="h-4 w-1/2 rounded-lg bg-slate-100" />
@@ -30,10 +32,10 @@ export function PropertiesGrid({ items, isLoading }: PropertiesGridProps) {
 
   if (items.length === 0) {
     return (
-      <div className="grid min-h-[260px] place-items-center rounded-[22px] border border-dashed border-slate-300 bg-white/60 px-5 py-10 text-center">
+      <div className="grid min-h-[260px] place-items-center rounded-2xl border border-dashed border-slate-300 bg-white/60 px-5 py-10 text-center">
         <div>
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
-            🏢
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100/80 text-slate-400">
+            <Building2 size={28} strokeWidth={1.5} />
           </div>
           <strong className="block text-lg text-slate-900">
             Sin inmuebles
@@ -88,7 +90,7 @@ function PropertyCard({ property }: { property: AdminPropertyRow }) {
   return (
     <Link
       href={`/admin/inmuebles/${property.id}`}
-      className={`group block overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_8px_32px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_48px_rgba(15,23,42,0.12)] no-underline text-inherit ${
+      className={`group block overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md no-underline text-inherit ${
         property.is_active === false
           ? 'opacity-70 grayscale-[25%] hover:grayscale-0 hover:opacity-100'
           : ''
@@ -97,10 +99,10 @@ function PropertyCard({ property }: { property: AdminPropertyRow }) {
       <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
         {/* Status Badge */}
         {property.is_active === false ? (
-          <span className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-full bg-slate-100/90 border border-slate-300 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-slate-700 backdrop-blur-sm shadow-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-            Inactivo
-          </span>
+          <StatusBadge
+            variant="inactive"
+            className="absolute left-3 top-3 z-10 shadow-sm backdrop-blur-sm"
+          />
         ) : null}
 
         {property.image_url ? (
@@ -120,8 +122,8 @@ function PropertyCard({ property }: { property: AdminPropertyRow }) {
             />
           )
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-emerald-50">
-            <span className="text-5xl opacity-40">🏢</span>
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-emerald-50 text-slate-300">
+            <Building2 size={48} strokeWidth={1.2} />
           </div>
         )}
       </div>
@@ -136,8 +138,8 @@ function PropertyCard({ property }: { property: AdminPropertyRow }) {
 
         <div className="grid gap-1.5">
           {property.city ? (
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <span className="text-xs">📍</span>
+            <div className="flex items-center gap-1.5 text-sm text-slate-600">
+              <MapPin size={15} strokeWidth={1.5} className="shrink-0 text-slate-400" />
               <span className="font-semibold">{property.city}</span>
             </div>
           ) : null}

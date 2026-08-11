@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode, useState, useEffect } from 'react';
+
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -10,53 +11,90 @@ import {
   Calendar,
   ClipboardCheck,
   FileSearch,
-  PanelLeftDashed,
   Users,
+  LogOut,
+  Shield,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Menu,
 } from 'lucide-react';
 
 import { useAdminSession } from '@/hooks/auth/use-admin-session';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 interface AdminShellProps {
   children: ReactNode;
 }
 
-const NAV_ITEMS = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: any;
+  superadminOnly?: boolean;
+}
+
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
   {
-    href: '/admin',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    superadminOnly: true,
+    title: 'GENERAL',
+    items: [
+      {
+        href: '/admin',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        superadminOnly: true,
+      },
+    ],
   },
   {
-    href: '/admin/equipos',
-    label: 'Activos',
-    icon: Wrench,
+    title: 'INVENTARIO',
+    items: [
+      {
+        href: '/admin/equipos',
+        label: 'Activos',
+        icon: Wrench,
+      },
+      {
+        href: '/admin/inmuebles',
+        label: 'Inmuebles',
+        icon: Building2,
+      },
+    ],
   },
   {
-    href: '/admin/inmuebles',
-    label: 'Inmuebles',
-    icon: Building2,
+    title: 'OPERACIONES',
+    items: [
+      {
+        href: '/admin/mantenimientos',
+        label: 'Mantenimientos',
+        icon: Calendar,
+      },
+      {
+        href: '/admin/checklist',
+        label: 'Checklists',
+        icon: ClipboardCheck,
+      },
+      {
+        href: '/admin/auditorias',
+        label: 'Auditorías',
+        icon: FileSearch,
+      },
+    ],
   },
   {
-    href: '/admin/mantenimientos',
-    label: 'Mantenimientos',
-    icon: Calendar,
-  },
-  {
-    href: '/admin/checklist',
-    label: 'Checklist',
-    icon: ClipboardCheck,
-  },
-  {
-    href: '/admin/auditorias',
-    label: 'Auditorias',
-    icon: FileSearch,
-  },
-  {
-    href: '/admin/usuarios',
-    label: 'Usuarios',
-    icon: Users,
-    superadminOnly: true,
+    title: 'SISTEMA',
+    items: [
+      {
+        href: '/admin/usuarios',
+        label: 'Usuarios',
+        icon: Users,
+        superadminOnly: true,
+      },
+    ],
   },
 ];
 
@@ -64,21 +102,37 @@ export function AdminShell({ children }: AdminShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isCheckingSession, handleSignOut } = useAdminSession();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Sidebar behavior state:
+  // - isPinned: if true, sidebar stays open at 260px width on desktop.
+  // - isMobileOpen: controls mobile off-canvas overlay.
+  const [isPinned, setIsPinned] = useState(true);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('admin-sidebar-collapsed');
-    if (stored === 'true') {
-      setIsCollapsed(true);
+    const storedPinned = localStorage.getItem('admin-sidebar-pinned');
+    if (storedPinned !== null) {
+      setIsPinned(storedPinned === 'true');
     }
   }, []);
+
+  // Auto-close mobile drawer on route change
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [pathname]);
 
   // Security routing guard for Técnico REMS
   useEffect(() => {
     if (isCheckingSession || !user) return;
 
     if (user.role === 'TECNICO_REMS') {
-      const allowedPaths = ['/admin/equipos', '/admin/inmuebles', '/admin/checklist'];
+      const allowedPaths = [
+        '/admin/equipos',
+        '/admin/inmuebles',
+        '/admin/checklist',
+      ];
       const isAllowed = allowedPaths.some(path => pathname.startsWith(path));
       if (!isAllowed) {
         router.replace('/admin/checklist');
@@ -86,165 +140,298 @@ export function AdminShell({ children }: AdminShellProps) {
     }
   }, [user, isCheckingSession, pathname, router]);
 
-  const toggleSidebar = () => {
-    setIsCollapsed(prev => {
+  const togglePin = () => {
+    setIsPinned(prev => {
       const next = !prev;
-      localStorage.setItem('admin-sidebar-collapsed', String(next));
+      localStorage.setItem('admin-sidebar-pinned', String(next));
       return next;
     });
   };
 
+  const handleSignOutConfirmed = async () => {
+    setIsSigningOut(true);
+    await handleSignOut();
+    setIsSigningOut(false);
+    setShowSignOutConfirm(false);
+  };
+
   if (isCheckingSession) {
     return (
-      <main className="grid min-h-screen place-items-center gap-3 bg-[#eef3f2]">
-        <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
-        <p>Validando sesion...</p>
-      </main>
+      <div
+        className="grid min-h-screen place-items-center gap-3 bg-[#f0f4f3]"
+        role="status"
+        aria-label="Validando sesión">
+        <div className="flex flex-col items-center gap-3.5">
+          <div
+            className="h-10 w-10 animate-spin rounded-full border-[3px] border-emerald-900/20 border-t-emerald-800"
+            aria-hidden="true"
+          />
+          <p className="text-sm font-semibold tracking-wide text-emerald-950">
+            Cargando plataforma GEMA...
+          </p>
+        </div>
+      </div>
     );
   }
 
   const getSectionTitle = () => {
-    if (pathname === '/admin') return 'Dashboard';
+    if (pathname === '/admin') return 'Dashboard Principal';
     if (pathname.startsWith('/admin/equipos')) return 'Inventario · Activos';
     if (pathname.startsWith('/admin/inmuebles'))
       return 'Inventario · Inmuebles';
     if (pathname.startsWith('/admin/mantenimientos'))
       return 'Operaciones · Mantenimientos';
-    if (pathname.startsWith('/admin/checklist')) return 'Monitoreo · Checklist';
+    if (pathname.startsWith('/admin/checklist'))
+      return 'Monitoreo · Checklists';
     if (pathname.startsWith('/admin/auditorias'))
-      return 'Monitoreo · Auditorias';
+      return 'Monitoreo · Auditorías';
     if (pathname.startsWith('/admin/usuarios')) return 'Sistema · Usuarios';
-    return null;
+    return 'Administración';
   };
 
-  const visibleNavItems = NAV_ITEMS.filter(item => {
-    if (item.superadminOnly && user?.role !== 'SUPERADMIN') {
-      return false;
-    }
-    if (user?.role === 'TECNICO_REMS') {
-      return (
-        item.href === '/admin/equipos' ||
-        item.href === '/admin/inmuebles' ||
-        item.href === '/admin/checklist'
-      );
-    }
-    return true;
-  });
+  // On mobile overlay or expanded pinned desktop, show text labels
+  const isExpanded = isPinned;
+
+  const roleLabelMap: Record<string, string> = {
+    SUPERADMIN: 'Superadministrador',
+    ADMIN: 'Administrador',
+    TECNICO_REMS: 'Técnico REMS',
+  };
+
+  const userRoleDisplay = user?.role
+    ? (roleLabelMap[user.role] ?? user.role)
+    : 'Usuario';
 
   return (
-    <div
-      className={`grid min-h-screen transition-[grid-template-columns] duration-300 ${
-        isCollapsed
-          ? 'grid-cols-[70px_minmax(0,1fr)]'
-          : 'grid-cols-[260px_minmax(0,1fr)]'
-      } bg-[radial-gradient(circle_at_15%_0%,rgba(8,145,178,0.16),transparent_28%),linear-gradient(135deg,#edf5f3_0%,#f7f4ea_100%)] max-[980px]:grid-cols-1`}>
+    <div className="relative min-h-screen bg-slate-50/70 text-slate-900 flex flex-col min-[981px]:flex-row">
+      {/* MOBILE BACKDROP OVERLAY */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs min-[981px]:hidden"
+          onClick={() => setIsMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* SIDEBAR NAVIGATION */}
       <aside
-        className={`sticky top-0 flex h-screen flex-col justify-between border-r border-white/10 bg-gradient-to-b from-[#082f2a] to-[#0b1f28] py-6 text-emerald-50 transition-all duration-300 max-[980px]:static max-[980px]:h-auto max-[980px]:w-full max-[980px]:px-[18px] ${
-          isCollapsed ? 'w-[70px] px-3' : 'w-[260px] px-[18px]'
+        className={`z-50 flex flex-col justify-between border-r border-slate-800/80 bg-slate-900 text-slate-100 transition-all duration-200 ease-in-out overflow-x-hidden min-[981px]:sticky min-[981px]:top-0 min-[981px]:h-screen shadow-2xs ${
+          isMobileOpen
+            ? 'fixed inset-y-0 left-0 w-[260px] translate-x-0'
+            : 'max-[980px]:fixed max-[980px]:inset-y-0 max-[980px]:left-0 max-[980px]:w-[260px] max-[980px]:-translate-x-full'
+        } ${
+          isPinned
+            ? 'min-[981px]:w-[260px] min-[981px]:min-w-[260px]'
+            : 'min-[981px]:w-[72px] min-[981px]:min-w-[72px]'
         }`}>
-        <div>
-          <Link
-            href="/admin"
-            className="flex items-center text-white no-underline justify-center">
-            {isCollapsed ? (
-              <strong className="text-xl font-black text-lime-300 select-none">
-                G
-              </strong>
+        {/* BRAND HEADER & TOGGLE BUTTON */}
+        <div className="flex flex-col overflow-x-hidden">
+          <div className="flex items-center justify-between border-b border-slate-800/80 px-3.5 py-3.5 bg-slate-900">
+            {isExpanded ? (
+              <>
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-2.5 no-underline overflow-hidden group">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 font-bold shadow-2xs transition-colors group-hover:border-emerald-700/60">
+                    <ClipboardCheck size={17} className="text-emerald-400" />
+                  </div>
+                  <div className="flex flex-col min-w-0 transition-opacity duration-200">
+                    <span className="text-xs font-bold tracking-tight text-slate-100 leading-none">
+                      GEMA{' '}
+                      <span className="text-slate-400 font-normal text-xs">
+                        Admin
+                      </span>
+                    </span>
+                    <span className="text-[10px] font-semibold text-slate-400 tracking-wide mt-0.5">
+                      Plataforma
+                    </span>
+                  </div>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={togglePin}
+                  className="hidden min-[981px]:flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+                  title="Contraer menú lateral"
+                  aria-label="Contraer menú lateral">
+                  <PanelLeftClose size={16} />
+                </button>
+              </>
             ) : (
-              <strong className="text-lg font-black tracking-tight text-white select-none">
-                GEMA-Panel
-              </strong>
+              <div className="w-full flex justify-center">
+                <button
+                  type="button"
+                  onClick={togglePin}
+                  className="hidden min-[981px]:flex h-9 w-9 items-center justify-center rounded-md bg-slate-800/50 border border-slate-700/50 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white shadow-2xs"
+                  title="Expandir menú lateral"
+                  aria-label="Expandir menú lateral">
+                  <PanelLeftOpen size={16} />
+                </button>
+              </div>
             )}
-          </Link>
+          </div>
 
-          <nav
-            className="mt-[34px] grid gap-2 max-[980px]:grid-cols-7 max-[640px]:grid-cols-1"
-            aria-label="Navegacion administrativa">
-            {visibleNavItems.map(item => {
-              const isActive =
-                pathname === item.href ||
-                (item.href !== '/admin' && pathname.startsWith(item.href));
+          {/* NAVIGATION GROUPS */}
+          <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-4">
+            {NAV_GROUPS.map(group => {
+              const visibleItems = group.items.filter(item => {
+                if (item.superadminOnly && user?.role !== 'SUPERADMIN') {
+                  return false;
+                }
+                if (user?.role === 'TECNICO_REMS') {
+                  return (
+                    item.href === '/admin/equipos' ||
+                    item.href === '/admin/inmuebles' ||
+                    item.href === '/admin/checklist'
+                  );
+                }
+                return true;
+              });
 
-              const IconComponent = item.icon;
+              if (visibleItems.length === 0) return null;
 
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center rounded-xl p-3 font-semibold no-underline hover:bg-lime-200 hover:text-teal-950 transition-all ${
-                    isCollapsed ? 'justify-center' : 'gap-3'
-                  } ${
-                    isActive ? 'bg-lime-200 text-teal-950' : 'text-emerald-100'
-                  }`}
-                  title={item.label}>
-                  <IconComponent
-                    size={18}
-                    strokeWidth={1.5}
-                    className="shrink-0"
-                  />
-                  {!isCollapsed && (
-                    <span className="whitespace-nowrap">{item.label}</span>
+                <div key={group.title} className="space-y-1">
+                  {isExpanded ? (
+                    <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400 select-none mb-1.5">
+                      {group.title}
+                    </p>
+                  ) : (
+                    <div className="h-px bg-slate-800 my-2" />
                   )}
-                </Link>
+
+                  {visibleItems.map(item => {
+                    const isActive =
+                      pathname === item.href ||
+                      (item.href !== '/admin' &&
+                        pathname.startsWith(item.href));
+
+                    const IconComponent = item.icon;
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        title={!isExpanded ? item.label : undefined}
+                        className={`group relative flex items-center rounded-lg px-3 py-2 min-h-[40px] text-xs no-underline transition-all duration-150 ${
+                          isExpanded ? 'gap-3 justify-start' : 'justify-center'
+                        } ${
+                          isActive
+                            ? 'bg-slate-800 text-white font-semibold shadow-2xs'
+                            : 'text-slate-300 font-medium hover:bg-slate-800/60 hover:text-slate-100'
+                        }`}
+                        aria-current={isActive ? 'page' : undefined}>
+                        <IconComponent
+                          size={17}
+                          strokeWidth={isActive ? 2 : 1.75}
+                          className={`shrink-0 transition-colors duration-150 ${
+                            isActive
+                              ? 'text-emerald-400'
+                              : 'text-slate-400 group-hover:text-slate-200'
+                          }`}
+                        />
+
+                        {isExpanded && (
+                          <span
+                            className={`truncate text-xs ${isActive ? 'font-semibold text-slate-100' : 'font-medium text-slate-300'}`}>
+                            {item.label}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
               );
             })}
           </nav>
         </div>
 
-        {/* Collapsible toggle button */}
-        <button
-          onClick={toggleSidebar}
-          className="mt-auto flex cursor-pointer items-center justify-center rounded-xl p-2.5 text-emerald-100 transition-colors hover:bg-white/10 hover:text-white max-[980px]:hidden"
-          title={isCollapsed ? 'Expandir menú' : 'Contraer menú'}
-          aria-label={isCollapsed ? 'Expandir menú' : 'Contraer menú'}>
-          <PanelLeftDashed
-            size={18}
-            strokeWidth={1.5}
-            className={`transition-transform duration-300 ${
-              isCollapsed ? 'rotate-180' : ''
-            }`}
-          />
-          {!isCollapsed && (
-            <span className="ml-2.5 whitespace-nowrap text-[0.68rem] font-bold uppercase tracking-wider">
-              Contraer
-            </span>
+        {/* USER PROFILE & LOGOUT FOOTER */}
+        <div className="border-t border-slate-800/80 p-3 bg-slate-900">
+          {isExpanded ? (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-slate-800/40 border border-slate-800 shadow-2xs">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-800 text-slate-200 text-xs font-semibold uppercase border border-slate-700/60">
+                  {user?.email ? user.email[0].toUpperCase() : 'U'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold text-slate-200 m-0">
+                    {user?.email || 'Usuario'}
+                  </p>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-normal text-slate-400">
+                    <Shield size={10} className="text-slate-400" />
+                    {userRoleDisplay}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowSignOutConfirm(true)}
+                className="flex w-full min-h-[40px] items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 border border-transparent">
+                <LogOut size={15} strokeWidth={1.75} />
+                <span>Cerrar sesión</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSignOutConfirm(true)}
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+                title="Cerrar Sesión"
+                aria-label="Cerrar sesión">
+                <LogOut size={17} strokeWidth={1.75} />
+              </button>
+            </div>
           )}
-        </button>
+        </div>
       </aside>
 
-      <div className="flex min-w-0 flex-col overflow-hidden max-[980px]:h-auto max-[980px]:overflow-visible">
-        <header className="flex min-h-14 items-center justify-between gap-4 border-b border-slate-900/10 bg-white/55 px-8 py-2.5 backdrop-blur-[14px] max-[640px]:flex-col max-[640px]:items-stretch max-[640px]:px-[18px]">
-          <div>
-            <span className="inline-block text-[0.68rem] font-black uppercase tracking-[0.16em] text-emerald-800">
-              Panel web
-            </span>
-            <h1 className="m-0 flex items-center gap-2 text-lg tracking-[-0.03em] text-[#0c1720] max-[480px]:flex-wrap">
-              <span className="font-normal text-slate-600">
-                Administracion operativa
-              </span>
-              {getSectionTitle() && (
-                <>
-                  <span className="font-light text-slate-300">/</span>
-                  <span className="font-semibold text-emerald-800">
-                    {getSectionTitle()}
-                  </span>
-                </>
-              )}
-            </h1>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-slate-500 max-[640px]:flex-col max-[640px]:items-stretch">
-            <span>{user?.email}</span>
+      {/* MAIN CONTENT WRAPPER */}
+      <div className="flex flex-1 flex-col min-w-0">
+        {/* TOP HEADER BAR */}
+        <header className="sticky top-0 z-20 flex min-h-[52px] items-center justify-between gap-4 border-b border-slate-200/80 bg-white/80 backdrop-blur-md px-6 lg:px-8 py-2.5 shadow-2xs">
+          <div className="flex items-center gap-3">
             <button
-              className="m-0 h-9 w-auto rounded-[10px] border-0 bg-slate-900 px-3.5 text-sm font-bold text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-60"
               type="button"
-              onClick={handleSignOut}>
-              Salir
+              onClick={() => setIsMobileOpen(prev => !prev)}
+              className="flex min-[981px]:hidden h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              title="Abrir menú de navegación"
+              aria-label="Abrir menú de navegación">
+              <Menu size={18} />
             </button>
+            <div>
+              <h1 className="m-0 text-sm font-bold tracking-tight text-slate-800 leading-tight">
+                {getSectionTitle()}
+              </h1>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden min-[640px]:flex items-center gap-1.5 rounded-lg bg-slate-100/80 border border-slate-200/80 px-2.5 py-1 text-xs font-medium text-slate-600 shadow-2xs">
+              <Shield size={12} className="text-slate-500" />
+              {userRoleDisplay}
+            </div>
           </div>
         </header>
 
-        {children}
+        {/* MAIN BODY AREA */}
+        <main className="flex-1 p-0">{children}</main>
       </div>
+
+      {/* CONFIRMATION DIALOG FOR LOGOUT */}
+      <ConfirmationDialog
+        open={showSignOutConfirm}
+        title="¿Cerrar sesión?"
+        description="Se cerrará tu sesión activa en la plataforma administrativa. ¿Deseas continuar?"
+        confirmLabel="Sí, cerrar sesión"
+        cancelLabel="Cancelar"
+        variant="danger"
+        isLoading={isSigningOut}
+        onConfirm={handleSignOutConfirmed}
+        onCancel={() => setShowSignOutConfirm(false)}
+      />
     </div>
   );
 }

@@ -188,7 +188,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <main className="grid gap-4 px-8 pb-6 pt-4 max-[640px]:px-[14px]">
+    <main className="grid gap-5 px-6 lg:px-8 py-6">
       <ConfirmationDialog
         open={confirmation !== null}
         title={confirmation?.title ?? ''}
@@ -435,7 +435,7 @@ export default function AdminUsersPage() {
                 setGeneratedPasswordScope(null);
                 setIsCreateUserOpen(true);
               }}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-950 px-4 text-sm font-black text-white shadow-[0_12px_26px_rgba(6,78,59,0.18)] transition hover:-translate-y-0.5 hover:bg-emerald-800">
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#072e27] px-4 text-sm font-bold text-white shadow-xs border border-emerald-950/20 transition hover:bg-[#05221d]">
               <UserPlus size={17} />
               Nuevo usuario
             </button>

@@ -270,11 +270,11 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
   }, [isScheduleEditorOpen]);
 
   return (
-    <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
+    <main className="grid gap-5 px-6 lg:px-8 py-6">
       <Alert>{checklist.errorMessage}</Alert>
       <Alert variant="success">{checklist.successMessage}</Alert>
 
-      <section className="grid grid-cols-4 gap-2 rounded-[22px] border border-slate-900/10 bg-white/75 p-2 shadow-[0_12px_36px_rgba(12,23,32,0.06)] max-[900px]:grid-cols-2 max-[640px]:grid-cols-1">
+      <section className="grid grid-cols-4 gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xs max-[900px]:grid-cols-2 max-[640px]:grid-cols-1">
         <SectionLink
           active={activeTab === 'responses'}
           href={SECTION_ROUTES.responses}
@@ -1485,10 +1485,10 @@ interface SectionLinkProps {
 function SectionLink({ active, children, href, onNavigate }: SectionLinkProps) {
   return (
     <Link
-      className={`min-h-11 rounded-[16px] px-4 py-3 text-center text-sm font-black no-underline transition-colors ${
+      className={`min-h-10 rounded-lg px-4 py-2.5 text-center text-xs font-bold no-underline transition-all duration-150 flex items-center justify-center ${
         active
-          ? 'bg-emerald-800 text-white shadow-[0_10px_24px_rgba(6,95,70,0.22)]'
-          : 'bg-transparent text-slate-500 hover:bg-emerald-50 hover:text-emerald-900'
+          ? 'bg-[#072e27] text-white shadow-xs border border-emerald-950/20'
+          : 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900'
       }`}
       href={href}
       onClick={event => {

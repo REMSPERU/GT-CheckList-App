@@ -1,5 +1,5 @@
 interface AdminPageHeaderProps {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   description: string;
   featured?: boolean;
@@ -17,32 +17,34 @@ export function AdminPageHeader({
     <section
       className={
         featured
-          ? 'flex min-h-[190px] items-end rounded-3xl border border-slate-900/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.88),rgba(217,249,157,0.42)),radial-gradient(circle_at_78%_20%,rgba(8,145,178,0.24),transparent_30%)] p-[26px] shadow-[0_20px_60px_rgba(12,23,32,0.08)]'
+          ? 'rounded-xl border border-slate-800 bg-gradient-to-r from-[#072e27] to-[#0b1a21] p-6 shadow-xs text-white'
           : compact
-            ? 'rounded-[22px] border border-slate-900/10 bg-white/80 px-[22px] py-4 shadow-[0_12px_34px_rgba(12,23,32,0.06)]'
-            : 'rounded-3xl border border-slate-900/10 bg-white/80 p-[26px] shadow-[0_20px_60px_rgba(12,23,32,0.08)]'
+            ? 'rounded-xl border border-slate-200 bg-white px-6 py-5 shadow-xs'
+            : 'rounded-xl border border-slate-200 bg-white p-6 shadow-xs'
       }>
       <div>
-        <span className="mb-1.5 inline-block text-xs font-black uppercase tracking-[0.16em] text-emerald-800">
-          {eyebrow}
-        </span>
+        {eyebrow ? (
+          <span
+            className={`mb-1.5 inline-block text-[11px] font-bold uppercase tracking-wider ${
+              featured ? 'text-emerald-400' : 'text-slate-500'
+            }`}>
+            {eyebrow}
+          </span>
+        ) : null}
         <h2
-          className={
-            compact
-              ? 'm-0 text-[clamp(1.5rem,2vw,2.25rem)] font-bold tracking-[-0.04em] text-[#0c1720]'
-              : 'm-0 text-[clamp(2rem,4vw,4.2rem)] font-bold tracking-[-0.04em] text-[#0c1720]'
-          }>
+          className={`m-0 font-extrabold tracking-tight ${
+            featured ? 'text-white' : 'text-slate-900'
+          } ${compact ? 'text-xl' : 'text-2xl'}`}>
           {title}
         </h2>
         <p
-          className={
-            compact
-              ? 'mb-0 mt-1 max-w-[760px] text-sm text-slate-500'
-              : 'max-w-[680px] text-base text-slate-500'
-          }>
+          className={`mb-0 mt-1.5 max-w-[720px] text-xs font-medium leading-relaxed ${
+            featured ? 'text-slate-300' : 'text-slate-500'
+          }`}>
           {description}
         </p>
       </div>
     </section>
   );
 }
+

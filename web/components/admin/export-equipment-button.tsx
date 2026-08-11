@@ -72,7 +72,7 @@ export function ExportEquipmentButton({
         type="button"
         onClick={() => setIsOpen(prev => !prev)}
         disabled={isExportingExcel}
-        className="flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 shadow-sm transition-all hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-800/20 disabled:opacity-60">
+        className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-800 shadow-xs transition-all hover:bg-emerald-50/50 hover:border-emerald-700/40 hover:text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-800/20 disabled:opacity-60">
         {isExportingExcel ? (
           <>
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-emerald-800" />

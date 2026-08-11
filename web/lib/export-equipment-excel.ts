@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs';
+import type ExcelJS from 'exceljs';
 import type { AdminEquipmentExportRow } from '@/types/admin';
 import { mapTipoLabel } from '@/app/admin/equipos/page';
 
@@ -124,6 +124,9 @@ export async function exportEquipmentsToExcel(
   rows: AdminEquipmentExportRow[],
   filterSummary?: string,
 ) {
+  const ExcelModule = await import('exceljs');
+  const ExcelJS = ExcelModule.default || ExcelModule;
+
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'GEMA App';
   workbook.created = new Date();

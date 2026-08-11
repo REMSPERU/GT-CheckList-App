@@ -37,8 +37,8 @@ function AdminMaintenancesContent() {
   ];
 
   return (
-    <main className="grid gap-3.5 px-8 pb-6 pt-3.5 max-[640px]:px-[14px]">
-      <section className="grid grid-cols-[1.5fr_1.2fr_1.2fr_1.1fr_1.1fr_1.2fr_0.8fr] gap-2.5 max-[1400px]:grid-cols-4 max-[1024px]:grid-cols-3 max-[768px]:grid-cols-2 max-[480px]:grid-cols-1">
+    <main className="grid gap-5 px-6 lg:px-8 py-6">
+      <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 items-center gap-3">
         <SearchInput
           placeholder="Buscar sesión, inmueble, activos..."
           value={maintenances.search}
@@ -62,7 +62,7 @@ function AdminMaintenancesContent() {
         <div className="flex flex-col justify-center min-h-11">
           <input
             type="date"
-            className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2 text-[0.95rem] text-slate-900 focus:border-blue-500 focus:outline-none"
+            className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2 text-[0.95rem] text-slate-900 focus:border-[#07352f] focus:ring-1 focus:ring-emerald-800/20 focus:outline-none"
             value={maintenances.startDate}
             onChange={e => maintenances.setStartDate(e.target.value)}
             aria-label="Fecha inicio"
@@ -73,7 +73,7 @@ function AdminMaintenancesContent() {
         <div className="flex flex-col justify-center min-h-11">
           <input
             type="date"
-            className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2 text-[0.95rem] text-slate-900 focus:border-blue-500 focus:outline-none"
+            className="min-h-11 w-full rounded-[10px] border border-slate-300 bg-white px-3 py-2 text-[0.95rem] text-slate-900 focus:border-[#07352f] focus:ring-1 focus:ring-emerald-800/20 focus:outline-none"
             value={maintenances.endDate}
             onChange={e => maintenances.setEndDate(e.target.value)}
             aria-label="Fecha fin"
@@ -90,7 +90,7 @@ function AdminMaintenancesContent() {
 
         <button
           onClick={maintenances.clearFilters}
-          className="min-h-11 w-full px-3 py-2.5 rounded-[10px] border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[0.9rem] font-bold transition-all flex items-center justify-center gap-1.5"
+          className="min-h-11 w-full px-3 py-2.5 rounded-[10px] border border-emerald-900/10 bg-[#edf5f3] hover:bg-[#e1ece9] text-[#0c1720] text-[0.9rem] font-bold transition-all flex items-center justify-center gap-1.5"
           title="Limpiar todos los filtros"
         >
           <svg
