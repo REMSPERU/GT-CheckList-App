@@ -12,16 +12,10 @@ import { useAdminEquipments } from '@/hooks/admin/use-admin-equipments';
 import { QrCode } from 'lucide-react';
 import { ExportEquipmentButton } from '@/components/admin/export-equipment-button';
 import { PageHeader } from '@/components/ui/page-header';
+import { mapTipoLabel } from '@/lib/equipment-labels';
 
-export function mapTipoLabel(tipo: string): string {
-  const upper = tipo.toUpperCase().trim();
-  if (upper === 'AIRE') return 'Extracción de Aire';
-  if (upper === 'INYECCION') return 'Inyección de Aire';
-  if (upper === 'MONOXIDO') return 'Extracción de Monóxido';
-  if (upper === 'JET FAN') return 'Jet Fan';
-  if (upper === 'PRESURIZADOR') return 'Presurizador de Escaleras';
-  return tipo;
-}
+// Mantiene el contrato usado por exportaciones y vistas históricas.
+export { mapTipoLabel };
 
 const STATUS_OPTIONS = [
   { value: 'TODOS', label: 'Todos los estados' },

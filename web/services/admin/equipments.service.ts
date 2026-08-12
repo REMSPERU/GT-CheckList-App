@@ -642,7 +642,9 @@ export async function listAdminEquipmentsForQr(
     query = query.eq('estatus', filters.status);
   }
 
-  if (filters.propertyId) {
+  if (filters.propertyIds?.length) {
+    query = query.in('id_property', filters.propertyIds);
+  } else if (filters.propertyId) {
     query = query.eq('id_property', filters.propertyId);
   }
 
@@ -777,7 +779,15 @@ export async function listAdminEquipmentsForQr(
   }
 
   if (filters.tipo) {
-    query = query.eq('equipment_detail->>tipo', filters.tipo);
+    query = query.or(
+      `equipment_detail->>tipo.eq.${filters.tipo},equipment_detail->>tipo_bomba.eq.${filters.tipo}`,
+    );
+  }
+
+  if (filters.subtipo) {
+    query = query.or(
+      `equipment_detail->>subtipo.eq.${filters.subtipo},equipment_detail->>sub_tipo.eq.${filters.subtipo},equipment_detail->>tipo_bomba.eq.${filters.subtipo}`,
+    );
   }
 
   if (filters.tieneVdf && filters.tieneVdf !== 'TODOS') {
