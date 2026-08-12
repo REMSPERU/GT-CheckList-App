@@ -17,6 +17,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Menu,
+  Receipt,
+  ClipboardList,
 } from 'lucide-react';
 
 import { useAdminSession } from '@/hooks/auth/use-admin-session';
@@ -82,6 +84,21 @@ const NAV_GROUPS: NavGroup[] = [
         href: '/admin/auditorias',
         label: 'Auditorías',
         icon: FileSearch,
+      },
+    ],
+  },
+  {
+    title: 'ALEXPERTO',
+    items: [
+      {
+        href: '/admin/alexperto/cotizaciones',
+        label: 'Cotizaciones',
+        icon: Receipt,
+      },
+      {
+        href: '/admin/alexperto/solicitudes',
+        label: 'Solicitudes',
+        icon: ClipboardList,
       },
     ],
   },
@@ -185,6 +202,10 @@ export function AdminShell({ children }: AdminShellProps) {
       return 'Monitoreo · Checklists';
     if (pathname.startsWith('/admin/auditorias'))
       return 'Monitoreo · Auditorías';
+    if (pathname.startsWith('/admin/alexperto/cotizaciones'))
+      return 'Alexperto · Cotizaciones';
+    if (pathname.startsWith('/admin/alexperto/solicitudes'))
+      return 'Alexperto · Solicitudes';
     if (pathname.startsWith('/admin/usuarios')) return 'Sistema · Usuarios';
     return 'Administración';
   };
