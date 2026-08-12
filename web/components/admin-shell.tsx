@@ -33,6 +33,7 @@ interface NavItem {
   label: string;
   icon: any;
   superadminOnly?: boolean;
+  allowedRoles?: string[];
 }
 
 interface NavGroup {
@@ -94,11 +95,13 @@ const NAV_GROUPS: NavGroup[] = [
         href: '/admin/alexperto/cotizaciones',
         label: 'Cotizaciones',
         icon: Receipt,
+        allowedRoles: ['AUDITOR', 'SUPERADMIN'],
       },
       {
         href: '/admin/alexperto/solicitudes',
         label: 'Solicitudes',
         icon: ClipboardList,
+        allowedRoles: ['AUDITOR', 'SUPERADMIN'],
       },
     ],
   },
@@ -140,9 +143,9 @@ export function AdminShell({ children }: AdminShellProps) {
     setIsMobileOpen(false);
   }, [pathname]);
 
-  // Security routing guard for Técnico REMS
-  useEffect(() => {
-    if (isCheckingSession || !user) return;
+  // Security routing guard for roles
+  const isUnauthorizedRoute = (() => {
+    if (isCheckingSession || !user) return false;
 
     if (user.role === 'TECNICO_REMS') {
       const allowedPaths = [
@@ -150,12 +153,25 @@ export function AdminShell({ children }: AdminShellProps) {
         '/admin/inmuebles',
         '/admin/checklist',
       ];
-      const isAllowed = allowedPaths.some(path => pathname.startsWith(path));
-      if (!isAllowed) {
-        router.replace('/admin/checklist');
-      }
+      return !allowedPaths.some(path => pathname.startsWith(path));
     }
-  }, [user, isCheckingSession, pathname, router]);
+
+    if (pathname.startsWith('/admin/alexperto')) {
+      return user.role !== 'AUDITOR' && user.role !== 'SUPERADMIN';
+    }
+
+    if (pathname.startsWith('/admin/usuarios')) {
+      return user.role !== 'SUPERADMIN';
+    }
+
+    return false;
+  })();
+
+  useEffect(() => {
+    if (isUnauthorizedRoute) {
+      router.replace('/admin/checklist');
+    }
+  }, [isUnauthorizedRoute, router]);
 
   const togglePin = () => {
     setIsPinned(prev => {
@@ -216,6 +232,9 @@ export function AdminShell({ children }: AdminShellProps) {
   const roleLabelMap: Record<string, string> = {
     SUPERADMIN: 'Superadministrador',
     ADMIN: 'Administrador',
+    AUDITOR: 'Auditor',
+    SUPERVISOR: 'Supervisor',
+    TECNICO: 'Técnico',
     TECNICO_REMS: 'Técnico REMS',
   };
 
@@ -297,6 +316,12 @@ export function AdminShell({ children }: AdminShellProps) {
             {NAV_GROUPS.map(group => {
               const visibleItems = group.items.filter(item => {
                 if (item.superadminOnly && user?.role !== 'SUPERADMIN') {
+                  return false;
+                }
+                if (
+                  item.allowedRoles &&
+                  (!user?.role || !item.allowedRoles.includes(user.role))
+                ) {
                   return false;
                 }
                 if (user?.role === 'TECNICO_REMS') {
@@ -438,7 +463,9 @@ export function AdminShell({ children }: AdminShellProps) {
         </header>
 
         {/* MAIN BODY AREA */}
-        <main className="flex-1 p-0">{children}</main>
+        <main className="flex-1 p-0">
+          {isUnauthorizedRoute ? null : children}
+        </main>
       </div>
 
       {/* CONFIRMATION DIALOG FOR LOGOUT */}
