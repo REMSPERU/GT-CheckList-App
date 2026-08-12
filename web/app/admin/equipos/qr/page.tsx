@@ -34,9 +34,9 @@ export default function AdminEquipmentQrPage() {
       </header>
 
       <QrFilterBar
-        search={qr.search} status={qr.status} propertyId={qr.propertyId} systemId={qr.systemId} equipmentTypeId={qr.equipmentTypeId} tipo={qr.tipo} subtipo={qr.subtipo}
+        search={qr.search} propertyId={qr.propertyId} systemId={qr.systemId} equipmentTypeId={qr.equipmentTypeId} tipo={qr.tipo} subtipo={qr.subtipo}
         properties={qr.properties} systems={qr.systems} equipmentTypes={qr.equipmentTypes} tipos={qr.tipos} subtipos={qr.subtipos}
-        onSearchChange={qr.setSearch} onStatusChange={qr.setStatus} onPropertyChange={qr.setPropertyId}
+        onSearchChange={qr.setSearch} onPropertyChange={qr.setPropertyId}
         onSystemChange={value => qr.changeScope(value, '')} onEquipmentTypeChange={value => qr.changeScope(qr.systemId, value)} onTipoChange={qr.setTipo} onSubtipoChange={qr.setSubtipo}
       />
 
