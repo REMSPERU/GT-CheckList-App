@@ -8,8 +8,7 @@
       "alex_code": "INM-79",
       "alex_name": "CENTRO INDUSTRIAL LOGIKO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "7c0f5a40-367c-4ecc-b7dc-03dce0c0d01a",
@@ -19,8 +18,7 @@
       "alex_code": "INM-66",
       "alex_name": "EDIFICIO NACIONAL",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "cd43c397-ea16-4d18-ac5b-afc3bb6f3ccb",
@@ -30,8 +28,7 @@
       "alex_code": "INM-10",
       "alex_name": "EDIFICIO VICTOR ANDRES BELAUNDE",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "47eb73ea-967d-4f55-a7f4-f9291c0f0b25",
@@ -41,8 +38,7 @@
       "alex_code": "INM-81",
       "alex_name": "PANORAMA CENTRO EMPRESARIAL DOS",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "a68e0058-a2a8-472d-a0d6-40f6439756e6",
@@ -52,8 +48,7 @@
       "alex_code": "INM-82",
       "alex_name": "PANORAMA CENTRO EMPRESARIAL ESTACIONAMIENTO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "759dc2a5-3cd5-4fc5-b4ba-86fad5f41cc3",
@@ -63,8 +58,7 @@
       "alex_code": "INM-80",
       "alex_name": "PANORAMA CENTRO EMPRESARIAL UNO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "b6f7b942-bd12-4037-b91d-7fcda684457c",
@@ -74,8 +68,7 @@
       "alex_code": "INM-2",
       "alex_name": "TORRE TEKTON",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "c4492cb6-5ec0-4002-9bf8-8275434b271e",
@@ -85,8 +78,7 @@
       "alex_code": "INM-3",
       "alex_name": "TORRE SIGLO XXI",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "2598c18c-a5ae-460a-9c57-8a4d1df1ed88",
@@ -96,8 +88,7 @@
       "alex_code": "INM-34",
       "alex_name": "EDIFICIO PERSHING TOWER",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "d498f30d-4fcb-483e-85e1-0788ab828ca6",
@@ -107,8 +98,7 @@
       "alex_code": "INM-50",
       "alex_name": "LIT ONE",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "024ae5ad-72b6-45f3-965a-10189cc4de9e",
@@ -118,8 +108,7 @@
       "alex_code": "INM-53",
       "alex_name": "PRISMA BUSINESS TOWER",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "9d930928-79c4-4c0f-b312-e00b33e27d3f",
@@ -129,8 +118,7 @@
       "alex_code": "INM-67",
       "alex_name": "TORRE AMERICA",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "7564592f-475e-4234-81b4-9bdce1bbad93",
@@ -140,8 +128,7 @@
       "alex_code": "INM-51",
       "alex_name": "TORRE PARQUE MAR",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "08d6c326-7d88-4626-8e6b-9eaa9086d4bf",
@@ -151,8 +138,7 @@
       "alex_code": "INM-24",
       "alex_name": "REDUCTO BUSINESS CENTER",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "dc5f9fda-a9e9-4b76-bc91-88381f2699cd",
@@ -162,8 +148,7 @@
       "alex_code": "INM-65",
       "alex_name": "ICHMA EDIFICIO CORPORATIVO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "f12e9e24-39da-4ddf-98c5-4f36b6ba21bc",
@@ -173,8 +158,7 @@
       "alex_code": "INM-42",
       "alex_name": "CENTRO EMPRESARIAL QUATTRO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "68d4d736-dba7-481d-aae8-1fdc5cae33e7",
@@ -184,8 +168,7 @@
       "alex_code": "INM-55",
       "alex_name": "CENTRO EMPRESARIAL REDUCTO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "21a1dfb6-8b3f-4fa1-b233-5ae41a0e9aa8",
@@ -195,8 +178,7 @@
       "alex_code": "INM-39",
       "alex_name": "CENTRO DE CONVENCIONES Y OFICINAS CAMINO REAL",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "fe822222-3247-41da-8238-d9c95c02c5ea",
@@ -206,8 +188,7 @@
       "alex_code": "INM-59",
       "alex_name": "CENTRO EMPRESARIAL ABRIL",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "05e7c13e-52b2-46c9-a3ce-8962ca35bcc6",
@@ -217,8 +198,7 @@
       "alex_code": "INM-28",
       "alex_name": "CENTRO EMPRESARIAL LA MOLINA",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "2b7ccb30-da9d-4773-ab93-4d7e88c3ab4f",
@@ -228,8 +208,7 @@
       "alex_code": "INM-45",
       "alex_name": "CENTRO EMPRESARIAL POLO HUNT II",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "5193e682-a2ac-45b5-bff0-a1fa6be7b91c",
@@ -239,8 +218,7 @@
       "alex_code": "INM-44",
       "alex_name": "CENTRO EMPRESARIAL TANGÜIS",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "ba7c1a4d-e475-417c-b68b-74219c987efd",
@@ -250,8 +228,7 @@
       "alex_code": "INM-27",
       "alex_name": "CENTRO EMPRESARIAL TORRE PINAR",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "deee4983-bf5d-495d-a746-d1d2668797b5",
@@ -261,8 +238,7 @@
       "alex_code": "INM-61",
       "alex_name": "EDIFICIO CORPORATIVO AENZA",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "0b3f53b8-9d9d-40e2-8dd7-3c71217c05c7",
@@ -272,8 +248,7 @@
       "alex_code": "INM-30",
       "alex_name": "EDIFICIO CHOCAVENTO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "f23322e9-a63e-474c-bb6c-efbeae62f100",
@@ -283,8 +258,7 @@
       "alex_code": "INM-17",
       "alex_name": "EDIFICIO EMPRESARIAL OMEGA",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "db9764e7-84e1-48a3-8d69-749c8788caeb",
@@ -294,8 +268,7 @@
       "alex_code": "INM-38",
       "alex_name": "EDIFICIO EMPRESARIAL ESQUILACHE",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "fa175321-dd87-46dd-b0df-f09e1a973a7d",
@@ -305,8 +278,7 @@
       "alex_code": "INM-49",
       "alex_name": "TORRE NAVARRETE",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "ed07fef6-ad7b-478c-9c0e-fc459553270a",
@@ -316,8 +288,7 @@
       "alex_code": "INM-37",
       "alex_name": "EDIFICIO CORPORATIVO QUBO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "e5aecb83-8853-4b1f-89f0-f7164ad2ed08",
@@ -327,8 +298,7 @@
       "alex_code": "INM-47",
       "alex_name": "TORRE FORUM",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "59975d02-17e0-4885-a1a6-5e45d7f66703",
@@ -338,8 +308,7 @@
       "alex_code": "INM-4",
       "alex_name": "ONYX BUSINESS CENTER",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "d2caae2c-c67b-49d7-8cfe-b4ecb73d36e5",
@@ -349,8 +318,7 @@
       "alex_code": "INM-16",
       "alex_name": "EDIFICIO PARQUE LAS LOMAS",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "b45c2598-1771-4805-8227-9ee29de3970d",
@@ -360,8 +328,7 @@
       "alex_code": "INM-14",
       "alex_name": "EDIFICIO TORRE ORQUIDEAS",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "5e9d25e2-80b4-46ad-8e20-c28b938133aa",
@@ -371,8 +338,7 @@
       "alex_code": "INM-9",
       "alex_name": "EDIFICIO SANTO TORIBIO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "a002ec80-c614-4350-8d41-64efa3d0a5a4",
@@ -382,8 +348,7 @@
       "alex_code": "INM-40",
       "alex_name": "EDIFICIO PARDO Y ALIAGA",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "93b5c0c6-5abb-4d43-b00b-855a9d2e17d2",
@@ -393,8 +358,7 @@
       "alex_code": "INM-29",
       "alex_name": "PATIO ABTAO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "201c22b8-1a61-4eef-8470-291008c40ef8",
@@ -404,8 +368,7 @@
       "alex_code": "INM-54",
       "alex_name": "EDIFICIO ALIAGA 360",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "49e11af8-407b-4346-b122-ee72b59670df",
@@ -415,8 +378,7 @@
       "alex_code": "INM-64",
       "alex_name": "FIBRA PASEO DEL BOSQUE",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "4a933c1f-0f9d-4304-a39f-e233cd13f357",
@@ -426,8 +388,7 @@
       "alex_code": "INM-15",
       "alex_name": "PRIME TOWER",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "5a83e82a-eb83-4ee9-813f-72b221a809b3",
@@ -437,8 +398,7 @@
       "alex_code": "INM-22",
       "alex_name": "PATIO CENTRIC",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "4810e704-8817-4913-97f1-2d6bd4d1de23",
@@ -448,8 +408,7 @@
       "alex_code": "INM-26",
       "alex_name": "CENTRO EJECUTIVO CHACARILLA",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "6b9a771f-1280-4f05-9d1f-91edf33fddd5",
@@ -459,8 +418,7 @@
       "alex_code": "INM-25",
       "alex_name": "CENTRO EMPRESARIAL LEURO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "2bb7a671-d35d-4b4b-950e-8425876b9f10",
@@ -470,8 +428,7 @@
       "alex_code": "INM-7",
       "alex_name": "EDIFICIO BASADRE 233",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "96ce32c0-ce7a-4530-a7fd-d702a4edc46c",
@@ -481,8 +438,7 @@
       "alex_code": "INM-35",
       "alex_name": "EDIFICIO BASADRE 607",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "43461665-acd7-453f-8688-eb5deb58cfaa",
@@ -492,8 +448,7 @@
       "alex_code": "INM-73",
       "alex_name": "EDIFICIO FUNDACION",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "c2025c45-21f2-450d-868b-faba22e89741",
@@ -503,8 +458,7 @@
       "alex_code": "INM-46",
       "alex_name": "EDIFICIO GERENS",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "87db2753-3b71-40c7-b96e-1a80ed34fe23",
@@ -514,8 +468,7 @@
       "alex_code": "INM-71",
       "alex_name": "EDIFICIO LARCO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "679781a7-816b-43c4-be24-abc463cf110f",
@@ -525,8 +478,7 @@
       "alex_code": "INM-19",
       "alex_name": "EDIFICIO 991",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "cc7cabd0-48a5-4836-8894-715ced201e5f",
@@ -536,8 +488,7 @@
       "alex_code": "INM-60",
       "alex_name": "EDIFICIO AENZA",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "633681a6-419d-45d5-8d1b-7e4b9207e5cd",
@@ -547,8 +498,7 @@
       "alex_code": "INM-56",
       "alex_name": "EDIFICIO LA HABANA",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "74679d8c-ad12-4770-975c-775395df4849",
@@ -558,8 +508,7 @@
       "alex_code": "INM-32",
       "alex_name": "LAS TORRES SAN ISIDRO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "6eedcc7d-4ada-4852-9292-3e211b5e845c",
@@ -569,8 +518,7 @@
       "alex_code": "INM-12",
       "alex_name": "SANTANDER CONSUMER BANK",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "27e4edf6-6b3d-47cc-a98d-f288781d9fb0",
@@ -580,8 +528,7 @@
       "alex_code": "INM-31",
       "alex_name": "EDIFICIO LIBERTADORES",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "d90924b6-faf9-4b15-b30d-d86fb842533b",
@@ -591,8 +538,7 @@
       "alex_code": "INM-62",
       "alex_name": "EDIFICIO METROPOLIS ",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "8aacfcd9-8cb0-41f3-8aef-deed6c40b1fa",
@@ -602,8 +548,7 @@
       "alex_code": "INM-63",
       "alex_name": "EDIFICIO VITRA",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "92d87aba-2d5a-4a56-9cf9-257a9faddfee",
@@ -613,8 +558,7 @@
       "alex_code": "INM-18",
       "alex_name": "EDIFICIO T-TOWER",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "87a228a2-b3b5-4dc8-982d-ec316096fa1b",
@@ -624,8 +568,7 @@
       "alex_code": "INM-1",
       "alex_name": "FIBRA - CAMINO REAL",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "ec114322-068e-4875-b2f0-fef55d451f08",
@@ -635,8 +578,7 @@
       "alex_code": "INM-58",
       "alex_name": "EDIFICIO SANTA CRUZ",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "1fac9a25-1b5d-4637-a8f8-5ac7646ed9d3",
@@ -646,8 +588,7 @@
       "alex_code": "INM-11",
       "alex_name": "LINK TOWER",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "5bffac4e-9d5c-4b88-9315-c5d5e44f4ca8",
@@ -657,8 +598,7 @@
       "alex_code": "INM-8",
       "alex_name": "EDIFICIO TORRE 28",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "18dbafe2-25cd-41ad-bd40-e8c22f9eeab9",
@@ -668,8 +608,7 @@
       "alex_code": "INM-72",
       "alex_name": "EDIFICIO TRILLIUM TOWER",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "97656472-dec7-4203-87ed-6cdf6d19a7a6",
@@ -679,8 +618,7 @@
       "alex_code": "INM-21",
       "alex_name": "TORRE WIESE",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "08db06af-3b12-4933-985c-2e5d1a0c08fb",
@@ -690,8 +628,7 @@
       "alex_code": "INM-36",
       "alex_name": "MACROS EDIFICIO EMPRESARIAL",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "786f227a-fe64-416c-b8ea-c000e025c053",
@@ -701,8 +638,7 @@
       "alex_code": "INM-5",
       "alex_name": "PATIO CAMELIAS",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "712eac0f-9493-4495-92c2-c06b85f5c280",
@@ -712,8 +648,7 @@
       "alex_code": "INM-68",
       "alex_name": "TORRE BARLOVENTO",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "2a2e9069-cc1d-4597-97e9-ed82c6d5ebd3",
@@ -723,8 +658,7 @@
       "alex_code": "INM-69",
       "alex_name": "TORRE PANAMÁ",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     },
     {
       "gema_id": "c10391b5-0462-4b68-a6a8-2506e4d28d14",
@@ -734,8 +668,7 @@
       "alex_code": "INM-70",
       "alex_name": "TORRE SANTA LUISA",
       "score": 100,
-      "method": "EXACT_NAME",
-      "status": "CONFIRMED"
+      "method": "EXACT_NAME"
     }
   ],
   "unmatched_gema": [
