@@ -66,7 +66,7 @@ UPDATE public.properties SET alexperto_property_id = 'zbtt33gd34valbikqllw5nwq' 
 UPDATE public.properties SET alexperto_property_id = 'kxasjx2c8oeq4eat1eo6x5p9' WHERE id = '74679d8c-ad12-4770-975c-775395df4849'; -- LAS TORRES SAN ISIDRO <-> LAS TORRES SAN ISIDRO
 UPDATE public.properties SET alexperto_property_id = 'jaa9l7j8nbw5se2tkinly7nl' WHERE id = '6eedcc7d-4ada-4852-9292-3e211b5e845c'; -- SANTANDER CONSUMER BANK <-> SANTANDER CONSUMER BANK
 UPDATE public.properties SET alexperto_property_id = 'lv4urj4tqv19be56sglawod8' WHERE id = '27e4edf6-6b3d-47cc-a98d-f288781d9fb0'; -- EDIFICIO LIBERTADORES <-> EDIFICIO LIBERTADORES
-UPDATE public.properties SET alexperto_property_id = 's1xdkm8dp47d6w6buj0u9mtu' WHERE id = 'd90924b6-faf9-4b15-b30d-d86fb842533b'; -- EDIFICIO METROPOLIS <-> EDIFICIO METROPOLIS 
+UPDATE public.properties SET alexperto_property_id = 's1xdkm8dp47d6w6buj0u9mtu' WHERE id = 'd90924b6-faf9-4b15-b30d-d86fb842533b'; -- EDIFICIO METROPOLIS <-> EDIFICIO METROPOLIS
 UPDATE public.properties SET alexperto_property_id = 'dxy8l5mpk83k5q3nlpi4kd1t' WHERE id = '8aacfcd9-8cb0-41f3-8aef-deed6c40b1fa'; -- EDIFICIO VITRA <-> EDIFICIO VITRA
 UPDATE public.properties SET alexperto_property_id = 'f1cvzqwmpp5a7nmxo72j6pj1' WHERE id = '92d87aba-2d5a-4a56-9cf9-257a9faddfee'; -- EDIFICIO T-TOWER <-> EDIFICIO T-TOWER
 UPDATE public.properties SET alexperto_property_id = 'zg4kesbadk26uh37yl3k3nqx' WHERE id = '87a228a2-b3b5-4dc8-982d-ec316096fa1b'; -- FIBRA - CAMINO REAL <-> FIBRA - CAMINO REAL
