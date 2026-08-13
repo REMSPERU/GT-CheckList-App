@@ -463,7 +463,7 @@ export function AdminShell({ children }: AdminShellProps) {
         </header>
 
         {/* MAIN BODY AREA */}
-        <main className="flex-1 p-0">
+        <main className="min-h-0 flex-1 overflow-hidden p-0">
           {isUnauthorizedRoute ? null : children}
         </main>
       </div>

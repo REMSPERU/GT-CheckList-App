@@ -2,6 +2,7 @@
 
 import { memo } from 'react';
 import Image from 'next/image';
+// eslint-disable-next-line import/no-named-as-default
 import QRCode from 'react-qr-code';
 import { formatUbicacion } from '@/lib/ubicacion';
 import type { AdminEquipmentQrRow } from '@/types/admin';

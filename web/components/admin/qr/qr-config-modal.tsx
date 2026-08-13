@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type { QrConfigHandlers, QrConfigState, QrLogoRadius, QrLogoSize, QrPrintSize } from './qr-types';
 import Image from 'next/image';
+// eslint-disable-next-line import/no-named-as-default
 import QRCode from 'react-qr-code';
 
 const LOGO_SIZE_OPTIONS: { value: QrLogoSize; label: string }[] = [
