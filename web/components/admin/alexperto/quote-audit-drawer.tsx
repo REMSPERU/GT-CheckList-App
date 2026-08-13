@@ -23,6 +23,10 @@ export interface QuoteItem {
   createdAt: string;
   hasBeenReviewed: boolean;
   provider: string | null;
+  creationUserType?: string | null;
+  requester?: string | null;
+  description?: string | null;
+  serviceCode?: string | null;
 }
 
 interface QuoteAuditDrawerProps {
@@ -248,12 +252,36 @@ export function QuoteAuditDrawer({
                       {quote.subSpecialty}
                     </span>
                   </div>
+                  <div className="border-t border-slate-100 pt-2.5">
+                    <span className="text-slate-400 block font-medium">
+                      Origen / Creado por
+                    </span>
+                    <span className="font-bold text-slate-900">
+                      {quote.creationUserType === 'ADMINISTRATOR'
+                        ? 'Administrador'
+                        : quote.creationUserType === 'PROVIDER'
+                          ? 'Proveedor'
+                          : (quote.creationUserType ?? 'Administrador')}
+                    </span>
+                  </div>
+                  <div className="border-t border-slate-100 pt-2.5">
+                    <span className="text-slate-400 block font-medium">
+                      Descripción
+                    </span>
+                    <span
+                      className="font-bold text-slate-900 truncate block"
+                      title={quote.description ?? undefined}>
+                      {quote.description ??
+                        quote.requester ??
+                        'No especificado'}
+                    </span>
+                  </div>
                   <div className="col-span-2 border-t border-slate-100 pt-2.5">
                     <span className="text-slate-400 block font-medium">
                       Proveedor Asignado
                     </span>
                     <span className="font-bold text-slate-900">
-                      {quote.provider ?? 'No informado'}
+                      {quote.provider ?? 'Sin proveedor asignado'}
                     </span>
                   </div>
                   <div className="col-span-2 border-t border-slate-100 pt-2.5">
@@ -266,6 +294,18 @@ export function QuoteAuditDrawer({
                   </div>
                 </div>
               </div>
+
+              {/* Work description / Request detail */}
+              {quote.description && (
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-1.5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 m-0">
+                    Descripción / Detalle del Trabajo
+                  </h3>
+                  <p className="text-xs font-medium text-slate-800 m-0 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    {quote.description}
+                  </p>
+                </div>
+              )}
 
               {/* Amount alert if > 3000 */}
               {quote.amount !== null && Number(quote.amount) >= 3000 && (
