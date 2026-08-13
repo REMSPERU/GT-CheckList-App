@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { SearchInput } from '@/components/ui/search-input';
 import { SearchableMultiSelectField } from '@/components/ui/searchable-multi-select-field';
@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ArrowUp,
   ArrowDown,
+  ArrowUpDown,
 } from 'lucide-react';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
@@ -42,6 +43,7 @@ function CotizacionesContent() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [sortBy, setSortBy] = useState<'createdAt' | 'amount'>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -51,8 +53,12 @@ function CotizacionesContent() {
   const [minAmount, setMinAmount] = useState<string>('3000'); // Default 3000 editable
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
-  const [selectedExternalStatuses, setSelectedExternalStatuses] = useState<string[]>([]);
-  const [selectedGemaStatuses, setSelectedGemaStatuses] = useState<string[]>([]);
+  const [selectedExternalStatuses, setSelectedExternalStatuses] = useState<
+    string[]
+  >([]);
+  const [selectedGemaStatuses, setSelectedGemaStatuses] = useState<string[]>(
+    [],
+  );
 
   const [selectedQuote, setSelectedQuote] = useState<QuoteItem | null>(null);
 
@@ -63,12 +69,13 @@ function CotizacionesContent() {
       setIsLoading(true);
       setLoadError(null);
       const { data } = await getSupabaseClient().auth.getSession();
-      const parsedMinAmount = minAmount !== '' && !isNaN(Number(minAmount)) ? minAmount : '0';
+      const parsedMinAmount =
+        minAmount !== '' && !isNaN(Number(minAmount)) ? minAmount : '0';
       const params = new URLSearchParams({
         page: String(page),
         pageSize: String(pageSize),
         montoMinimo: parsedMinAmount,
-        sort: 'createdAt',
+        sort: sortBy,
         direction: sortDirection,
       });
       if (selectedSpecialties.length > 0) {
@@ -104,7 +111,11 @@ function CotizacionesContent() {
             amount: item.amount,
             createdAt: item.createdAt,
             hasBeenReviewed: item.internalStatus !== 'PENDIENTE_REVISION',
-            provider: null,
+            provider: item.providerName,
+            creationUserType: item.creationUserType,
+            requester: item.serviceCode ? `Sol. ${item.serviceCode}` : null,
+            description: item.service,
+            serviceCode: item.serviceCode,
           })),
         );
       } catch (error) {
@@ -120,7 +131,16 @@ function CotizacionesContent() {
     return () => {
       cancelled = true;
     };
-  }, [page, pageSize, sortDirection, minAmount, selectedSpecialties, selectedExternalStatuses, selectedGemaStatuses]);
+  }, [
+    page,
+    pageSize,
+    sortBy,
+    sortDirection,
+    minAmount,
+    selectedSpecialties,
+    selectedExternalStatuses,
+    selectedGemaStatuses,
+  ]);
 
   // Reset page to 1 when any filter changes
   const handleFilterChange = (setter: (val: any) => void, value: any) => {
@@ -128,8 +148,13 @@ function CotizacionesContent() {
     setPage(1);
   };
 
-  const toggleDateSort = () => {
-    setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'));
+  const handleSort = (column: 'createdAt' | 'amount') => {
+    if (sortBy === column) {
+      setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortBy(column);
+      setSortDirection('desc');
+    }
     setPage(1);
   };
 
@@ -142,7 +167,9 @@ function CotizacionesContent() {
       search &&
       !q.code.toLowerCase().includes(search.toLowerCase()) &&
       !q.propertyName.toLowerCase().includes(search.toLowerCase()) &&
-      !(q.provider ?? '').toLowerCase().includes(search.toLowerCase())
+      !(q.provider ?? '').toLowerCase().includes(search.toLowerCase()) &&
+      !(q.description ?? '').toLowerCase().includes(search.toLowerCase()) &&
+      !(q.creationUserType ?? '').toLowerCase().includes(search.toLowerCase())
     ) {
       return false;
     }
@@ -167,17 +194,27 @@ function CotizacionesContent() {
     return true;
   });
 
-  const specialtyOptions = Array.from(
-    new Map(quotes.map(q => [q.subSpecialty, q.specialty])).entries(),
-  ).map(([value, label]) => ({ value, label }));
+  const specialtyOptions = useMemo(() => {
+    return Array.from(
+      new Map(quotes.map(q => [q.subSpecialty, q.specialty])).entries(),
+    )
+      .sort((a, b) => a[1].localeCompare(b[1], 'es', { sensitivity: 'base' }))
+      .map(([value, label]) => ({ value, label }));
+  }, [quotes]);
 
-  const propertyOptions = Array.from(
-    new Set(quotes.map(q => q.propertyName)),
-  ).map(value => ({ value, label: value }));
+  const propertyOptions = useMemo(() => {
+    return Array.from(new Set(quotes.map(q => q.propertyName).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+      .map(value => ({ value, label: value }));
+  }, [quotes]);
 
-  const externalStatusOptions = Array.from(
-    new Set(quotes.map(q => q.externalStatus)),
-  ).map(value => ({ value, label: value }));
+  const externalStatusOptions = useMemo(() => {
+    return Array.from(
+      new Set(quotes.map(q => q.externalStatus).filter(Boolean)),
+    )
+      .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+      .map(value => ({ value, label: value }));
+  }, [quotes]);
 
   const handleStatusUpdate = (quoteId: string, newStatus: string) => {
     setQuotes(prev =>
@@ -217,11 +254,11 @@ function CotizacionesContent() {
   };
 
   return (
-    <main className="flex h-[calc(100vh-52px)] min-h-0 flex-col gap-2 overflow-hidden px-4 py-2.5 lg:px-6">
-      {/* COMPACT HEADER & FILTERS BAR */}
-      <section className="shrink-0 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-2xs space-y-2">
+    <main className="flex h-[calc(100vh-52px)] min-h-0 flex-col gap-2.5 overflow-hidden px-4 py-2.5 lg:px-6">
+      {/* COMPACT & BALANCED HEADER & FILTERS BAR */}
+      <section className="shrink-0 rounded-xl border border-slate-200/80 bg-white p-3 shadow-2xs space-y-2.5">
         <div className="flex items-center justify-between gap-2 px-0.5">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <h2 className="m-0 text-sm font-bold tracking-tight text-slate-900 leading-none">
               Cotizaciones Alexperto
             </h2>
@@ -232,7 +269,7 @@ function CotizacionesContent() {
         </div>
 
         {/* SEARCH & SEARCHABLE MULTI-SELECT FILTERS GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 items-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2.5 items-center">
           <div className="w-full">
             <SearchInput
               placeholder="Buscar código, inmueble..."
@@ -280,7 +317,9 @@ function CotizacionesContent() {
           <SearchableMultiSelectField
             values={selectedExternalStatuses}
             options={externalStatusOptions}
-            onChange={vals => handleFilterChange(setSelectedExternalStatuses, vals)}
+            onChange={vals =>
+              handleFilterChange(setSelectedExternalStatuses, vals)
+            }
             placeholder="Estado Alexperto"
             ariaLabel="Filtrar por estado Alexperto"
             compact
@@ -305,40 +344,81 @@ function CotizacionesContent() {
           <table className={TABLE_CLASS}>
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
-                <th className={`${TH_CLASS} py-2`}>Código</th>
-                
+                <th className={`${TH_CLASS} py-2.5`}>Código</th>
+
                 {/* SORTABLE DATE COLUMN */}
-                <th className={`${TH_CLASS} py-2`}>
+                <th className={`${TH_CLASS} py-2.5`}>
                   <button
                     type="button"
-                    onClick={toggleDateSort}
+                    onClick={() => handleSort('createdAt')}
                     className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-950 uppercase tracking-wider transition group cursor-pointer"
-                    title={`Ordenar por fecha (${sortDirection === 'desc' ? 'Descendente' : 'Ascendente'})`}>
+                    title={`Ordenar por fecha (${sortBy === 'createdAt' && sortDirection === 'desc' ? 'Más recientes primero' : 'Más antiguas primero'})`}>
                     <span>Fecha</span>
                     <span className="flex items-center text-slate-400 group-hover:text-emerald-700 transition">
-                      {sortDirection === 'desc' ? (
-                        <ArrowDown size={13} className="text-emerald-700" />
+                      {sortBy === 'createdAt' ? (
+                        sortDirection === 'desc' ? (
+                          <ArrowDown size={13} className="text-emerald-700" />
+                        ) : (
+                          <ArrowUp size={13} className="text-emerald-700" />
+                        )
                       ) : (
-                        <ArrowUp size={13} className="text-emerald-700" />
+                        <ArrowUpDown
+                          size={12}
+                          className="opacity-40 group-hover:opacity-100"
+                        />
                       )}
                     </span>
                   </button>
                 </th>
 
-                <th className={`${TH_CLASS} py-2`}>Inmueble</th>
-                <th className={`${TH_CLASS} py-2`}>Especialidad</th>
-                <th className={`${TH_CLASS} py-2`}>Proveedor</th>
-                <th className={`${TH_CLASS} py-2 text-right`}>Monto</th>
-                <th className={`${TH_CLASS} py-2 text-center`}>Estado Alexperto</th>
-                <th className={`${TH_CLASS} py-2 text-center`}>Gestión GEMA</th>
-                <th className={`${TH_CLASS} py-2 text-right`}>Acciones</th>
+                <th className={`${TH_CLASS} py-2.5 text-center`}>Creado por</th>
+                <th className={`${TH_CLASS} py-2.5 min-w-[200px]`}>Inmueble</th>
+                <th className={`${TH_CLASS} py-2.5 min-w-[170px]`}>
+                  Especialidad
+                </th>
+                <th className={`${TH_CLASS} py-2.5 min-w-[160px]`}>
+                  Proveedor
+                </th>
+
+                {/* SORTABLE AMOUNT COLUMN */}
+                <th className={`${TH_CLASS} py-2.5 text-right`}>
+                  <button
+                    type="button"
+                    onClick={() => handleSort('amount')}
+                    className="inline-flex items-center justify-end gap-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-950 uppercase tracking-wider transition group cursor-pointer ml-auto"
+                    title={`Ordenar por monto (${sortBy === 'amount' && sortDirection === 'desc' ? 'Mayor a menor' : 'Menor a mayor'})`}>
+                    <span>Monto</span>
+                    <span className="flex items-center text-slate-400 group-hover:text-emerald-700 transition">
+                      {sortBy === 'amount' ? (
+                        sortDirection === 'desc' ? (
+                          <ArrowDown size={13} className="text-emerald-700" />
+                        ) : (
+                          <ArrowUp size={13} className="text-emerald-700" />
+                        )
+                      ) : (
+                        <ArrowUpDown
+                          size={12}
+                          className="opacity-40 group-hover:opacity-100"
+                        />
+                      )}
+                    </span>
+                  </button>
+                </th>
+
+                <th className={`${TH_CLASS} py-2.5 text-center`}>
+                  Estado Alexperto
+                </th>
+                <th className={`${TH_CLASS} py-2.5 text-center`}>
+                  Gestión GEMA
+                </th>
+                <th className={`${TH_CLASS} py-2.5 text-right`}>Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700 text-xs">
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     className="px-4 py-8 text-center text-slate-500">
                     Consultando Alexperto...
                   </td>
@@ -346,7 +426,7 @@ function CotizacionesContent() {
               ) : loadError ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     className="px-4 py-8 text-center text-red-700">
                     {loadError}
                   </td>
@@ -354,7 +434,7 @@ function CotizacionesContent() {
               ) : filteredQuotes.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     className="px-4 py-8 text-center text-slate-500">
                     No hay cotizaciones para los filtros seleccionados.
                   </td>
@@ -365,48 +445,98 @@ function CotizacionesContent() {
                     key={item.id}
                     onClick={() => setSelectedQuote(item)}
                     className="cursor-pointer transition hover:bg-slate-50/60">
-                    <td className={`${TD_CLASS} py-2 whitespace-nowrap font-bold`}>
+                    <td
+                      className={`${TD_CLASS} py-2.5 whitespace-nowrap font-bold`}>
                       <span className="font-mono text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                         {item.code}
                       </span>
                     </td>
-                    <td className={`${TD_CLASS} py-2 whitespace-nowrap text-slate-700 font-medium`}>
+
+                    {/* FECHA */}
+                    <td
+                      className={`${TD_CLASS} py-2.5 whitespace-nowrap text-slate-700 font-medium`}>
                       {new Date(item.createdAt).toLocaleDateString('es-PE', {
                         day: '2-digit',
                         month: '2-digit',
                         year: 'numeric',
                       })}
                     </td>
-                    <td className={`${TD_CLASS} py-2 max-w-[220px]`}>
-                      <p className="truncate font-semibold text-slate-900 m-0">
+
+                    {/* CREADO POR / ORIGEN */}
+                    <td
+                      className={`${TD_CLASS} py-2.5 whitespace-nowrap text-center`}>
+                      {item.creationUserType === 'ADMINISTRATOR' ? (
+                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-800 border border-slate-200">
+                          Administrador
+                        </span>
+                      ) : item.creationUserType === 'PROVIDER' ? (
+                        <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-200">
+                          Proveedor
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 border border-slate-200">
+                          {item.creationUserType || 'Administrador'}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* INMUEBLE - FULL TEXT WRAP */}
+                    <td
+                      className={`${TD_CLASS} py-2.5 min-w-[200px] max-w-[280px]`}>
+                      <p className="font-semibold text-slate-900 m-0 leading-snug break-words">
                         {item.propertyName}
                       </p>
                     </td>
-                    <td className={`${TD_CLASS} py-2`}>
-                      <p className="font-semibold text-slate-800 m-0">
+
+                    {/* ESPECIALIDAD */}
+                    <td className={`${TD_CLASS} py-2.5 min-w-[170px]`}>
+                      <p className="font-semibold text-slate-800 m-0 leading-snug break-words">
                         {item.specialty}
                       </p>
-                      <span className="text-[10px] text-slate-500 font-normal">
+                      <span className="text-[10px] text-slate-500 font-normal block mt-0.5">
                         {item.subSpecialty}
                       </span>
                     </td>
-                    <td
-                      className={`${TD_CLASS} py-2 max-w-[200px] truncate text-slate-600`}>
-                      {item.provider ?? 'No informado'}
+
+                    {/* PROVEEDOR */}
+                    <td className={`${TD_CLASS} py-2.5 min-w-[160px]`}>
+                      {item.provider ? (
+                        <p className="font-semibold text-slate-900 m-0 leading-snug break-words">
+                          {item.provider}
+                        </p>
+                      ) : (
+                        <span className="text-slate-400 font-normal italic">
+                          Sin asignar
+                        </span>
+                      )}
                     </td>
+
+                    {/* MONTO */}
                     <td
-                      className={`${TD_CLASS} py-2 whitespace-nowrap text-right font-bold text-slate-900`}>
-                      S/ {item.amount ? Number(item.amount).toLocaleString('es-PE', { minimumFractionDigits: 2 }) : '0.00'}
+                      className={`${TD_CLASS} py-2.5 whitespace-nowrap text-right font-bold text-slate-900 font-mono`}>
+                      S/{' '}
+                      {item.amount
+                        ? Number(item.amount).toLocaleString('es-PE', {
+                            minimumFractionDigits: 2,
+                          })
+                        : '0.00'}
                     </td>
-                    <td className={`${TD_CLASS} py-2 text-center`}>
+
+                    {/* ESTADO ALEXPERTO */}
+                    <td className={`${TD_CLASS} py-2.5 text-center`}>
                       <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-200">
                         {item.externalStatus}
                       </span>
                     </td>
-                    <td className={`${TD_CLASS} py-2 text-center`}>
+
+                    {/* GESTIÓN GEMA */}
+                    <td className={`${TD_CLASS} py-2.5 text-center`}>
                       {getGemaBadge(item.gemaStatus)}
                     </td>
-                    <td className={`${TD_CLASS} py-2 whitespace-nowrap text-right`}>
+
+                    {/* ACCIONES */}
+                    <td
+                      className={`${TD_CLASS} py-2.5 whitespace-nowrap text-right`}>
                       <button
                         type="button"
                         onClick={e => {
@@ -429,7 +559,12 @@ function CotizacionesContent() {
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/50 px-4 py-2 text-xs text-slate-500">
           <div className="flex items-center gap-3">
             <span>
-              Mostrando <strong className="text-slate-800 font-bold">{startItem} - {endItem}</strong> de <strong className="text-slate-800 font-bold">{total}</strong> cotizaciones
+              Mostrando{' '}
+              <strong className="text-slate-800 font-bold">
+                {startItem} - {endItem}
+              </strong>{' '}
+              de <strong className="text-slate-800 font-bold">{total}</strong>{' '}
+              cotizaciones
             </span>
 
             {/* Page size selector */}

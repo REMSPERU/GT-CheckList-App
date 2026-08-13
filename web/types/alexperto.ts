@@ -38,6 +38,9 @@ export interface AlexpertoQuoteListItem {
   internalStatus: AlexpertoInternalStatus;
   internalComment: string | null;
   responsible: { id: string; name: string | null } | null;
+  creationUserType: string | null;
+  providerName: string | null;
+  requesterName: string | null;
 }
 
 export interface AlexpertoQuoteListResponse {
