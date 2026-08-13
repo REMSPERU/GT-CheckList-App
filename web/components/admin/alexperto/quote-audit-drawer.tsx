@@ -19,10 +19,10 @@ export interface QuoteItem {
   subSpecialty: string;
   externalStatus: string;
   gemaStatus: string;
-  amount: number;
+  amount: string | null;
   createdAt: string;
   hasBeenReviewed: boolean;
-  provider: string;
+  provider: string | null;
 }
 
 interface QuoteAuditDrawerProps {
@@ -60,7 +60,9 @@ export function QuoteAuditDrawer({
   onStatusUpdate,
 }: QuoteAuditDrawerProps) {
   const drawerRef = useRef<HTMLElement>(null);
-  const [activeTab, setActiveTab] = useState<'details' | 'speeches' | 'history'>('details');
+  const [activeTab, setActiveTab] = useState<
+    'details' | 'speeches' | 'history'
+  >('details');
   const [selectedSpeech, setSelectedSpeech] = useState<string>('');
   const [auditNote, setAuditNote] = useState<string>('');
   const [currentStatus, setCurrentStatus] = useState<string>('');
@@ -146,7 +148,7 @@ export function QuoteAuditDrawer({
               {quote.propertyName}
             </span>
             <span className="inline-flex items-center gap-1 rounded-md bg-emerald-950/80 border border-emerald-800/40 px-2.5 py-1 font-semibold text-emerald-300">
-              S/ {quote.amount.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+              S/ {quote.amount ?? 'Sin monto'}
             </span>
           </div>
         </div>
@@ -196,7 +198,8 @@ export function QuoteAuditDrawer({
                 </span>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {currentStatus === 'CULMINADO' || currentStatus === 'VALIDADO' ? (
+                    {currentStatus === 'CULMINADO' ||
+                    currentStatus === 'VALIDADO' ? (
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-900 border border-emerald-300">
                         <CheckCircle2 size={15} className="text-emerald-700" />
                         Culminado / Validado
@@ -214,7 +217,10 @@ export function QuoteAuditDrawer({
                     )}
                   </div>
                   <span className="text-[11px] text-slate-500 font-medium">
-                    Alexperto: <strong className="text-slate-800">{quote.externalStatus}</strong>
+                    Alexperto:{' '}
+                    <strong className="text-slate-800">
+                      {quote.externalStatus}
+                    </strong>
                   </span>
                 </div>
               </div>
@@ -227,32 +233,55 @@ export function QuoteAuditDrawer({
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
-                    <span className="text-slate-400 block font-medium">Especialidad</span>
-                    <span className="font-bold text-slate-900">{quote.specialty}</span>
+                    <span className="text-slate-400 block font-medium">
+                      Especialidad
+                    </span>
+                    <span className="font-bold text-slate-900">
+                      {quote.specialty}
+                    </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block font-medium">Sub-Especialidad</span>
-                    <span className="font-bold text-slate-900">{quote.subSpecialty}</span>
+                    <span className="text-slate-400 block font-medium">
+                      Sub-Especialidad
+                    </span>
+                    <span className="font-bold text-slate-900">
+                      {quote.subSpecialty}
+                    </span>
                   </div>
                   <div className="col-span-2 border-t border-slate-100 pt-2.5">
-                    <span className="text-slate-400 block font-medium">Proveedor Asignado</span>
-                    <span className="font-bold text-slate-900">{quote.provider}</span>
+                    <span className="text-slate-400 block font-medium">
+                      Proveedor Asignado
+                    </span>
+                    <span className="font-bold text-slate-900">
+                      {quote.provider ?? 'No informado'}
+                    </span>
                   </div>
                   <div className="col-span-2 border-t border-slate-100 pt-2.5">
-                    <span className="text-slate-400 block font-medium">Inmueble GEMA Mapeado</span>
-                    <span className="font-bold text-slate-900">{quote.propertyName}</span>
+                    <span className="text-slate-400 block font-medium">
+                      Inmueble GEMA Mapeado
+                    </span>
+                    <span className="font-bold text-slate-900">
+                      {quote.propertyName}
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Amount alert if > 3000 */}
-              {quote.amount >= 3000 && (
+              {quote.amount !== null && Number(quote.amount) >= 3000 && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-900 flex items-start gap-3">
-                  <Sparkles size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                  <Sparkles
+                    size={18}
+                    className="text-amber-600 shrink-0 mt-0.5"
+                  />
                   <div>
-                    <p className="font-bold m-0 text-amber-950">Monto Relevante de Auditoría (&gt; S/ 3,000)</p>
+                    <p className="font-bold m-0 text-amber-950">
+                      Monto Relevante de Auditoría (&gt; S/ 3,000)
+                    </p>
                     <p className="m-0 mt-1 text-[11px] text-amber-800 leading-relaxed">
-                      Esta cotización por S/ {quote.amount.toLocaleString('es-PE')} requiere verificación del informe técnico y confirmación de tarifario antes de marcar como Culminado.
+                      Esta cotización por S/ {quote.amount} requiere
+                      verificación del informe técnico y confirmación de
+                      tarifario antes de marcar como Culminado.
                     </p>
                   </div>
                 </div>
@@ -272,7 +301,9 @@ export function QuoteAuditDrawer({
                       key={tpl.id}
                       className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 hover:bg-slate-100/60 transition">
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-bold text-xs text-slate-900">{tpl.title}</span>
+                        <span className="font-bold text-xs text-slate-900">
+                          {tpl.title}
+                        </span>
                         <button
                           type="button"
                           onClick={() => {
@@ -337,7 +368,9 @@ export function QuoteAuditDrawer({
                     <p className="font-bold text-slate-900 m-0">
                       Estado cambiado a {currentStatus}
                     </p>
-                    <span className="text-[11px] text-slate-400">Hoy, por Auditor GEMA</span>
+                    <span className="text-[11px] text-slate-400">
+                      Hoy, por Auditor GEMA
+                    </span>
                   </div>
                 )}
               </div>

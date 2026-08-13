@@ -8,6 +8,8 @@ interface SuperAdminSession {
   user: AdminUser;
 }
 
+export type AlexpertoAccessSession = SuperAdminSession;
+
 function getEnvValues() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabasePublishableKey =
@@ -94,6 +96,46 @@ export async function requireSuperAdminSession(
 
   if (profileError || !profile?.is_active) throw new Error('FORBIDDEN');
   if (profile.role !== 'SUPERADMIN') throw new Error('FORBIDDEN');
+
+  return {
+    supabase,
+    user: {
+      id: profile.id,
+      email: profile.email ?? user.email ?? 'Usuario',
+      username: profile.username,
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      role: profile.role as AdminRole,
+      is_active: profile.is_active,
+    },
+  };
+}
+
+export async function requireAlexpertoAccessSession(
+  request: NextRequest,
+): Promise<AlexpertoAccessSession> {
+  const accessToken = getBearerToken(request);
+  if (!accessToken) throw new Error('UNAUTHENTICATED');
+
+  const authSupabase = createServerSupabaseClient(accessToken);
+  const {
+    data: { user },
+    error: userError,
+  } = await authSupabase.auth.getUser(accessToken);
+
+  if (userError || !user) throw new Error('UNAUTHENTICATED');
+
+  const supabase = createServiceRoleSupabaseClient();
+  const { data: profile, error: profileError } = await supabase
+    .from('users')
+    .select('id, email, username, first_name, last_name, role, is_active')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !profile?.is_active) throw new Error('FORBIDDEN');
+  if (profile.role !== 'AUDITOR' && profile.role !== 'SUPERADMIN') {
+    throw new Error('FORBIDDEN');
+  }
 
   return {
     supabase,

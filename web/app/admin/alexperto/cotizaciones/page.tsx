@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 
 import { SearchInput } from '@/components/ui/search-input';
 import { SelectField } from '@/components/ui/select-field';
@@ -19,13 +19,21 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+import { getSupabaseClient } from '@/lib/supabase-browser';
+import type { AlexpertoQuoteListResponse } from '@/types/alexperto';
+
 const SPECIALTY_OPTIONS = [
   { value: '', label: 'Todas las especialidades' },
-  { value: 'climatizacion', label: 'Climatización y HVAC' },
-  { value: 'servicios_generales', label: 'Servicios generales' },
-  { value: 'electricidad', label: 'Tableros e Instalaciones Eléctricas' },
-  { value: 'sanitarias', label: 'Instalaciones Sanitarias' },
-  { value: 'seguridad', label: 'Sistema Contra Incendio y Seguridad' },
+  { value: 'AA', label: 'Aire acondicionado' },
+  { value: 'VM', label: 'Ventilación mecánica' },
+  { value: 'SCI', label: 'Sistemas contra incendio' },
+  { value: 'TE', label: 'Tableros eléctricos' },
+  { value: 'GE', label: 'Grupos electrógenos' },
+  { value: 'BOM', label: 'Bombas de agua y desagüe' },
+  { value: 'SSC', label: 'Seguridad y control' },
+  { value: 'SEE', label: 'Sub estación eléctrica' },
+  { value: 'TTA', label: 'Transferencia y distribución' },
+  { value: 'ASC', label: 'Ascensores' },
 ];
 
 const GEMA_STATUS_OPTIONS = [
@@ -37,76 +45,78 @@ const GEMA_STATUS_OPTIONS = [
   { value: 'VALIDADO', label: 'Validado' },
 ];
 
-const INITIAL_QUOTES: QuoteItem[] = [
-  {
-    id: '69gm0n6uqi68yf9rfmajmz',
-    code: 'CO-7756',
-    propertyName: 'PANORAMA CENTRO EMPRESARIAL DOS',
-    specialty: 'Climatización y HVAC',
-    subSpecialty: 'Sistema de aire acondicionado',
-    externalStatus: 'PENDING',
-    gemaStatus: 'PENDIENTE_REVISION',
-    amount: 4850.0,
-    createdAt: '2026-08-12T17:43:54.913Z',
-    hasBeenReviewed: false,
-    provider: 'Servicios de Climatización Perú S.A.C.',
-  },
-  {
-    id: 'hbfqjuezxrh79wqqmu9lbh',
-    code: 'CO-7755',
-    propertyName: 'PANORAMA CENTRO EMPRESARIAL DOS',
-    specialty: 'Climatización y HVAC',
-    subSpecialty: 'Sistema de aire acondicionado',
-    externalStatus: 'PENDING',
-    gemaStatus: 'OBSERVADO',
-    amount: 12500.0,
-    createdAt: '2026-08-12T17:43:12.831Z',
-    hasBeenReviewed: true,
-    provider: 'Multiservicios HVAC E.I.R.L.',
-  },
-  {
-    id: 'thehgyqtnb4l4wzverjm6i',
-    code: 'CO-7752',
-    propertyName: 'CENTRO EMPRESARIAL BASADRE (ESTAC.)',
-    specialty: 'Servicios generales',
-    subSpecialty: 'Jardinería',
-    externalStatus: 'PENDING',
-    gemaStatus: 'CULMINADO',
-    amount: 3200.0,
-    createdAt: '2026-08-12T17:38:19.585Z',
-    hasBeenReviewed: true,
-    provider: 'Paisajismo Verde Jardines S.A.C.',
-  },
-  {
-    id: 'gf1zugd0csc53fhyvva155',
-    code: 'CO-7747',
-    propertyName: 'PANORAMA CENTRO EMPRESARIAL UNO',
-    specialty: 'Climatización y HVAC',
-    subSpecialty: 'Sistema de aire acondicionado',
-    externalStatus: 'PENDING',
-    gemaStatus: 'PENDIENTE_REVISION',
-    amount: 8900.0,
-    createdAt: '2026-08-12T17:05:11.768Z',
-    hasBeenReviewed: false,
-    provider: 'Ingeniería Térmica & Frío S.A.',
-  },
-];
-
 function CotizacionesContent() {
-  const [quotes, setQuotes] = useState<QuoteItem[]>(INITIAL_QUOTES);
+  const [quotes, setQuotes] = useState<QuoteItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
   const [selectedGemaStatus, setSelectedGemaStatus] = useState('');
   const [minAmountFilter, setMinAmountFilter] = useState(true);
   const [selectedQuote, setSelectedQuote] = useState<QuoteItem | null>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadQuotes() {
+      setIsLoading(true);
+      setLoadError(null);
+      const { data } = await getSupabaseClient().auth.getSession();
+      const params = new URLSearchParams({
+        page: '1',
+        pageSize: '25',
+        montoMinimo: minAmountFilter ? '3000' : '0',
+      });
+      if (selectedSpecialty) params.set('especialidades', selectedSpecialty);
+      if (selectedGemaStatus) params.set('estadoInterno', selectedGemaStatus);
+      try {
+        const response = await fetch(`/api/alexperto/cotizaciones?${params}`, {
+          headers: data.session?.access_token
+            ? { Authorization: `Bearer ${data.session.access_token}` }
+            : undefined,
+        });
+        if (!response.ok)
+          throw new Error('No se pudieron cargar las cotizaciones.');
+        const payload = (await response.json()) as AlexpertoQuoteListResponse;
+        if (cancelled) return;
+        setTotal(payload.total);
+        setQuotes(
+          payload.items.map(item => ({
+            id: item.externalQuoteId,
+            code: item.code,
+            propertyName: item.property.name,
+            specialty: item.specialty.name,
+            subSpecialty: item.specialty.code,
+            externalStatus: item.externalStatus ?? 'SIN ESTADO',
+            gemaStatus: item.internalStatus,
+            amount: item.amount,
+            createdAt: item.createdAt,
+            hasBeenReviewed: item.internalStatus !== 'PENDIENTE_REVISION',
+            provider: null,
+          })),
+        );
+      } catch (error) {
+        if (!cancelled)
+          setLoadError(
+            error instanceof Error ? error.message : 'Error al cargar datos.',
+          );
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+    void loadQuotes();
+    return () => {
+      cancelled = true;
+    };
+  }, [minAmountFilter, selectedSpecialty, selectedGemaStatus]);
+
   const filteredQuotes = quotes.filter(q => {
-    if (minAmountFilter && q.amount < 3000) return false;
+    if (minAmountFilter && Number(q.amount ?? 0) < 3000) return false;
     if (
       search &&
       !q.code.toLowerCase().includes(search.toLowerCase()) &&
       !q.propertyName.toLowerCase().includes(search.toLowerCase()) &&
-      !q.provider.toLowerCase().includes(search.toLowerCase())
+      !(q.provider ?? '').toLowerCase().includes(search.toLowerCase())
     ) {
       return false;
     }
@@ -116,7 +126,7 @@ function CotizacionesContent() {
 
   const handleStatusUpdate = (quoteId: string, newStatus: string) => {
     setQuotes(prev =>
-      prev.map(q => (q.id === quoteId ? { ...q, gemaStatus: newStatus } : q))
+      prev.map(q => (q.id === quoteId ? { ...q, gemaStatus: newStatus } : q)),
     );
   };
 
@@ -147,7 +157,9 @@ function CotizacionesContent() {
     }
   };
 
-  const pendingCount = quotes.filter(q => q.gemaStatus === 'PENDIENTE_REVISION').length;
+  const pendingCount = quotes.filter(
+    q => q.gemaStatus === 'PENDIENTE_REVISION',
+  ).length;
 
   return (
     <main className="grid gap-6 px-6 lg:px-8 py-6">
@@ -162,7 +174,7 @@ function CotizacionesContent() {
               <Receipt size={16} />
             </div>
           </div>
-          <p className="text-2xl font-bold text-slate-900 m-0 mt-1">7,692</p>
+          <p className="text-2xl font-bold text-slate-900 m-0 mt-1">{total}</p>
           <span className="text-[11px] text-slate-500 font-medium">
             Total registradas en el sistema
           </span>
@@ -249,7 +261,12 @@ function CotizacionesContent() {
                 ? 'border-emerald-800 bg-emerald-950 text-white shadow-2xs'
                 : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
             }`}>
-            <Sparkles size={14} className={minAmountFilter ? 'text-emerald-400' : 'text-slate-400'} />
+            <Sparkles
+              size={14}
+              className={
+                minAmountFilter ? 'text-emerald-400' : 'text-slate-400'
+              }
+            />
             <span>Filtro &gt; S/ 3,000</span>
           </button>
         </div>
@@ -272,67 +289,96 @@ function CotizacionesContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {filteredQuotes.map(item => (
-                <tr
-                  key={item.id}
-                  onClick={() => setSelectedQuote(item)}
-                  className="cursor-pointer transition hover:bg-slate-50/60">
-                  <td className="px-4 py-3.5 font-bold text-slate-900 whitespace-nowrap">
-                    <span className="font-mono text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                      {item.code}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 max-w-[220px]">
-                    <p className="truncate font-semibold text-slate-900 m-0">
-                      {item.propertyName}
-                    </p>
-                    <span className="text-[11px] text-slate-400 font-normal">
-                      Registrado el {new Date(item.createdAt).toLocaleDateString('es-PE')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <p className="font-semibold text-slate-800 m-0">
-                      {item.specialty}
-                    </p>
-                    <span className="text-[11px] text-slate-500 font-normal">
-                      {item.subSpecialty}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 max-w-[200px] truncate text-slate-600">
-                    {item.provider}
-                  </td>
-                  <td className="px-4 py-3.5 text-right font-bold text-slate-900 whitespace-nowrap">
-                    S/ {item.amount.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="px-4 py-3.5 text-center">
-                    <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200">
-                      {item.externalStatus}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 text-center">
-                    {getGemaBadge(item.gemaStatus)}
-                  </td>
-                  <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedQuote(item);
-                      }}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-[#072e27] hover:text-emerald-700 transition px-2.5 py-1 rounded-md hover:bg-emerald-50">
-                      <span>Auditar</span>
-                      <ChevronRight size={14} />
-                    </button>
+              {isLoading ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-4 py-12 text-center text-slate-500">
+                    Consultando Alexperto...
                   </td>
                 </tr>
-              ))}
+              ) : loadError ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-4 py-12 text-center text-red-700">
+                    {loadError}
+                  </td>
+                </tr>
+              ) : filteredQuotes.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-4 py-12 text-center text-slate-500">
+                    No hay cotizaciones para los filtros seleccionados.
+                  </td>
+                </tr>
+              ) : (
+                filteredQuotes.map(item => (
+                  <tr
+                    key={item.id}
+                    onClick={() => setSelectedQuote(item)}
+                    className="cursor-pointer transition hover:bg-slate-50/60">
+                    <td className="px-4 py-3.5 font-bold text-slate-900 whitespace-nowrap">
+                      <span className="font-mono text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                        {item.code}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 max-w-[220px]">
+                      <p className="truncate font-semibold text-slate-900 m-0">
+                        {item.propertyName}
+                      </p>
+                      <span className="text-[11px] text-slate-400 font-normal">
+                        Registrado el{' '}
+                        {new Date(item.createdAt).toLocaleDateString('es-PE')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="font-semibold text-slate-800 m-0">
+                        {item.specialty}
+                      </p>
+                      <span className="text-[11px] text-slate-500 font-normal">
+                        {item.subSpecialty}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 max-w-[200px] truncate text-slate-600">
+                      {item.provider ?? 'No informado'}
+                    </td>
+                    <td className="px-4 py-3.5 text-right font-bold text-slate-900 whitespace-nowrap">
+                      S/ {item.amount ?? 'Sin monto'}
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200">
+                        {item.externalStatus}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      {getGemaBadge(item.gemaStatus)}
+                    </td>
+                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          setSelectedQuote(item);
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-[#072e27] hover:text-emerald-700 transition px-2.5 py-1 rounded-md hover:bg-emerald-50">
+                        <span>Auditar</span>
+                        <ChevronRight size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
         {/* FOOTER PAGINATION */}
         <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-4 py-3 text-xs text-slate-500">
-          <span>Mostrando {filteredQuotes.length} cotizaciones</span>
+          <span>
+            Mostrando {filteredQuotes.length} de {total} cotizaciones
+          </span>
           <div className="flex items-center gap-2">
             <span className="font-medium text-slate-600">Página 1 de 1</span>
           </div>
