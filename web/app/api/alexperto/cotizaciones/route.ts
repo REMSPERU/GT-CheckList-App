@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       sort: params.get('sort') ?? undefined,
       direction: params.get('direction') ?? undefined,
     });
-    const properties = await resolveAuthorizedProperties(session.supabase, session.user);
+    const properties = await resolveAuthorizedProperties(session.userSupabase);
     const scopedProperties = filters.propertyId
       ? properties.filter(property => property.id === filters.propertyId)
       : properties;

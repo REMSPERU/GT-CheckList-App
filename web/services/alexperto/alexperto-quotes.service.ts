@@ -234,7 +234,7 @@ export async function listAlexpertoQuotes(
           internalComment: action?.notes ?? null,
           auditorComment: action?.auditor_comment ?? action?.notes ?? null,
           paulComment: action?.paul_comment ?? null,
-          responsible: property?.responsible ?? null,
+          responsible: null,
         } satisfies AlexpertoQuoteListItem;
       }),
   };
