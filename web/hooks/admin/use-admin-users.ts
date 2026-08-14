@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { getSupabaseClient } from '@/lib/supabase-browser';
+import { fetchWithAuth } from '@/services/auth/auth.service';
 import type {
   AdminPropertyRow,
   AdminUserCreateInput,
@@ -12,40 +12,11 @@ import type {
 import type { AdminRole } from '@/types/auth';
 import { normalizeSearchText } from '@/utils/search';
 
-async function getAccessToken() {
-  const supabase = getSupabaseClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session?.access_token) throw new Error('Sesion no disponible');
-
-  const expiresAt = session.expires_at ?? 0;
-  const shouldRefresh = expiresAt * 1000 - Date.now() < 60_000;
-
-  if (shouldRefresh) {
-    const {
-      data: { session: refreshedSession },
-      error,
-    } = await supabase.auth.refreshSession();
-
-    if (error || !refreshedSession?.access_token) {
-      throw new Error('Sesion expirada. Vuelve a iniciar sesion');
-    }
-
-    return refreshedSession.access_token;
-  }
-
-  return session.access_token;
-}
-
 async function fetchAdminApi<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = await getAccessToken();
-  const response = await fetch(path, {
+  const response = await fetchWithAuth(path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
       ...init?.headers,
     },
   });
