@@ -25,8 +25,8 @@ import {
   ArrowUpDown,
 } from 'lucide-react';
 
-import { getSupabaseClient } from '@/lib/supabase-browser';
 import { useAdminSession } from '@/hooks/auth/use-admin-session';
+import { fetchWithAuth } from '@/services/auth/auth.service';
 import type { AlexpertoQuoteListResponse } from '@/types/alexperto';
 
 const GEMA_STATUS_OPTIONS = [
@@ -70,7 +70,6 @@ function CotizacionesContent() {
     async function loadQuotes() {
       setIsLoading(true);
       setLoadError(null);
-      const { data } = await getSupabaseClient().auth.getSession();
       const parsedMinAmount =
         minAmount !== '' && !isNaN(Number(minAmount)) ? minAmount : '0';
       const params = new URLSearchParams({
@@ -91,13 +90,16 @@ function CotizacionesContent() {
       }
 
       try {
-        const response = await fetch(`/api/alexperto/cotizaciones?${params}`, {
-          headers: data.session?.access_token
-            ? { Authorization: `Bearer ${data.session.access_token}` }
-            : undefined,
-        });
-        if (!response.ok)
-          throw new Error('No se pudieron cargar las cotizaciones.');
+        const response = await fetchWithAuth(
+          `/api/alexperto/cotizaciones?${params}`,
+        );
+        if (!response.ok) {
+          throw new Error(
+            response.status === 401
+              ? 'Tu sesion expiro. Vuelve a iniciar sesion.'
+              : 'No se pudieron cargar las cotizaciones.',
+          );
+        }
         const payload = (await response.json()) as AlexpertoQuoteListResponse;
         if (cancelled) return;
         setTotal(payload.total);
@@ -226,7 +228,6 @@ function CotizacionesContent() {
     auditorComment: string | null;
     paulComment: string | null;
   }) => {
-    const { data } = await getSupabaseClient().auth.getSession();
     const body: {
       status: string;
       auditorComment: string | null;
@@ -237,15 +238,12 @@ function CotizacionesContent() {
     };
     if (user?.role === 'SUPERADMIN') body.paulComment = input.paulComment;
 
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `/api/alexperto/cotizaciones/${input.quoteId}/acciones`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(data.session?.access_token
-            ? { Authorization: `Bearer ${data.session.access_token}` }
-            : {}),
         },
         body: JSON.stringify(body),
       },
@@ -400,8 +398,7 @@ function CotizacionesContent() {
       </section>
 
       {/* EXPANDED TABLE SHELL TAKING REMAINING HEIGHT */}
-      <AdminTableShell
-        className="flex-1 min-h-0">
+      <AdminTableShell className="flex-1 min-h-0">
         <div className="min-h-0 flex-1 overflow-auto">
           <table className={TABLE_CLASS}>
             <thead>
@@ -602,13 +599,15 @@ function CotizacionesContent() {
                       {getGemaBadge(item.gemaStatus)}
                     </td>
 
-                    <td className={`${TD_CLASS} py-2.5 min-w-[220px] max-w-[300px]`}>
+                    <td
+                      className={`${TD_CLASS} py-2.5 min-w-[220px] max-w-[300px]`}>
                       <p className="m-0 line-clamp-3 text-slate-700 font-normal">
                         {item.auditorComment ?? 'Sin comentario'}
                       </p>
                     </td>
 
-                    <td className={`${TD_CLASS} py-2.5 min-w-[220px] max-w-[300px]`}>
+                    <td
+                      className={`${TD_CLASS} py-2.5 min-w-[220px] max-w-[300px]`}>
                       <p className="m-0 line-clamp-3 text-slate-700 font-normal">
                         {item.paulComment ?? 'Sin comentario'}
                       </p>

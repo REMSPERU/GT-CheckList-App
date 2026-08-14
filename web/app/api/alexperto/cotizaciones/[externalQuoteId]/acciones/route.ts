@@ -40,10 +40,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ code: 'FORBIDDEN' }, { status: 403 });
     }
 
-    const properties = await resolveAuthorizedProperties(
-      session.supabase,
-      session.user,
-    );
+    const properties = await resolveAuthorizedProperties(session.userSupabase);
     const property = await findAuthorizedQuoteProperty(
       externalQuoteId,
       properties,
