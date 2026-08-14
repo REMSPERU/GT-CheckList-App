@@ -11,6 +11,7 @@ interface SearchableSelectProps {
   onChange: (value: string) => void;
   placeholder: string;
   className?: string;
+  compact?: boolean;
 }
 
 export const SearchableSelect = memo(function SearchableSelect({
@@ -19,6 +20,7 @@ export const SearchableSelect = memo(function SearchableSelect({
   onChange,
   placeholder,
   className,
+  compact = false,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -104,9 +106,11 @@ export const SearchableSelect = memo(function SearchableSelect({
   return (
     <div
       ref={containerRef}
-      className={`relative min-h-11 w-full ${className ?? ''}`}>
+      className={`relative w-full ${compact ? 'min-h-9' : 'min-h-11'} ${className ?? ''}`}>
       <div
-        className="flex min-h-11 w-full items-center justify-between rounded-[10px] border border-slate-300 bg-white px-3 py-2 text-[0.95rem] text-slate-900 cursor-pointer focus-within:border-emerald-800 focus-within:ring-2 focus-within:ring-emerald-800/20"
+        className={`flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white text-slate-900 cursor-pointer focus-within:border-emerald-800 focus-within:ring-1 focus-within:ring-emerald-800/20 ${
+          compact ? 'h-9 px-2.5 text-xs' : 'min-h-11 px-3 py-2 text-[0.95rem]'
+        }`}
         onClick={() => setIsOpen(true)}>
         <input
           type="text"
@@ -119,7 +123,7 @@ export const SearchableSelect = memo(function SearchableSelect({
               ? `${listboxId}-option-${activeIndex}`
               : undefined
           }
-          className="w-full bg-transparent border-0 p-0 text-[0.95rem] text-slate-900 placeholder-slate-400 outline-none focus:ring-0"
+          className={`w-full bg-transparent border-0 p-0 text-slate-900 placeholder-slate-400 outline-none focus:ring-0 ${compact ? 'text-xs' : 'text-[0.95rem]'}`}
           placeholder={selectedOption ? selectedOption.label : placeholder}
           value={
             isOpen
@@ -136,7 +140,7 @@ export const SearchableSelect = memo(function SearchableSelect({
           onKeyDown={handleKeyDown}
         />
         <svg
-          className={`h-5 w-5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 20 20"
           fill="currentColor"

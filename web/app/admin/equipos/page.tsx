@@ -11,7 +11,6 @@ import { SearchInput } from '@/components/ui/search-input';
 import { useAdminEquipments } from '@/hooks/admin/use-admin-equipments';
 import { QrCode } from 'lucide-react';
 import { ExportEquipmentButton } from '@/components/admin/export-equipment-button';
-import { PageHeader } from '@/components/ui/page-header';
 import { mapTipoLabel } from '@/lib/equipment-labels';
 
 // Mantiene el contrato usado por exportaciones y vistas históricas.
@@ -278,12 +277,18 @@ function AdminEquipmentsContent() {
   ];
 
   return (
-    <main className="grid gap-5 px-6 lg:px-8 py-6">
-      <PageHeader
-        title="Activos"
-        description="Consulta de activos e impresión de código QR."
-        actions={
-          <>
+    <main className="flex h-[calc(100vh-52px)] min-h-0 flex-col gap-2.5 overflow-hidden px-4 py-2.5 lg:px-6">
+      <section className="shrink-0 space-y-2.5 rounded-xl border border-slate-200/80 bg-white p-3 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <h1 className="m-0 text-sm font-bold leading-none tracking-tight text-slate-900">
+              Activos
+            </h1>
+            <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+              {equipments.total.toLocaleString('es-PE')} registros
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
             <ExportEquipmentButton
               filters={{
                 search: equipments.search,
@@ -314,25 +319,25 @@ function AdminEquipmentsContent() {
               activeFilterCount={activeAdvancedCount}
             />
             <Link
-              className="flex h-10 items-center gap-2 rounded-lg bg-[#072e27] px-4 text-xs font-semibold text-white no-underline shadow-xs border border-emerald-950/20 transition-colors hover:bg-[#05221d]"
+              className="flex h-9 items-center gap-2 rounded-lg bg-[#072e27] px-3 text-xs font-semibold text-white no-underline transition-colors hover:bg-[#05221d]"
               href="/admin/equipos/qr">
               <QrCode size={15} strokeWidth={1.75} />
               <span>Imprimir QRs</span>
             </Link>
-          </>
-        }
-      />
-      <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 items-center gap-3">
+          </div>
+        </div>
+        <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <SearchInput
           placeholder="Buscar código o ubicación"
           value={equipments.search}
           onChange={equipments.setSearch}
+          compact
         />
-        <div ref={propertyPickerRef} className="relative min-h-11">
+        <div ref={propertyPickerRef} className="relative min-h-9">
           <button
             type="button"
             onClick={() => setIsPropertyPickerOpen(open => !open)}
-            className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-[10px] border bg-white px-3 py-2 text-left text-[0.95rem] transition-colors ${
+            className={`flex h-9 w-full items-center justify-between gap-2 rounded-lg border bg-white px-2.5 text-left text-xs transition-colors ${
               selectedProperties.length > 0
                 ? 'border-emerald-800 text-emerald-950 ring-1 ring-emerald-800/15'
                 : 'border-slate-300 text-slate-500 hover:border-slate-400'
@@ -428,18 +433,21 @@ function AdminEquipmentsContent() {
           options={systemOptions}
           onChange={equipments.handleSystemChange}
           placeholder="Todas las especialidades"
+          compact
         />
         <SearchableSelect
           value={equipments.equipmentTypeId}
           options={equipmentTypeOptions}
           onChange={equipments.handleEquipmentTypeChange}
           placeholder="Todos los tipos de activo"
+          compact
         />
         <SearchableSelect
           value={equipments.tipo}
           options={tipoOptions}
           onChange={equipments.handleTipoChange}
           placeholder="Todos los tipos"
+          compact
         />
         {equipments.tipo && equipments.distinctSubtipos.length > 0 && (
           <SearchableSelect
@@ -447,13 +455,14 @@ function AdminEquipmentsContent() {
             options={subtipoOptions}
             onChange={equipments.handleSubtipoChange}
             placeholder="Todos los subtipos"
+            compact
           />
         )}
         <div className="relative">
           <button
             type="button"
             onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className={`flex h-11 w-full items-center justify-center gap-2 rounded-[10px] border px-4 text-[0.95rem] font-bold shadow-sm transition-all duration-200 ${
+            className={`flex h-9 w-full items-center justify-center gap-2 rounded-lg border px-3 text-xs font-bold transition-colors ${
               activeAdvancedCount > 0
                 ? 'border-emerald-800 bg-emerald-50 text-emerald-950 hover:bg-emerald-100/80 ring-2 ring-emerald-800/10'
                 : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
@@ -850,6 +859,7 @@ function AdminEquipmentsContent() {
               </div>
             </>
           )}
+        </div>
         </div>
       </section>
       <Alert>{equipments.errorMessage}</Alert>
