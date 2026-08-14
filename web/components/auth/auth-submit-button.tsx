@@ -1,7 +1,10 @@
+import { Loader2 } from 'lucide-react';
+import type { ReactNode } from 'react';
+
 interface AuthSubmitButtonProps {
   isSubmitting: boolean;
   submittingLabel: string;
-  children: string;
+  children: ReactNode;
   disabled?: boolean;
 }
 
@@ -11,12 +14,21 @@ export function AuthSubmitButton({
   children,
   disabled = false,
 }: AuthSubmitButtonProps) {
+  const isDisabled = disabled || isSubmitting;
+
   return (
     <button
-      className="mt-2 h-12 rounded-2xl border-0 bg-emerald-900 px-4 font-black text-white shadow-[0_12px_28px_rgba(6,78,59,0.24)] transition hover:-translate-y-0.5 hover:bg-emerald-950 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+      className="relative mt-2 flex h-11 sm:h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-800 px-5 font-semibold text-white shadow-sm shadow-emerald-950/10 transition-all duration-150 hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none"
       type="submit"
-      disabled={disabled || isSubmitting}>
-      {isSubmitting ? submittingLabel : children}
+      disabled={isDisabled}>
+      {isSubmitting ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin text-white" />
+          <span>{submittingLabel}</span>
+        </>
+      ) : (
+        children
+      )}
     </button>
   );
 }

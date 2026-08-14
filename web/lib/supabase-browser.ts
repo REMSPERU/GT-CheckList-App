@@ -31,15 +31,15 @@ export function getSupabaseClient() {
 }
 
 export function getSiteUrl(): string {
-  const envUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  let url =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+    (typeof window !== 'undefined'
+      ? window.location.origin
+      : 'http://localhost:3000');
 
-  if (envUrl) {
-    return envUrl;
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url}`;
   }
 
-  if (typeof window !== 'undefined') {
-    return window.location.origin;
-  }
-
-  return 'http://localhost:3000';
+  return url.replace(/\/+$/, '');
 }

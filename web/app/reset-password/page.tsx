@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Lock, KeyRound, ArrowLeft } from 'lucide-react';
 
 import { AuthFormField } from '@/components/auth/auth-form-field';
 import { AuthMessages } from '@/components/auth/auth-messages';
@@ -11,48 +12,74 @@ import { useResetPassword } from '@/hooks/auth/use-reset-password';
 export default function ResetPasswordPage() {
   const resetPassword = useResetPassword();
 
+  const passwordsMatch =
+    resetPassword.password &&
+    resetPassword.confirmPassword &&
+    resetPassword.password === resetPassword.confirmPassword;
+  const passwordsDontMatch =
+    resetPassword.password &&
+    resetPassword.confirmPassword &&
+    resetPassword.password !== resetPassword.confirmPassword;
+
   return (
     <AuthShell
-      title="Nueva contrasena"
-      description="Termina la recuperacion y vuelve a entrar al panel con tu nueva clave.">
-      <form className="mt-6 grid gap-4" onSubmit={resetPassword.onSubmit}>
+      title="Nueva contraseña"
+      description="Establece una nueva contraseña segura para restablecer el acceso a tu cuenta.">
+      <form className="mt-6 space-y-4" onSubmit={resetPassword.onSubmit}>
         <AuthFormField
-          label="Nueva contrasena (minimo 8)"
+          label="Nueva contraseña"
           type="password"
           autoComplete="new-password"
           minLength={8}
+          placeholder="Mínimo 8 caracteres"
+          leftIcon={<Lock className="h-4 w-4" />}
+          hint="Mínimo 8 caracteres"
           value={resetPassword.password}
           onChange={resetPassword.setPassword}
         />
+
         <AuthFormField
-          label="Confirmar contrasena"
+          label="Confirmar nueva contraseña"
           type="password"
           autoComplete="new-password"
           minLength={8}
+          placeholder="Repite tu nueva contraseña"
+          leftIcon={<KeyRound className="h-4 w-4" />}
+          hint={
+            passwordsDontMatch
+              ? 'Las contraseñas no coinciden aún'
+              : passwordsMatch
+              ? '✓ Las contraseñas coinciden'
+              : undefined
+          }
           value={resetPassword.confirmPassword}
           onChange={resetPassword.setConfirmPassword}
         />
+
         <AuthSubmitButton
           isSubmitting={resetPassword.isSubmitting}
           submittingLabel="Actualizando..."
           disabled={!resetPassword.isFormValid || !resetPassword.isReady}>
-          Actualizar contrasena
+          Guardar nueva contraseña
         </AuthSubmitButton>
       </form>
 
-      <AuthMessages
-        errorMessage={resetPassword.errorMessage}
-        message={resetPassword.message}
-      />
+      <div className="mt-4">
+        <AuthMessages
+          errorMessage={resetPassword.errorMessage}
+          message={resetPassword.message}
+        />
+      </div>
 
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-950/10 bg-emerald-50/70 p-4 text-sm text-slate-600">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 text-xs sm:text-sm text-slate-700">
         <Link
-          className="font-black text-emerald-900 underline-offset-4 hover:underline"
+          className="flex items-center gap-1.5 font-bold text-emerald-800 underline-offset-4 hover:underline hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded px-1"
           href="/login">
-          Ir a iniciar sesion
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Ir a iniciar sesión
         </Link>
         <Link
-          className="font-black text-emerald-900 underline-offset-4 hover:underline"
+          className="font-medium text-slate-700 underline-offset-4 hover:underline hover:text-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded px-1"
           href="/forgot-password">
           Solicitar nuevo enlace
         </Link>
