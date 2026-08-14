@@ -18,3 +18,11 @@ export const alexpertoQuoteFiltersSchema = z.object({
 });
 
 export type AlexpertoQuoteFilters = z.infer<typeof alexpertoQuoteFiltersSchema>;
+
+export const alexpertoAuditActionSchema = z.object({
+  status: z.enum(ALEXPERTO_INTERNAL_STATUSES),
+  auditorComment: z.string().trim().max(2000).nullable().optional(),
+  paulComment: z.string().trim().max(2000).nullable().optional(),
+});
+
+export type AlexpertoAuditAction = z.infer<typeof alexpertoAuditActionSchema>;

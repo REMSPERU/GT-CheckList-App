@@ -37,6 +37,8 @@ export interface AlexpertoQuoteListItem {
   delayDays: number;
   internalStatus: AlexpertoInternalStatus;
   internalComment: string | null;
+  auditorComment: string | null;
+  paulComment: string | null;
   responsible: { id: string; name: string | null } | null;
   creationUserType: string | null;
   providerName: string | null;

@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  X,
-  Receipt,
-  Building2,
   AlertCircle,
+  Building2,
   CheckCircle2,
   Clock,
   Copy,
-  Sparkles,
   FileCheck,
+  Receipt,
+  Save,
+  X,
 } from 'lucide-react';
 
 export interface QuoteItem {
@@ -27,31 +27,39 @@ export interface QuoteItem {
   requester?: string | null;
   description?: string | null;
   serviceCode?: string | null;
+  auditorComment: string | null;
+  paulComment: string | null;
 }
 
 interface QuoteAuditDrawerProps {
   open: boolean;
   quote: QuoteItem | null;
   onClose: () => void;
-  onStatusUpdate?: (quoteId: string, newStatus: string, note?: string) => void;
+  isSuperadmin: boolean;
+  onStatusUpdate?: (input: {
+    quoteId: string;
+    status: string;
+    auditorComment: string | null;
+    paulComment: string | null;
+  }) => Promise<void>;
 }
 
 const SPEECH_TEMPLATES = [
   {
     id: 's1',
-    title: 'Monto alto (> S/ 3,000)',
+    title: 'Monto alto (más de S/ 3,000)',
     content:
       'Estimado equipo, la cotización supera los S/ 3,000. Se requiere adjuntar 3 propuestas comparativas y el informe técnico de sustento para proceder.',
   },
   {
     id: 's2',
-    title: 'Sin Informe Técnico',
+    title: 'Sin informe técnico',
     content:
       'Se observa la cotización debido a que no cuenta con el informe técnico de diagnóstico previo firmado por la contrata.',
   },
   {
     id: 's3',
-    title: 'Aprobado sin observaciones',
+    title: 'Conforme sin observaciones',
     content:
       'Cotización revisada por el auditor GEMA. Cuenta con sustento completo y precios acordes al tarifario vigente. Procede ejecución.',
   },
@@ -61,31 +69,31 @@ export function QuoteAuditDrawer({
   open,
   quote,
   onClose,
+  isSuperadmin,
   onStatusUpdate,
 }: QuoteAuditDrawerProps) {
-  const drawerRef = useRef<HTMLElement>(null);
-  const [activeTab, setActiveTab] = useState<
-    'details' | 'speeches' | 'history'
-  >('details');
-  const [selectedSpeech, setSelectedSpeech] = useState<string>('');
-  const [auditNote, setAuditNote] = useState<string>('');
-  const [currentStatus, setCurrentStatus] = useState<string>('');
-  const [copiedSuccess, setCopiedSuccess] = useState(false);
+  const [activeTab, setActiveTab] = useState<'review' | 'history'>('review');
+  const [auditorComment, setAuditorComment] = useState('');
+  const [paulComment, setPaulComment] = useState('');
+  const [currentStatus, setCurrentStatus] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (quote) {
-      setCurrentStatus(quote.gemaStatus);
-      setAuditNote('');
-      setSelectedSpeech('');
-      setActiveTab('details');
-    }
+    if (!quote) return;
+    setActiveTab('review');
+    setCurrentStatus(quote.gemaStatus);
+    setAuditorComment(quote.auditorComment ?? '');
+    setPaulComment(quote.paulComment ?? '');
+    setNotice(null);
+    setSaveError(null);
   }, [quote]);
 
-  // Esc key listener
   useEffect(() => {
     if (!open) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
@@ -93,349 +101,348 @@ export function QuoteAuditDrawer({
 
   if (!open || !quote) return null;
 
-  const handleCopySpeech = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedSuccess(true);
-    setTimeout(() => setCopiedSuccess(false), 2000);
+  const showNotice = (message: string) => {
+    setNotice(message);
+    setTimeout(() => setNotice(null), 2500);
   };
 
-  const handleApplyStatus = (newStatus: string) => {
-    setCurrentStatus(newStatus);
-    if (onStatusUpdate) {
-      onStatusUpdate(quote.id, newStatus, auditNote || selectedSpeech);
+  const handleCopyTemplate = (content: string) => {
+    void navigator.clipboard
+      .writeText(content)
+      .then(() => showNotice('Plantilla copiada al portapapeles.'))
+      .catch(() => showNotice('No se pudo copiar la plantilla.'));
+  };
+
+  const handleSave = async (status: string) => {
+    if (!onStatusUpdate) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await onStatusUpdate({
+        quoteId: quote.id,
+        status,
+        auditorComment: auditorComment.trim() || null,
+        paulComment: paulComment.trim() || null,
+      });
+      setCurrentStatus(status);
+      showNotice('Cambios guardados en GEMA.');
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : 'No se pudieron guardar los cambios.',
+      );
+    } finally {
+      setIsSaving(false);
     }
   };
 
+  const status = currentStatus || quote.gemaStatus;
+  const isCompleted = status === 'CULMINADO' || status === 'VALIDADO';
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-[#061711]/65 backdrop-blur-[4px] transition-opacity"
+      <button
+        type="button"
+        aria-label="Cerrar panel de revisión"
+        className="fixed inset-0 cursor-default bg-[#061711]/65 backdrop-blur-[4px]"
         onClick={onClose}
       />
-
-      {/* Drawer Body */}
       <section
-        ref={drawerRef}
         className="relative z-10 flex h-full w-full max-w-[540px] flex-col border-l border-slate-200 bg-[#f8faf6] shadow-2xl"
         role="dialog"
-        aria-modal="true">
-        {/* Header */}
-        <div className="relative overflow-hidden border-b border-[#05221d] bg-[#072e27] px-6 py-5 text-white">
-          <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 font-mono font-bold text-sm">
+        aria-modal="true"
+        aria-labelledby="quote-audit-title">
+        <header className="border-b border-[#05221d] bg-[#072e27] px-6 py-5 text-white">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#05221d] text-emerald-400">
                 <Receipt size={20} />
               </div>
-              <div>
-                <p className="mb-0.5 text-[0.65rem] font-bold uppercase tracking-[0.22em] text-emerald-400">
-                  Auditoría Alexperto · Cotizaciones
-                </p>
-                <h2 className="m-0 text-xl font-bold tracking-tight">
+              <div className="min-w-0">
+                <h2
+                  id="quote-audit-title"
+                  className="m-0 font-mono text-xl font-bold tracking-tight">
                   {quote.code}
                 </h2>
+                <p className="mb-0 mt-1 flex items-center gap-1.5 text-xs text-emerald-100">
+                  <Building2 size={13} className="shrink-0 text-emerald-400" />
+                  <span className="truncate">{quote.propertyName}</span>
+                </p>
               </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="grid h-10 w-10 place-items-center rounded-lg border border-emerald-900/60 bg-[#05221d] text-slate-300 transition hover:bg-[#0a3d34] hover:text-white"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-emerald-900 bg-[#05221d] text-slate-300 transition hover:bg-[#0a3d34] hover:text-white"
               aria-label="Cerrar panel">
               <X size={18} />
             </button>
           </div>
+        </header>
 
-          {/* Subheader info badges */}
-          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-            <span className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2.5 py-1 font-medium text-slate-200 backdrop-blur-xs">
-              <Building2 size={12} className="text-emerald-400" />
-              {quote.propertyName}
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-950/80 border border-emerald-800/40 px-2.5 py-1 font-semibold text-emerald-300">
-              S/ {quote.amount ?? 'Sin monto'}
-            </span>
-          </div>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="flex border-b border-slate-200 bg-white px-6">
+        <nav className="flex border-b border-slate-200 bg-white px-6" aria-label="Secciones de cotización">
           <button
             type="button"
-            onClick={() => setActiveTab('details')}
-            className={`border-b-2 py-3 px-4 text-xs font-bold transition ${
-              activeTab === 'details'
+            onClick={() => setActiveTab('review')}
+            className={`border-b-2 px-4 py-3 text-xs font-bold transition ${
+              activeTab === 'review'
                 ? 'border-[#072e27] text-[#072e27]'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}>
-            Detalle Cotización
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('speeches')}
-            className={`border-b-2 py-3 px-4 text-xs font-bold transition ${
-              activeTab === 'speeches'
-                ? 'border-[#072e27] text-[#072e27]'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}>
-            Speeches y Observaciones
+            Revisión
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className={`border-b-2 py-3 px-4 text-xs font-bold transition ${
+            className={`border-b-2 px-4 py-3 text-xs font-bold transition ${
               activeTab === 'history'
                 ? 'border-[#072e27] text-[#072e27]'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}>
-            Historial de Auditoría
+            Historial
           </button>
-        </div>
+        </nav>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {activeTab === 'details' && (
-            <div className="grid gap-4">
-              {/* Status summary banner */}
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
-                <span className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                  Estado Actual de Auditoría GEMA
-                </span>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {currentStatus === 'CULMINADO' ||
-                    currentStatus === 'VALIDADO' ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-900 border border-emerald-300">
-                        <CheckCircle2 size={15} className="text-emerald-700" />
-                        Culminado / Validado
-                      </span>
-                    ) : currentStatus === 'OBSERVADO' ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-900 border border-amber-300">
-                        <AlertCircle size={15} className="text-amber-700" />
-                        Observado por Auditor
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800 border border-slate-300">
-                        <Clock size={15} className="text-slate-600" />
-                        Pendiente de Revisión
-                      </span>
-                    )}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          {activeTab === 'review' ? (
+            <div className="space-y-6">
+              <section className="border-b border-slate-200 pb-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="m-0 text-sm font-bold text-slate-900">
+                      Estado de revisión
+                    </h3>
+                    <p className="mb-0 mt-1 text-xs text-slate-500">
+                      Estado Alexperto: {quote.externalStatus}
+                    </p>
                   </div>
-                  <span className="text-[11px] text-slate-500 font-medium">
-                    Alexperto:{' '}
-                    <strong className="text-slate-800">
-                      {quote.externalStatus}
-                    </strong>
-                  </span>
+                  {isCompleted ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-100 px-2.5 py-1.5 text-xs font-bold text-emerald-900">
+                      <CheckCircle2 size={14} className="text-emerald-700" />
+                      {status === 'VALIDADO' ? 'Revisado' : 'Culminado'}
+                    </span>
+                  ) : status === 'OBSERVADO' ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-100 px-2.5 py-1.5 text-xs font-bold text-amber-900">
+                      <AlertCircle size={14} className="text-amber-700" />
+                      Observado
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-700">
+                      <Clock size={14} />
+                      Pendiente
+                    </span>
+                  )}
                 </div>
-              </div>
+              </section>
 
-              {/* Information Cards Grid */}
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 m-0">
-                  Información Técnica del Trabajo
+              <section>
+                <h3 className="m-0 text-sm font-bold text-slate-900">
+                  Información de la cotización
                 </h3>
-
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-4 text-xs">
                   <div>
-                    <span className="text-slate-400 block font-medium">
-                      Especialidad
-                    </span>
-                    <span className="font-bold text-slate-900">
+                    <dt className="text-slate-500">Especialidad</dt>
+                    <dd className="m-0 mt-1 font-semibold text-slate-900">
                       {quote.specialty}
-                    </span>
+                    </dd>
                   </div>
                   <div>
-                    <span className="text-slate-400 block font-medium">
-                      Sub-Especialidad
-                    </span>
-                    <span className="font-bold text-slate-900">
+                    <dt className="text-slate-500">Subespecialidad</dt>
+                    <dd className="m-0 mt-1 font-semibold text-slate-900">
                       {quote.subSpecialty}
-                    </span>
+                    </dd>
                   </div>
-                  <div className="border-t border-slate-100 pt-2.5">
-                    <span className="text-slate-400 block font-medium">
-                      Origen / Creado por
-                    </span>
-                    <span className="font-bold text-slate-900">
+                  <div>
+                    <dt className="text-slate-500">Proveedor</dt>
+                    <dd className="m-0 mt-1 font-semibold text-slate-900">
+                      {quote.provider ?? 'Sin proveedor asignado'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Creado por</dt>
+                    <dd className="m-0 mt-1 font-semibold text-slate-900">
                       {quote.creationUserType === 'ADMINISTRATOR'
                         ? 'Administrador'
                         : quote.creationUserType === 'PROVIDER'
                           ? 'Proveedor'
                           : (quote.creationUserType ?? 'Administrador')}
-                    </span>
+                    </dd>
                   </div>
-                  <div className="border-t border-slate-100 pt-2.5">
-                    <span className="text-slate-400 block font-medium">
-                      Descripción
-                    </span>
-                    <span
-                      className="font-bold text-slate-900 truncate block"
-                      title={quote.description ?? undefined}>
-                      {quote.description ??
-                        quote.requester ??
-                        'No especificado'}
-                    </span>
+                  <div className="col-span-2">
+                    <dt className="text-slate-500">Descripción</dt>
+                    <dd className="m-0 mt-1 whitespace-pre-wrap leading-relaxed text-slate-800">
+                      {quote.description ?? quote.requester ?? 'Sin descripción'}
+                    </dd>
                   </div>
-                  <div className="col-span-2 border-t border-slate-100 pt-2.5">
-                    <span className="text-slate-400 block font-medium">
-                      Proveedor Asignado
-                    </span>
-                    <span className="font-bold text-slate-900">
-                      {quote.provider ?? 'Sin proveedor asignado'}
-                    </span>
-                  </div>
-                  <div className="col-span-2 border-t border-slate-100 pt-2.5">
-                    <span className="text-slate-400 block font-medium">
-                      Inmueble GEMA Mapeado
-                    </span>
-                    <span className="font-bold text-slate-900">
-                      {quote.propertyName}
-                    </span>
-                  </div>
-                </div>
-              </div>
+                </dl>
+              </section>
 
-              {/* Work description / Request detail */}
-              {quote.description && (
-                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-1.5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 m-0">
-                    Descripción / Detalle del Trabajo
-                  </h3>
-                  <p className="text-xs font-medium text-slate-800 m-0 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    {quote.description}
-                  </p>
-                </div>
-              )}
-
-              {/* Amount alert if > 3000 */}
-              {quote.amount !== null && Number(quote.amount) >= 3000 && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-900 flex items-start gap-3">
-                  <Sparkles
-                    size={18}
-                    className="text-amber-600 shrink-0 mt-0.5"
-                  />
-                  <div>
-                    <p className="font-bold m-0 text-amber-950">
-                      Monto Relevante de Auditoría (&gt; S/ 3,000)
-                    </p>
-                    <p className="m-0 mt-1 text-[11px] text-amber-800 leading-relaxed">
-                      Esta cotización por S/ {quote.amount} requiere
-                      verificación del informe técnico y confirmación de
-                      tarifario antes de marcar como Culminado.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'speeches' && (
-            <div className="space-y-4">
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 m-0 mb-3">
-                  Plantillas de Observación Rápida (Speeches)
-                </h3>
-                <div className="space-y-2.5">
-                  {SPEECH_TEMPLATES.map(tpl => (
-                    <div
-                      key={tpl.id}
-                      className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 hover:bg-slate-100/60 transition">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-bold text-xs text-slate-900">
-                          {tpl.title}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedSpeech(tpl.content);
-                            setAuditNote(tpl.content);
-                            handleCopySpeech(tpl.content);
-                          }}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-100/80 px-2 py-0.5 rounded transition">
-                          <Copy size={12} />
-                          <span>Copiar</span>
-                        </button>
+              {!isSuperadmin && (
+                <details className="border-t border-slate-200 pt-5">
+                  <summary className="cursor-pointer text-xs font-bold text-[#072e27] marker:text-slate-400">
+                    Usar una plantilla de comentario
+                  </summary>
+                  <div className="mt-3 space-y-2">
+                    {SPEECH_TEMPLATES.map(template => (
+                      <div key={template.id} className="rounded-lg bg-slate-50 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-900">
+                            {template.title}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleCopyTemplate(template.content)}
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-200 hover:text-slate-900">
+                              <Copy size={12} /> Copiar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAuditorComment(template.content);
+                                showNotice('Plantilla agregada al comentario.');
+                              }}
+                              className="inline-flex items-center gap-1 rounded-md bg-[#072e27] px-2 py-1 text-[11px] font-bold text-white transition hover:bg-[#05221d]">
+                              <FileCheck size={12} className="text-emerald-300" /> Usar
+                            </button>
+                          </div>
+                        </div>
+                        <p className="mb-0 mt-2 text-xs leading-relaxed text-slate-600">
+                          {template.content}
+                        </p>
                       </div>
-                      <p className="text-xs text-slate-600 m-0 leading-relaxed font-normal">
-                        {tpl.content}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                    ))}
+                  </div>
+                </details>
+              )}
 
-              {/* Custom Note Area */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-                  Comentario Personalizado de Auditoría
-                </label>
-                <textarea
-                  rows={4}
-                  value={auditNote}
-                  onChange={e => setAuditNote(e.target.value)}
-                  placeholder="Escribe aquí las observaciones o sustento de auditoría..."
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium text-slate-800 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
-                />
-              </div>
-
-              {copiedSuccess && (
-                <div className="rounded-lg bg-emerald-950 text-white px-3 py-2 text-xs font-semibold flex items-center gap-2">
-                  <CheckCircle2 size={14} className="text-emerald-400" />
-                  <span>Speech copiado al portapapeles con éxito</span>
+              <section className="border-t border-slate-200 pt-5">
+                <h3 className="m-0 text-sm font-bold text-slate-900">
+                  Comentarios
+                </h3>
+                <div className="mt-3 space-y-4">
+                  <div>
+                    <label
+                      htmlFor="auditor-comment"
+                      className="block text-xs font-bold text-slate-700">
+                      Comentario del auditor asignado
+                    </label>
+                    <p className="mb-2 mt-1 text-xs text-slate-500">
+                      {isSuperadmin
+                        ? 'Solo lectura. Lo registra el auditor responsable del inmueble.'
+                        : 'Registra la observación, sustento o siguiente acción.'}
+                    </p>
+                    <textarea
+                      id="auditor-comment"
+                      rows={5}
+                      value={auditorComment}
+                      onChange={event => setAuditorComment(event.target.value)}
+                      disabled={isSuperadmin}
+                      placeholder="Escribe el comentario del auditor..."
+                      className="w-full rounded-lg border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-800 outline-none transition focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="paul-comment"
+                      className="block text-xs font-bold text-slate-700">
+                      Comentario Paul
+                    </label>
+                    <p className="mb-2 mt-1 text-xs text-slate-500">
+                      {isSuperadmin
+                        ? 'Registra la decisión o indicación de la revisión final.'
+                        : 'Solo los superadministradores pueden registrar este comentario.'}
+                    </p>
+                    <textarea
+                      id="paul-comment"
+                      rows={5}
+                      value={paulComment}
+                      onChange={event => setPaulComment(event.target.value)}
+                      disabled={!isSuperadmin}
+                      placeholder="Escribe el comentario de revisión final..."
+                      className="w-full rounded-lg border border-slate-300 bg-white p-3 text-xs leading-relaxed text-slate-800 outline-none transition focus:border-emerald-700 focus:ring-1 focus:ring-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                    />
+                  </div>
                 </div>
+              </section>
+
+              {notice && (
+                <p className="m-0 rounded-lg bg-emerald-950 px-3 py-2 text-xs font-semibold text-white">
+                  {notice}
+                </p>
               )}
             </div>
-          )}
-
-          {activeTab === 'history' && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 m-0">
-                Trazabilidad de Acciones GEMA
+          ) : (
+            <section className="text-xs">
+              <h3 className="m-0 text-sm font-bold text-slate-900">
+                Historial de auditoría
               </h3>
-              <div className="relative border-l-2 border-slate-200 ml-2 pl-4 py-1 space-y-4 text-xs">
+              <div className="mt-5 border-l-2 border-slate-200 pl-4">
                 <div className="relative">
-                  <div className="absolute -left-[21px] top-0.5 h-3 w-3 rounded-full bg-emerald-600 border-2 border-white" />
-                  <p className="font-bold text-slate-900 m-0">
-                    Registro de Cotización importado de Alexperto
+                  <div className="absolute -left-[21px] top-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-600" />
+                  <p className="m-0 font-bold text-slate-900">
+                    Cotización registrada en Alexperto
                   </p>
-                  <span className="text-[11px] text-slate-400">
+                  <time className="mt-1 block text-[11px] text-slate-500">
                     {new Date(quote.createdAt).toLocaleString('es-PE')}
-                  </span>
+                  </time>
                 </div>
-                {currentStatus !== 'PENDIENTE_REVISION' && (
-                  <div className="relative">
-                    <div className="absolute -left-[21px] top-0.5 h-3 w-3 rounded-full bg-amber-500 border-2 border-white" />
-                    <p className="font-bold text-slate-900 m-0">
-                      Estado cambiado a {currentStatus}
+                {status !== 'PENDIENTE_REVISION' && (
+                  <div className="relative mt-5">
+                    <div className="absolute -left-[21px] top-0.5 h-3 w-3 rounded-full border-2 border-white bg-amber-500" />
+                    <p className="m-0 font-bold text-slate-900">
+                      Estado actual: {status.replaceAll('_', ' ')}
                     </p>
-                    <span className="text-[11px] text-slate-400">
-                      Hoy, por Auditor GEMA
+                    <span className="mt-1 block text-[11px] text-slate-500">
+                      Gestión registrada en GEMA
                     </span>
                   </div>
                 )}
               </div>
-            </div>
+            </section>
           )}
         </div>
 
-        {/* Footer Audit Actions */}
-        <div className="border-t border-slate-200 bg-white px-6 py-4 flex flex-wrap gap-2.5">
+        <footer className="border-t border-slate-200 bg-white px-6 py-4">
+          {saveError && (
+            <p className="mb-3 text-xs font-medium text-red-700">{saveError}</p>
+          )}
           <button
             type="button"
-            onClick={() => handleApplyStatus('OBSERVADO')}
-            className="flex-1 min-w-[130px] rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs font-bold text-amber-900 transition hover:bg-amber-100 flex items-center justify-center gap-1.5">
-            <AlertCircle size={15} className="text-amber-700" />
-            <span>Observar</span>
+            onClick={() => handleSave(status)}
+            disabled={isSaving}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60">
+            <Save size={15} />
+            {isSaving ? 'Guardando...' : 'Guardar comentarios'}
           </button>
-
-          <button
-            type="button"
-            onClick={() => handleApplyStatus('CULMINADO')}
-            className="flex-1 min-w-[150px] rounded-lg bg-[#072e27] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[#05221d] flex items-center justify-center gap-1.5 shadow-xs">
-            <FileCheck size={15} className="text-emerald-400" />
-            <span>Culminar Auditoría</span>
-          </button>
-        </div>
+          <p className="mb-2 mt-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            Guardar y cambiar estado
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => handleSave('OBSERVADO')}
+              disabled={isSaving}
+              className="flex-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60">
+              Observar
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSave('CULMINADO')}
+              disabled={isSaving}
+              className="flex-1 rounded-lg bg-[#072e27] px-3 py-2.5 text-xs font-bold text-white transition hover:bg-[#05221d] disabled:cursor-not-allowed disabled:opacity-60">
+              Culminar
+            </button>
+            {isSuperadmin && (
+              <button
+                type="button"
+                onClick={() => handleSave('VALIDADO')}
+                disabled={isSaving}
+                className="flex-1 rounded-lg bg-emerald-700 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60">
+                Marcar revisado
+              </button>
+            )}
+          </div>
+        </footer>
       </section>
     </div>
   );

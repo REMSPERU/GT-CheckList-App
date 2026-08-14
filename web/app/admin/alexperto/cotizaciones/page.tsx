@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 
 import { getSupabaseClient } from '@/lib/supabase-browser';
+import { useAdminSession } from '@/hooks/auth/use-admin-session';
 import type { AlexpertoQuoteListResponse } from '@/types/alexperto';
 
 const GEMA_STATUS_OPTIONS = [
@@ -39,6 +40,7 @@ const GEMA_STATUS_OPTIONS = [
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
 function CotizacionesContent() {
+  const { user } = useAdminSession();
   const [quotes, setQuotes] = useState<QuoteItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -116,6 +118,8 @@ function CotizacionesContent() {
             requester: item.serviceCode ? `Sol. ${item.serviceCode}` : null,
             description: item.service,
             serviceCode: item.serviceCode,
+            auditorComment: item.auditorComment,
+            paulComment: item.paulComment,
           })),
         );
       } catch (error) {
@@ -216,9 +220,68 @@ function CotizacionesContent() {
       .map(value => ({ value, label: value }));
   }, [quotes]);
 
-  const handleStatusUpdate = (quoteId: string, newStatus: string) => {
+  const handleStatusUpdate = async (input: {
+    quoteId: string;
+    status: string;
+    auditorComment: string | null;
+    paulComment: string | null;
+  }) => {
+    const { data } = await getSupabaseClient().auth.getSession();
+    const body: {
+      status: string;
+      auditorComment: string | null;
+      paulComment?: string | null;
+    } = {
+      status: input.status,
+      auditorComment: input.auditorComment,
+    };
+    if (user?.role === 'SUPERADMIN') body.paulComment = input.paulComment;
+
+    const response = await fetch(
+      `/api/alexperto/cotizaciones/${input.quoteId}/acciones`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(data.session?.access_token
+            ? { Authorization: `Bearer ${data.session.access_token}` }
+            : {}),
+        },
+        body: JSON.stringify(body),
+      },
+    );
+    if (!response.ok) {
+      throw new Error('No se pudo guardar la revisión en GEMA.');
+    }
+
     setQuotes(prev =>
-      prev.map(q => (q.id === quoteId ? { ...q, gemaStatus: newStatus } : q)),
+      prev.map(quote =>
+        quote.id === input.quoteId
+          ? {
+              ...quote,
+              gemaStatus: input.status,
+              hasBeenReviewed: input.status !== 'PENDIENTE_REVISION',
+              auditorComment: input.auditorComment,
+              paulComment:
+                user?.role === 'SUPERADMIN'
+                  ? input.paulComment
+                  : quote.paulComment,
+            }
+          : quote,
+      ),
+    );
+    setSelectedQuote(current =>
+      current?.id === input.quoteId
+        ? {
+            ...current,
+            gemaStatus: input.status,
+            auditorComment: input.auditorComment,
+            paulComment:
+              user?.role === 'SUPERADMIN'
+                ? input.paulComment
+                : current.paulComment,
+          }
+        : current,
     );
   };
 
@@ -338,7 +401,6 @@ function CotizacionesContent() {
 
       {/* EXPANDED TABLE SHELL TAKING REMAINING HEIGHT */}
       <AdminTableShell
-        summary="Listado de cotizaciones · desplázate dentro de la tabla"
         className="flex-1 min-h-0">
         <div className="min-h-0 flex-1 overflow-auto">
           <table className={TABLE_CLASS}>
@@ -411,6 +473,12 @@ function CotizacionesContent() {
                 <th className={`${TH_CLASS} py-2.5 text-center`}>
                   Gestión GEMA
                 </th>
+                <th className={`${TH_CLASS} py-2.5 min-w-[220px]`}>
+                  Comentario Auditor
+                </th>
+                <th className={`${TH_CLASS} py-2.5 min-w-[220px]`}>
+                  Comentario Paul
+                </th>
                 <th className={`${TH_CLASS} py-2.5 text-right`}>Acciones</th>
               </tr>
             </thead>
@@ -418,7 +486,7 @@ function CotizacionesContent() {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={12}
                     className="px-4 py-8 text-center text-slate-500">
                     Consultando Alexperto...
                   </td>
@@ -426,7 +494,7 @@ function CotizacionesContent() {
               ) : loadError ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={12}
                     className="px-4 py-8 text-center text-red-700">
                     {loadError}
                   </td>
@@ -434,7 +502,7 @@ function CotizacionesContent() {
               ) : filteredQuotes.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={12}
                     className="px-4 py-8 text-center text-slate-500">
                     No hay cotizaciones para los filtros seleccionados.
                   </td>
@@ -534,6 +602,18 @@ function CotizacionesContent() {
                       {getGemaBadge(item.gemaStatus)}
                     </td>
 
+                    <td className={`${TD_CLASS} py-2.5 min-w-[220px] max-w-[300px]`}>
+                      <p className="m-0 line-clamp-3 text-slate-700 font-normal">
+                        {item.auditorComment ?? 'Sin comentario'}
+                      </p>
+                    </td>
+
+                    <td className={`${TD_CLASS} py-2.5 min-w-[220px] max-w-[300px]`}>
+                      <p className="m-0 line-clamp-3 text-slate-700 font-normal">
+                        {item.paulComment ?? 'Sin comentario'}
+                      </p>
+                    </td>
+
                     {/* ACCIONES */}
                     <td
                       className={`${TD_CLASS} py-2.5 whitespace-nowrap text-right`}>
@@ -618,6 +698,7 @@ function CotizacionesContent() {
         open={Boolean(selectedQuote)}
         quote={selectedQuote}
         onClose={() => setSelectedQuote(null)}
+        isSuperadmin={user?.role === 'SUPERADMIN'}
         onStatusUpdate={handleStatusUpdate}
       />
     </main>
