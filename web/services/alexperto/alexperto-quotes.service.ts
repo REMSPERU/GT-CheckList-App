@@ -30,6 +30,8 @@ interface AuditActionRow {
   external_entity_id: string;
   current_status: AlexpertoQuoteListItem['internalStatus'];
   notes: string | null;
+  auditor_comment: string | null;
+  paul_comment: string | null;
 }
 
 const SORT_COLUMNS = {
@@ -230,10 +232,38 @@ export async function listAlexpertoQuotes(
           delayDays: Number(row.delay_days),
           internalStatus: action?.current_status ?? 'PENDIENTE_REVISION',
           internalComment: action?.notes ?? null,
+          auditorComment: action?.auditor_comment ?? action?.notes ?? null,
+          paulComment: action?.paul_comment ?? null,
           responsible: property?.responsible ?? null,
         } satisfies AlexpertoQuoteListItem;
       }),
   };
+}
+
+export async function findAuthorizedQuoteProperty(
+  externalQuoteId: string,
+  properties: AuthorizedProperty[],
+) {
+  const externalIds = properties.map(property => property.alexpertoPropertyId);
+  if (!externalIds.length) return null;
+
+  const { rows } = await getAlexpertoPool().query<{ property_id: string }>({
+    text: `
+      SELECT property_id
+      FROM sch_main.quotes
+      WHERE id = $1 AND property_id = ANY($2::text[])
+      LIMIT 1
+    `,
+    values: [externalQuoteId, externalIds],
+  });
+  const externalPropertyId = rows[0]?.property_id;
+  if (!externalPropertyId) return null;
+
+  return (
+    properties.find(
+      property => property.alexpertoPropertyId === externalPropertyId,
+    ) ?? null
+  );
 }
 
 function specialtyCode(
@@ -258,7 +288,9 @@ async function getActions(supabase: SupabaseClient, ids: string[]) {
   if (!ids.length) return [];
   const { data, error } = await supabase
     .from('alexperto_audit_actions')
-    .select('external_entity_id, current_status, notes')
+    .select(
+      'external_entity_id, current_status, notes, auditor_comment, paul_comment',
+    )
     .eq('external_entity_type', 'QUOTE')
     .in('external_entity_id', ids);
   if (error) throw error;

@@ -25,7 +25,10 @@ const WEB_AUTH_URL = process.env.EXPO_PUBLIC_WEB_AUTH_URL?.trim() ?? '';
 
 function getPasswordRecoveryRedirectUrl() {
   if (WEB_AUTH_URL) {
-    const normalizedBaseUrl = WEB_AUTH_URL.replace(/\/$/, '');
+    let normalizedBaseUrl = WEB_AUTH_URL.replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(normalizedBaseUrl)) {
+      normalizedBaseUrl = `https://${normalizedBaseUrl}`;
+    }
     return `${normalizedBaseUrl}/reset-password`;
   }
 

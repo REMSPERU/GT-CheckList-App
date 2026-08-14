@@ -1,5 +1,11 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import {
+  Building2,
+  Wrench,
+  ClipboardCheck,
+  ShieldCheck,
+} from 'lucide-react';
 
 interface AuthShellProps {
   title: string;
@@ -9,51 +15,118 @@ interface AuthShellProps {
 
 export function AuthShell({ title, description, children }: AuthShellProps) {
   return (
-    <main className="relative grid min-h-screen overflow-hidden bg-[#edf4ef] px-5 py-8 text-slate-950 sm:px-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_12%,rgba(16,185,129,0.24),transparent_28%),radial-gradient(circle_at_88%_8%,rgba(14,116,144,0.18),transparent_24%),linear-gradient(135deg,#f8faf4_0%,#e7f1ee_48%,#f5efe2_100%)]" />
-      <div className="pointer-events-none absolute left-1/2 top-7 h-[calc(100%-56px)] w-px bg-emerald-950/10 max-[860px]:hidden" />
+    <main className="relative flex min-h-screen items-center justify-center bg-[#f2f6f4] px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
+      {/* Clean ambient depth */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_20%_10%,rgba(6,95,70,0.08),transparent_60%),radial-gradient(ellipse_60%_50%_at_80%_90%,rgba(15,118,110,0.06),transparent_60%)]" />
 
-      <section className="relative mx-auto grid w-full max-w-5xl grid-cols-[1fr_420px] items-center gap-12 max-[860px]:max-w-[460px] max-[860px]:grid-cols-1 max-[860px]:gap-6">
-        <div className="max-[860px]:hidden">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-full border border-emerald-950/10 bg-white/55 px-4 py-2 text-sm font-black tracking-[0.18em] text-emerald-950 no-underline shadow-sm backdrop-blur">
-            GEMA
-          </Link>
-          <h2 className="mt-7 max-w-xl text-5xl font-black leading-[0.95] tracking-[-0.06em] text-[#10231f]">
-            Panel operativo para mantenimiento sin friccion.
-          </h2>
-          <p className="mt-5 max-w-md text-base leading-7 text-slate-600">
-            Accede, recupera tu cuenta o solicita una nueva desde un solo punto.
-            El panel solo se abre cuando tu sesion esta validada.
-          </p>
-          <div className="mt-8 grid max-w-md grid-cols-3 gap-3 text-sm font-bold text-emerald-950">
-            <span className="rounded-2xl border border-white/70 bg-white/55 p-4 shadow-sm">
-              Inmuebles
-            </span>
-            <span className="rounded-2xl border border-white/70 bg-white/55 p-4 shadow-sm">
-              Activos
-            </span>
-            <span className="rounded-2xl border border-white/70 bg-white/55 p-4 shadow-sm">
-              Checklist
-            </span>
+      <section className="relative mx-auto grid w-full max-w-5xl grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-14">
+        {/* Left Hero & Value Proposition Panel (Visible on lg screens) */}
+        <div className="hidden lg:col-span-6 lg:flex lg:flex-col lg:justify-between lg:py-4">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-900/10 bg-white/90 px-3.5 py-1.5 shadow-xs">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-800 text-[11px] font-black text-white">
+                G
+              </span>
+              <span className="text-xs font-bold tracking-wide text-emerald-950">
+                GEMA
+              </span>
+              <span className="h-3 w-px bg-slate-300" />
+              <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-800">
+                <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                Portal Administrativo
+              </span>
+            </div>
+
+            <h1 className="mt-8 text-4xl font-extrabold tracking-[-0.02em] text-slate-900 xl:text-[2.6rem] xl:leading-[1.15]">
+              Control integral de{' '}
+              <span className="text-emerald-800">mantenimiento y activos</span>{' '}
+              en tiempo real.
+            </h1>
+
+            <p className="mt-5 max-w-md text-base leading-relaxed text-slate-600">
+              Plataforma centralizada para auditorías técnicas, trazabilidad de
+              equipos, cuadrillas y control unificado de inmuebles.
+            </p>
+
+            {/* Feature Highlights */}
+            <div className="mt-8 space-y-3">
+              <div className="flex items-start gap-3.5 rounded-xl border border-slate-200/80 bg-white/90 p-4 shadow-xs">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-100">
+                  <Building2 className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">
+                    Sedes e Inmuebles
+                  </h2>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Control unificado de predios, áreas técnicas y tableros
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3.5 rounded-xl border border-slate-200/80 bg-white/90 p-4 shadow-xs">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-800 border border-teal-100">
+                  <Wrench className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">
+                    Equipos y Activos
+                  </h2>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Códigos QR, historial técnico y parametrización de criticidad
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3.5 rounded-xl border border-slate-200/80 bg-white/90 p-4 shadow-xs">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-100">
+                  <ClipboardCheck className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">
+                    Checklists Digitales
+                  </h2>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Mantenimientos preventivos y correctivos sincronizados
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 flex items-center gap-2 text-xs font-medium text-slate-600">
+            <ShieldCheck className="h-4 w-4 text-emerald-700 shrink-0" />
+            <span>Acceso seguro cifrado con control de roles y auditoría</span>
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-white/70 bg-white/80 p-3 shadow-[0_24px_80px_rgba(15,35,57,0.16)] backdrop-blur-xl">
-          <div className="rounded-[22px] border border-emerald-950/10 bg-white p-6 shadow-inner shadow-white max-[480px]:p-5">
-            <Link
-              href="/"
-              className="mb-5 inline-flex items-center gap-2 text-sm font-black tracking-[0.18em] text-emerald-950 no-underline">
-              GEMA
-            </Link>
-            <p className="mb-2 text-xs font-black uppercase tracking-[0.2em] text-emerald-700">
-              Panel web
-            </p>
-            <h1 className="m-0 text-[2rem] font-black leading-tight tracking-[-0.04em] text-[#10231f]">
-              {title}
-            </h1>
-            <p className="mt-2.5 leading-6 text-slate-500">{description}</p>
+        {/* Right Form Card Panel */}
+        <div className="w-full lg:col-span-6">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-7 shadow-lg shadow-slate-900/5 sm:p-9">
+            {/* Mobile Branding */}
+            <div className="mb-6 flex items-center justify-between lg:hidden">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 rounded-full border border-emerald-900/10 bg-slate-50 px-3 py-1 text-xs font-bold text-emerald-950 no-underline">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-800 text-[10px] font-black text-white">
+                  G
+                </span>
+                <span>GEMA</span>
+              </Link>
+              <span className="text-xs font-medium text-slate-600">
+                Portal Administrativo
+              </span>
+            </div>
+
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold tracking-[-0.01em] text-slate-900 sm:text-[1.75rem]">
+                {title}
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                {description}
+              </p>
+            </div>
+
             {children}
           </div>
         </div>
