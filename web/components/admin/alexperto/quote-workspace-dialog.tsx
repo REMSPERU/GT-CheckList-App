@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Building2, Receipt, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 import { QuoteDocumentViewer } from './quote-document-viewer';
 import { QuoteHistoryPanel } from './quote-history-panel';
@@ -125,22 +125,17 @@ export function QuoteWorkspaceDialog({
         tabIndex={-1}
         onKeyDown={handleKeyDown}
         className="relative z-10 flex h-[100dvh] w-full flex-col overflow-hidden bg-[#f8faf6] shadow-2xl sm:h-[calc(100dvh-40px)] sm:max-w-none sm:rounded-2xl">
-        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[#05221d] bg-[#072e27] px-4 py-2.5 text-white sm:px-5">
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[#05221d] bg-[#072e27] px-4 py-1.5 text-white sm:px-5">
           <div className="flex min-w-0 items-center gap-2.5">
-            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-[#05221d] text-emerald-400">
-              <Receipt size={16} />
-            </div>
-            <div className="min-w-0">
-              <h2
-                id="quote-workspace-title"
-                className="m-0 font-mono text-base font-bold tracking-tight">
-                {quote.code}
-              </h2>
-              <p className="mb-0 mt-0.5 flex items-center gap-1 text-[11px] text-emerald-100">
-                <Building2 size={12} className="shrink-0 text-emerald-400" />
-                <span className="truncate">{quote.propertyName}</span>
-              </p>
-            </div>
+            <h2
+              id="quote-workspace-title"
+              className="m-0 shrink-0 font-mono text-sm font-bold tracking-tight">
+              {quote.code}
+            </h2>
+            <span aria-hidden="true" className="h-4 w-px bg-emerald-800" />
+            <p className="m-0 truncate text-xs text-emerald-100">
+              {quote.propertyName}
+            </p>
           </div>
           <button
             type="button"
