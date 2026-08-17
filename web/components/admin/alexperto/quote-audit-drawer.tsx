@@ -10,6 +10,7 @@ import {
   Save,
   X,
 } from 'lucide-react';
+import type { AlexpertoQuoteHistoryItem } from '@/types/alexperto';
 
 export interface QuoteItem {
   id: string;
@@ -29,6 +30,36 @@ export interface QuoteItem {
   serviceCode?: string | null;
   auditorComment: string | null;
   paulComment: string | null;
+  history: AlexpertoQuoteHistoryItem[];
+}
+
+export function formatExternalStatus(
+  status: string | null | undefined,
+): string {
+  if (!status) return 'Sin estado';
+  const trimmed = status.trim();
+  const normalized = trimmed.toUpperCase().replace(/\s+/g, '_');
+  const map: Record<string, string> = {
+    PENDING: 'Pendiente',
+    PENDIENTE: 'Pendiente',
+    IN_PROGRESS: 'En proceso',
+    EN_PROCESO: 'En proceso',
+    IN_REVIEW: 'En revisión',
+    EN_REVISION: 'En revisión',
+    APPROVED: 'Aprobado',
+    APROBADO: 'Aprobado',
+    REJECTED: 'Rechazado',
+    RECHAZADO: 'Rechazado',
+    RESOLVED: 'Resuelto',
+    RESUELTO: 'Resuelto',
+    COMPLETED: 'Culminado',
+    CULMINADO: 'Culminado',
+    CANCELLED: 'Cancelado',
+    CANCELED: 'Cancelado',
+    CANCELADO: 'Cancelado',
+    SIN_ESTADO: 'Sin estado',
+  };
+  return map[normalized] ?? trimmed;
 }
 
 interface QuoteAuditDrawerProps {
@@ -128,7 +159,9 @@ export function QuoteAuditDrawer({
       showNotice('Cambios guardados en GEMA.');
     } catch (error) {
       setSaveError(
-        error instanceof Error ? error.message : 'No se pudieron guardar los cambios.',
+        error instanceof Error
+          ? error.message
+          : 'No se pudieron guardar los cambios.',
       );
     } finally {
       setIsSaving(false);
@@ -137,6 +170,11 @@ export function QuoteAuditDrawer({
 
   const status = currentStatus || quote.gemaStatus;
   const isCompleted = status === 'CULMINADO' || status === 'VALIDADO';
+  const formatInternalStatus = (value: string) => {
+    if (value === 'PENDIENTE_REVISION') return 'Pendiente';
+    if (value === 'VALIDADO') return 'Marcado como revisado';
+    return value.charAt(0) + value.slice(1).toLowerCase();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -179,7 +217,9 @@ export function QuoteAuditDrawer({
           </div>
         </header>
 
-        <nav className="flex border-b border-slate-200 bg-white px-6" aria-label="Secciones de cotización">
+        <nav
+          className="flex border-b border-slate-200 bg-white px-6"
+          aria-label="Secciones de cotización">
           <button
             type="button"
             onClick={() => setActiveTab('review')}
@@ -212,7 +252,8 @@ export function QuoteAuditDrawer({
                       Estado de revisión
                     </h3>
                     <p className="mb-0 mt-1 text-xs text-slate-500">
-                      Estado Alexperto: {quote.externalStatus}
+                      Estado Alexperto:{' '}
+                      {formatExternalStatus(quote.externalStatus)}
                     </p>
                   </div>
                   {isCompleted ? (
@@ -270,7 +311,9 @@ export function QuoteAuditDrawer({
                   <div className="col-span-2">
                     <dt className="text-slate-500">Descripción</dt>
                     <dd className="m-0 mt-1 whitespace-pre-wrap leading-relaxed text-slate-800">
-                      {quote.description ?? quote.requester ?? 'Sin descripción'}
+                      {quote.description ??
+                        quote.requester ??
+                        'Sin descripción'}
                     </dd>
                   </div>
                 </dl>
@@ -283,7 +326,9 @@ export function QuoteAuditDrawer({
                   </summary>
                   <div className="mt-3 space-y-2">
                     {SPEECH_TEMPLATES.map(template => (
-                      <div key={template.id} className="rounded-lg bg-slate-50 p-3">
+                      <div
+                        key={template.id}
+                        className="rounded-lg bg-slate-50 p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="text-xs font-bold text-slate-900">
                             {template.title}
@@ -291,7 +336,9 @@ export function QuoteAuditDrawer({
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
-                              onClick={() => handleCopyTemplate(template.content)}
+                              onClick={() =>
+                                handleCopyTemplate(template.content)
+                              }
                               className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-200 hover:text-slate-900">
                               <Copy size={12} /> Copiar
                             </button>
@@ -302,7 +349,11 @@ export function QuoteAuditDrawer({
                                 showNotice('Plantilla agregada al comentario.');
                               }}
                               className="inline-flex items-center gap-1 rounded-md bg-[#072e27] px-2 py-1 text-[11px] font-bold text-white transition hover:bg-[#05221d]">
-                              <FileCheck size={12} className="text-emerald-300" /> Usar
+                              <FileCheck
+                                size={12}
+                                className="text-emerald-300"
+                              />{' '}
+                              Usar
                             </button>
                           </div>
                         </div>
@@ -386,17 +437,22 @@ export function QuoteAuditDrawer({
                     {new Date(quote.createdAt).toLocaleString('es-PE')}
                   </time>
                 </div>
-                {status !== 'PENDIENTE_REVISION' && (
-                  <div className="relative mt-5">
+                {quote.history.map(entry => (
+                  <div
+                    key={`${entry.createdAt}-${entry.createdBy?.id ?? 'system'}`}
+                    className="relative mt-5">
                     <div className="absolute -left-[21px] top-0.5 h-3 w-3 rounded-full border-2 border-white bg-amber-500" />
                     <p className="m-0 font-bold text-slate-900">
-                      Estado actual: {status.replaceAll('_', ' ')}
+                      {entry.previousStatus
+                        ? `${formatInternalStatus(entry.previousStatus)} a ${formatInternalStatus(entry.newStatus)}`
+                        : `Estado: ${formatInternalStatus(entry.newStatus)}`}
                     </p>
                     <span className="mt-1 block text-[11px] text-slate-500">
-                      Gestión registrada en GEMA
+                      {entry.createdBy?.name ?? 'Usuario no disponible'} ·{' '}
+                      {new Date(entry.createdAt).toLocaleString('es-PE')}
                     </span>
                   </div>
-                )}
+                ))}
               </div>
             </section>
           )}
@@ -418,6 +474,13 @@ export function QuoteAuditDrawer({
             Guardar y cambiar estado
           </p>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => handleSave('PENDIENTE_REVISION')}
+              disabled={isSaving || status === 'PENDIENTE_REVISION'}
+              className="flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60">
+              Volver a pendiente
+            </button>
             <button
               type="button"
               onClick={() => handleSave('OBSERVADO')}

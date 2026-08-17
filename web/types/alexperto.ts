@@ -17,12 +17,20 @@ export const ALEXPERTO_INTERNAL_STATUSES = [
   'PENDIENTE_REVISION',
   'OBSERVADO',
   'CULMINADO',
-  'PENDIENTE_VALIDACION',
   'VALIDADO',
 ] as const;
 
 export type AlexpertoInternalStatus =
   (typeof ALEXPERTO_INTERNAL_STATUSES)[number];
+
+export interface AlexpertoQuoteHistoryItem {
+  previousStatus: AlexpertoInternalStatus | null;
+  newStatus: AlexpertoInternalStatus;
+  auditorComment: string | null;
+  paulComment: string | null;
+  createdAt: string;
+  createdBy: { id: string; name: string | null } | null;
+}
 
 export interface AlexpertoQuoteListItem {
   externalQuoteId: string;
@@ -39,6 +47,7 @@ export interface AlexpertoQuoteListItem {
   internalComment: string | null;
   auditorComment: string | null;
   paulComment: string | null;
+  history: AlexpertoQuoteHistoryItem[];
   responsible: { id: string; name: string | null } | null;
   creationUserType: string | null;
   providerName: string | null;

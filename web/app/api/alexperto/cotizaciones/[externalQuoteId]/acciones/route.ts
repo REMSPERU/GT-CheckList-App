@@ -11,6 +11,7 @@ interface RouteContext {
 }
 
 interface ExistingAction {
+  current_status: AlexpertoInternalStatus;
   auditor_comment: string | null;
   paul_comment: string | null;
 }
@@ -19,7 +20,6 @@ const AUDITOR_STATUSES = new Set<AlexpertoInternalStatus>([
   'PENDIENTE_REVISION',
   'OBSERVADO',
   'CULMINADO',
-  'PENDIENTE_VALIDACION',
 ]);
 
 export async function POST(request: NextRequest, context: RouteContext) {
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { data: existingAction, error: existingActionError } =
       await session.supabase
         .from('alexperto_audit_actions')
-        .select('auditor_comment, paul_comment')
+        .select('current_status, auditor_comment, paul_comment')
         .eq('external_entity_type', 'QUOTE')
         .eq('external_entity_id', externalQuoteId)
         .maybeSingle();
@@ -84,7 +84,24 @@ export async function POST(request: NextRequest, context: RouteContext) {
     );
     if (error) throw error;
 
-    return NextResponse.json({ action: data });
+    const previousStatus = existing?.current_status ?? null;
+    const actorName =
+      [session.user.first_name, session.user.last_name]
+        .filter(Boolean)
+        .join(' ') ||
+      session.user.username ||
+      session.user.email;
+    return NextResponse.json({
+      action: data,
+      historyEntry: {
+        previousStatus,
+        newStatus: action.status,
+        auditorComment,
+        paulComment,
+        createdAt: new Date().toISOString(),
+        createdBy: { id: session.user.id, name: actorName },
+      },
+    });
   } catch (error) {
     if (error instanceof Error && error.message === 'UNAUTHENTICATED') {
       return NextResponse.json({ code: 'UNAUTHENTICATED' }, { status: 401 });

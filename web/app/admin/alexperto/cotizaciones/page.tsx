@@ -11,6 +11,7 @@ import {
   TH_CLASS,
 } from '@/components/admin/table-primitives';
 import {
+  formatExternalStatus,
   QuoteAuditDrawer,
   QuoteItem,
 } from '@/components/admin/alexperto/quote-audit-drawer';
@@ -33,8 +34,7 @@ const GEMA_STATUS_OPTIONS = [
   { value: 'PENDIENTE_REVISION', label: 'Pendiente de Revisión' },
   { value: 'OBSERVADO', label: 'Observado' },
   { value: 'CULMINADO', label: 'Culminado' },
-  { value: 'PENDIENTE_VALIDACION', label: 'Pendiente de Validación' },
-  { value: 'VALIDADO', label: 'Validado' },
+  { value: 'VALIDADO', label: 'Marcado como revisado' },
 ];
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
@@ -122,6 +122,7 @@ function CotizacionesContent() {
             serviceCode: item.serviceCode,
             auditorComment: item.auditorComment,
             paulComment: item.paulComment,
+            history: item.history,
           })),
         );
       } catch (error) {
@@ -219,7 +220,7 @@ function CotizacionesContent() {
       new Set(quotes.map(q => q.externalStatus).filter(Boolean)),
     )
       .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
-      .map(value => ({ value, label: value }));
+      .map(value => ({ value, label: formatExternalStatus(value) }));
   }, [quotes]);
 
   const handleStatusUpdate = async (input: {
@@ -251,6 +252,9 @@ function CotizacionesContent() {
     if (!response.ok) {
       throw new Error('No se pudo guardar la revisión en GEMA.');
     }
+    const payload = (await response.json()) as {
+      historyEntry: QuoteItem['history'][number];
+    };
 
     setQuotes(prev =>
       prev.map(quote =>
@@ -264,6 +268,7 @@ function CotizacionesContent() {
                 user?.role === 'SUPERADMIN'
                   ? input.paulComment
                   : quote.paulComment,
+              history: [payload.historyEntry, ...quote.history],
             }
           : quote,
       ),
@@ -278,6 +283,7 @@ function CotizacionesContent() {
               user?.role === 'SUPERADMIN'
                 ? input.paulComment
                 : current.paulComment,
+            history: [payload.historyEntry, ...current.history],
           }
         : current,
     );
@@ -290,11 +296,17 @@ function CotizacionesContent() {
   const getGemaBadge = (status: string) => {
     switch (status) {
       case 'CULMINADO':
-      case 'VALIDADO':
         return (
           <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-200">
             <CheckCircle2 size={12} className="text-emerald-600" />
             Culminado
+          </span>
+        );
+      case 'VALIDADO':
+        return (
+          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 border border-emerald-200">
+            <CheckCircle2 size={12} className="text-emerald-600" />
+            Revisado
           </span>
         );
       case 'OBSERVADO':
@@ -590,7 +602,7 @@ function CotizacionesContent() {
                     {/* ESTADO ALEXPERTO */}
                     <td className={`${TD_CLASS} py-2.5 text-center`}>
                       <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-200">
-                        {item.externalStatus}
+                        {formatExternalStatus(item.externalStatus)}
                       </span>
                     </td>
 

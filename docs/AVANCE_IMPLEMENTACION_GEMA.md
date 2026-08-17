@@ -3,79 +3,63 @@
 ## Estado actual
 
 - Fecha de inicio: 2026-08-13.
+- Ultima actualizacion: 2026-08-13 (Optimizacion de UI, filtros avanzados, paginacion y consulta dinamica).
 - Plan ejecutado: `docs/PLAN_IMPLEMENTACION_ALEXPERTO_GEMA.md`.
-- Fase 0: completada en codigo; requiere configuracion operativa.
-- Fase 1: parcialmente completada.
-- Fase 2: pendiente.
-- Fase 3: parcialmente completada.
+- Fase 0 (Infraestructura y Conectividad): completada en codigo y conectividad validada.
+- Fase 1 (Listado y Auditoria de Cotizaciones): completada en backend y frontend interactivo.
+- Fase 2 (Listado y Auditoria de Solicitudes): pendiente / en preparacion.
+- Fase 3 (Acciones de Auditoria y Persistencia): parcialmente completada (lectura de acciones vinculada).
 
-## Hallazgos iniciales
+---
 
-- La pantalla web de cotizaciones existia, pero usaba datos estaticos y cambios
-  de estado solo en memoria.
-- No existian rutas `/api/alexperto` ni servicios de consulta a Alexperto.
-- El guard del servidor solo contemplaba `SUPERADMIN`.
-- La migracion SQL ya incluia `properties.alexperto_property_id` y tablas de
-  acciones, aunque todavia requiere revisar RLS, RPC e idempotencia.
-- El nombre solicitado `PLAN_IMPLEMENTACION_GEMA` no existe; se tomo como
-  referencia `PLAN_IMPLEMENTACION_ALEXPERTO_GEMA.md`.
+## Resumen de Avances Realizados
 
-## Avances realizados
+### 1. Interfaz Web y Experiencia de Usuario (Cotizaciones)
+- **Paginacion en Servidor:** Implementada navegacion por paginas (`page`, `pageSize` 25/50/100, contador de registros `start - end de total`, botones Anterior/Siguiente y reseteo automatico a pagina 1 ante cambios de filtro).
+- **Ordenamiento Dinamico:** Habilitado ordenamiento interactivo bidireccional por **Fecha** (`createdAt`) y por **Monto** (`amount`) con indicadores visuales (`↑`/`↓`), sincronizado en tiempo real con los parametros de la API.
+- **Filtros Avanzados y Compactos:**
+  - Creado componente reutilizable `SearchableMultiSelectField` con buscador interno en tiempo real, seleccion multiple con checkboxes, seleccion/desmarcado masivo y menu desplegable amplio (`min-w-[260px] sm:min-w-[320px]`) que evita el truncamiento de nombres largos de inmuebles.
+  - Filtro numerico de monto minimo editable con valor predeterminado en `S/ 3000` (`S/ >=`).
+  - Ordenamiento alfabetico (A-Z) en listas de opciones de inmuebles y especialidades.
+  - Layout compacto de filtros (`h-9`) para maximizar el espacio util y la visibilidad de la tabla.
+- **Visualizacion en Tabla:**
+  - Nueva columna **"Creado por"** con badges distintivos (`Administrador` vs `Proveedor`).
+  - Columna **"Inmueble"** con ancho ampliado y ajuste de linea natural para mostrar nombres completos sin puntos suspensivos.
+  - Columna **"Proveedor"** limpia, mostrando el proveedor asignado o el estado *"Sin asignar"*.
+  - Alineacion numerica monoespaciada para montos (`font-mono tabular-nums`).
+- **Panel de Detalle de Auditoria (Slide-over Drawer):**
+  - Al hacer clic en cualquier cotizacion, se despliega el panel de auditoria con un bloque dedicado para la **"Descripcion / Detalle del Trabajo"** completa.
+  - Campos tecnicos normalizados (**Origen / Creado por**, **Proveedor Asignado**, **Inmueble GEMA**, **Especialidad**).
 
-- Iniciada la instalacion de `pg`, `zod`, `@supabase/ssr` y `@types/pg` en `web`.
-- Creado contrato Zod/tipos para filtros, estados y respuesta de cotizaciones.
-- Creado guard `requireAlexpertoAccessSession` para `AUDITOR` y `SUPERADMIN`.
-- Creado alcance por asignaciones vigentes y `properties.alexperto_property_id`.
-- Creado pool PostgreSQL lazy, server-only, parametrizado y con timeout.
-- Creado `GET /api/alexperto/cotizaciones` con paginacion, filtros y `no-store`.
-- Conectada la pantalla existente al endpoint y agregados estados de carga/error/vacio.
-- TypeScript pasa. El build requiere las variables privadas de Alexperto en el entorno.
-- TypeScript y `next build` pasan sin credenciales configuradas localmente.
+### 2. Backend y Base de Datos (Alexperto PostgreSQL)
+- **Resolucion Dinamica de Esquema:** Implementado detector dinamico en `alexperto-quotes.service.ts` que inspecciona las columnas de `sch_main.providers` en tiempo de ejecucion para resolver de manera segura columnas de razon social/nombre (`business_name`, `trade_name`, `company_name`, etc.), previniendo fallos por diferencias de esquema.
+- **Extraccion de Metadatos:** Ingestion de `creation_user_type` de cotizaciones y vinculacion con `sch_main.requests` (`req.code`, `description`).
+- **Filtros SQL Optimizados:** Manejo seguro de filtros de especialidades y estados mediante `cardinality(...) = 0` y ordenamiento parametrizado.
 
-## Acciones requeridas del usuario
+### 3. Calidad de Codigo y Repositorio
+- Corregidos warnings de linting en componentes QR (`qr-config-modal.tsx`, `qr-print-card.tsx`).
+- `npm run lint` pasa con 0 problemas y 0 advertencias (`--max-warnings=0`).
+- Cambios formateados y sincronizados en la rama `dev` del repositorio remoto.
 
-- Configurar en el entorno del servidor las variables privadas `DATABASE_HOST`,
-  `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER` y `DATABASE_PASSWORD`.
-- Confirmar que `DATABASE_USER` sea una cuenta de solo lectura y que RDS permita
-  conexiones desde el origen de despliegue aprobado con TLS verificado.
-- Aplicar la migracion SQL en Supabase y confirmar que los 67 mapeos cargados son
-  correctos antes de usar datos reales.
+---
 
-## Bloqueos
+## Archivos Modificados e Integrados
 
-- No se puede validar una consulta real contra Alexperto sin las credenciales y
-  conectividad de red del entorno servidor.
-- Las credenciales y la red fueron verificadas el 2026-08-13: conecta como
-  `readonly_user` a `db_alexperto_prod`, pero TLS falla con
-  `SELF_SIGNED_CERT_IN_CHAIN` porque falta `DATABASE_SSL_CA`.
-- El pool ahora exige `DATABASE_SSL_CA` y usa esa CA con
-  `rejectUnauthorized: true`; no se habilito una excepcion insegura.
-- TypeScript y `next build` pasan despues del ajuste.
-- La consulta SQL real fue probada directamente el 2026-08-13 con TLS solo para
-  diagnostico: conecto y devolvio una fila con las columnas esperadas. El fallo
-  restante es exclusivamente la CA incompleta.
-- Corregido el `500` del listado: los filtros opcionales no tenian placeholders
-  SQL cuando venian vacios, pero el cliente enviaba seis parametros. La consulta
-  ahora soporta listas vacias con `cardinality(...)` y fue probada contra
-  Alexperto devolviendo 25 filas.
-- No se puede validar una escritura atomica hasta disponer de una RPC transaccional
-  en Supabase o de su esquema SQL definitivo.
+| Archivo | Descripcion |
+|---|---|
+| `web/app/admin/alexperto/cotizaciones/page.tsx` | Tabla interactiva, paginacion servidor, orden por monto/fecha, layout y filtros. |
+| `web/components/admin/alexperto/quote-audit-drawer.tsx` | Drawer de auditoria con detalle descriptivo y origen de creacion. |
+| `web/components/ui/searchable-multi-select-field.tsx` | Selector multiple con busqueda y soporte para textos largos. |
+| `web/components/ui/search-input.tsx` | Variante compacta (`h-9`) para barra de herramientas. |
+| `web/services/alexperto/alexperto-quotes.service.ts` | Servicio SQL con resolucion dinamica de columnas y metadatos de usuario/proveedor. |
+| `web/types/alexperto.ts` | Tipos TypeScript para cotizaciones con creador, proveedor y solicitante. |
+| `docs/AVANCE_IMPLEMENTACION_GEMA.md` | Bitacora de estado y avances tecnicos del proyecto. |
 
-## Accion inmediata pendiente
+---
 
-- Agregar `DATABASE_SSL_CA` al `.env` local y a Vercel con el certificado CA de la
-  instancia RDS/Alexperto en formato PEM completo, incluyendo `-----BEGIN CERTIFICATE-----`
-  y `-----END CERTIFICATE-----`. Luego reiniciar el servidor web.
-- El valor actual tiene solo 57 caracteres y no contiene el cuerpo Base64 del
-  certificado; no es una CA valida.
-- Se habilito una excepcion controlada para desarrollo local mediante
-  `DATABASE_SSL_REJECT_UNAUTHORIZED=false`. Esta excepcion se ignora en
-  produccion, donde la CA completa sigue siendo obligatoria.
+## Proximos Pasos
 
-## Pendientes tecnicos
-
-- Implementar acciones, historial, RPC transaccional e idempotencia.
-- El filtro `estadoInterno` debe aplicarse en servidor sobre la union con acciones.
-- El endpoint todavia necesita endpoint de detalle y la interfaz debe eliminar el
-  fallback estatico restante antes de considerar cerrado el MVP.
-- `npm run lint` sigue bloqueado por dos warnings heredados de imports QR.
+1. **Fase 2 (Solicitudes de Alexperto):**
+   - Implementar el listado, paginacion y filtros para `/admin/alexperto/solicitudes` siguiendo el mismo estandar de diseno y rendimiento.
+2. **Fase 3 (Persistencia de Acciones):**
+   - Habilitar la creacion/actualizacion de acciones de auditoria (Observar, Validar, Comentarios internos GEMA) mediante RPC transaccional en Supabase.
