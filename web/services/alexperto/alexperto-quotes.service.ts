@@ -179,16 +179,18 @@ export async function listAlexpertoQuotes(
   const offset = (filters.page - 1) * filters.pageSize;
   const order = `${SORT_COLUMNS[filters.sort]} ${filters.direction === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`;
 
-  const values = [
+  const values: unknown[] = [
     externalIds,
     filters.montoMinimo,
     filters.especialidades,
     filters.estadoExterno,
     filters.pageSize,
     offset,
-    selectedStatusActionIds,
-    allStatusActionIds,
   ];
+  if (filters.estadoInterno.length > 0) {
+    values.push(selectedStatusActionIds);
+    if (includesPending) values.push(allStatusActionIds);
+  }
 
   const client = await getAlexpertoPool().connect();
   let result;
