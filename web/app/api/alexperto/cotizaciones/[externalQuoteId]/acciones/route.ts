@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { alexpertoAuditActionSchema } from '@/schemas/alexperto.schema';
-import { resolveAuthorizedProperties } from '@/services/alexperto/alexperto-access.service';
-import { findAuthorizedQuoteProperty } from '@/services/alexperto/alexperto-quotes.service';
+import { requireAuthorizedQuote } from '@/services/alexperto/alexperto-quote-access.service';
 import { requireAlexpertoAccessSession } from '@/services/auth/server-auth.service';
 import type { AlexpertoInternalStatus } from '@/types/alexperto';
 
@@ -40,14 +39,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ code: 'FORBIDDEN' }, { status: 403 });
     }
 
-    const properties = await resolveAuthorizedProperties(session.userSupabase);
-    const property = await findAuthorizedQuoteProperty(
+    const property = await requireAuthorizedQuote(
       externalQuoteId,
-      properties,
+      session.userSupabase,
     );
-    if (!property) {
-      return NextResponse.json({ code: 'FORBIDDEN' }, { status: 403 });
-    }
 
     const { data: existingAction, error: existingActionError } =
       await session.supabase
@@ -80,6 +75,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         p_auditor_comment: auditorComment,
         p_paul_comment: paulComment,
         p_updated_by: session.user.id,
+        p_record_history: action.recordHistory,
       },
     );
     if (error) throw error;
@@ -93,14 +89,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
       session.user.email;
     return NextResponse.json({
       action: data,
-      historyEntry: {
-        previousStatus,
-        newStatus: action.status,
-        auditorComment,
-        paulComment,
-        createdAt: new Date().toISOString(),
-        createdBy: { id: session.user.id, name: actorName },
-      },
+      historyEntry: action.recordHistory
+        ? {
+            previousStatus,
+            newStatus: action.status,
+            auditorComment,
+            paulComment,
+            createdAt: new Date().toISOString(),
+            createdBy: { id: session.user.id, name: actorName },
+          }
+        : null,
     });
   } catch (error) {
     if (error instanceof Error && error.message === 'UNAUTHENTICATED') {

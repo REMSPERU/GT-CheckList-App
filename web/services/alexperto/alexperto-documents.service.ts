@@ -3,6 +3,8 @@ import 'server-only';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
+import type { AlexpertoQuoteDocument } from '@/types/alexperto';
+
 import { getAlexpertoPool } from './alexperto-db.server';
 
 interface QuoteDocumentRow {
@@ -12,15 +14,6 @@ interface QuoteDocumentRow {
   mime_type: string | null;
   document_size: string | null;
   created_at: string;
-  source: 'QUOTE' | 'PROPOSAL';
-}
-
-export interface AlexpertoQuoteDocument {
-  id: string;
-  name: string;
-  mimeType: string | null;
-  size: number | null;
-  createdAt: string;
   source: 'QUOTE' | 'PROPOSAL';
 }
 
@@ -44,6 +37,13 @@ function validateDocumentPath(path: string, prefix: string) {
   const key = path.replace(/^\/+/, '');
   if (!key.startsWith(`${prefix}/`)) throw new Error('INVALID_DOCUMENT_PATH');
   return key;
+}
+
+let s3Client: S3Client | null = null;
+
+function getS3Client(region: string) {
+  if (!s3Client) s3Client = new S3Client({ region });
+  return s3Client;
 }
 
 export async function listAlexpertoQuoteDocuments(quoteId: string) {
@@ -98,10 +98,9 @@ export async function getAlexpertoQuoteDocumentUrl(
   if (!document) return null;
 
   const { bucket, prefix, region } = getS3Config();
-  const client = new S3Client({ region });
   const key = validateDocumentPath(document.document_path, prefix);
   const url = await getSignedUrl(
-    client,
+    getS3Client(region),
     new GetObjectCommand({ Bucket: bucket, Key: key }),
     { expiresIn: 300 },
   );
