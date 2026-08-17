@@ -1,6 +1,59 @@
 import { getSiteUrl, getSupabaseClient } from '@/lib/supabase-browser';
 import type { AdminUser, AuthResult } from '@/types/auth';
 
+const TOKEN_REFRESH_MARGIN_MS = 60_000;
+
+/** Obtiene un token vigente y lo renueva antes de que expire. */
+export async function getAccessToken(forceRefresh = false): Promise<string> {
+  const supabase = getSupabaseClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) throw new Error('Sesion no disponible');
+
+  const expiresAt = session.expires_at ?? 0;
+  const shouldRefresh =
+    forceRefresh || expiresAt * 1000 - Date.now() < TOKEN_REFRESH_MARGIN_MS;
+
+  if (!shouldRefresh) return session.access_token;
+
+  const {
+    data: { session: refreshedSession },
+    error,
+  } = await supabase.auth.refreshSession();
+
+  if (error || !refreshedSession?.access_token) {
+    throw new Error('Sesion expirada. Vuelve a iniciar sesion');
+  }
+
+  return refreshedSession.access_token;
+}
+
+/**
+ * Ejecuta una solicitud autenticada y recupera una sesion que haya quedado
+ * desactualizada entre la lectura local y la validacion del servidor.
+ */
+export async function fetchWithAuth(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  async function send(forceRefresh: boolean) {
+    const headers = new Headers(init?.headers);
+    headers.set(
+      'Authorization',
+      `Bearer ${await getAccessToken(forceRefresh)}`,
+    );
+
+    return fetch(input, { ...init, headers });
+  }
+
+  const response = await send(false);
+  if (response.status !== 401) return response;
+
+  return send(true);
+}
+
 export async function getCurrentAdminUser(): Promise<AdminUser | null> {
   const supabase = getSupabaseClient();
   const {

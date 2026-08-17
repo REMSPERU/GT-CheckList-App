@@ -4,7 +4,10 @@ import type { NextRequest } from 'next/server';
 import type { AdminRole, AdminUser } from '@/types/auth';
 
 interface SuperAdminSession {
+  /** Cliente con service_role para operaciones internas del servidor. */
   supabase: SupabaseClient;
+  /** Cliente del usuario; las lecturas aplican las políticas RLS de GEMA. */
+  userSupabase: SupabaseClient;
   user: AdminUser;
 }
 
@@ -99,6 +102,7 @@ export async function requireSuperAdminSession(
 
   return {
     supabase,
+    userSupabase: authSupabase,
     user: {
       id: profile.id,
       email: profile.email ?? user.email ?? 'Usuario',
@@ -139,6 +143,7 @@ export async function requireAlexpertoAccessSession(
 
   return {
     supabase,
+    userSupabase: authSupabase,
     user: {
       id: profile.id,
       email: profile.email ?? user.email ?? 'Usuario',

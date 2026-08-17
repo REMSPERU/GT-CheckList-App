@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Mail, Lock, KeyRound, ArrowLeft } from 'lucide-react';
 
 import { AuthFormField } from '@/components/auth/auth-form-field';
 import { AuthMessages } from '@/components/auth/auth-messages';
@@ -11,57 +12,86 @@ import { useRegister } from '@/hooks/auth/use-register';
 export default function RegisterPage() {
   const register = useRegister();
 
+  const passwordsMatch =
+    register.password &&
+    register.confirmPassword &&
+    register.password === register.confirmPassword;
+  const passwordsDontMatch =
+    register.password &&
+    register.confirmPassword &&
+    register.password !== register.confirmPassword;
+
   return (
     <AuthShell
       title="Crear cuenta"
-      description="Solicita acceso al panel con tu correo administrativo.">
-      <form className="mt-6 grid gap-4" onSubmit={register.onSubmit}>
+      description="Solicita acceso para registrarte en el portal de gestión técnica.">
+      <form className="mt-6 space-y-4" onSubmit={register.onSubmit}>
         <AuthFormField
-          label="Correo"
+          label="Correo electrónico"
           type="email"
           autoComplete="email"
+          placeholder="admin@empresa.com"
+          leftIcon={<Mail className="h-4 w-4" />}
           value={register.email}
           onChange={register.setEmail}
         />
+
         <AuthFormField
-          label="Contrasena (minimo 8)"
+          label="Contraseña"
           type="password"
           autoComplete="new-password"
           minLength={8}
+          placeholder="Mínimo 8 caracteres"
+          leftIcon={<Lock className="h-4 w-4" />}
+          hint="Debe tener al menos 8 caracteres"
           value={register.password}
           onChange={register.setPassword}
         />
+
         <AuthFormField
-          label="Confirmar contrasena"
+          label="Confirmar contraseña"
           type="password"
           autoComplete="new-password"
           minLength={8}
+          placeholder="Repite tu contraseña"
+          leftIcon={<KeyRound className="h-4 w-4" />}
+          hint={
+            passwordsDontMatch
+              ? 'Las contraseñas no coinciden aún'
+              : passwordsMatch
+              ? '✓ Las contraseñas coinciden'
+              : undefined
+          }
           value={register.confirmPassword}
           onChange={register.setConfirmPassword}
         />
+
         <AuthSubmitButton
           isSubmitting={register.isSubmitting}
-          submittingLabel="Creando..."
+          submittingLabel="Registrando..."
           disabled={!register.isFormValid}>
-          Crear cuenta
+          Registrar cuenta
         </AuthSubmitButton>
       </form>
 
-      <AuthMessages
-        errorMessage={register.errorMessage}
-        message={register.message}
-      />
+      <div className="mt-4">
+        <AuthMessages
+          errorMessage={register.errorMessage}
+          message={register.message}
+        />
+      </div>
 
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-950/10 bg-emerald-50/70 p-4 text-sm text-slate-600">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 text-xs sm:text-sm text-slate-700">
         <Link
-          className="font-black text-emerald-900 underline-offset-4 hover:underline"
+          className="flex items-center gap-1.5 font-bold text-emerald-800 underline-offset-4 hover:underline hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded px-1"
           href="/login">
+          <ArrowLeft className="h-3.5 w-3.5" />
           Ya tengo cuenta
         </Link>
         <Link
-          className="font-black text-emerald-900 underline-offset-4 hover:underline"
+          className="font-medium text-slate-700 underline-offset-4 hover:underline hover:text-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded px-1"
           href="/forgot-password">
-          Olvide mi contrasena
+          Recuperar acceso
         </Link>
       </div>
     </AuthShell>

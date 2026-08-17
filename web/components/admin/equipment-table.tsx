@@ -38,12 +38,13 @@ export const EquipmentTable = memo(function EquipmentTable({
   const backParam = backQuery ? `?back=${encodeURIComponent(backQuery)}` : '';
   return (
     <AdminTableShell
+      className="flex-1"
       summary={
         isLoading
           ? 'Cargando activos...'
           : `${items.length.toLocaleString('es-PE')} de ${total.toLocaleString('es-PE')} activos · página ${page.toLocaleString('es-PE')} de ${totalPages.toLocaleString('es-PE')}`
       }>
-      <div className="[contain:content]">
+      <div className="flex min-h-0 flex-1 [contain:content]">
         <ResponsiveTable>
           <table className={TABLE_CLASS}>
             <TableHeaders

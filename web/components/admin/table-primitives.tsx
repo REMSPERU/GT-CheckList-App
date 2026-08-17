@@ -58,7 +58,7 @@ interface ResponsiveTableProps {
 
 export function ResponsiveTable({ children }: ResponsiveTableProps) {
   return (
-    <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 max-h-[calc(100vh-280px)] max-[768px]:max-h-[calc(100vh-220px)] [-webkit-overflow-scrolling:touch]">
+    <div className="min-h-0 flex-1 overflow-auto [-webkit-overflow-scrolling:touch]">
       {children}
     </div>
   );

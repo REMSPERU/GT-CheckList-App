@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Mail, Lock, UserPlus } from 'lucide-react';
 
 import { AuthFormField } from '@/components/auth/auth-form-field';
 import { AuthMessages } from '@/components/auth/auth-messages';
@@ -13,23 +14,28 @@ export default function LoginPage() {
 
   return (
     <AuthShell
-      title="Iniciar sesion"
-      description="Ingresa con tu correo para entrar directo al panel administrativo.">
-      <form className="mt-6 grid gap-4" onSubmit={login.onSubmit}>
+      title="Iniciar sesión"
+      description="Ingresa tus credenciales autorizadas para acceder al panel administrativo.">
+      <form className="mt-6 space-y-4" onSubmit={login.onSubmit}>
         <AuthFormField
-          label="Correo"
+          label="Correo electrónico"
           type="email"
           autoComplete="email"
+          placeholder="admin@empresa.com"
+          leftIcon={<Mail className="h-4 w-4" />}
           value={login.email}
           onChange={login.setEmail}
         />
+
         <AuthFormField
           label="Contraseña"
+          placeholder="••••••••"
+          leftIcon={<Lock className="h-4 w-4" />}
           action={
             <Link
-              className="text-xs font-bold text-emerald-800 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded px-1"
+              className="text-xs font-semibold text-emerald-800 underline-offset-4 hover:underline hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded px-1"
               href="/forgot-password">
-              Olvidé mi contraseña
+              ¿Olvidaste tu contraseña?
             </Link>
           }
           type="password"
@@ -37,21 +43,27 @@ export default function LoginPage() {
           value={login.password}
           onChange={login.setPassword}
         />
+
         <AuthSubmitButton
           isSubmitting={login.isSubmitting}
-          submittingLabel="Ingresando...">
-          Ingresar
+          submittingLabel="Iniciando sesión...">
+          Ingresar al panel
         </AuthSubmitButton>
       </form>
 
-      <AuthMessages errorMessage={login.errorMessage} message={login.message} />
+      <div className="mt-4">
+        <AuthMessages errorMessage={login.errorMessage} message={login.message} />
+      </div>
 
-      <div className="mt-5 rounded-2xl border border-emerald-950/10 bg-emerald-50/70 p-4 text-sm text-slate-600">
-        <span>No tienes usuario administrativo?</span>{' '}
+      <div className="mt-6 flex items-center justify-between rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 text-xs sm:text-sm text-slate-700">
+        <div className="flex items-center gap-2">
+          <UserPlus className="h-4 w-4 text-emerald-800 shrink-0" />
+          <span>¿No tienes usuario?</span>
+        </div>
         <Link
-          className="font-black text-emerald-900 underline-offset-4 hover:underline"
+          className="font-bold text-emerald-800 underline-offset-4 hover:underline hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 rounded px-1"
           href="/register">
-          Crear cuenta
+          Solicitar cuenta
         </Link>
       </div>
     </AuthShell>
