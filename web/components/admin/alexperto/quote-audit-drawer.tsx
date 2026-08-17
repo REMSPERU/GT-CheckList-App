@@ -5,12 +5,16 @@ import {
   CheckCircle2,
   Clock,
   Copy,
+  ExternalLink,
   FileCheck,
+  FileText,
+  LoaderCircle,
   Receipt,
   Save,
   X,
 } from 'lucide-react';
 import type { AlexpertoQuoteHistoryItem } from '@/types/alexperto';
+import { fetchWithAuth } from '@/services/auth/auth.service';
 
 export interface QuoteItem {
   id: string;
@@ -75,6 +79,15 @@ interface QuoteAuditDrawerProps {
   }) => Promise<void>;
 }
 
+interface QuoteDocument {
+  id: string;
+  name: string;
+  mimeType: string | null;
+  size: number | null;
+  createdAt: string;
+  source: 'QUOTE' | 'PROPOSAL';
+}
+
 const SPEECH_TEMPLATES = [
   {
     id: 's1',
@@ -103,13 +116,21 @@ export function QuoteAuditDrawer({
   isSuperadmin,
   onStatusUpdate,
 }: QuoteAuditDrawerProps) {
-  const [activeTab, setActiveTab] = useState<'review' | 'history'>('review');
+  const [activeTab, setActiveTab] = useState<
+    'review' | 'documents' | 'history'
+  >('review');
   const [auditorComment, setAuditorComment] = useState('');
   const [paulComment, setPaulComment] = useState('');
   const [currentStatus, setCurrentStatus] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [documents, setDocuments] = useState<QuoteDocument[]>([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const [openingDocumentId, setOpeningDocumentId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!quote) return;
@@ -119,7 +140,44 @@ export function QuoteAuditDrawer({
     setPaulComment(quote.paulComment ?? '');
     setNotice(null);
     setSaveError(null);
+    setDocuments([]);
+    setDocumentsError(null);
   }, [quote]);
+
+  useEffect(() => {
+    if (!open || !quote || activeTab !== 'documents') return;
+    const quoteId = quote.id;
+    let cancelled = false;
+
+    async function loadDocuments() {
+      setIsLoadingDocuments(true);
+      setDocumentsError(null);
+      try {
+        const response = await fetchWithAuth(
+          `/api/alexperto/cotizaciones/${quoteId}/documentos`,
+        );
+        if (!response.ok)
+          throw new Error('No se pudieron cargar los documentos.');
+        const payload = (await response.json()) as { items: QuoteDocument[] };
+        if (!cancelled) setDocuments(payload.items);
+      } catch (error) {
+        if (!cancelled) {
+          setDocumentsError(
+            error instanceof Error
+              ? error.message
+              : 'No se pudieron cargar los documentos.',
+          );
+        }
+      } finally {
+        if (!cancelled) setIsLoadingDocuments(false);
+      }
+    }
+
+    void loadDocuments();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, open, quote]);
 
   useEffect(() => {
     if (!open) return;
@@ -165,6 +223,27 @@ export function QuoteAuditDrawer({
       );
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const openDocument = async (document: QuoteDocument) => {
+    setOpeningDocumentId(document.id);
+    setDocumentsError(null);
+    try {
+      const response = await fetchWithAuth(
+        `/api/alexperto/cotizaciones/${quote.id}/documentos/${document.id}`,
+      );
+      if (!response.ok) throw new Error('No se pudo abrir el documento.');
+      const payload = (await response.json()) as { url: string };
+      window.open(payload.url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      setDocumentsError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo abrir el documento.',
+      );
+    } finally {
+      setOpeningDocumentId(null);
     }
   };
 
@@ -229,6 +308,16 @@ export function QuoteAuditDrawer({
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}>
             Revisión
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('documents')}
+            className={`border-b-2 px-4 py-3 text-xs font-bold transition ${
+              activeTab === 'documents'
+                ? 'border-[#072e27] text-[#072e27]'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}>
+            Documentos
           </button>
           <button
             type="button"
@@ -422,6 +511,69 @@ export function QuoteAuditDrawer({
                 </p>
               )}
             </div>
+          ) : activeTab === 'documents' ? (
+            <section>
+              <h3 className="m-0 text-sm font-bold text-slate-900">
+                Documentos de la cotización
+              </h3>
+              <p className="mb-0 mt-1 text-xs leading-relaxed text-slate-500">
+                Los enlaces se generan al abrir cada archivo y vencen en cinco
+                minutos.
+              </p>
+              {documentsError && (
+                <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                  {documentsError}
+                </p>
+              )}
+              {isLoadingDocuments ? (
+                <div className="flex items-center gap-2 py-8 text-xs text-slate-500">
+                  <LoaderCircle size={16} className="animate-spin" />
+                  Cargando documentos...
+                </div>
+              ) : documents.length === 0 ? (
+                <p className="py-8 text-center text-xs text-slate-500">
+                  No hay documentos adjuntos en Alexperto.
+                </p>
+              ) : (
+                <div className="mt-4 space-y-2">
+                  {documents.map(document => (
+                    <button
+                      key={document.id}
+                      type="button"
+                      onClick={() => void openDocument(document)}
+                      disabled={openingDocumentId !== null}
+                      className="flex w-full items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left transition hover:border-emerald-300 hover:bg-emerald-50/40 disabled:cursor-not-allowed disabled:opacity-60">
+                      <FileText size={18} className="shrink-0 text-[#0b5b4e]" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-bold text-slate-900">
+                          {document.name}
+                        </span>
+                        <span className="mt-1 block text-[11px] text-slate-500">
+                          {document.source === 'PROPOSAL'
+                            ? 'Propuesta'
+                            : 'Cotización'}{' '}
+                          ·{' '}
+                          {new Date(document.createdAt).toLocaleDateString(
+                            'es-PE',
+                          )}
+                        </span>
+                      </span>
+                      {openingDocumentId === document.id ? (
+                        <LoaderCircle
+                          size={16}
+                          className="animate-spin text-slate-500"
+                        />
+                      ) : (
+                        <ExternalLink
+                          size={16}
+                          className="shrink-0 text-slate-500"
+                        />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
           ) : (
             <section className="text-xs">
               <h3 className="m-0 text-sm font-bold text-slate-900">
