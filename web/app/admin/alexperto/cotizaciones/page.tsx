@@ -63,7 +63,7 @@ function CotizacionesContent() {
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   const [selectedExternalStatuses, setSelectedExternalStatuses] = useState<
     string[]
-  >([]);
+  >(['PENDING']);
   const [selectedGemaStatuses, setSelectedGemaStatuses] = useState<string[]>(
     [],
   );
