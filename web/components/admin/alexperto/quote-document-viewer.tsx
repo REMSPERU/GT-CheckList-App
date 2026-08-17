@@ -27,12 +27,9 @@ export function QuoteDocumentViewer({ quoteId }: QuoteDocumentViewerProps) {
 
   return (
     <section className="flex min-h-0 flex-col overflow-hidden bg-slate-100">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-3">
+      <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2">
         <div>
           <h3 className="m-0 text-sm font-bold text-slate-900">Documentos</h3>
-          <p className="mb-0 mt-0.5 text-xs text-slate-500">
-            Selecciona un archivo para revisarlo sin salir de la cotización.
-          </p>
         </div>
         {documentUrl && selectedDocument && (
           <div className="flex items-center gap-1">
@@ -40,21 +37,25 @@ export function QuoteDocumentViewer({ quoteId }: QuoteDocumentViewerProps) {
               href={documentUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">
-              <ExternalLink size={14} /> Abrir
+              className="grid h-7 w-7 place-items-center rounded-md text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+              aria-label="Abrir documento en otra pestaña"
+              title="Abrir en otra pestaña">
+              <ExternalLink size={15} />
             </a>
             <a
               href={documentUrl}
               download={selectedDocument.name}
-              className="inline-flex items-center gap-1.5 rounded-md bg-[#072e27] px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-[#05221d]">
-              <Download size={14} /> Descargar
+              className="grid h-7 w-7 place-items-center rounded-md bg-[#072e27] text-white transition hover:bg-[#05221d]"
+              aria-label={`Descargar ${selectedDocument.name}`}
+              title="Descargar">
+              <Download size={15} />
             </a>
           </div>
         )}
       </header>
 
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="min-h-0 overflow-y-auto border-b border-slate-200 bg-white p-3 lg:border-b-0 lg:border-r">
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[180px_minmax(0,1fr)]">
+        <aside className="min-h-0 overflow-y-auto border-b border-slate-200 bg-white p-2 lg:border-b-0 lg:border-r">
           {isLoading ? (
             <div className="flex items-center gap-2 p-3 text-xs text-slate-500">
               <LoaderCircle size={15} className="animate-spin" /> Cargando...
@@ -70,17 +71,17 @@ export function QuoteDocumentViewer({ quoteId }: QuoteDocumentViewerProps) {
                   key={document.id}
                   type="button"
                   onClick={() => setSelectedDocumentId(document.id)}
-                  className={`flex w-full items-start gap-2.5 rounded-lg p-2.5 text-left transition ${
+                  className={`flex w-full items-start gap-2 rounded-md p-2 text-left transition ${
                     selectedDocumentId === document.id
                       ? 'bg-emerald-50 text-[#072e27]'
                       : 'text-slate-700 hover:bg-slate-100'
                   }`}>
-                  <FileText size={16} className="mt-0.5 shrink-0" />
+                  <FileText size={15} className="mt-0.5 shrink-0" />
                   <span className="min-w-0">
                     <span className="block truncate text-xs font-bold">
                       {document.name}
                     </span>
-                    <span className="mt-1 block text-[11px] text-slate-500">
+                    <span className="mt-0.5 block text-[10px] text-slate-500">
                       {document.source === 'PROPOSAL'
                         ? 'Propuesta'
                         : 'Cotización'}
