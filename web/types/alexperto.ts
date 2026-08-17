@@ -61,3 +61,32 @@ export interface AlexpertoQuoteListResponse {
   items: AlexpertoQuoteListItem[];
   queriedAt: string;
 }
+
+export interface AlexpertoQuoteAuditItem {
+  id: string;
+  code: string;
+  propertyName: string;
+  specialty: string;
+  subSpecialty: string;
+  externalStatus: string;
+  gemaStatus: AlexpertoInternalStatus;
+  amount: string | null;
+  createdAt: string;
+  provider: string | null;
+  creationUserType: string | null;
+  requester: string | null;
+  description: string | null;
+  serviceCode: string | null;
+  auditorComment: string | null;
+  paulComment: string | null;
+  history: AlexpertoQuoteHistoryItem[];
+}
+
+export interface AlexpertoQuoteDocument {
+  id: string;
+  name: string;
+  mimeType: string | null;
+  size: number | null;
+  createdAt: string;
+  source: 'QUOTE' | 'PROPOSAL';
+}

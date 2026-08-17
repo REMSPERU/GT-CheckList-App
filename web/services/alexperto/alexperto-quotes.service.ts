@@ -174,8 +174,8 @@ export async function listAlexpertoQuotes(
     filters.estadoInterno.length === 0
       ? ''
       : includesPending
-        ? 'AND (q.id = ANY($7::text[]) OR NOT (q.id = ANY($8::text[])))'
-        : 'AND q.id = ANY($7::text[])';
+        ? 'AND (q.id = ANY($9::text[]) OR NOT (q.id = ANY($10::text[])))'
+        : 'AND q.id = ANY($9::text[])';
   const offset = (filters.page - 1) * filters.pageSize;
   const order = `${SORT_COLUMNS[filters.sort]} ${filters.direction === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`;
 
@@ -186,6 +186,8 @@ export async function listAlexpertoQuotes(
     filters.estadoExterno,
     filters.pageSize,
     offset,
+    filters.search,
+    filters.inmuebles,
   ];
   if (filters.estadoInterno.length > 0) {
     values.push(selectedStatusActionIds);
@@ -228,10 +230,13 @@ export async function listAlexpertoQuotes(
          LIMIT 1
        ) up ON true
        ${providerJoins}
-       WHERE q.property_id = ANY($1::text[])
-         AND q.created_at >= '${ALEXPERTO_REPORT_START}'::date
-         AND q.created_at < '${ALEXPERTO_REPORT_END}'::date
-          AND coalesce(up.cost, 0) >= $2 ${specialtyFilter} ${externalStatusFilter} ${internalStatusFilter}
+        WHERE q.property_id = ANY($1::text[])
+          AND q.created_at >= '${ALEXPERTO_REPORT_START}'::date
+          AND q.created_at < '${ALEXPERTO_REPORT_END}'::date
+          AND coalesce(up.cost, 0) >= $2
+          AND ($7 = '' OR q.code ILIKE '%' || $7 || '%' OR prop.name ILIKE '%' || $7 || '%' OR coalesce(q.description, '') ILIKE '%' || $7 || '%')
+          AND (cardinality($8::text[]) = 0 OR prop.name = ANY($8::text[]))
+          ${specialtyFilter} ${externalStatusFilter} ${internalStatusFilter}
     )
     SELECT *, count(*) OVER() AS total FROM base
     ORDER BY ${order} LIMIT $5 OFFSET $6`;

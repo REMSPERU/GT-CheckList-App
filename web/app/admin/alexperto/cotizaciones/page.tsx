@@ -1,6 +1,12 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import {
+  Suspense,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import { SearchInput } from '@/components/ui/search-input';
 import { SearchableMultiSelectField } from '@/components/ui/searchable-multi-select-field';
@@ -10,11 +16,8 @@ import {
   TD_CLASS,
   TH_CLASS,
 } from '@/components/admin/table-primitives';
-import {
-  formatExternalStatus,
-  QuoteAuditDrawer,
-  QuoteItem,
-} from '@/components/admin/alexperto/quote-audit-drawer';
+import { formatExternalStatus } from '@/components/admin/alexperto/quote-formatters';
+import { QuoteWorkspaceDialog } from '@/components/admin/alexperto/quote-workspace-dialog';
 import {
   CheckCircle2,
   Clock,
@@ -28,7 +31,10 @@ import {
 
 import { useAdminSession } from '@/hooks/auth/use-admin-session';
 import { fetchWithAuth } from '@/services/auth/auth.service';
-import type { AlexpertoQuoteListResponse } from '@/types/alexperto';
+import type {
+  AlexpertoQuoteAuditItem,
+  AlexpertoQuoteListResponse,
+} from '@/types/alexperto';
 
 const GEMA_STATUS_OPTIONS = [
   { value: 'PENDIENTE_REVISION', label: 'Pendiente de Revisión' },
@@ -41,7 +47,7 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
 function CotizacionesContent() {
   const { user } = useAdminSession();
-  const [quotes, setQuotes] = useState<QuoteItem[]>([]);
+  const [quotes, setQuotes] = useState<AlexpertoQuoteAuditItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -62,7 +68,9 @@ function CotizacionesContent() {
     [],
   );
 
-  const [selectedQuote, setSelectedQuote] = useState<QuoteItem | null>(null);
+  const [selectedQuote, setSelectedQuote] =
+    useState<AlexpertoQuoteAuditItem | null>(null);
+  const deferredSearch = useDeferredValue(search);
 
   // Load quotes with server-side pagination and sorting
   useEffect(() => {
@@ -88,6 +96,10 @@ function CotizacionesContent() {
       if (selectedGemaStatuses.length > 0) {
         params.set('estadoInterno', selectedGemaStatuses.join(','));
       }
+      if (selectedProperties.length > 0) {
+        params.set('inmuebles', selectedProperties.join(','));
+      }
+      if (deferredSearch) params.set('search', deferredSearch);
 
       try {
         const response = await fetchWithAuth(
@@ -114,7 +126,6 @@ function CotizacionesContent() {
             gemaStatus: item.internalStatus,
             amount: item.amount,
             createdAt: item.createdAt,
-            hasBeenReviewed: item.internalStatus !== 'PENDIENTE_REVISION',
             provider: item.providerName,
             creationUserType: item.creationUserType,
             requester: item.serviceCode ? `Sol. ${item.serviceCode}` : null,
@@ -147,6 +158,8 @@ function CotizacionesContent() {
     selectedSpecialties,
     selectedExternalStatuses,
     selectedGemaStatuses,
+    selectedProperties,
+    deferredSearch,
   ]);
 
   // Reset page to 1 when any filter changes
@@ -165,41 +178,7 @@ function CotizacionesContent() {
     setPage(1);
   };
 
-  const filteredQuotes = quotes.filter(q => {
-    const numMinAmount = minAmount !== '' ? Number(minAmount) : 0;
-    if (!isNaN(numMinAmount) && Number(q.amount ?? 0) < numMinAmount) {
-      return false;
-    }
-    if (
-      search &&
-      !q.code.toLowerCase().includes(search.toLowerCase()) &&
-      !q.propertyName.toLowerCase().includes(search.toLowerCase()) &&
-      !(q.provider ?? '').toLowerCase().includes(search.toLowerCase()) &&
-      !(q.description ?? '').toLowerCase().includes(search.toLowerCase()) &&
-      !(q.creationUserType ?? '').toLowerCase().includes(search.toLowerCase())
-    ) {
-      return false;
-    }
-    if (
-      selectedGemaStatuses.length > 0 &&
-      !selectedGemaStatuses.includes(q.gemaStatus)
-    ) {
-      return false;
-    }
-    if (
-      selectedProperties.length > 0 &&
-      !selectedProperties.includes(q.propertyName)
-    ) {
-      return false;
-    }
-    if (
-      selectedExternalStatuses.length > 0 &&
-      !selectedExternalStatuses.includes(q.externalStatus)
-    ) {
-      return false;
-    }
-    return true;
-  });
+  const filteredQuotes = quotes;
 
   const specialtyOptions = useMemo(() => {
     return Array.from(
@@ -225,17 +204,20 @@ function CotizacionesContent() {
 
   const handleStatusUpdate = async (input: {
     quoteId: string;
-    status: string;
+    status: AlexpertoQuoteAuditItem['gemaStatus'];
     auditorComment: string | null;
     paulComment: string | null;
+    recordHistory: boolean;
   }) => {
     const body: {
-      status: string;
+      status: AlexpertoQuoteAuditItem['gemaStatus'];
       auditorComment: string | null;
       paulComment?: string | null;
+      recordHistory: boolean;
     } = {
       status: input.status,
       auditorComment: input.auditorComment,
+      recordHistory: input.recordHistory,
     };
     if (user?.role === 'SUPERADMIN') body.paulComment = input.paulComment;
 
@@ -253,7 +235,7 @@ function CotizacionesContent() {
       throw new Error('No se pudo guardar la revisión en GEMA.');
     }
     const payload = (await response.json()) as {
-      historyEntry: QuoteItem['history'][number];
+      historyEntry: AlexpertoQuoteAuditItem['history'][number] | null;
     };
 
     setQuotes(prev =>
@@ -262,13 +244,14 @@ function CotizacionesContent() {
           ? {
               ...quote,
               gemaStatus: input.status,
-              hasBeenReviewed: input.status !== 'PENDIENTE_REVISION',
               auditorComment: input.auditorComment,
               paulComment:
                 user?.role === 'SUPERADMIN'
                   ? input.paulComment
                   : quote.paulComment,
-              history: [payload.historyEntry, ...quote.history],
+              history: payload.historyEntry
+                ? [payload.historyEntry, ...quote.history]
+                : quote.history,
             }
           : quote,
       ),
@@ -283,7 +266,9 @@ function CotizacionesContent() {
               user?.role === 'SUPERADMIN'
                 ? input.paulComment
                 : current.paulComment,
-            history: [payload.historyEntry, ...current.history],
+            history: payload.historyEntry
+              ? [payload.historyEntry, ...current.history]
+              : current.history,
           }
         : current,
     );
@@ -482,12 +467,6 @@ function CotizacionesContent() {
                 <th className={`${TH_CLASS} py-2.5 text-center`}>
                   Gestión GEMA
                 </th>
-                <th className={`${TH_CLASS} py-2.5 min-w-[220px]`}>
-                  Comentario Auditor
-                </th>
-                <th className={`${TH_CLASS} py-2.5 min-w-[220px]`}>
-                  Comentario Paul
-                </th>
                 <th className={`${TH_CLASS} py-2.5 text-right`}>Acciones</th>
               </tr>
             </thead>
@@ -495,7 +474,7 @@ function CotizacionesContent() {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={12}
+                    colSpan={10}
                     className="px-4 py-8 text-center text-slate-500">
                     Consultando Alexperto...
                   </td>
@@ -503,7 +482,7 @@ function CotizacionesContent() {
               ) : loadError ? (
                 <tr>
                   <td
-                    colSpan={12}
+                    colSpan={10}
                     className="px-4 py-8 text-center text-red-700">
                     {loadError}
                   </td>
@@ -511,7 +490,7 @@ function CotizacionesContent() {
               ) : filteredQuotes.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={12}
+                    colSpan={10}
                     className="px-4 py-8 text-center text-slate-500">
                     No hay cotizaciones para los filtros seleccionados.
                   </td>
@@ -611,20 +590,6 @@ function CotizacionesContent() {
                       {getGemaBadge(item.gemaStatus)}
                     </td>
 
-                    <td
-                      className={`${TD_CLASS} py-2.5 min-w-[220px] max-w-[300px]`}>
-                      <p className="m-0 line-clamp-3 text-slate-700 font-normal">
-                        {item.auditorComment ?? 'Sin comentario'}
-                      </p>
-                    </td>
-
-                    <td
-                      className={`${TD_CLASS} py-2.5 min-w-[220px] max-w-[300px]`}>
-                      <p className="m-0 line-clamp-3 text-slate-700 font-normal">
-                        {item.paulComment ?? 'Sin comentario'}
-                      </p>
-                    </td>
-
                     {/* ACCIONES */}
                     <td
                       className={`${TD_CLASS} py-2.5 whitespace-nowrap text-right`}>
@@ -635,7 +600,7 @@ function CotizacionesContent() {
                           setSelectedQuote(item);
                         }}
                         className="inline-flex items-center gap-1 text-xs font-bold text-[#072e27] hover:text-emerald-700 transition px-2 py-0.5 rounded-md hover:bg-emerald-50">
-                        <span>Auditar</span>
+                        <span>Ver detalle</span>
                         <ChevronRight size={13} />
                       </button>
                     </td>
@@ -704,9 +669,7 @@ function CotizacionesContent() {
         </div>
       </AdminTableShell>
 
-      {/* AUDIT SLIDE-OVER DRAWER */}
-      <QuoteAuditDrawer
-        open={Boolean(selectedQuote)}
+      <QuoteWorkspaceDialog
         quote={selectedQuote}
         onClose={() => setSelectedQuote(null)}
         isSuperadmin={user?.role === 'SUPERADMIN'}
