@@ -255,7 +255,7 @@ export function AdminShell({ children }: AdminShellProps) {
 
       {/* SIDEBAR NAVIGATION */}
       <aside
-        className={`z-50 flex flex-col justify-between border-r border-slate-800/80 bg-slate-900 text-slate-100 transition-all duration-200 ease-in-out overflow-x-hidden min-[981px]:sticky min-[981px]:top-0 min-[981px]:h-screen shadow-2xs ${
+        className={`z-50 flex flex-col justify-between overflow-hidden border-r border-slate-800/80 bg-slate-900 text-slate-100 transition-all duration-200 ease-in-out min-[981px]:sticky min-[981px]:top-0 min-[981px]:h-dvh shadow-2xs ${
           isMobileOpen
             ? 'fixed inset-y-0 left-0 w-[260px] translate-x-0'
             : 'max-[980px]:fixed max-[980px]:inset-y-0 max-[980px]:left-0 max-[980px]:w-[260px] max-[980px]:-translate-x-full'
@@ -265,7 +265,7 @@ export function AdminShell({ children }: AdminShellProps) {
             : 'min-[981px]:w-[72px] min-[981px]:min-w-[72px]'
         }`}>
         {/* BRAND HEADER & TOGGLE BUTTON */}
-        <div className="flex flex-col overflow-x-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex items-center justify-between border-b border-slate-800/80 px-3.5 py-3.5 bg-slate-900">
             {isExpanded ? (
               <>
@@ -312,7 +312,7 @@ export function AdminShell({ children }: AdminShellProps) {
           </div>
 
           {/* NAVIGATION GROUPS */}
-          <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 space-y-4">
+          <nav className="admin-sidebar-scroll min-h-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4">
             {NAV_GROUPS.map(group => {
               const visibleItems = group.items.filter(item => {
                 if (item.superadminOnly && user?.role !== 'SUPERADMIN') {
