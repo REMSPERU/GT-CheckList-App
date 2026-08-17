@@ -3,7 +3,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { AlexpertoQuoteFilters } from '@/schemas/alexperto.schema';
-import type { AlexpertoQuoteListItem } from '@/types/alexperto';
+import type {
+  AlexpertoQuoteHistoryItem,
+  AlexpertoQuoteListItem,
+} from '@/types/alexperto';
 
 import { getAlexpertoPool } from './alexperto-db.server';
 import type { AuthorizedProperty } from './alexperto-access.service';
@@ -27,11 +30,35 @@ interface QuoteRow {
 }
 
 interface AuditActionRow {
+  id: string;
   external_entity_id: string;
   current_status: AlexpertoQuoteListItem['internalStatus'];
   notes: string | null;
   auditor_comment: string | null;
   paul_comment: string | null;
+}
+
+interface AuditHistoryRow {
+  action_id: string;
+  previous_status: AlexpertoQuoteHistoryItem['previousStatus'];
+  new_status: AlexpertoQuoteHistoryItem['newStatus'];
+  auditor_comment: string | null;
+  paul_comment: string | null;
+  created_at: string;
+  created_by: string | null;
+}
+
+interface UserNameRow {
+  id: string;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+}
+
+interface AuditStatusRow {
+  external_entity_id: string;
+  current_status: AlexpertoQuoteListItem['internalStatus'];
 }
 
 const SORT_COLUMNS = {
@@ -108,10 +135,20 @@ export async function listAlexpertoQuotes(
   if (!externalIds.length) {
     return { total: 0, items: [] as AlexpertoQuoteListItem[] };
   }
+  const statusActions = await getActionsForProperties(
+    supabase,
+    properties.map(property => property.id),
+  );
+  const selectedStatusActionIds = statusActions
+    .filter(action => filters.estadoInterno.includes(action.current_status))
+    .map(action => action.external_entity_id);
+  const allStatusActionIds = statusActions.map(
+    action => action.external_entity_id,
+  );
+  const includesPending = filters.estadoInterno.includes('PENDIENTE_REVISION');
 
   const specialtyFilter = `AND (
-    cardinality($3::text[]) = 0 OR
-    CASE lower(subesp.name)
+    CASE lower(trim(subesp.name))
       WHEN 'sistema de aire acondicionado' THEN 'AA'
       WHEN 'equipos de ventilación mecánica' THEN 'VM'
       WHEN 'sistemas contra incendio' THEN 'SCI'
@@ -122,12 +159,23 @@ export async function listAlexpertoQuotes(
       WHEN 'sub estación eléctrica' THEN 'SEE'
       WHEN 'tableros de transferencia | distribución | otros relacionados' THEN 'TTA'
       WHEN 'ascensores' THEN 'ASC'
-    END = ANY($3::text[])
+    END = ANY(
+      CASE WHEN cardinality($3::text[]) = 0
+        THEN ARRAY['AA', 'VM', 'SCI', 'TE', 'GE', 'BOM', 'SSC', 'SEE', 'TTA', 'ASC']::text[]
+        ELSE $3::text[]
+      END
+    )
   )`;
   const externalStatusFilter = `AND (
     cardinality($4::text[]) = 0 OR
     coalesce(up.latest_proposal_status, q.latest_quote_status) = ANY($4::text[])
   )`;
+  const internalStatusFilter =
+    filters.estadoInterno.length === 0
+      ? ''
+      : includesPending
+        ? 'AND (q.id = ANY($7::text[]) OR NOT (q.id = ANY($8::text[])))'
+        : 'AND q.id = ANY($7::text[])';
   const offset = (filters.page - 1) * filters.pageSize;
   const order = `${SORT_COLUMNS[filters.sort]} ${filters.direction === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`;
 
@@ -138,6 +186,8 @@ export async function listAlexpertoQuotes(
     filters.estadoExterno,
     filters.pageSize,
     offset,
+    selectedStatusActionIds,
+    allStatusActionIds,
   ];
 
   const client = await getAlexpertoPool().connect();
@@ -157,7 +207,8 @@ export async function listAlexpertoQuotes(
 
     const text = `WITH base AS (
        SELECT q.id, q.code, q.created_at, q.property_id, prop.name AS property_name,
-         subesp.name AS specialty_name, coalesce(req.description, q.description) AS service,
+          coalesce(subesp.name, 'Sin especialidad') AS specialty_name,
+          coalesce(req.description, q.description) AS service,
          req.code AS service_code, up.cost, coalesce(up.latest_proposal_status, q.latest_quote_status) AS external_status,
          q.creation_user_type,
          ${providerSelect},
@@ -178,7 +229,7 @@ export async function listAlexpertoQuotes(
        WHERE q.property_id = ANY($1::text[])
          AND q.created_at >= '${ALEXPERTO_REPORT_START}'::date
          AND q.created_at < '${ALEXPERTO_REPORT_END}'::date
-         AND coalesce(up.cost, 0) >= $2 ${specialtyFilter} ${externalStatusFilter}
+          AND coalesce(up.cost, 0) >= $2 ${specialtyFilter} ${externalStatusFilter} ${internalStatusFilter}
     )
     SELECT *, count(*) OVER() AS total FROM base
     ORDER BY ${order} LIMIT $5 OFFSET $6`;
@@ -191,6 +242,10 @@ export async function listAlexpertoQuotes(
   const actions = await getActions(supabase, ids);
   const actionById = new Map(
     actions.map(action => [action.external_entity_id, action]),
+  );
+  const historyByActionId = await getActionHistory(
+    supabase,
+    actions.map(action => action.id),
   );
   const internalStatuses = new Set(filters.estadoInterno);
 
@@ -234,6 +289,7 @@ export async function listAlexpertoQuotes(
           internalComment: action?.notes ?? null,
           auditorComment: action?.auditor_comment ?? action?.notes ?? null,
           paulComment: action?.paul_comment ?? null,
+          history: action ? (historyByActionId.get(action.id) ?? []) : [],
           responsible: null,
         } satisfies AlexpertoQuoteListItem;
       }),
@@ -281,7 +337,8 @@ function specialtyCode(
     'tableros de transferencia | distribución | otros relacionados': 'TTA',
     ascensores: 'ASC',
   };
-  return codes[name.toLowerCase()] ?? 'AA';
+  // La consulta excluye especialidades fuera de este catalogo antes de llegar aqui.
+  return codes[name.trim().toLowerCase()] ?? 'AA';
 }
 
 async function getActions(supabase: SupabaseClient, ids: string[]) {
@@ -289,10 +346,72 @@ async function getActions(supabase: SupabaseClient, ids: string[]) {
   const { data, error } = await supabase
     .from('alexperto_audit_actions')
     .select(
-      'external_entity_id, current_status, notes, auditor_comment, paul_comment',
+      'id, external_entity_id, current_status, notes, auditor_comment, paul_comment',
     )
     .eq('external_entity_type', 'QUOTE')
     .in('external_entity_id', ids);
   if (error) throw error;
   return (data ?? []) as AuditActionRow[];
+}
+
+async function getActionHistory(supabase: SupabaseClient, actionIds: string[]) {
+  if (!actionIds.length) return new Map<string, AlexpertoQuoteHistoryItem[]>();
+
+  const { data: history, error: historyError } = await supabase
+    .from('alexperto_audit_action_history')
+    .select(
+      'action_id, previous_status, new_status, auditor_comment, paul_comment, created_at, created_by',
+    )
+    .in('action_id', actionIds)
+    .order('created_at', { ascending: false });
+  if (historyError) throw historyError;
+
+  const rows = (history ?? []) as AuditHistoryRow[];
+  const userIds = Array.from(
+    new Set(rows.flatMap(row => (row.created_by ? [row.created_by] : []))),
+  );
+  const usersById = new Map<string, UserNameRow>();
+  if (userIds.length) {
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id, username, first_name, last_name, email')
+      .in('id', userIds);
+    if (usersError) throw usersError;
+    for (const user of (users ?? []) as UserNameRow[])
+      usersById.set(user.id, user);
+  }
+
+  const historyByActionId = new Map<string, AlexpertoQuoteHistoryItem[]>();
+  for (const row of rows) {
+    const user = row.created_by ? usersById.get(row.created_by) : null;
+    const name = user
+      ? [user.first_name, user.last_name].filter(Boolean).join(' ') ||
+        user.username ||
+        user.email
+      : null;
+    const entries = historyByActionId.get(row.action_id) ?? [];
+    entries.push({
+      previousStatus: row.previous_status,
+      newStatus: row.new_status,
+      auditorComment: row.auditor_comment,
+      paulComment: row.paul_comment,
+      createdAt: row.created_at,
+      createdBy: row.created_by ? { id: row.created_by, name } : null,
+    });
+    historyByActionId.set(row.action_id, entries);
+  }
+  return historyByActionId;
+}
+
+async function getActionsForProperties(
+  supabase: SupabaseClient,
+  propertyIds: string[],
+) {
+  const { data, error } = await supabase
+    .from('alexperto_audit_actions')
+    .select('external_entity_id, current_status')
+    .eq('external_entity_type', 'QUOTE')
+    .in('gema_property_id', propertyIds);
+  if (error) throw error;
+  return (data ?? []) as AuditStatusRow[];
 }
