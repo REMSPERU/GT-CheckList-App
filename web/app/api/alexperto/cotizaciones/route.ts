@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
           ? undefined
           : parseList(params.get('estadoExterno')),
       estadoInterno: parseList(params.get('estadoInterno')),
+      creadoPor: parseList(params.get('creadoPor')),
       inmuebles: parseList(params.get('inmuebles')),
       search: params.get('search') ?? undefined,
       propertyId: params.get('propertyId') ?? undefined,

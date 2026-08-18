@@ -12,6 +12,7 @@ export const alexpertoQuoteFiltersSchema = z.object({
   especialidades: z.array(z.enum(ALEXPERTO_SPECIALTY_CODES)).default([]),
   estadoExterno: z.array(z.string().trim().min(1).max(80)).default([]),
   estadoInterno: z.array(z.enum(ALEXPERTO_INTERNAL_STATUSES)).default([]),
+  creadoPor: z.array(z.enum(['PROVIDER', 'ADMINISTRATOR'])).default([]),
   inmuebles: z.array(z.string().trim().min(1).max(200)).default([]),
   search: z.string().trim().max(100).default(''),
   propertyId: z.string().uuid().optional(),

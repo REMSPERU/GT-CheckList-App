@@ -66,6 +66,7 @@ export const SearchableMultiSelectField = memo(
       if (!val) {
         // If clicking empty option (e.g. "Todos"), clear selection
         onChange([]);
+        setSearch('');
         return;
       }
       if (values.includes(val)) {
@@ -73,6 +74,8 @@ export const SearchableMultiSelectField = memo(
       } else {
         onChange([...values, val]);
       }
+      // Start from the complete list so another option can be selected immediately.
+      setSearch('');
     };
 
     const clearAll = (e: React.MouseEvent) => {
@@ -83,6 +86,7 @@ export const SearchableMultiSelectField = memo(
 
     const selectAll = () => {
       onChange(options.filter(o => o.value !== '').map(o => o.value));
+      setSearch('');
     };
 
     // Selected display summary
