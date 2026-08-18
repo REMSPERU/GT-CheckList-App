@@ -3,8 +3,6 @@ import { useEffect, useState } from 'react';
 import { fetchWithAuth } from '@/services/auth/auth.service';
 import type { AlexpertoRequestDocument } from '@/types/alexperto';
 
-const documentsCache = new Map<string, AlexpertoRequestDocument[]>();
-
 function preferredDocumentId(documents: AlexpertoRequestDocument[]) {
   return (
     documents.find(
@@ -33,15 +31,9 @@ export function useRequestDocuments(requestId: string | null) {
     if (!requestId) return;
     const currentRequestId = requestId;
     let cancelled = false;
-    const cachedDocuments = documentsCache.get(currentRequestId);
     setDocuments([]);
     setSelectedDocumentId(null);
     setDocumentUrl(null);
-    if (cachedDocuments) {
-      setDocuments(cachedDocuments);
-      setSelectedDocumentId(preferredDocumentId(cachedDocuments));
-      return;
-    }
 
     async function loadDocuments() {
       setIsLoading(true);
@@ -56,7 +48,6 @@ export function useRequestDocuments(requestId: string | null) {
           items: AlexpertoRequestDocument[];
         };
         if (cancelled) return;
-        documentsCache.set(currentRequestId, payload.items);
         setDocuments(payload.items);
         setSelectedDocumentId(preferredDocumentId(payload.items));
       } catch (loadError) {

@@ -28,6 +28,7 @@ interface RequestDocumentRow {
   document_size: string | null;
   created_at: string;
   type_name: string | null;
+  source: 'REQUEST' | 'QUOTE' | 'PROPOSAL';
 }
 
 function required(value: string | undefined, name: string) {
@@ -124,11 +125,33 @@ export async function listAlexpertoRequestDocuments(requestId: string) {
   const { rows } = await getAlexpertoPool().query<RequestDocumentRow>({
     text: `
       SELECT d.id AS document_id, d.document_name, d.document_path, d.mime_type,
-        d.document_size, d.created_at, dt.name AS type_name
+        d.document_size, d.created_at, dt.name AS type_name,
+        'REQUEST'::text AS source
       FROM sch_main.request_documents d
        LEFT JOIN sch_main.request_document_type dt ON dt.id = d.type_id
       WHERE d.request_id = $1 AND d.deleted_at IS NULL
-      ORDER BY d.created_at DESC
+      UNION ALL
+      SELECT d.id AS document_id, d.document_name, d.document_path, d.mime_type,
+        d.document_size, d.created_at, 'Cotización'::text AS type_name,
+        'QUOTE'::text AS source
+      FROM sch_main.quote_documents d
+       INNER JOIN sch_main.quotes q ON (
+         q.id = d.quote_id AND
+         (q.generated_request_id = $1 OR q.trigger_request_id = $1)
+       )
+      WHERE d.deleted_at IS NULL
+      UNION ALL
+      SELECT d.id AS document_id, d.document_name, d.document_path, d.mime_type,
+        d.document_size, d.created_at, 'Propuesta'::text AS type_name,
+        'PROPOSAL'::text AS source
+      FROM sch_main.proposal_documents d
+       INNER JOIN sch_main.proposals p ON p.id = d.proposal_id
+       INNER JOIN sch_main.quotes q ON (
+         q.id = p.quote_id AND
+         (q.generated_request_id = $1 OR q.trigger_request_id = $1)
+       )
+      WHERE d.deleted_at IS NULL
+      ORDER BY created_at DESC
     `,
     values: [requestId],
   });
@@ -140,6 +163,7 @@ export async function listAlexpertoRequestDocuments(requestId: string) {
     mimeType: row.mime_type,
     size: row.document_size === null ? null : Number(row.document_size),
     createdAt: new Date(row.created_at).toISOString(),
+    source: row.source,
   })) satisfies AlexpertoRequestDocument[];
 }
 
@@ -150,10 +174,32 @@ export async function getAlexpertoRequestDocumentUrl(
   const { rows } = await getAlexpertoPool().query<RequestDocumentRow>({
     text: `
       SELECT d.id AS document_id, d.document_name, d.document_path, d.mime_type,
-        d.document_size, d.created_at, dt.name AS type_name
+        d.document_size, d.created_at, dt.name AS type_name,
+        'REQUEST'::text AS source
       FROM sch_main.request_documents d
        LEFT JOIN sch_main.request_document_type dt ON dt.id = d.type_id
       WHERE d.id = $2 AND d.request_id = $1 AND d.deleted_at IS NULL
+      UNION ALL
+      SELECT d.id AS document_id, d.document_name, d.document_path, d.mime_type,
+        d.document_size, d.created_at, 'Cotización'::text AS type_name,
+        'QUOTE'::text AS source
+      FROM sch_main.quote_documents d
+       INNER JOIN sch_main.quotes q ON (
+         q.id = d.quote_id AND
+         (q.generated_request_id = $1 OR q.trigger_request_id = $1)
+       )
+      WHERE d.id = $2 AND d.deleted_at IS NULL
+      UNION ALL
+      SELECT d.id AS document_id, d.document_name, d.document_path, d.mime_type,
+        d.document_size, d.created_at, 'Propuesta'::text AS type_name,
+        'PROPOSAL'::text AS source
+      FROM sch_main.proposal_documents d
+       INNER JOIN sch_main.proposals p ON p.id = d.proposal_id
+       INNER JOIN sch_main.quotes q ON (
+         q.id = p.quote_id AND
+         (q.generated_request_id = $1 OR q.trigger_request_id = $1)
+       )
+      WHERE d.id = $2 AND d.deleted_at IS NULL
       LIMIT 1
     `,
     values: [requestId, documentId],

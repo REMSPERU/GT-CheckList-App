@@ -76,6 +76,7 @@ export interface AlexpertoRequestListItem {
   requestType: string | null;
   externalStatus: string | null;
   quoteCount: number;
+  attachmentCount: number;
   internalStatus: AlexpertoInternalStatus;
 }
 
@@ -91,6 +92,7 @@ export interface AlexpertoRequestDocument {
   id: string;
   name: string;
   typeName: string;
+  source: 'REQUEST' | 'QUOTE' | 'PROPOSAL';
   mimeType: string | null;
   size: number | null;
   createdAt: string;

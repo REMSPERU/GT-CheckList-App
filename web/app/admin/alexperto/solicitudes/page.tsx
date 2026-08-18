@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Paperclip,
 } from 'lucide-react';
 
 import { AdminTableShell } from '@/components/admin/admin-table-shell';
@@ -277,9 +278,8 @@ function SolicitudesContent() {
                 <th className="px-4 py-2.5">Código</th>
                 <th className="px-4 py-2.5">Fecha programada</th>
                 <th className="min-w-[190px] px-4 py-2.5">Inmueble</th>
-                <th className="min-w-[200px] px-4 py-2.5">Solicitud</th>
+                <th className="px-4 py-2.5 text-center">Archivos adjuntos</th>
                 <th className="px-4 py-2.5 text-center">Tipo</th>
-                <th className="px-4 py-2.5 text-center">Cotizaciones</th>
                 <th className="px-4 py-2.5 text-center">Estado Alexperto</th>
                 <th className="px-4 py-2.5 text-center">Gestión GEMA</th>
               </tr>
@@ -288,7 +288,7 @@ function SolicitudesContent() {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-slate-500">
                     Consultando Alexperto...
                   </td>
@@ -296,7 +296,7 @@ function SolicitudesContent() {
               ) : error ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-red-700">
                     {error}
                   </td>
@@ -304,7 +304,7 @@ function SolicitudesContent() {
               ) : requests.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-slate-500">
                     No hay solicitudes para los filtros seleccionados.
                   </td>
@@ -336,21 +336,21 @@ function SolicitudesContent() {
                     <td className="px-4 py-2.5 font-semibold text-slate-900">
                       {item.property.name}
                     </td>
-                    <td className="px-4 py-2.5">
-                      <p className="m-0 font-semibold text-slate-900">
-                        {item.specialty?.name ?? 'Sin clasificar'}
-                      </p>
-                      <p className="m-0 mt-0.5 max-w-[360px] truncate text-[11px] font-normal text-slate-500">
-                        {item.description ?? 'Sin descripción'}
-                      </p>
+                    <td className="px-4 py-2.5 text-center">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
+                          item.attachmentCount > 0
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                            : 'border-slate-200 bg-slate-100 text-slate-500'
+                        }`}>
+                        <Paperclip size={12} />
+                        {item.attachmentCount}
+                      </span>
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       <span className="inline-flex rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
                         {formatRequestType(item.requestType)}
                       </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-center font-mono font-bold">
-                      {item.quoteCount}
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       <span className="inline-flex rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">

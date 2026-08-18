@@ -22,6 +22,8 @@ interface RequestRow {
   description: string | null;
   request_type: string | null;
   external_status: string | null;
+  quote_count: string;
+  attachment_count: string;
   total: string;
 }
 
@@ -85,24 +87,65 @@ export async function listAlexpertoRequests(
           AND (cardinality($4::text[]) = 0 OR r.latest_request_status = ANY($4::text[]))
           AND ($5 = '' OR r.code ILIKE '%' || $5 || '%' OR prop.name ILIKE '%' || $5 || '%' OR coalesce(r.description, '') ILIKE '%' || $5 || '%')
           AND (cardinality($6::text[]) = 0 OR prop.name = ANY($6::text[]))
-      ) SELECT *, count(*) OVER() AS total FROM base
-      ORDER BY ${order}, id DESC LIMIT $7 OFFSET $8`,
+      ), paged AS (
+        SELECT *, count(*) OVER() AS total
+        FROM base
+        ORDER BY ${order}, id DESC
+        LIMIT $7 OFFSET $8
+      ), related_quotes AS (
+        SELECT q.id AS quote_id, q.generated_request_id AS request_id
+        FROM sch_main.quotes q
+        INNER JOIN paged p ON p.id = q.generated_request_id
+        WHERE q.generated_request_id IS NOT NULL
+        UNION
+        SELECT q.id AS quote_id, q.trigger_request_id AS request_id
+        FROM sch_main.quotes q
+        INNER JOIN paged p ON p.id = q.trigger_request_id
+        WHERE q.trigger_request_id IS NOT NULL
+      ), quote_counts AS (
+        SELECT request_id, count(*)::text AS quote_count
+        FROM related_quotes
+        GROUP BY request_id
+      ), all_attachments AS (
+        SELECT d.request_id, d.id AS document_id
+        FROM sch_main.request_documents d
+        INNER JOIN paged p ON p.id = d.request_id
+        WHERE d.deleted_at IS NULL
+        UNION ALL
+        SELECT rq.request_id, d.id AS document_id
+        FROM related_quotes rq
+        INNER JOIN sch_main.quote_documents d ON d.quote_id = rq.quote_id
+        WHERE d.deleted_at IS NULL
+        UNION ALL
+        SELECT rq.request_id, d.id AS document_id
+        FROM related_quotes rq
+        INNER JOIN sch_main.proposals p ON p.quote_id = rq.quote_id
+        INNER JOIN sch_main.proposal_documents d ON d.proposal_id = p.id
+        WHERE d.deleted_at IS NULL
+      ), attachment_counts AS (
+        SELECT request_id, count(*)::text AS attachment_count
+        FROM all_attachments
+        GROUP BY request_id
+      )
+      SELECT p.*, coalesce(qc.quote_count, '0') AS quote_count,
+        coalesce(ac.attachment_count, '0') AS attachment_count
+      FROM paged p
+      LEFT JOIN quote_counts qc ON qc.request_id = p.id
+      LEFT JOIN attachment_counts ac ON ac.request_id = p.id
+      ORDER BY ${order}, p.id DESC`,
       values,
     });
   } finally {
     client.release();
   }
   const ids = result.rows.map(row => row.id);
-  const [quoteCounts, actionResult] = await Promise.all([
-    getQuoteCounts(ids),
-    ids.length
-      ? supabase
-          .from('alexperto_audit_actions')
-          .select('external_entity_id, current_status')
-          .eq('external_entity_type', 'REQUEST')
-          .in('external_entity_id', ids)
-      : Promise.resolve({ data: [], error: null }),
-  ]);
+  const actionResult = ids.length
+    ? await supabase
+        .from('alexperto_audit_actions')
+        .select('external_entity_id, current_status')
+        .eq('external_entity_type', 'REQUEST')
+        .in('external_entity_id', ids)
+    : { data: [], error: null };
   const { data, error } = actionResult;
   if (error) throw error;
   const internalStatusById = new Map(
@@ -136,7 +179,8 @@ export async function listAlexpertoRequests(
           description: row.description,
           requestType: row.request_type,
           externalStatus: row.external_status,
-          quoteCount: quoteCounts.get(row.id) ?? 0,
+          quoteCount: Number(row.quote_count),
+          attachmentCount: Number(row.attachment_count),
           internalStatus:
             internalStatusById.get(row.id) ?? 'PENDIENTE_REVISION',
         } satisfies AlexpertoRequestListItem;
@@ -174,29 +218,6 @@ export async function findAuthorizedRequestProperty(
       property => property.alexpertoPropertyId === externalPropertyId,
     ) ?? null
   );
-}
-
-async function getQuoteCounts(requestIds: string[]) {
-  if (!requestIds.length) return new Map<string, number>();
-  const { rows } = await getAlexpertoPool().query<{
-    request_id: string;
-    quote_count: string;
-  }>({
-    text: `WITH related_quotes AS (
-      SELECT id, generated_request_id AS request_id
-      FROM sch_main.quotes
-      WHERE generated_request_id = ANY($1::text[])
-      UNION
-      SELECT id, trigger_request_id AS request_id
-      FROM sch_main.quotes
-      WHERE trigger_request_id = ANY($1::text[])
-    )
-    SELECT request_id, count(*)::text AS quote_count
-    FROM related_quotes
-    GROUP BY request_id`,
-    values: [requestIds],
-  });
-  return new Map(rows.map(row => [row.request_id, Number(row.quote_count)]));
 }
 
 function specialtyCode(name: string | null): AlexpertoSpecialtyCode | null {
