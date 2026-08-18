@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { requireAlexpertoAccessSession } from '@/services/auth/server-auth.service';
+import { alexpertoRequestFiltersSchema } from '@/schemas/alexperto.schema';
 import { resolveAuthorizedProperties } from '@/services/alexperto/alexperto-access.service';
-import { listAlexpertoQuotes } from '@/services/alexperto/alexperto-quotes.service';
-import { alexpertoQuoteFiltersSchema } from '@/schemas/alexperto.schema';
+import { listAlexpertoRequests } from '@/services/alexperto/alexperto-requests.service';
+import { requireAlexpertoAccessSession } from '@/services/auth/server-auth.service';
 
 function parseList(value: string | null) {
   return value
@@ -18,17 +18,13 @@ export async function GET(request: NextRequest) {
   try {
     const session = await requireAlexpertoAccessSession(request);
     const params = request.nextUrl.searchParams;
-    const filters = alexpertoQuoteFiltersSchema.parse({
+    const filters = alexpertoRequestFiltersSchema.parse({
       page: params.get('page') ?? undefined,
       pageSize: params.get('pageSize') ?? undefined,
-      montoMinimo: params.get('montoMinimo') ?? undefined,
+      requestTypes: parseList(params.get('requestTypes')),
       especialidades: parseList(params.get('especialidades')),
-      estadoExterno:
-        params.get('estadoExterno') === null
-          ? undefined
-          : parseList(params.get('estadoExterno')),
+      estadoExterno: parseList(params.get('estadoExterno')),
       estadoInterno: parseList(params.get('estadoInterno')),
-      creadoPor: parseList(params.get('creadoPor')),
       inmuebles: parseList(params.get('inmuebles')),
       search: params.get('search') ?? undefined,
       propertyId: params.get('propertyId') ?? undefined,
@@ -39,10 +35,9 @@ export async function GET(request: NextRequest) {
     const scopedProperties = filters.propertyId
       ? properties.filter(property => property.id === filters.propertyId)
       : properties;
-    if (filters.propertyId && !scopedProperties.length) {
+    if (filters.propertyId && !scopedProperties.length)
       return NextResponse.json({ code: 'FORBIDDEN' }, { status: 403 });
-    }
-    const result = await listAlexpertoQuotes(
+    const result = await listAlexpertoRequests(
       filters,
       scopedProperties,
       session.supabase,
@@ -60,7 +55,7 @@ export async function GET(request: NextRequest) {
     const code = error instanceof Error ? error.message : 'INTERNAL_ERROR';
     const status =
       code === 'UNAUTHENTICATED' ? 401 : code === 'FORBIDDEN' ? 403 : 500;
-    console.error('Alexperto quotes list failed', { code });
+    console.error('Alexperto requests list failed', { code });
     return NextResponse.json(
       { code: status === 500 ? 'ALEXPERTO_UNAVAILABLE' : code },
       { status },

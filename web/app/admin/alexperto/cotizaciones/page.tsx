@@ -4,7 +4,6 @@ import {
   Suspense,
   useDeferredValue,
   useEffect,
-  useMemo,
   useState,
 } from 'react';
 
@@ -36,6 +35,27 @@ import type {
   AlexpertoQuoteListResponse,
 } from '@/types/alexperto';
 
+const SPECIALTY_OPTIONS = [
+  { value: 'AA', label: 'Sistema de aire acondicionado' },
+  { value: 'VM', label: 'Equipos de ventilación mecánica' },
+  { value: 'SCI', label: 'Sistemas contra incendio' },
+  { value: 'TE', label: 'Tableros eléctricos' },
+  { value: 'GE', label: 'Grupos electrógenos' },
+  { value: 'BOM', label: 'Bombas de agua y desagüe' },
+  { value: 'SSC', label: 'Sistemas de seguridad y control' },
+  { value: 'SEE', label: 'Sub estación eléctrica' },
+  {
+    value: 'TTA',
+    label: 'Tableros de transferencia | distribución | otros relacionados',
+  },
+  { value: 'ASC', label: 'Ascensores' },
+];
+
+const CREATION_USER_OPTIONS = [
+  { value: 'PROVIDER', label: 'Proveedor' },
+  { value: 'ADMINISTRATOR', label: 'Administrador' },
+];
+
 const GEMA_STATUS_OPTIONS = [
   { value: 'PENDIENTE_REVISION', label: 'Pendiente de Revisión' },
   { value: 'OBSERVADO', label: 'Observado' },
@@ -44,6 +64,19 @@ const GEMA_STATUS_OPTIONS = [
 ];
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
+
+type FilterOption = { value: string; label: string };
+
+function mergeFilterOptions(
+  current: FilterOption[],
+  incoming: FilterOption[],
+): FilterOption[] {
+  const options = new Map(current.map(option => [option.value, option]));
+  incoming.forEach(option => options.set(option.value, option));
+  return Array.from(options.values()).sort((a, b) =>
+    a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }),
+  );
+}
 
 function CotizacionesContent() {
   const { user } = useAdminSession();
@@ -67,6 +100,13 @@ function CotizacionesContent() {
   const [selectedGemaStatuses, setSelectedGemaStatuses] = useState<string[]>(
     [],
   );
+  const [selectedCreationUserTypes, setSelectedCreationUserTypes] = useState<
+    string[]
+  >([]);
+  const [propertyOptions, setPropertyOptions] = useState<FilterOption[]>([]);
+  const [externalStatusOptions, setExternalStatusOptions] = useState<
+    FilterOption[]
+  >([]);
 
   const [selectedQuote, setSelectedQuote] =
     useState<AlexpertoQuoteAuditItem | null>(null);
@@ -96,6 +136,9 @@ function CotizacionesContent() {
       if (selectedGemaStatuses.length > 0) {
         params.set('estadoInterno', selectedGemaStatuses.join(','));
       }
+      if (selectedCreationUserTypes.length > 0) {
+        params.set('creadoPor', selectedCreationUserTypes.join(','));
+      }
       if (selectedProperties.length > 0) {
         params.set('inmuebles', selectedProperties.join(','));
       }
@@ -115,6 +158,26 @@ function CotizacionesContent() {
         const payload = (await response.json()) as AlexpertoQuoteListResponse;
         if (cancelled) return;
         setTotal(payload.total);
+        setPropertyOptions(current =>
+          mergeFilterOptions(
+            current,
+            payload.items.map(item => ({
+              value: item.property.name,
+              label: item.property.name,
+            })),
+          ),
+        );
+        setExternalStatusOptions(current =>
+          mergeFilterOptions(
+            current,
+            payload.items
+              .filter(item => Boolean(item.externalStatus))
+              .map(item => ({
+                value: item.externalStatus as string,
+                label: formatExternalStatus(item.externalStatus as string),
+              })),
+          ),
+        );
         setQuotes(
           payload.items.map(item => ({
             id: item.externalQuoteId,
@@ -158,6 +221,7 @@ function CotizacionesContent() {
     selectedSpecialties,
     selectedExternalStatuses,
     selectedGemaStatuses,
+    selectedCreationUserTypes,
     selectedProperties,
     deferredSearch,
   ]);
@@ -179,28 +243,6 @@ function CotizacionesContent() {
   };
 
   const filteredQuotes = quotes;
-
-  const specialtyOptions = useMemo(() => {
-    return Array.from(
-      new Map(quotes.map(q => [q.subSpecialty, q.specialty])).entries(),
-    )
-      .sort((a, b) => a[1].localeCompare(b[1], 'es', { sensitivity: 'base' }))
-      .map(([value, label]) => ({ value, label }));
-  }, [quotes]);
-
-  const propertyOptions = useMemo(() => {
-    return Array.from(new Set(quotes.map(q => q.propertyName).filter(Boolean)))
-      .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
-      .map(value => ({ value, label: value }));
-  }, [quotes]);
-
-  const externalStatusOptions = useMemo(() => {
-    return Array.from(
-      new Set(quotes.map(q => q.externalStatus).filter(Boolean)),
-    )
-      .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
-      .map(value => ({ value, label: formatExternalStatus(value) }));
-  }, [quotes]);
 
   const handleStatusUpdate = async (input: {
     quoteId: string;
@@ -327,7 +369,7 @@ function CotizacionesContent() {
         </div>
 
         {/* SEARCH & SEARCHABLE MULTI-SELECT FILTERS GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2.5 items-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-2.5 items-center">
           <div className="w-full">
             <SearchInput
               placeholder="Buscar código, inmueble..."
@@ -356,10 +398,21 @@ function CotizacionesContent() {
 
           <SearchableMultiSelectField
             values={selectedSpecialties}
-            options={specialtyOptions}
+            options={SPECIALTY_OPTIONS}
             onChange={vals => handleFilterChange(setSelectedSpecialties, vals)}
             placeholder="Especialidad (Todas)"
             ariaLabel="Filtrar por especialidad"
+            compact
+          />
+
+          <SearchableMultiSelectField
+            values={selectedCreationUserTypes}
+            options={CREATION_USER_OPTIONS}
+            onChange={vals =>
+              handleFilterChange(setSelectedCreationUserTypes, vals)
+            }
+            placeholder="Creado por (Todos)"
+            ariaLabel="Filtrar por creador"
             compact
           />
 
@@ -391,6 +444,7 @@ function CotizacionesContent() {
             ariaLabel="Filtrar por estado interno GEMA"
             compact
           />
+
         </div>
       </section>
 

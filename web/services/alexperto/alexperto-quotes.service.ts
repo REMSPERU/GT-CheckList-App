@@ -174,8 +174,11 @@ export async function listAlexpertoQuotes(
     filters.estadoInterno.length === 0
       ? ''
       : includesPending
-        ? 'AND (q.id = ANY($9::text[]) OR NOT (q.id = ANY($10::text[])))'
-        : 'AND q.id = ANY($9::text[])';
+        ? 'AND (q.id = ANY($10::text[]) OR NOT (q.id = ANY($11::text[])))'
+        : 'AND q.id = ANY($10::text[])';
+  const creationUserTypeFilter = `AND (
+    cardinality($9::text[]) = 0 OR q.creation_user_type = ANY($9::text[])
+  )`;
   const offset = (filters.page - 1) * filters.pageSize;
   const order = `${SORT_COLUMNS[filters.sort]} ${filters.direction === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`;
 
@@ -188,6 +191,7 @@ export async function listAlexpertoQuotes(
     offset,
     filters.search,
     filters.inmuebles,
+    filters.creadoPor,
   ];
   if (filters.estadoInterno.length > 0) {
     values.push(selectedStatusActionIds);
@@ -236,7 +240,7 @@ export async function listAlexpertoQuotes(
           AND coalesce(up.cost, 0) >= $2
           AND ($7 = '' OR q.code ILIKE '%' || $7 || '%' OR prop.name ILIKE '%' || $7 || '%' OR coalesce(q.description, '') ILIKE '%' || $7 || '%')
           AND (cardinality($8::text[]) = 0 OR prop.name = ANY($8::text[]))
-          ${specialtyFilter} ${externalStatusFilter} ${internalStatusFilter}
+           ${specialtyFilter} ${externalStatusFilter} ${creationUserTypeFilter} ${internalStatusFilter}
     )
     SELECT *, count(*) OVER() AS total FROM base
     ORDER BY ${order} LIMIT $5 OFFSET $6`;

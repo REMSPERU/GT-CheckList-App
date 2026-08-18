@@ -3,7 +3,10 @@ import 'server-only';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-import type { AlexpertoQuoteDocument } from '@/types/alexperto';
+import type {
+  AlexpertoQuoteDocument,
+  AlexpertoRequestDocument,
+} from '@/types/alexperto';
 
 import { getAlexpertoPool } from './alexperto-db.server';
 
@@ -15,6 +18,16 @@ interface QuoteDocumentRow {
   document_size: string | null;
   created_at: string;
   source: 'QUOTE' | 'PROPOSAL';
+}
+
+interface RequestDocumentRow {
+  document_id: string;
+  document_name: string | null;
+  document_path: string;
+  mime_type: string | null;
+  document_size: string | null;
+  created_at: string;
+  type_name: string | null;
 }
 
 function required(value: string | undefined, name: string) {
@@ -105,4 +118,54 @@ export async function getAlexpertoQuoteDocumentUrl(
     { expiresIn: 300 },
   );
   return url;
+}
+
+export async function listAlexpertoRequestDocuments(requestId: string) {
+  const { rows } = await getAlexpertoPool().query<RequestDocumentRow>({
+    text: `
+      SELECT d.id AS document_id, d.document_name, d.document_path, d.mime_type,
+        d.document_size, d.created_at, dt.name AS type_name
+      FROM sch_main.request_documents d
+       LEFT JOIN sch_main.request_document_type dt ON dt.id = d.type_id
+      WHERE d.request_id = $1 AND d.deleted_at IS NULL
+      ORDER BY d.created_at DESC
+    `,
+    values: [requestId],
+  });
+
+  return rows.map(row => ({
+    id: String(row.document_id),
+    name: row.document_name?.trim() || 'Documento sin nombre',
+    typeName: row.type_name?.trim() || 'Sin tipo',
+    mimeType: row.mime_type,
+    size: row.document_size === null ? null : Number(row.document_size),
+    createdAt: new Date(row.created_at).toISOString(),
+  })) satisfies AlexpertoRequestDocument[];
+}
+
+export async function getAlexpertoRequestDocumentUrl(
+  requestId: string,
+  documentId: string,
+) {
+  const { rows } = await getAlexpertoPool().query<RequestDocumentRow>({
+    text: `
+      SELECT d.id AS document_id, d.document_name, d.document_path, d.mime_type,
+        d.document_size, d.created_at, dt.name AS type_name
+      FROM sch_main.request_documents d
+       LEFT JOIN sch_main.request_document_type dt ON dt.id = d.type_id
+      WHERE d.id = $2 AND d.request_id = $1 AND d.deleted_at IS NULL
+      LIMIT 1
+    `,
+    values: [requestId, documentId],
+  });
+  const document = rows[0];
+  if (!document) return null;
+
+  const { bucket, prefix, region } = getS3Config();
+  const key = validateDocumentPath(document.document_path, prefix);
+  return getSignedUrl(
+    getS3Client(region),
+    new GetObjectCommand({ Bucket: bucket, Key: key }),
+    { expiresIn: 300 },
+  );
 }
