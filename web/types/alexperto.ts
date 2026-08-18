@@ -62,6 +62,28 @@ export interface AlexpertoQuoteListResponse {
   queriedAt: string;
 }
 
+export interface AlexpertoRequestListItem {
+  externalRequestId: string;
+  code: string;
+  createdAt: string;
+  startTime: string | null;
+  property: { id: string; name: string; gemaPropertyId: string };
+  specialty: { name: string; code: AlexpertoSpecialtyCode } | null;
+  description: string | null;
+  requestType: string | null;
+  externalStatus: string | null;
+  quoteCount: number;
+  internalStatus: AlexpertoInternalStatus;
+}
+
+export interface AlexpertoRequestListResponse {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: AlexpertoRequestListItem[];
+  queriedAt: string;
+}
+
 export interface AlexpertoQuoteAuditItem {
   id: string;
   code: string;

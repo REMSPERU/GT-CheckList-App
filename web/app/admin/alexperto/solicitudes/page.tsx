@@ -1,288 +1,291 @@
 'use client';
 
-import { Suspense, useState } from 'react';
-
-import { SearchInput } from '@/components/ui/search-input';
-import { SelectField } from '@/components/ui/select-field';
+import { Suspense, useDeferredValue, useEffect, useState } from 'react';
 import {
-  ClipboardList,
-  FileQuestion,
-  CheckCircle2,
-  Clock,
   AlertCircle,
-  Building2,
+  CheckCircle2,
+  ChevronLeft,
   ChevronRight,
-  Users,
+  Clock,
 } from 'lucide-react';
 
-const SPECIALTY_OPTIONS = [
-  { value: '', label: 'Todas las especialidades' },
-  { value: 'climatizacion', label: 'Climatización y HVAC' },
-  { value: 'servicios_generales', label: 'Servicios generales' },
-  { value: 'electricidad', label: 'Tableros e Instalaciones Eléctricas' },
-  { value: 'sanitarias', label: 'Instalaciones Sanitarias' },
-  { value: 'seguridad', label: 'Sistema Contra Incendio y Seguridad' },
-];
+import { AdminTableShell } from '@/components/admin/admin-table-shell';
+import { formatExternalStatus } from '@/components/admin/alexperto/quote-formatters';
+import { SearchInput } from '@/components/ui/search-input';
+import { SelectField } from '@/components/ui/select-field';
+import { fetchWithAuth } from '@/services/auth/auth.service';
+import type {
+  AlexpertoRequestListItem,
+  AlexpertoRequestListResponse,
+} from '@/types/alexperto';
 
-const STATUS_OPTIONS = [
-  { value: '', label: 'Todos los estados' },
-  { value: 'PENDIENTE_REVISION', label: 'Pendiente de Revisión' },
-  { value: 'OBSERVADO', label: 'Observado' },
-  { value: 'CULMINADO', label: 'Culminado' },
-];
+const PAGE_SIZE_OPTIONS = [30, 50, 100];
 
-const MOCK_REQUESTS = [
-  {
-    id: 'req-001',
-    code: 'SOL-9821',
-    propertyName: 'PANORAMA CENTRO EMPRESARIAL DOS',
-    specialty: 'Climatización y HVAC',
-    description: 'Mantenimiento correctivo de chiler N° 2 por ruidos anómalos.',
-    requesterName: 'Ing. Carlos Mendoza',
-    externalStatus: 'PENDING',
-    gemaStatus: 'PENDIENTE_REVISION',
-    createdAt: '2026-08-12T16:20:10.000Z',
-    hasQuote: true,
-  },
-  {
-    id: 'req-002',
-    code: 'SOL-9818',
-    propertyName: 'EDIFICIO PARDO Y ALIAGA',
-    specialty: 'Servicios generales',
-    description: 'Reparación de filtración en muro cortina piso 12.',
-    requesterName: 'Arq. Lucia Torres',
-    externalStatus: 'IN_PROGRESS',
-    gemaStatus: 'OBSERVADO',
-    createdAt: '2026-08-12T15:10:45.000Z',
-    hasQuote: false,
-  },
-  {
-    id: 'req-003',
-    code: 'SOL-9805',
-    propertyName: 'TORRE TEKTON',
-    specialty: 'Tableros e Instalaciones Eléctricas',
-    description: 'Inspección de termografía en tablero general TG-01.',
-    requesterName: 'Téc. Fernando Ruiz',
-    externalStatus: 'RESOLVED',
-    gemaStatus: 'CULMINADO',
-    createdAt: '2026-08-11T18:40:00.000Z',
-    hasQuote: true,
-  },
-];
+function internalStatusBadge(status: string) {
+  const styles =
+    status === 'CULMINADO' || status === 'VALIDADO'
+      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+      : status === 'OBSERVADO'
+        ? 'bg-amber-50 text-amber-800 border-amber-200'
+        : 'bg-slate-100 text-slate-700 border-slate-200';
+  const Icon =
+    status === 'CULMINADO' || status === 'VALIDADO'
+      ? CheckCircle2
+      : status === 'OBSERVADO'
+        ? AlertCircle
+        : Clock;
+  const label =
+    status === 'VALIDADO'
+      ? 'Revisado'
+      : status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' ');
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${styles}`}>
+      <Icon size={12} />
+      {label}
+    </span>
+  );
+}
 
 function SolicitudesContent() {
+  const [requests, setRequests] = useState<AlexpertoRequestListItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
   const [search, setSearch] = useState('');
-  const [selectedSpecialty, setSelectedSpecialty] = useState('');
-  const [selectedGemaStatus, setSelectedGemaStatus] = useState('');
+  const [requestType, setRequestType] = useState('');
+  const [externalStatus, setExternalStatus] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const deferredSearch = useDeferredValue(search);
 
-  const filteredRequests = MOCK_REQUESTS.filter(r => {
-    if (
-      search &&
-      !r.code.toLowerCase().includes(search.toLowerCase()) &&
-      !r.propertyName.toLowerCase().includes(search.toLowerCase()) &&
-      !r.description.toLowerCase().includes(search.toLowerCase())
-    ) {
-      return false;
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRequests() {
+      setIsLoading(true);
+      setError(null);
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+        sort: 'startTime',
+        direction: 'desc',
+      });
+      if (deferredSearch) params.set('search', deferredSearch);
+      if (requestType) params.set('requestTypes', requestType);
+      if (externalStatus) params.set('estadoExterno', externalStatus);
+      try {
+        const response = await fetchWithAuth(
+          `/api/alexperto/solicitudes?${params}`,
+        );
+        if (!response.ok) {
+          throw new Error(
+            response.status === 401
+              ? 'Tu sesión expiró. Vuelve a iniciar sesión.'
+              : 'No se pudieron cargar las solicitudes.',
+          );
+        }
+        const payload = (await response.json()) as AlexpertoRequestListResponse;
+        if (cancelled) return;
+        setRequests(payload.items);
+        setTotal(payload.total);
+      } catch (loadError) {
+        if (!cancelled)
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'Error al cargar solicitudes.',
+          );
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
     }
-    if (selectedGemaStatus && r.gemaStatus !== selectedGemaStatus) return false;
-    return true;
-  });
+    void loadRequests();
+    return () => {
+      cancelled = true;
+    };
+  }, [page, pageSize, deferredSearch, requestType, externalStatus]);
 
-  const getGemaBadge = (status: string) => {
-    switch (status) {
-      case 'CULMINADO':
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 border border-emerald-200">
-            <CheckCircle2 size={13} className="text-emerald-600" />
-            Culminado
-          </span>
-        );
-      case 'OBSERVADO':
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 border border-amber-200">
-            <AlertCircle size={13} className="text-amber-600" />
-            Observado
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 border border-slate-200">
-            <Clock size={13} className="text-slate-500" />
-            Pendiente de Revisión
-          </span>
-        );
-    }
-  };
+  function changeFilter(setter: (value: string) => void, value: string) {
+    setter(value);
+    setPage(1);
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const startItem = total ? (page - 1) * pageSize + 1 : 0;
+  const endItem = Math.min(page * pageSize, total);
 
   return (
-    <main className="grid gap-6 px-6 lg:px-8 py-6">
-      {/* HEADER & SUMMARY KPIS */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="flex flex-col gap-1 rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-semibold uppercase tracking-wider">
-              Solicitudes Registradas
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-              <ClipboardList size={16} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-slate-900 m-0 mt-1">12,450</p>
-          <span className="text-[11px] text-slate-500 font-medium">
-            Total en sistema Alexperto
+    <main className="flex h-[calc(100vh-52px)] min-h-0 flex-col gap-2.5 overflow-hidden px-4 py-2.5 lg:px-6">
+      <section className="shrink-0 space-y-2.5 rounded-xl border border-slate-200/80 bg-white p-3 shadow-2xs">
+        <div className="flex items-center gap-2.5 px-0.5">
+          <h2 className="m-0 text-sm font-bold tracking-tight text-slate-900">
+            Solicitudes Alexperto
+          </h2>
+          <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+            {startItem} - {endItem} de {total}
           </span>
         </div>
-
-        <div className="flex flex-col gap-1 rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-semibold uppercase tracking-wider">
-              Sin Cotización Asignada
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
-              <FileQuestion size={16} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-amber-900 m-0 mt-1">14</p>
-          <span className="text-[11px] text-amber-700/80 font-medium">
-            Requieren atención de proveedor
-          </span>
-        </div>
-
-        <div className="flex flex-col gap-1 rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-semibold uppercase tracking-wider">
-              En Revisión GEMA
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-              <Clock size={16} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-blue-900 m-0 mt-1">
-            {filteredRequests.length}
-          </p>
-          <span className="text-[11px] text-blue-700/80 font-medium">
-            Asignadas a tus inmuebles
-          </span>
-        </div>
-
-        <div className="flex flex-col gap-1 rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-semibold uppercase tracking-wider">
-              Inmuebles Vinculados
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-              <Building2 size={16} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-slate-900 m-0 mt-1">67 / 68</p>
-          <span className="text-[11px] text-emerald-700 font-medium">
-            Alcance de auditoría activo
-          </span>
-        </div>
-      </section>
-
-      {/* SEARCH AND FILTERS TOOLBAR */}
-      <section className="flex flex-col gap-4 rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
-        <div className="grid grid-cols-1 md:grid-cols-[minmax(240px,1.5fr)_minmax(200px,1fr)_minmax(200px,1fr)] gap-3 items-center">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
           <SearchInput
-            placeholder="Buscar código (SOL-XXXX), inmueble o descripción..."
+            compact
+            placeholder="Buscar código, inmueble o descripción..."
             value={search}
-            onChange={setSearch}
+            onChange={value => changeFilter(setSearch, value)}
           />
-
           <SelectField
-            value={selectedSpecialty}
-            options={SPECIALTY_OPTIONS}
-            onChange={setSelectedSpecialty}
-            ariaLabel="Filtrar por especialidad"
+            value={requestType}
+            options={[
+              { value: '', label: 'Todos los tipos' },
+              { value: 'CORRECTIVE', label: 'Correctivo' },
+              { value: 'REQUIREMENT', label: 'Requerimiento' },
+            ]}
+            onChange={value => changeFilter(setRequestType, value)}
+            ariaLabel="Filtrar por tipo de solicitud"
           />
-
           <SelectField
-            value={selectedGemaStatus}
-            options={STATUS_OPTIONS}
-            onChange={setSelectedGemaStatus}
-            ariaLabel="Filtrar por estado interno GEMA"
+            value={externalStatus}
+            options={[
+              { value: '', label: 'Todos los estados' },
+              { value: 'PENDING', label: 'Pendiente' },
+              { value: 'IN_PROGRESS', label: 'En proceso' },
+              { value: 'COMPLETED', label: 'Culminado' },
+            ]}
+            onChange={value => changeFilter(setExternalStatus, value)}
+            ariaLabel="Filtrar por estado Alexperto"
           />
         </div>
       </section>
 
-      {/* DATA TABLE / LISTING */}
-      <section className="rounded-xl border border-slate-200/80 bg-white shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+      <AdminTableShell className="min-h-0 flex-1">
+        <div className="min-h-0 flex-1 overflow-auto">
+          <table className="w-full border-collapse text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider">
-                <th className="px-4 py-3.5">Código</th>
-                <th className="px-4 py-3.5">Inmueble</th>
-                <th className="px-4 py-3.5">Especialidad y Descripción</th>
-                <th className="px-4 py-3.5">Solicitante</th>
-                <th className="px-4 py-3.5 text-center">Estado Alexperto</th>
-                <th className="px-4 py-3.5 text-center">Gestión GEMA</th>
-                <th className="px-4 py-3.5 text-right">Acciones</th>
+              <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                <th className="px-4 py-2.5">Código</th>
+                <th className="px-4 py-2.5">Inicio</th>
+                <th className="min-w-[190px] px-4 py-2.5">Inmueble</th>
+                <th className="min-w-[200px] px-4 py-2.5">Solicitud</th>
+                <th className="px-4 py-2.5 text-center">Cotizaciones</th>
+                <th className="px-4 py-2.5 text-center">Estado Alexperto</th>
+                <th className="px-4 py-2.5 text-center">Gestión GEMA</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {filteredRequests.map(item => (
-                <tr
-                  key={item.id}
-                  className="transition hover:bg-slate-50/60">
-                  <td className="px-4 py-3.5 font-bold text-slate-900 whitespace-nowrap">
-                    <span className="font-mono text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                      {item.code}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 max-w-[200px]">
-                    <p className="truncate font-semibold text-slate-900 m-0">
-                      {item.propertyName}
-                    </p>
-                    <span className="text-[11px] text-slate-400 font-normal">
-                      {new Date(item.createdAt).toLocaleDateString('es-PE')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 max-w-[280px]">
-                    <p className="font-semibold text-slate-900 m-0">
-                      {item.specialty}
-                    </p>
-                    <p className="text-[11px] text-slate-500 line-clamp-1 m-0 mt-0.5">
-                      {item.description}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3.5 whitespace-nowrap text-slate-700">
-                    <span className="inline-flex items-center gap-1.5">
-                      <Users size={13} className="text-slate-400" />
-                      {item.requesterName}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 text-center">
-                    <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200">
-                      {item.externalStatus}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 text-center">
-                    {getGemaBadge(item.gemaStatus)}
-                  </td>
-                  <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-xs font-bold text-[#072e27] hover:text-emerald-700 transition px-2.5 py-1 rounded-md hover:bg-emerald-50">
-                      <span>Ver Solicitud</span>
-                      <ChevronRight size={14} />
-                    </button>
+              {isLoading ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="px-4 py-8 text-center text-slate-500">
+                    Consultando Alexperto...
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="px-4 py-8 text-center text-red-700">
+                    {error}
+                  </td>
+                </tr>
+              ) : requests.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="px-4 py-8 text-center text-slate-500">
+                    No hay solicitudes para los filtros seleccionados.
+                  </td>
+                </tr>
+              ) : (
+                requests.map(item => (
+                  <tr
+                    key={item.externalRequestId}
+                    className="transition hover:bg-slate-50/60">
+                    <td className="whitespace-nowrap px-4 py-2.5">
+                      <span className="rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono font-bold text-slate-800">
+                        {item.code}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5">
+                      {new Date(
+                        item.startTime ?? item.createdAt,
+                      ).toLocaleDateString('es-PE')}
+                    </td>
+                    <td className="px-4 py-2.5 font-semibold text-slate-900">
+                      {item.property.name}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <p className="m-0 font-semibold text-slate-900">
+                        {item.specialty?.name ??
+                          item.requestType ??
+                          'Sin clasificar'}
+                      </p>
+                      <p className="m-0 mt-0.5 max-w-[360px] truncate text-[11px] font-normal text-slate-500">
+                        {item.description ?? 'Sin descripción'}
+                      </p>
+                    </td>
+                    <td className="px-4 py-2.5 text-center font-mono font-bold">
+                      {item.quoteCount}
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      <span className="inline-flex rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                        {formatExternalStatus(item.externalStatus)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      {internalStatusBadge(item.internalStatus)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
-
-        {/* FOOTER PAGINATION */}
-        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/50 px-4 py-3 text-xs text-slate-500">
-          <span>Mostrando {filteredRequests.length} solicitudes</span>
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-slate-600">Página 1 de 1</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/50 px-4 py-2 text-xs text-slate-500">
+          <div className="flex items-center gap-3">
+            Mostrando{' '}
+            <strong className="text-slate-800">
+              {startItem} - {endItem}
+            </strong>{' '}
+            de <strong className="text-slate-800">{total}</strong>
+            <select
+              value={pageSize}
+              onChange={event => {
+                setPageSize(Number(event.target.value));
+                setPage(1);
+              }}
+              className="rounded border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700">
+              {PAGE_SIZE_OPTIONS.map(size => (
+                <option key={size} value={size}>
+                  {size} / pág
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              disabled={page <= 1 || isLoading}
+              onClick={() => setPage(current => Math.max(1, current - 1))}
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 disabled:cursor-not-allowed disabled:opacity-40">
+              <ChevronLeft size={13} />
+              Anterior
+            </button>
+            <span className="px-2 font-semibold text-slate-700">
+              Página {page} de {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={page >= totalPages || isLoading}
+              onClick={() =>
+                setPage(current => Math.min(totalPages, current + 1))
+              }
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 disabled:cursor-not-allowed disabled:opacity-40">
+              Siguiente
+              <ChevronRight size={13} />
+            </button>
           </div>
         </div>
-      </section>
+      </AdminTableShell>
     </main>
   );
 }
@@ -291,11 +294,8 @@ export default function SolicitudesPage() {
   return (
     <Suspense
       fallback={
-        <div className="grid min-h-[400px] place-items-center gap-3">
-          <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#bdd2d0] border-t-emerald-800" />
-          <p className="text-sm font-medium text-slate-500">
-            Cargando solicitudes de Alexperto...
-          </p>
+        <div className="grid min-h-[400px] place-items-center text-sm font-medium text-slate-500">
+          Cargando solicitudes de Alexperto...
         </div>
       }>
       <SolicitudesContent />
