@@ -279,7 +279,7 @@ function SolicitudesContent() {
             {startItem} - {endItem} de {total}
           </span>
         </div>
-        <div className="grid grid-cols-1 items-center gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-8">
+        <div className="grid grid-cols-1 items-center gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
           <SearchInput
             compact
             placeholder="Buscar código, inmueble o descripción..."
@@ -328,15 +328,14 @@ function SolicitudesContent() {
             placeholder="Gestión GEMA"
             ariaLabel="Filtrar por estado interno GEMA"
           />
-          <div
-            className={`flex min-w-0 items-center gap-1.5 ${datePreset === 'CUSTOM' ? 'xl:col-span-2' : ''}`}>
+          <div className="flex min-w-0 items-center gap-1.5">
             <select
               value={datePreset}
               onChange={event =>
                 changeFilter(setDatePreset, event.target.value as DatePreset)
               }
               aria-label="Filtrar por fecha programada"
-              className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100">
+              className="h-8 w-[102px] shrink-0 rounded-md border border-slate-200 bg-white px-1.5 text-[11px] font-semibold text-slate-700 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100">
               {DATE_PRESET_OPTIONS.map(option => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -356,7 +355,7 @@ function SolicitudesContent() {
                     changeFilter(setCustomDateFrom, event.target.value)
                   }
                   aria-label="Fecha programada desde"
-                  className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                  className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-1 text-[10px] text-slate-700 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
                 />
                 <span className="text-[10px] font-semibold text-slate-400">
                   a
@@ -372,7 +371,7 @@ function SolicitudesContent() {
                     changeFilter(setCustomDateTo, event.target.value)
                   }
                   aria-label="Fecha programada hasta"
-                  className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-1.5 text-[11px] text-slate-700 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                  className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-1 text-[10px] text-slate-700 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
                 />
               </div>
             )}
