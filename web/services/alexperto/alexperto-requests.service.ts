@@ -66,6 +66,8 @@ export async function listAlexpertoRequests(
     filters.estadoExterno,
     filters.search,
     filters.inmuebles,
+    filters.fechaDesde ?? null,
+    filters.fechaHasta ?? null,
     filters.pageSize,
     offset,
   ];
@@ -87,11 +89,13 @@ export async function listAlexpertoRequests(
           AND (cardinality($4::text[]) = 0 OR r.latest_request_status = ANY($4::text[]))
           AND ($5 = '' OR r.code ILIKE '%' || $5 || '%' OR prop.name ILIKE '%' || $5 || '%' OR coalesce(r.description, '') ILIKE '%' || $5 || '%')
           AND (cardinality($6::text[]) = 0 OR prop.name = ANY($6::text[]))
+          AND ($7::date IS NULL OR r.start_time >= $7::date)
+          AND ($8::date IS NULL OR r.start_time < ($8::date + INTERVAL '1 day'))
       ), paged AS (
         SELECT *, count(*) OVER() AS total
         FROM base
         ORDER BY ${order}, id DESC
-        LIMIT $7 OFFSET $8
+        LIMIT $9 OFFSET $10
       ), related_quotes AS (
         SELECT q.id AS quote_id, q.generated_request_id AS request_id
         FROM sch_main.quotes q

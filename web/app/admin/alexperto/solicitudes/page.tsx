@@ -4,8 +4,10 @@ import { Suspense, useDeferredValue, useEffect, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Clock,
   Paperclip,
 } from 'lucide-react';
@@ -13,6 +15,7 @@ import {
 import { AdminTableShell } from '@/components/admin/admin-table-shell';
 import { formatExternalStatus } from '@/components/admin/alexperto/quote-formatters';
 import { RequestDetailDialog } from '@/components/admin/alexperto/request-detail-dialog';
+import { TABLE_CLASS, TH_CLASS } from '@/components/admin/table-primitives';
 import { SearchInput } from '@/components/ui/search-input';
 import { SearchableMultiSelectField } from '@/components/ui/searchable-multi-select-field';
 import { fetchWithAuth } from '@/services/auth/auth.service';
@@ -22,6 +25,16 @@ import type {
 } from '@/types/alexperto';
 
 const PAGE_SIZE_OPTIONS = [30, 50, 100];
+
+type DatePreset = 'ALL' | 'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM';
+
+const DATE_PRESET_OPTIONS = [
+  { value: 'ALL', label: 'Todas las fechas' },
+  { value: 'TODAY', label: 'Hoy' },
+  { value: 'WEEK', label: 'Esta semana' },
+  { value: 'MONTH', label: 'Último mes' },
+  { value: 'CUSTOM', label: 'Personalizado' },
+] as const;
 
 const SPECIALTY_OPTIONS = [
   { value: 'AA', label: 'Sistema de aire acondicionado' },
@@ -69,6 +82,36 @@ function formatRequestType(type: string | null) {
   );
 }
 
+function formatDateInput(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function resolveDateRange(
+  preset: DatePreset,
+  customFrom: string,
+  customTo: string,
+) {
+  if (preset === 'CUSTOM')
+    return { from: customFrom || null, to: customTo || null };
+  if (preset === 'ALL') return { from: null, to: null };
+
+  const today = new Date();
+  const to = formatDateInput(today);
+  if (preset === 'TODAY') return { from: to, to };
+
+  const from = new Date(today);
+  if (preset === 'WEEK') {
+    const daysSinceMonday = today.getDay() === 0 ? 6 : today.getDay() - 1;
+    from.setDate(today.getDate() - daysSinceMonday);
+  } else {
+    from.setMonth(today.getMonth() - 1);
+  }
+  return { from: formatDateInput(from), to };
+}
+
 function internalStatusBadge(status: string) {
   const styles =
     status === 'CULMINADO' || status === 'VALIDADO'
@@ -112,6 +155,10 @@ function SolicitudesContent() {
   const [selectedGemaStatuses, setSelectedGemaStatuses] = useState<string[]>(
     [],
   );
+  const [datePreset, setDatePreset] = useState<DatePreset>('ALL');
+  const [customDateFrom, setCustomDateFrom] = useState('');
+  const [customDateTo, setCustomDateTo] = useState('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [propertyOptions, setPropertyOptions] = useState<
     { value: string; label: string }[]
   >([]);
@@ -120,6 +167,7 @@ function SolicitudesContent() {
   const [selectedRequest, setSelectedRequest] =
     useState<AlexpertoRequestListItem | null>(null);
   const deferredSearch = useDeferredValue(search);
+  const dateRange = resolveDateRange(datePreset, customDateFrom, customDateTo);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,7 +178,7 @@ function SolicitudesContent() {
         page: String(page),
         pageSize: String(pageSize),
         sort: 'startTime',
-        direction: 'desc',
+        direction: sortDirection,
       });
       if (deferredSearch) params.set('search', deferredSearch);
       if (selectedRequestTypes.length)
@@ -143,6 +191,8 @@ function SolicitudesContent() {
         params.set('estadoExterno', selectedExternalStatuses.join(','));
       if (selectedGemaStatuses.length)
         params.set('estadoInterno', selectedGemaStatuses.join(','));
+      if (dateRange.from) params.set('fechaDesde', dateRange.from);
+      if (dateRange.to) params.set('fechaHasta', dateRange.to);
       try {
         const response = await fetchWithAuth(
           `/api/alexperto/solicitudes?${params}`,
@@ -196,10 +246,21 @@ function SolicitudesContent() {
     selectedProperties,
     selectedExternalStatuses,
     selectedGemaStatuses,
+    datePreset,
+    customDateFrom,
+    customDateTo,
+    sortDirection,
+    dateRange.from,
+    dateRange.to,
   ]);
 
   function changeFilter<T>(setter: (value: T) => void, value: T) {
     setter(value);
+    setPage(1);
+  }
+
+  function toggleSortDirection() {
+    setSortDirection(current => (current === 'desc' ? 'asc' : 'desc'));
     setPage(1);
   }
 
@@ -218,7 +279,7 @@ function SolicitudesContent() {
             {startItem} - {endItem} de {total}
           </span>
         </div>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-1 items-center gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-8">
           <SearchInput
             compact
             placeholder="Buscar código, inmueble o descripción..."
@@ -267,21 +328,91 @@ function SolicitudesContent() {
             placeholder="Gestión GEMA"
             ariaLabel="Filtrar por estado interno GEMA"
           />
+          <div
+            className={`flex min-w-0 items-center gap-1.5 ${datePreset === 'CUSTOM' ? 'xl:col-span-2' : ''}`}>
+            <select
+              value={datePreset}
+              onChange={event =>
+                changeFilter(setDatePreset, event.target.value as DatePreset)
+              }
+              aria-label="Filtrar por fecha programada"
+              className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100">
+              {DATE_PRESET_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {datePreset === 'CUSTOM' && (
+              <div className="flex min-w-0 flex-1 items-center gap-1">
+                <label className="sr-only" htmlFor="request-date-from">
+                  Fecha programada desde
+                </label>
+                <input
+                  id="request-date-from"
+                  type="date"
+                  value={customDateFrom}
+                  onChange={event =>
+                    changeFilter(setCustomDateFrom, event.target.value)
+                  }
+                  aria-label="Fecha programada desde"
+                  className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                />
+                <span className="text-[10px] font-semibold text-slate-400">
+                  a
+                </span>
+                <label className="sr-only" htmlFor="request-date-to">
+                  Fecha programada hasta
+                </label>
+                <input
+                  id="request-date-to"
+                  type="date"
+                  value={customDateTo}
+                  onChange={event =>
+                    changeFilter(setCustomDateTo, event.target.value)
+                  }
+                  aria-label="Fecha programada hasta"
+                  className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-1.5 text-[11px] text-slate-700 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+                />
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
       <AdminTableShell className="min-h-0 flex-1">
         <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full border-collapse text-left text-xs">
+          <table className={`${TABLE_CLASS} text-left text-xs`}>
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                <th className="px-4 py-2.5">Código</th>
-                <th className="px-4 py-2.5">Fecha programada</th>
-                <th className="min-w-[190px] px-4 py-2.5">Inmueble</th>
-                <th className="px-4 py-2.5 text-center">Archivos adjuntos</th>
-                <th className="px-4 py-2.5 text-center">Tipo</th>
-                <th className="px-4 py-2.5 text-center">Estado Alexperto</th>
-                <th className="px-4 py-2.5 text-center">Gestión GEMA</th>
+              <tr>
+                <th className={`${TH_CLASS} py-2.5`}>Código</th>
+                <th className={`${TH_CLASS} py-2.5`}>
+                  <button
+                    type="button"
+                    onClick={toggleSortDirection}
+                    className="group inline-flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600 transition hover:text-emerald-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                    title={`Ordenar por fecha (${sortDirection === 'desc' ? 'Más recientes primero' : 'Más antiguas primero'})`}>
+                    <span>Fecha programada</span>
+                    <span className="flex items-center text-slate-400 transition group-hover:text-emerald-700">
+                      {sortDirection === 'desc' ? (
+                        <ChevronDown size={13} className="text-emerald-700" />
+                      ) : (
+                        <ChevronUp size={13} className="text-emerald-700" />
+                      )}
+                    </span>
+                  </button>
+                </th>
+                <th className={`${TH_CLASS} min-w-[190px] py-2.5`}>Inmueble</th>
+                <th className={`${TH_CLASS} py-2.5 text-center`}>
+                  Archivos adjuntos
+                </th>
+                <th className={`${TH_CLASS} py-2.5 text-center`}>Tipo</th>
+                <th className={`${TH_CLASS} py-2.5 text-center`}>
+                  Estado Alexperto
+                </th>
+                <th className={`${TH_CLASS} py-2.5 text-center`}>
+                  Gestión GEMA
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">

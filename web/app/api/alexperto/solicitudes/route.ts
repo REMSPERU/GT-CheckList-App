@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
       estadoInterno: parseList(params.get('estadoInterno')),
       inmuebles: parseList(params.get('inmuebles')),
       search: params.get('search') ?? undefined,
+      fechaDesde: params.get('fechaDesde') ?? undefined,
+      fechaHasta: params.get('fechaHasta') ?? undefined,
       propertyId: params.get('propertyId') ?? undefined,
       sort: params.get('sort') ?? undefined,
       direction: params.get('direction') ?? undefined,
