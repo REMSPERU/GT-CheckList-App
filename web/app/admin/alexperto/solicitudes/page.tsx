@@ -11,6 +11,7 @@ import {
 
 import { AdminTableShell } from '@/components/admin/admin-table-shell';
 import { formatExternalStatus } from '@/components/admin/alexperto/quote-formatters';
+import { RequestDetailDialog } from '@/components/admin/alexperto/request-detail-dialog';
 import { SearchInput } from '@/components/ui/search-input';
 import { SearchableMultiSelectField } from '@/components/ui/searchable-multi-select-field';
 import { fetchWithAuth } from '@/services/auth/auth.service';
@@ -60,9 +61,11 @@ const GEMA_STATUS_OPTIONS = [
 ];
 
 function formatRequestType(type: string | null) {
-  return REQUEST_TYPE_OPTIONS.find(option => option.value === type)?.label ??
+  return (
+    REQUEST_TYPE_OPTIONS.find(option => option.value === type)?.label ??
     type ??
-    'Sin tipo';
+    'Sin tipo'
+  );
 }
 
 function internalStatusBadge(status: string) {
@@ -113,6 +116,8 @@ function SolicitudesContent() {
   >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedRequest, setSelectedRequest] =
+    useState<AlexpertoRequestListItem | null>(null);
   const deferredSearch = useDeferredValue(search);
 
   useEffect(() => {
@@ -153,7 +158,9 @@ function SolicitudesContent() {
         setRequests(payload.items);
         setTotal(payload.total);
         setPropertyOptions(current => {
-          const options = new Map(current.map(option => [option.value, option]));
+          const options = new Map(
+            current.map(option => [option.value, option]),
+          );
           payload.items.forEach(item => {
             options.set(item.property.name, {
               value: item.property.name,
@@ -280,24 +287,24 @@ function SolicitudesContent() {
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {isLoading ? (
                 <tr>
-                    <td
-                      colSpan={8}
+                  <td
+                    colSpan={8}
                     className="px-4 py-8 text-center text-slate-500">
                     Consultando Alexperto...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                    <td
-                      colSpan={8}
+                  <td
+                    colSpan={8}
                     className="px-4 py-8 text-center text-red-700">
                     {error}
                   </td>
                 </tr>
               ) : requests.length === 0 ? (
                 <tr>
-                    <td
-                      colSpan={8}
+                  <td
+                    colSpan={8}
                     className="px-4 py-8 text-center text-slate-500">
                     No hay solicitudes para los filtros seleccionados.
                   </td>
@@ -306,7 +313,16 @@ function SolicitudesContent() {
                 requests.map(item => (
                   <tr
                     key={item.externalRequestId}
-                    className="transition hover:bg-slate-50/60">
+                    tabIndex={0}
+                    onClick={() => setSelectedRequest(item)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setSelectedRequest(item);
+                      }
+                    }}
+                    aria-label={`Ver detalle de solicitud ${item.code}`}
+                    className="cursor-pointer transition hover:bg-slate-50/60 focus:outline-none focus-visible:bg-emerald-50">
                     <td className="whitespace-nowrap px-4 py-2.5">
                       <span className="rounded border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono font-bold text-slate-800">
                         {item.code}
@@ -321,9 +337,9 @@ function SolicitudesContent() {
                       {item.property.name}
                     </td>
                     <td className="px-4 py-2.5">
-                        <p className="m-0 font-semibold text-slate-900">
-                         {item.specialty?.name ?? 'Sin clasificar'}
-                        </p>
+                      <p className="m-0 font-semibold text-slate-900">
+                        {item.specialty?.name ?? 'Sin clasificar'}
+                      </p>
                       <p className="m-0 mt-0.5 max-w-[360px] truncate text-[11px] font-normal text-slate-500">
                         {item.description ?? 'Sin descripción'}
                       </p>
@@ -396,6 +412,10 @@ function SolicitudesContent() {
           </div>
         </div>
       </AdminTableShell>
+      <RequestDetailDialog
+        request={selectedRequest}
+        onClose={() => setSelectedRequest(null)}
+      />
     </main>
   );
 }

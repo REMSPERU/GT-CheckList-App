@@ -150,6 +150,32 @@ export async function listAlexpertoRequests(
   };
 }
 
+export async function findAuthorizedRequestProperty(
+  externalRequestId: string,
+  properties: AuthorizedProperty[],
+) {
+  const externalIds = properties.map(property => property.alexpertoPropertyId);
+  if (!externalIds.length) return null;
+
+  const { rows } = await getAlexpertoPool().query<{ property_id: string }>({
+    text: `
+      SELECT property_id
+      FROM sch_main.requests
+      WHERE id = $1 AND property_id = ANY($2::text[]) AND deleted_at IS NULL
+      LIMIT 1
+    `,
+    values: [externalRequestId, externalIds],
+  });
+  const externalPropertyId = rows[0]?.property_id;
+  if (!externalPropertyId) return null;
+
+  return (
+    properties.find(
+      property => property.alexpertoPropertyId === externalPropertyId,
+    ) ?? null
+  );
+}
+
 async function getQuoteCounts(requestIds: string[]) {
   if (!requestIds.length) return new Map<string, number>();
   const { rows } = await getAlexpertoPool().query<{

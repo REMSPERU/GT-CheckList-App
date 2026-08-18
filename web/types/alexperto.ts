@@ -87,6 +87,15 @@ export interface AlexpertoRequestListResponse {
   queriedAt: string;
 }
 
+export interface AlexpertoRequestDocument {
+  id: string;
+  name: string;
+  typeName: string;
+  mimeType: string | null;
+  size: number | null;
+  createdAt: string;
+}
+
 export interface AlexpertoQuoteAuditItem {
   id: string;
   code: string;
