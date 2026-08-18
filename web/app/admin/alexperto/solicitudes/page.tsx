@@ -12,7 +12,7 @@ import {
 import { AdminTableShell } from '@/components/admin/admin-table-shell';
 import { formatExternalStatus } from '@/components/admin/alexperto/quote-formatters';
 import { SearchInput } from '@/components/ui/search-input';
-import { SelectField } from '@/components/ui/select-field';
+import { SearchableMultiSelectField } from '@/components/ui/searchable-multi-select-field';
 import { fetchWithAuth } from '@/services/auth/auth.service';
 import type {
   AlexpertoRequestListItem,
@@ -20,6 +20,44 @@ import type {
 } from '@/types/alexperto';
 
 const PAGE_SIZE_OPTIONS = [30, 50, 100];
+
+const SPECIALTY_OPTIONS = [
+  { value: 'AA', label: 'Sistema de aire acondicionado' },
+  { value: 'VM', label: 'Equipos de ventilación mecánica' },
+  { value: 'SCI', label: 'Sistemas contra incendio' },
+  { value: 'TE', label: 'Tableros eléctricos' },
+  { value: 'GE', label: 'Grupos electrógenos' },
+  { value: 'BOM', label: 'Bombas de agua y desagüe' },
+  { value: 'SSC', label: 'Sistemas de seguridad y control' },
+  { value: 'SEE', label: 'Sub estación eléctrica' },
+  {
+    value: 'TTA',
+    label: 'Tableros de transferencia | distribución | otros relacionados',
+  },
+  { value: 'ASC', label: 'Ascensores' },
+];
+
+const REQUEST_TYPE_OPTIONS = [
+  { value: 'PREVENTIVE', label: 'Preventivo' },
+  { value: 'CORRECTIVE', label: 'Correctivo' },
+  { value: 'REQUIREMENT', label: 'Requerimiento' },
+  { value: 'CAPEX', label: 'CAPEX' },
+];
+
+const EXTERNAL_STATUS_OPTIONS = [
+  { value: 'SCHEDULED', label: 'Programado' },
+  { value: 'CONFIRMED', label: 'Confirmado' },
+  { value: 'INPROGRESS', label: 'En progreso' },
+  { value: 'EXECUTED', label: 'Ejecutado' },
+  { value: 'COMPLETED', label: 'Completado' },
+];
+
+const GEMA_STATUS_OPTIONS = [
+  { value: 'PENDIENTE_REVISION', label: 'Pendiente de revisión' },
+  { value: 'OBSERVADO', label: 'Observado' },
+  { value: 'CULMINADO', label: 'Culminado' },
+  { value: 'VALIDADO', label: 'Marcado como revisado' },
+];
 
 function internalStatusBadge(status: string) {
   const styles =
@@ -53,8 +91,20 @@ function SolicitudesContent() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(30);
   const [search, setSearch] = useState('');
-  const [requestType, setRequestType] = useState('');
-  const [externalStatus, setExternalStatus] = useState('');
+  const [selectedRequestTypes, setSelectedRequestTypes] = useState<string[]>(
+    [],
+  );
+  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
+  const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
+  const [selectedExternalStatuses, setSelectedExternalStatuses] = useState<
+    string[]
+  >([]);
+  const [selectedGemaStatuses, setSelectedGemaStatuses] = useState<string[]>(
+    [],
+  );
+  const [propertyOptions, setPropertyOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
@@ -71,8 +121,16 @@ function SolicitudesContent() {
         direction: 'desc',
       });
       if (deferredSearch) params.set('search', deferredSearch);
-      if (requestType) params.set('requestTypes', requestType);
-      if (externalStatus) params.set('estadoExterno', externalStatus);
+      if (selectedRequestTypes.length)
+        params.set('requestTypes', selectedRequestTypes.join(','));
+      if (selectedSpecialties.length)
+        params.set('especialidades', selectedSpecialties.join(','));
+      if (selectedProperties.length)
+        params.set('inmuebles', selectedProperties.join(','));
+      if (selectedExternalStatuses.length)
+        params.set('estadoExterno', selectedExternalStatuses.join(','));
+      if (selectedGemaStatuses.length)
+        params.set('estadoInterno', selectedGemaStatuses.join(','));
       try {
         const response = await fetchWithAuth(
           `/api/alexperto/solicitudes?${params}`,
@@ -88,6 +146,18 @@ function SolicitudesContent() {
         if (cancelled) return;
         setRequests(payload.items);
         setTotal(payload.total);
+        setPropertyOptions(current => {
+          const options = new Map(current.map(option => [option.value, option]));
+          payload.items.forEach(item => {
+            options.set(item.property.name, {
+              value: item.property.name,
+              label: item.property.name,
+            });
+          });
+          return Array.from(options.values()).sort((a, b) =>
+            a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }),
+          );
+        });
       } catch (loadError) {
         if (!cancelled)
           setError(
@@ -103,9 +173,18 @@ function SolicitudesContent() {
     return () => {
       cancelled = true;
     };
-  }, [page, pageSize, deferredSearch, requestType, externalStatus]);
+  }, [
+    page,
+    pageSize,
+    deferredSearch,
+    selectedRequestTypes,
+    selectedSpecialties,
+    selectedProperties,
+    selectedExternalStatuses,
+    selectedGemaStatuses,
+  ]);
 
-  function changeFilter(setter: (value: string) => void, value: string) {
+  function changeFilter<T>(setter: (value: T) => void, value: T) {
     setter(value);
     setPage(1);
   }
@@ -125,33 +204,54 @@ function SolicitudesContent() {
             {startItem} - {endItem} de {total}
           </span>
         </div>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <SearchInput
             compact
             placeholder="Buscar código, inmueble o descripción..."
             value={search}
             onChange={value => changeFilter(setSearch, value)}
           />
-          <SelectField
-            value={requestType}
-            options={[
-              { value: '', label: 'Todos los tipos' },
-              { value: 'CORRECTIVE', label: 'Correctivo' },
-              { value: 'REQUIREMENT', label: 'Requerimiento' },
-            ]}
-            onChange={value => changeFilter(setRequestType, value)}
+          <SearchableMultiSelectField
+            compact
+            values={selectedRequestTypes}
+            options={REQUEST_TYPE_OPTIONS}
+            onChange={values => changeFilter(setSelectedRequestTypes, values)}
+            placeholder="Tipo de solicitud"
             ariaLabel="Filtrar por tipo de solicitud"
           />
-          <SelectField
-            value={externalStatus}
-            options={[
-              { value: '', label: 'Todos los estados' },
-              { value: 'PENDING', label: 'Pendiente' },
-              { value: 'IN_PROGRESS', label: 'En proceso' },
-              { value: 'COMPLETED', label: 'Culminado' },
-            ]}
-            onChange={value => changeFilter(setExternalStatus, value)}
+          <SearchableMultiSelectField
+            compact
+            values={selectedSpecialties}
+            options={SPECIALTY_OPTIONS}
+            onChange={values => changeFilter(setSelectedSpecialties, values)}
+            placeholder="Especialidad (Todas)"
+            ariaLabel="Filtrar por especialidad"
+          />
+          <SearchableMultiSelectField
+            compact
+            values={selectedProperties}
+            options={propertyOptions}
+            onChange={values => changeFilter(setSelectedProperties, values)}
+            placeholder="Inmueble (Todos)"
+            ariaLabel="Filtrar por inmueble"
+          />
+          <SearchableMultiSelectField
+            compact
+            values={selectedExternalStatuses}
+            options={EXTERNAL_STATUS_OPTIONS}
+            onChange={values =>
+              changeFilter(setSelectedExternalStatuses, values)
+            }
+            placeholder="Estado Alexperto"
             ariaLabel="Filtrar por estado Alexperto"
+          />
+          <SearchableMultiSelectField
+            compact
+            values={selectedGemaStatuses}
+            options={GEMA_STATUS_OPTIONS}
+            onChange={values => changeFilter(setSelectedGemaStatuses, values)}
+            placeholder="Gestión GEMA"
+            ariaLabel="Filtrar por estado interno GEMA"
           />
         </div>
       </section>
@@ -162,7 +262,7 @@ function SolicitudesContent() {
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 <th className="px-4 py-2.5">Código</th>
-                <th className="px-4 py-2.5">Inicio</th>
+                <th className="px-4 py-2.5">Fecha programada</th>
                 <th className="min-w-[190px] px-4 py-2.5">Inmueble</th>
                 <th className="min-w-[200px] px-4 py-2.5">Solicitud</th>
                 <th className="px-4 py-2.5 text-center">Cotizaciones</th>
