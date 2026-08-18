@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Building2, Receipt, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 import { QuoteDocumentViewer } from './quote-document-viewer';
 import { QuoteHistoryPanel } from './quote-history-panel';
@@ -124,35 +124,30 @@ export function QuoteWorkspaceDialog({
         aria-labelledby="quote-workspace-title"
         tabIndex={-1}
         onKeyDown={handleKeyDown}
-        className="relative z-10 flex h-[100dvh] w-full flex-col overflow-hidden bg-[#f8faf6] shadow-2xl sm:h-[calc(100dvh-40px)] sm:max-w-[1440px] sm:rounded-2xl">
-        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-[#05221d] bg-[#072e27] px-5 py-4 text-white sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#05221d] text-emerald-400">
-              <Receipt size={20} />
-            </div>
-            <div className="min-w-0">
-              <h2
-                id="quote-workspace-title"
-                className="m-0 font-mono text-xl font-bold tracking-tight">
-                {quote.code}
-              </h2>
-              <p className="mb-0 mt-1 flex items-center gap-1.5 text-xs text-emerald-100">
-                <Building2 size={13} className="shrink-0 text-emerald-400" />
-                <span className="truncate">{quote.propertyName}</span>
-              </p>
-            </div>
+        className="relative z-10 flex h-[100dvh] w-full flex-col overflow-hidden bg-[#f8faf6] shadow-2xl sm:h-[calc(100dvh-40px)] sm:max-w-none sm:rounded-2xl">
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[#05221d] bg-[#072e27] px-4 py-1.5 text-white sm:px-5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <h2
+              id="quote-workspace-title"
+              className="m-0 shrink-0 font-mono text-sm font-bold tracking-tight">
+              {quote.code}
+            </h2>
+            <span aria-hidden="true" className="h-4 w-px bg-emerald-800" />
+            <p className="m-0 truncate text-xs text-emerald-100">
+              {quote.propertyName}
+            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-emerald-900 bg-[#05221d] text-slate-300 transition hover:bg-[#0a3d34] hover:text-white"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-emerald-900 bg-[#05221d] text-slate-300 transition hover:bg-[#0a3d34] hover:text-white"
             aria-label="Cerrar panel">
-            <X size={18} />
+            <X size={16} />
           </button>
         </header>
 
-        <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(360px,0.8fr)_minmax(0,1.6fr)]">
-          <aside className="min-h-0 overflow-y-auto border-b border-slate-200 bg-[#f8faf6] p-5 sm:p-6 lg:border-b-0 lg:border-r">
+        <div className="grid min-h-0 flex-1 lg:grid-cols-[300px_minmax(0,1fr)]">
+          <aside className="min-h-0 overflow-y-auto border-b border-slate-200 bg-[#f8faf6] p-4 lg:border-b-0 lg:border-r">
             <QuoteReviewPanel
               quote={quote}
               isSuperadmin={isSuperadmin}
