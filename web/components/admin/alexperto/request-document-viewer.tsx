@@ -1,4 +1,10 @@
-import { Download, ExternalLink, FileText, LoaderCircle } from 'lucide-react';
+import {
+  Download,
+  ExternalLink,
+  FileText,
+  FileX2,
+  LoaderCircle,
+} from 'lucide-react';
 
 import { useRequestDocuments } from '@/hooks/alexperto/use-request-documents';
 
@@ -33,6 +39,33 @@ export function RequestDocumentViewer({
     return groups;
   }, new Map<string, typeof documents>());
 
+  if (!isLoading && !error && documents.length === 0) {
+    return (
+      <section className="flex min-h-0 flex-col overflow-hidden bg-white">
+        <header className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3">
+          <h3 className="m-0 text-sm font-bold text-slate-900">Documentos</h3>
+          <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+            Sin adjuntos
+          </span>
+        </header>
+        <div className="grid min-h-[420px] flex-1 place-items-center p-8">
+          <div className="max-w-sm text-center">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-slate-100 text-slate-500">
+              <FileX2 size={23} strokeWidth={1.8} />
+            </div>
+            <h4 className="mt-4 text-sm font-bold text-slate-900">
+              Esta solicitud no tiene documentos
+            </h4>
+            <p className="m-0 mt-1.5 text-xs leading-relaxed text-slate-500">
+              Cuando Alexperto adjunte archivos, podrás consultarlos y
+              descargarlos desde aquí.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="flex min-h-0 flex-col overflow-hidden bg-slate-100">
       <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2">
@@ -66,10 +99,6 @@ export function RequestDocumentViewer({
             <div className="flex items-center gap-2 p-3 text-xs text-slate-500">
               <LoaderCircle size={15} className="animate-spin" /> Cargando...
             </div>
-          ) : documents.length === 0 ? (
-            <p className="p-3 text-xs leading-relaxed text-slate-500">
-              No hay documentos adjuntos en Alexperto.
-            </p>
           ) : (
             <div className="space-y-3">
               {Array.from(documentsByType).map(([typeName, typeDocuments]) => (
