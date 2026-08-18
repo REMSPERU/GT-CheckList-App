@@ -130,10 +130,9 @@ export async function listAlexpertoRequests(
             name: row.property_name,
             gemaPropertyId: property.id,
           },
-          specialty:
-            row.specialty_name && code
-              ? { name: row.specialty_name, code }
-              : null,
+          specialty: row.specialty_name
+            ? { name: row.specialty_name, code: code ?? 'OTHER' }
+            : null,
           description: row.description,
           requestType: row.request_type,
           externalStatus: row.external_status,

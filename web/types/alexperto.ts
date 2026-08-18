@@ -68,7 +68,10 @@ export interface AlexpertoRequestListItem {
   createdAt: string;
   startTime: string | null;
   property: { id: string; name: string; gemaPropertyId: string };
-  specialty: { name: string; code: AlexpertoSpecialtyCode } | null;
+  specialty: {
+    name: string;
+    code: AlexpertoSpecialtyCode | 'OTHER';
+  } | null;
   description: string | null;
   requestType: string | null;
   externalStatus: string | null;

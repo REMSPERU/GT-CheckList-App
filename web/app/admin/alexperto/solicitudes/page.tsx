@@ -59,6 +59,12 @@ const GEMA_STATUS_OPTIONS = [
   { value: 'VALIDADO', label: 'Marcado como revisado' },
 ];
 
+function formatRequestType(type: string | null) {
+  return REQUEST_TYPE_OPTIONS.find(option => option.value === type)?.label ??
+    type ??
+    'Sin tipo';
+}
+
 function internalStatusBadge(status: string) {
   const styles =
     status === 'CULMINADO' || status === 'VALIDADO'
@@ -265,6 +271,7 @@ function SolicitudesContent() {
                 <th className="px-4 py-2.5">Fecha programada</th>
                 <th className="min-w-[190px] px-4 py-2.5">Inmueble</th>
                 <th className="min-w-[200px] px-4 py-2.5">Solicitud</th>
+                <th className="px-4 py-2.5 text-center">Tipo</th>
                 <th className="px-4 py-2.5 text-center">Cotizaciones</th>
                 <th className="px-4 py-2.5 text-center">Estado Alexperto</th>
                 <th className="px-4 py-2.5 text-center">Gestión GEMA</th>
@@ -273,24 +280,24 @@ function SolicitudesContent() {
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {isLoading ? (
                 <tr>
-                  <td
-                    colSpan={7}
+                    <td
+                      colSpan={8}
                     className="px-4 py-8 text-center text-slate-500">
                     Consultando Alexperto...
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td
-                    colSpan={7}
+                    <td
+                      colSpan={8}
                     className="px-4 py-8 text-center text-red-700">
                     {error}
                   </td>
                 </tr>
               ) : requests.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={7}
+                    <td
+                      colSpan={8}
                     className="px-4 py-8 text-center text-slate-500">
                     No hay solicitudes para los filtros seleccionados.
                   </td>
@@ -314,14 +321,17 @@ function SolicitudesContent() {
                       {item.property.name}
                     </td>
                     <td className="px-4 py-2.5">
-                      <p className="m-0 font-semibold text-slate-900">
-                        {item.specialty?.name ??
-                          item.requestType ??
-                          'Sin clasificar'}
-                      </p>
+                        <p className="m-0 font-semibold text-slate-900">
+                         {item.specialty?.name ?? 'Sin clasificar'}
+                        </p>
                       <p className="m-0 mt-0.5 max-w-[360px] truncate text-[11px] font-normal text-slate-500">
                         {item.description ?? 'Sin descripción'}
                       </p>
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      <span className="inline-flex rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
+                        {formatRequestType(item.requestType)}
+                      </span>
                     </td>
                     <td className="px-4 py-2.5 text-center font-mono font-bold">
                       {item.quoteCount}
