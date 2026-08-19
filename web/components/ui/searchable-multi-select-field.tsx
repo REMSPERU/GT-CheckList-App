@@ -104,14 +104,16 @@ export const SearchableMultiSelectField = memo(
     return (
       <div ref={containerRef} className="relative w-full">
         {/* Trigger Button */}
-        <div
+        <button
+          type="button"
           onClick={() => setIsOpen(prev => !prev)}
-          className={`flex w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 transition-colors cursor-pointer select-none focus-within:border-emerald-800 focus-within:ring-1 focus-within:ring-emerald-800/20 hover:border-slate-400 ${
+          className={`relative flex w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-left transition-colors hover:border-slate-400 focus:border-emerald-800 focus:outline-none focus:ring-1 focus:ring-emerald-800/20 ${
             compact ? 'h-9 text-xs' : 'min-h-11 py-2 text-xs font-medium'
           } ${values.length > 0 ? 'border-emerald-700/60 bg-emerald-50/20' : ''}`}
           role="combobox"
           aria-expanded={isOpen}
           aria-haspopup="listbox"
+          aria-controls={listboxId}
           aria-label={ariaLabel ?? placeholder}>
           <div className="flex flex-1 items-center gap-1.5 min-w-0 overflow-hidden">
             <span
@@ -129,22 +131,21 @@ export const SearchableMultiSelectField = memo(
             )}
           </div>
 
-          <div className="flex items-center gap-1 shrink-0 text-slate-400">
-            {values.length > 0 && (
-              <button
-                type="button"
-                onClick={clearAll}
-                className="rounded p-0.5 hover:bg-slate-200 hover:text-slate-700 transition"
-                title="Limpiar selección">
-                <X size={13} />
-              </button>
-            )}
-            <ChevronDown
-              size={14}
-              className={`transition-transform duration-150 ${isOpen ? 'rotate-180 text-emerald-800' : ''}`}
-            />
-          </div>
-        </div>
+          <ChevronDown
+            size={14}
+            className={`shrink-0 text-slate-400 transition-transform duration-150 ${isOpen ? 'rotate-180 text-emerald-800' : ''}`}
+          />
+        </button>
+        {values.length > 0 && (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="absolute right-7 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            title="Limpiar selección"
+            aria-label="Limpiar selección">
+            <X size={13} />
+          </button>
+        )}
 
         {/* Dropdown Menu */}
         {isOpen && (
@@ -202,10 +203,11 @@ export const SearchableMultiSelectField = memo(
                     : values.length === 0;
 
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={option.value || 'all'}
                       onClick={() => toggleOption(option.value)}
-                      className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs cursor-pointer transition-colors ${
+                      className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-xs cursor-pointer transition-colors ${
                         isSelected
                           ? 'bg-emerald-50 text-emerald-950 font-semibold'
                           : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900 font-medium'
@@ -213,15 +215,15 @@ export const SearchableMultiSelectField = memo(
                       <span className="pr-2 leading-snug break-words text-left flex-1">
                         {option.label}
                       </span>
-                      <div
+                      <span
                         className={`h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-colors ${
                           isSelected
                             ? 'border-emerald-800 bg-emerald-800 text-white'
                             : 'border-slate-300 bg-white'
                         }`}>
                         {isSelected && <Check size={11} strokeWidth={3} />}
-                      </div>
-                    </div>
+                      </span>
+                    </button>
                   );
                 })
               ) : (

@@ -17,6 +17,14 @@ import { formatExternalStatus } from '@/components/admin/alexperto/quote-formatt
 import { RequestDetailDialog } from '@/components/admin/alexperto/request-detail-dialog';
 import { TABLE_CLASS, TH_CLASS } from '@/components/admin/table-primitives';
 import { SearchInput } from '@/components/ui/search-input';
+import {
+  DateRangeFilter,
+  resolveDateRange,
+} from '@/components/ui/date-range-filter';
+import type {
+  DatePreset,
+  DateRangeValue,
+} from '@/components/ui/date-range-filter';
 import { SearchableMultiSelectField } from '@/components/ui/searchable-multi-select-field';
 import { fetchWithAuth } from '@/services/auth/auth.service';
 import type {
@@ -25,16 +33,6 @@ import type {
 } from '@/types/alexperto';
 
 const PAGE_SIZE_OPTIONS = [30, 50, 100];
-
-type DatePreset = 'ALL' | 'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM';
-
-const DATE_PRESET_OPTIONS = [
-  { value: 'ALL', label: 'Todas las fechas' },
-  { value: 'TODAY', label: 'Hoy' },
-  { value: 'WEEK', label: 'Esta semana' },
-  { value: 'MONTH', label: 'Último mes' },
-  { value: 'CUSTOM', label: 'Personalizado' },
-] as const;
 
 const SPECIALTY_OPTIONS = [
   { value: 'AA', label: 'Sistema de aire acondicionado' },
@@ -82,36 +80,6 @@ function formatRequestType(type: string | null) {
   );
 }
 
-function formatDateInput(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function resolveDateRange(
-  preset: DatePreset,
-  customFrom: string,
-  customTo: string,
-) {
-  if (preset === 'CUSTOM')
-    return { from: customFrom || null, to: customTo || null };
-  if (preset === 'ALL') return { from: null, to: null };
-
-  const today = new Date();
-  const to = formatDateInput(today);
-  if (preset === 'TODAY') return { from: to, to };
-
-  const from = new Date(today);
-  if (preset === 'WEEK') {
-    const daysSinceMonday = today.getDay() === 0 ? 6 : today.getDay() - 1;
-    from.setDate(today.getDate() - daysSinceMonday);
-  } else {
-    from.setMonth(today.getMonth() - 1);
-  }
-  return { from: formatDateInput(from), to };
-}
-
 function internalStatusBadge(status: string) {
   const styles =
     status === 'CULMINADO' || status === 'VALIDADO'
@@ -156,8 +124,10 @@ function SolicitudesContent() {
     [],
   );
   const [datePreset, setDatePreset] = useState<DatePreset>('ALL');
-  const [customDateFrom, setCustomDateFrom] = useState('');
-  const [customDateTo, setCustomDateTo] = useState('');
+  const [customDateRange, setCustomDateRange] = useState<DateRangeValue>({
+    from: '',
+    to: '',
+  });
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [propertyOptions, setPropertyOptions] = useState<
     { value: string; label: string }[]
@@ -167,11 +137,18 @@ function SolicitudesContent() {
   const [selectedRequest, setSelectedRequest] =
     useState<AlexpertoRequestListItem | null>(null);
   const deferredSearch = useDeferredValue(search);
-  const dateRange = resolveDateRange(datePreset, customDateFrom, customDateTo);
+  const dateRange = resolveDateRange(datePreset, customDateRange);
 
   useEffect(() => {
     let cancelled = false;
     async function loadRequests() {
+      if (
+        datePreset === 'CUSTOM' &&
+        (!customDateRange.from || !customDateRange.to)
+      ) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       setError(null);
       const params = new URLSearchParams({
@@ -247,8 +224,7 @@ function SolicitudesContent() {
     selectedExternalStatuses,
     selectedGemaStatuses,
     datePreset,
-    customDateFrom,
-    customDateTo,
+    customDateRange,
     sortDirection,
     dateRange.from,
     dateRange.to,
@@ -328,54 +304,15 @@ function SolicitudesContent() {
             placeholder="Gestión GEMA"
             ariaLabel="Filtrar por estado interno GEMA"
           />
-          <div className="flex min-w-0 items-center gap-1.5">
-            <select
-              value={datePreset}
-              onChange={event =>
-                changeFilter(setDatePreset, event.target.value as DatePreset)
-              }
-              aria-label="Filtrar por fecha programada"
-              className="h-8 w-[102px] shrink-0 rounded-md border border-slate-200 bg-white px-1.5 text-[11px] font-semibold text-slate-700 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100">
-              {DATE_PRESET_OPTIONS.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            {datePreset === 'CUSTOM' && (
-              <div className="flex min-w-0 flex-1 items-center gap-1">
-                <label className="sr-only" htmlFor="request-date-from">
-                  Fecha programada desde
-                </label>
-                <input
-                  id="request-date-from"
-                  type="date"
-                  value={customDateFrom}
-                  onChange={event =>
-                    changeFilter(setCustomDateFrom, event.target.value)
-                  }
-                  aria-label="Fecha programada desde"
-                  className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-1 text-[10px] text-slate-700 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                />
-                <span className="text-[10px] font-semibold text-slate-400">
-                  a
-                </span>
-                <label className="sr-only" htmlFor="request-date-to">
-                  Fecha programada hasta
-                </label>
-                <input
-                  id="request-date-to"
-                  type="date"
-                  value={customDateTo}
-                  onChange={event =>
-                    changeFilter(setCustomDateTo, event.target.value)
-                  }
-                  aria-label="Fecha programada hasta"
-                  className="h-8 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-1 text-[10px] text-slate-700 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-                />
-              </div>
-            )}
-          </div>
+          <DateRangeFilter
+            value={datePreset}
+            range={customDateRange}
+            onPresetChange={value => changeFilter(setDatePreset, value)}
+            onRangeChange={range => {
+              setCustomDateRange(range);
+              setPage(1);
+            }}
+          />
         </div>
       </section>
 
