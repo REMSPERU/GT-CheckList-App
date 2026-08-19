@@ -31,6 +31,8 @@ export const alexpertoRequestFiltersSchema = z.object({
   estadoInterno: z.array(z.enum(ALEXPERTO_INTERNAL_STATUSES)).default([]),
   inmuebles: z.array(z.string().trim().min(1).max(200)).default([]),
   search: z.string().trim().max(100).default(''),
+  fechaDesde: z.string().date().optional(),
+  fechaHasta: z.string().date().optional(),
   propertyId: z.string().uuid().optional(),
   sort: z.enum(['startTime', 'createdAt']).default('startTime'),
   direction: z.enum(['asc', 'desc']).default('desc'),

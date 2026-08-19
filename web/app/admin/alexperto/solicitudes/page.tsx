@@ -4,15 +4,27 @@ import { Suspense, useDeferredValue, useEffect, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Clock,
+  Paperclip,
 } from 'lucide-react';
 
 import { AdminTableShell } from '@/components/admin/admin-table-shell';
 import { formatExternalStatus } from '@/components/admin/alexperto/quote-formatters';
 import { RequestDetailDialog } from '@/components/admin/alexperto/request-detail-dialog';
+import { TABLE_CLASS, TH_CLASS } from '@/components/admin/table-primitives';
 import { SearchInput } from '@/components/ui/search-input';
+import {
+  DateRangeFilter,
+  resolveDateRange,
+} from '@/components/ui/date-range-filter';
+import type {
+  DatePreset,
+  DateRangeValue,
+} from '@/components/ui/date-range-filter';
 import { SearchableMultiSelectField } from '@/components/ui/searchable-multi-select-field';
 import { fetchWithAuth } from '@/services/auth/auth.service';
 import type {
@@ -111,6 +123,12 @@ function SolicitudesContent() {
   const [selectedGemaStatuses, setSelectedGemaStatuses] = useState<string[]>(
     [],
   );
+  const [datePreset, setDatePreset] = useState<DatePreset>('ALL');
+  const [customDateRange, setCustomDateRange] = useState<DateRangeValue>({
+    from: '',
+    to: '',
+  });
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [propertyOptions, setPropertyOptions] = useState<
     { value: string; label: string }[]
   >([]);
@@ -119,17 +137,25 @@ function SolicitudesContent() {
   const [selectedRequest, setSelectedRequest] =
     useState<AlexpertoRequestListItem | null>(null);
   const deferredSearch = useDeferredValue(search);
+  const dateRange = resolveDateRange(datePreset, customDateRange);
 
   useEffect(() => {
     let cancelled = false;
     async function loadRequests() {
+      if (
+        datePreset === 'CUSTOM' &&
+        (!customDateRange.from || !customDateRange.to)
+      ) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       setError(null);
       const params = new URLSearchParams({
         page: String(page),
         pageSize: String(pageSize),
         sort: 'startTime',
-        direction: 'desc',
+        direction: sortDirection,
       });
       if (deferredSearch) params.set('search', deferredSearch);
       if (selectedRequestTypes.length)
@@ -142,6 +168,8 @@ function SolicitudesContent() {
         params.set('estadoExterno', selectedExternalStatuses.join(','));
       if (selectedGemaStatuses.length)
         params.set('estadoInterno', selectedGemaStatuses.join(','));
+      if (dateRange.from) params.set('fechaDesde', dateRange.from);
+      if (dateRange.to) params.set('fechaHasta', dateRange.to);
       try {
         const response = await fetchWithAuth(
           `/api/alexperto/solicitudes?${params}`,
@@ -195,10 +223,20 @@ function SolicitudesContent() {
     selectedProperties,
     selectedExternalStatuses,
     selectedGemaStatuses,
+    datePreset,
+    customDateRange,
+    sortDirection,
+    dateRange.from,
+    dateRange.to,
   ]);
 
   function changeFilter<T>(setter: (value: T) => void, value: T) {
     setter(value);
+    setPage(1);
+  }
+
+  function toggleSortDirection() {
+    setSortDirection(current => (current === 'desc' ? 'asc' : 'desc'));
     setPage(1);
   }
 
@@ -217,7 +255,7 @@ function SolicitudesContent() {
             {startItem} - {endItem} de {total}
           </span>
         </div>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-1 items-center gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
           <SearchInput
             compact
             placeholder="Buscar código, inmueble o descripción..."
@@ -266,29 +304,58 @@ function SolicitudesContent() {
             placeholder="Gestión GEMA"
             ariaLabel="Filtrar por estado interno GEMA"
           />
+          <DateRangeFilter
+            value={datePreset}
+            range={customDateRange}
+            onPresetChange={value => changeFilter(setDatePreset, value)}
+            onRangeChange={range => {
+              setCustomDateRange(range);
+              setPage(1);
+            }}
+          />
         </div>
       </section>
 
       <AdminTableShell className="min-h-0 flex-1">
         <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full border-collapse text-left text-xs">
+          <table className={`${TABLE_CLASS} text-left text-xs`}>
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                <th className="px-4 py-2.5">Código</th>
-                <th className="px-4 py-2.5">Fecha programada</th>
-                <th className="min-w-[190px] px-4 py-2.5">Inmueble</th>
-                <th className="min-w-[200px] px-4 py-2.5">Solicitud</th>
-                <th className="px-4 py-2.5 text-center">Tipo</th>
-                <th className="px-4 py-2.5 text-center">Cotizaciones</th>
-                <th className="px-4 py-2.5 text-center">Estado Alexperto</th>
-                <th className="px-4 py-2.5 text-center">Gestión GEMA</th>
+              <tr>
+                <th className={`${TH_CLASS} py-2.5`}>Código</th>
+                <th className={`${TH_CLASS} py-2.5`}>
+                  <button
+                    type="button"
+                    onClick={toggleSortDirection}
+                    className="group inline-flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600 transition hover:text-emerald-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                    title={`Ordenar por fecha (${sortDirection === 'desc' ? 'Más recientes primero' : 'Más antiguas primero'})`}>
+                    <span>Fecha programada</span>
+                    <span className="flex items-center text-slate-400 transition group-hover:text-emerald-700">
+                      {sortDirection === 'desc' ? (
+                        <ChevronDown size={13} className="text-emerald-700" />
+                      ) : (
+                        <ChevronUp size={13} className="text-emerald-700" />
+                      )}
+                    </span>
+                  </button>
+                </th>
+                <th className={`${TH_CLASS} min-w-[190px] py-2.5`}>Inmueble</th>
+                <th className={`${TH_CLASS} py-2.5 text-center`}>
+                  Archivos adjuntos
+                </th>
+                <th className={`${TH_CLASS} py-2.5 text-center`}>Tipo</th>
+                <th className={`${TH_CLASS} py-2.5 text-center`}>
+                  Estado Alexperto
+                </th>
+                <th className={`${TH_CLASS} py-2.5 text-center`}>
+                  Gestión GEMA
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-slate-500">
                     Consultando Alexperto...
                   </td>
@@ -296,7 +363,7 @@ function SolicitudesContent() {
               ) : error ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-red-700">
                     {error}
                   </td>
@@ -304,7 +371,7 @@ function SolicitudesContent() {
               ) : requests.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-slate-500">
                     No hay solicitudes para los filtros seleccionados.
                   </td>
@@ -336,21 +403,21 @@ function SolicitudesContent() {
                     <td className="px-4 py-2.5 font-semibold text-slate-900">
                       {item.property.name}
                     </td>
-                    <td className="px-4 py-2.5">
-                      <p className="m-0 font-semibold text-slate-900">
-                        {item.specialty?.name ?? 'Sin clasificar'}
-                      </p>
-                      <p className="m-0 mt-0.5 max-w-[360px] truncate text-[11px] font-normal text-slate-500">
-                        {item.description ?? 'Sin descripción'}
-                      </p>
+                    <td className="px-4 py-2.5 text-center">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
+                          item.attachmentCount > 0
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                            : 'border-slate-200 bg-slate-100 text-slate-500'
+                        }`}>
+                        <Paperclip size={12} />
+                        {item.attachmentCount}
+                      </span>
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       <span className="inline-flex rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
                         {formatRequestType(item.requestType)}
                       </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-center font-mono font-bold">
-                      {item.quoteCount}
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       <span className="inline-flex rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
