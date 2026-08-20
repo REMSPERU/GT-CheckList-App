@@ -83,29 +83,34 @@ function formatRequestType(type: string | null) {
 }
 
 function internalStatusStyles(status: string) {
-  return status === 'CULMINADO'
-    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-    : status === 'VALIDADO'
+  const statusKey = status.trim().toUpperCase().replace(/\s+/g, '_');
+  return statusKey === 'CULMINADO'
+      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+    : statusKey === 'VALIDADO'
       ? 'bg-violet-50 text-violet-800 border-violet-200'
-      : status === 'OBSERVADO'
-        ? 'bg-amber-50 text-amber-800 border-amber-200'
-        : 'bg-slate-100 text-slate-700 border-slate-200';
+      : statusKey === 'OBSERVADO'
+        ? 'bg-rose-50 text-rose-800 border-rose-200'
+        : statusKey === 'PENDIENTE_REVISION'
+          ? 'bg-purple-50 text-purple-800 border-purple-300'
+          : 'bg-slate-100 text-slate-700 border-slate-200';
 }
 
 function internalStatusBadge(status: string) {
   const styles = internalStatusStyles(status);
+  const statusKey = status.trim().toUpperCase().replace(/\s+/g, '_');
   const Icon =
-    status === 'CULMINADO'
+    statusKey === 'CULMINADO'
       ? CheckCircle2
-      : status === 'VALIDADO'
+      : statusKey === 'VALIDADO'
         ? CheckCircle2
-        : status === 'OBSERVADO'
+        : statusKey === 'OBSERVADO'
           ? AlertCircle
           : Clock;
   const label =
-    status === 'VALIDADO'
+    statusKey === 'VALIDADO'
       ? 'Revisado'
-      : status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' ');
+      : statusKey.charAt(0) +
+        statusKey.slice(1).toLowerCase().replace(/_/g, ' ');
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${styles}`}>
@@ -132,7 +137,7 @@ function externalStatusBadge(status: string | null) {
               : normalizedStatus;
   const styles =
     statusKey === 'SCHEDULED'
-      ? 'bg-sky-50 text-sky-800 border-sky-200'
+      ? 'bg-blue-50 text-blue-800 border-blue-300'
       : statusKey === 'CONFIRMED'
         ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
         : statusKey === 'INPROGRESS'
