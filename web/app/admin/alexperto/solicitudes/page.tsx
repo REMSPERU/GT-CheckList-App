@@ -82,19 +82,26 @@ function formatRequestType(type: string | null) {
   );
 }
 
-function internalStatusBadge(status: string) {
-  const styles =
-    status === 'CULMINADO' || status === 'VALIDADO'
-      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+function internalStatusStyles(status: string) {
+  return status === 'CULMINADO'
+    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+    : status === 'VALIDADO'
+      ? 'bg-violet-50 text-violet-800 border-violet-200'
       : status === 'OBSERVADO'
         ? 'bg-amber-50 text-amber-800 border-amber-200'
         : 'bg-slate-100 text-slate-700 border-slate-200';
+}
+
+function internalStatusBadge(status: string) {
+  const styles = internalStatusStyles(status);
   const Icon =
-    status === 'CULMINADO' || status === 'VALIDADO'
+    status === 'CULMINADO'
       ? CheckCircle2
-      : status === 'OBSERVADO'
-        ? AlertCircle
-        : Clock;
+      : status === 'VALIDADO'
+        ? CheckCircle2
+        : status === 'OBSERVADO'
+          ? AlertCircle
+          : Clock;
   const label =
     status === 'VALIDADO'
       ? 'Revisado'
@@ -108,6 +115,23 @@ function internalStatusBadge(status: string) {
   );
 }
 
+function externalStatusBadge(status: string | null) {
+  const normalizedStatus = status?.trim().toUpperCase().replace(/\s+/g, '_');
+  const styles =
+    normalizedStatus === 'SCHEDULED'
+      ? 'bg-sky-50 text-sky-800 border-sky-200'
+      : normalizedStatus === 'CONFIRMED'
+        ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+        : normalizedStatus === 'INPROGRESS' || normalizedStatus === 'IN_PROGRESS'
+          ? 'bg-amber-50 text-amber-800 border-amber-200'
+          : normalizedStatus === 'EXECUTED'
+            ? 'bg-orange-50 text-orange-800 border-orange-200'
+            : normalizedStatus === 'COMPLETED'
+              ? 'bg-teal-50 text-teal-800 border-teal-200'
+              : 'bg-slate-100 text-slate-700 border-slate-200';
+  return `inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold ${styles}`;
+}
+
 function SolicitudesContent() {
   const { user } = useAdminSession();
   const [requests, setRequests] = useState<AlexpertoRequestListItem[]>([]);
@@ -115,9 +139,9 @@ function SolicitudesContent() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(30);
   const [search, setSearch] = useState('');
-  const [selectedRequestTypes, setSelectedRequestTypes] = useState<string[]>(
-    [],
-  );
+  const [selectedRequestTypes, setSelectedRequestTypes] = useState<string[]>([
+    'PREVENTIVE',
+  ]);
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   const [selectedExternalStatuses, setSelectedExternalStatuses] = useState<
@@ -290,6 +314,10 @@ function SolicitudesContent() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const startItem = total ? (page - 1) * pageSize + 1 : 0;
   const endItem = Math.min(page * pageSize, total);
+  const countExternalStatus = (status: string) =>
+    requests.filter(item => item.externalStatus === status).length;
+  const countGemaStatus = (status: string) =>
+    requests.filter(item => item.internalStatus === status).length;
 
   return (
     <main className="flex h-[calc(100vh-52px)] min-h-0 flex-col gap-2.5 overflow-hidden px-4 py-2.5 lg:px-6">
@@ -301,6 +329,30 @@ function SolicitudesContent() {
           <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
             {startItem} - {endItem} de {total}
           </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-y border-slate-100 bg-slate-50/70 px-2.5 py-1.5 text-[10px]">
+          <span className="font-bold uppercase tracking-wide text-slate-500">
+            Resumen
+          </span>
+          <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-bold text-slate-700">
+            Total: {total}
+          </span>
+          <span className="font-semibold text-slate-400">Alexperto</span>
+          {EXTERNAL_STATUS_OPTIONS.map(option => (
+            <span
+              key={option.value}
+              className={`${externalStatusBadge(option.value)} px-1.5 py-0 text-[9px]`}>
+              {option.label}: {countExternalStatus(option.value)}
+            </span>
+          ))}
+          <span className="font-semibold text-slate-400">GEMA</span>
+          {GEMA_STATUS_OPTIONS.map(option => (
+            <span
+              key={option.value}
+              className={`inline-flex rounded-md border px-1.5 py-0 text-[9px] font-semibold ${internalStatusStyles(option.value)}`}>
+              {option.label}: {countGemaStatus(option.value)}
+            </span>
+          ))}
         </div>
         <div className="grid grid-cols-1 items-center gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
           <SearchInput
@@ -467,7 +519,7 @@ function SolicitudesContent() {
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-center">
-                      <span className="inline-flex rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                      <span className={externalStatusBadge(item.externalStatus)}>
                         {formatExternalStatus(item.externalStatus)}
                       </span>
                     </td>
