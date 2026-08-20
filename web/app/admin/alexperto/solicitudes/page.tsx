@@ -122,7 +122,8 @@ function externalStatusBadge(status: string | null) {
       ? 'SCHEDULED'
       : normalizedStatus === 'CONFIRMADO'
         ? 'CONFIRMED'
-        : normalizedStatus === 'EN_PROGRESO' || normalizedStatus === 'IN_PROGRESS'
+        : normalizedStatus === 'EN_PROGRESO' ||
+            normalizedStatus === 'IN_PROGRESS'
           ? 'INPROGRESS'
           : normalizedStatus === 'EJECUTADO'
             ? 'EXECUTED'
@@ -356,31 +357,29 @@ function SolicitudesContent() {
             {startItem} - {endItem} de {total}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-y border-slate-100 bg-slate-50/70 px-2.5 py-1.5 text-[10px]">
+        <div className="flex flex-wrap items-center gap-2 border-y border-slate-100 bg-slate-50/70 px-2.5 py-1.5 text-[10px]">
           <span className="font-bold uppercase tracking-wide text-slate-500">
             Resumen global
           </span>
           <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-bold text-slate-700">
             Total: {total}
           </span>
-          <span className="mx-0.5 hidden h-4 w-px bg-slate-200 sm:block" />
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex min-h-9 min-w-0 flex-1 flex-wrap items-center gap-1.5 rounded-lg border border-slate-100 bg-white/70 px-2 py-1">
             <span className="font-semibold text-slate-400">Alexperto</span>
             {EXTERNAL_STATUS_OPTIONS.map(option => (
               <span
                 key={option.value}
-                className={`${externalStatusBadge(option.value)} px-1.5 py-0 text-[9px]`}>
+                className={`${externalStatusBadge(option.value)} px-1.5 py-0.5 text-[9px]`}>
                 {option.label}: {summary.externalStatuses[option.value] ?? 0}
               </span>
             ))}
           </div>
-          <span className="mx-0.5 hidden h-4 w-px bg-slate-200 sm:block" />
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex min-h-9 min-w-0 flex-1 flex-wrap items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50/30 px-2 py-1">
             <span className="font-semibold text-slate-400">GEMA</span>
             {GEMA_STATUS_OPTIONS.map(option => (
               <span
                 key={option.value}
-                className={`inline-flex rounded-md border px-1.5 py-0 text-[9px] font-semibold ${internalStatusStyles(option.value)}`}>
+                className={`inline-flex rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${internalStatusStyles(option.value)}`}>
                 {option.label}: {summary.gemaStatuses[option.value] ?? 0}
               </span>
             ))}
@@ -551,7 +550,8 @@ function SolicitudesContent() {
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-center">
-                      <span className={externalStatusBadge(item.externalStatus)}>
+                      <span
+                        className={externalStatusBadge(item.externalStatus)}>
                         {formatExternalStatus(item.externalStatus)}
                       </span>
                     </td>
