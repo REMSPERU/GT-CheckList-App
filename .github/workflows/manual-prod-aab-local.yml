@@ -4,8 +4,29 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - 'web/**'
+    # Solo la app Expo raíz debe generar y publicar un AAB. El portal Next.js y
+    # la documentación no deben iniciar una versión ni un envío a Play Store.
+    paths:
+      - 'app/**'
+      - 'assets/**'
+      - 'components/**'
+      - 'config/**'
+      - 'constants/**'
+      - 'contexts/**'
+      - 'hooks/**'
+      - 'lib/**'
+      - 'schemas/**'
+      - 'services/**'
+      - 'types/**'
+      - 'utils/**'
+      - 'app.config.js'
+      - 'eas.json'
+      - 'expo-env.d.ts'
+      - 'metro.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - '.github/workflows/manual-prod-aab-local.yml'
   workflow_dispatch:
     inputs:
       branch:
