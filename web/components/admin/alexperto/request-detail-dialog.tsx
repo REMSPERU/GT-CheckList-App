@@ -221,14 +221,14 @@ export function RequestDetailDialog({
                     type="button"
                     onClick={() => void handleSave('OBSERVADO', true)}
                     disabled={isSaving}
-                    className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900 disabled:opacity-60">
+                    className="cursor-pointer rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900 transition hover:border-amber-400 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60">
                     Observar
                   </button>
                   <button
                     type="button"
                     onClick={() => void handleSave('CULMINADO', true)}
                     disabled={isSaving}
-                    className="rounded-md bg-[#072e27] px-3 py-2 text-xs font-bold text-white disabled:opacity-60">
+                    className="cursor-pointer rounded-md bg-[#072e27] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#0a3d34] disabled:cursor-not-allowed disabled:opacity-60">
                     Culminar
                   </button>
                   <button
@@ -238,7 +238,7 @@ export function RequestDetailDialog({
                       isSaving ||
                       request.internalStatus === 'PENDIENTE_REVISION'
                     }
-                    className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 disabled:opacity-60">
+                    className="cursor-pointer rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 transition hover:border-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60">
                     Pendiente
                   </button>
                   {isSuperadmin && (
@@ -246,7 +246,7 @@ export function RequestDetailDialog({
                       type="button"
                       onClick={() => void handleSave('VALIDADO', true)}
                       disabled={isSaving}
-                      className="rounded-md bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-60">
+                      className="cursor-pointer rounded-md bg-emerald-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60">
                       Validar
                     </button>
                   )}

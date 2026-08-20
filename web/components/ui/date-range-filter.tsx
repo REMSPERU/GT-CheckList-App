@@ -9,7 +9,13 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
-export type DatePreset = 'ALL' | 'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM';
+export type DatePreset =
+  | 'ALL'
+  | 'TODAY'
+  | 'WEEK'
+  | 'MONTH'
+  | 'YEAR'
+  | 'CUSTOM';
 
 export interface DateRangeValue {
   from: string;
@@ -28,6 +34,7 @@ const DATE_PRESET_OPTIONS = [
   { value: 'TODAY', label: 'Hoy' },
   { value: 'WEEK', label: 'Esta semana' },
   { value: 'MONTH', label: 'Último mes' },
+  { value: 'YEAR', label: 'Este año' },
   { value: 'CUSTOM', label: 'Personalizado' },
 ] as const;
 
@@ -89,7 +96,9 @@ export function resolveDateRange(
   if (preset === 'TODAY') return { from: to, to };
 
   const from = new Date(today);
-  if (preset === 'WEEK') {
+  if (preset === 'YEAR') {
+    from.setMonth(0, 1);
+  } else if (preset === 'WEEK') {
     const daysSinceMonday = today.getDay() === 0 ? 6 : today.getDay() - 1;
     from.setDate(today.getDate() - daysSinceMonday);
   } else {
