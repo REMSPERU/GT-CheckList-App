@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { AlexpertoRequestFilters } from '@/schemas/alexperto.schema';
 import type {
+  AlexpertoRequestHistoryItem,
   AlexpertoRequestListItem,
   AlexpertoSpecialtyCode,
 } from '@/types/alexperto';
@@ -25,6 +26,28 @@ interface RequestRow {
   quote_count: string;
   attachment_count: string;
   total: string;
+}
+
+interface AuditActionRow {
+  id: string;
+  external_entity_id: string;
+  current_status: AlexpertoRequestListItem['internalStatus'];
+}
+
+interface AuditHistoryRow {
+  action_id: string;
+  previous_status: AlexpertoRequestHistoryItem['previousStatus'];
+  new_status: AlexpertoRequestHistoryItem['newStatus'];
+  created_at: string;
+  created_by: string | null;
+}
+
+interface UserNameRow {
+  id: string;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
 }
 
 const SORT_COLUMNS = {
@@ -146,17 +169,19 @@ export async function listAlexpertoRequests(
   const actionResult = ids.length
     ? await supabase
         .from('alexperto_audit_actions')
-        .select('external_entity_id, current_status')
+        .select('id, external_entity_id, current_status')
         .eq('external_entity_type', 'REQUEST')
         .in('external_entity_id', ids)
     : { data: [], error: null };
   const { data, error } = actionResult;
   if (error) throw error;
-  const internalStatusById = new Map(
-    (data ?? []).map(action => [
-      action.external_entity_id,
-      action.current_status,
-    ]),
+  const actions = (data ?? []) as AuditActionRow[];
+  const actionsByExternalId = new Map(
+    actions.map(action => [action.external_entity_id, action]),
+  );
+  const historyByActionId = await getActionHistory(
+    supabase,
+    actions.map(action => action.id),
   );
   return {
     total: Number(result.rows[0]?.total ?? 0),
@@ -186,7 +211,11 @@ export async function listAlexpertoRequests(
           quoteCount: Number(row.quote_count),
           attachmentCount: Number(row.attachment_count),
           internalStatus:
-            internalStatusById.get(row.id) ?? 'PENDIENTE_REVISION',
+            actionsByExternalId.get(row.id)?.current_status ??
+            'PENDIENTE_REVISION',
+          history:
+            historyByActionId.get(actionsByExternalId.get(row.id)?.id ?? '') ??
+            [],
         } satisfies AlexpertoRequestListItem;
       })
       .filter((item): item is AlexpertoRequestListItem => item !== null)
@@ -196,6 +225,52 @@ export async function listAlexpertoRequests(
           filters.estadoInterno.includes(item.internalStatus),
       ),
   };
+}
+
+async function getActionHistory(supabase: SupabaseClient, actionIds: string[]) {
+  if (!actionIds.length)
+    return new Map<string, AlexpertoRequestHistoryItem[]>();
+
+  const { data: history, error: historyError } = await supabase
+    .from('alexperto_audit_action_history')
+    .select('action_id, previous_status, new_status, created_at, created_by')
+    .in('action_id', actionIds)
+    .order('created_at', { ascending: false });
+  if (historyError) throw historyError;
+
+  const rows = (history ?? []) as AuditHistoryRow[];
+  const userIds = Array.from(
+    new Set(rows.flatMap(row => (row.created_by ? [row.created_by] : []))),
+  );
+  const usersById = new Map<string, UserNameRow>();
+  if (userIds.length) {
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id, username, first_name, last_name, email')
+      .in('id', userIds);
+    if (usersError) throw usersError;
+    for (const user of (users ?? []) as UserNameRow[])
+      usersById.set(user.id, user);
+  }
+
+  const historyByActionId = new Map<string, AlexpertoRequestHistoryItem[]>();
+  for (const row of rows) {
+    const user = row.created_by ? usersById.get(row.created_by) : null;
+    const name = user
+      ? [user.first_name, user.last_name].filter(Boolean).join(' ') ||
+        user.username ||
+        user.email
+      : null;
+    const entries = historyByActionId.get(row.action_id) ?? [];
+    entries.push({
+      previousStatus: row.previous_status,
+      newStatus: row.new_status,
+      createdAt: row.created_at,
+      createdBy: row.created_by ? { id: row.created_by, name } : null,
+    });
+    historyByActionId.set(row.action_id, entries);
+  }
+  return historyByActionId;
 }
 
 export async function findAuthorizedRequestProperty(

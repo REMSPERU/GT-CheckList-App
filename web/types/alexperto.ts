@@ -32,6 +32,13 @@ export interface AlexpertoQuoteHistoryItem {
   createdBy: { id: string; name: string | null } | null;
 }
 
+export interface AlexpertoRequestHistoryItem {
+  previousStatus: AlexpertoInternalStatus | null;
+  newStatus: AlexpertoInternalStatus;
+  createdAt: string;
+  createdBy: { id: string; name: string | null } | null;
+}
+
 export interface AlexpertoQuoteListItem {
   externalQuoteId: string;
   code: string;
@@ -78,6 +85,7 @@ export interface AlexpertoRequestListItem {
   quoteCount: number;
   attachmentCount: number;
   internalStatus: AlexpertoInternalStatus;
+  history: AlexpertoRequestHistoryItem[];
 }
 
 export interface AlexpertoRequestListResponse {

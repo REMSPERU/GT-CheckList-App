@@ -81,15 +81,15 @@ UPDATE public.properties SET alexperto_property_id = 'yhivu047gj6xcaymdxjrvtnv' 
 UPDATE public.properties SET alexperto_property_id = 'abdxib1443yd8f1ofn4s42hj' WHERE id = '2a2e9069-cc1d-4597-97e9-ed82c6d5ebd3'; -- TORRE PANAMÁ <-> TORRE PANAMÁ
 UPDATE public.properties SET alexperto_property_id = 'mn65i6uu2yo933jf84id0xup' WHERE id = 'c10391b5-0462-4b68-a6a8-2506e4d28d14'; -- TORRE SANTA LUISA <-> TORRE SANTA LUISA
 
--- 3. TABLAS DE GESTIÓN Y AUDITORÍA DE GEMA PARA COTIZACIONES Y PREVENTIVOS
+-- 3. TABLAS DE GESTIÓN Y AUDITORÍA DE GEMA PARA COTIZACIONES Y SOLICITUDES
 
--- 3.1. TABLA: alexperto_audit_actions (Estado de trabajo propio de GEMA por cotización/preventivo)
+-- 3.1. TABLA: alexperto_audit_actions (Estado de trabajo propio de GEMA por cotización/solicitud)
 CREATE TABLE IF NOT EXISTS public.alexperto_audit_actions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  external_entity_type TEXT NOT NULL, -- 'QUOTE', 'PREVENTIVE', 'DOCUMENT'
+  external_entity_type TEXT NOT NULL, -- 'QUOTE', 'REQUEST', 'DOCUMENT'
   external_entity_id TEXT NOT NULL,
   gema_property_id UUID NOT NULL REFERENCES public.properties(id) ON DELETE CASCADE,
-  current_status TEXT NOT NULL DEFAULT 'PENDIENTE_REVISION' CHECK (current_status IN ('PENDIENTE_REVISION', 'OBSERVADO', 'CULMINADO', 'PENDIENTE_VALIDACION', 'VALIDADO')),
+  current_status TEXT NOT NULL DEFAULT 'PENDIENTE_REVISION' CHECK (current_status IN ('PENDIENTE_REVISION', 'OBSERVADO', 'CULMINADO', 'VALIDADO')),
   notes TEXT,
   created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
   updated_by UUID REFERENCES public.users(id) ON DELETE SET NULL,

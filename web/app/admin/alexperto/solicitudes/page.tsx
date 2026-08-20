@@ -26,8 +26,10 @@ import type {
   DateRangeValue,
 } from '@/components/ui/date-range-filter';
 import { SearchableMultiSelectField } from '@/components/ui/searchable-multi-select-field';
+import { useAdminSession } from '@/hooks/auth/use-admin-session';
 import { fetchWithAuth } from '@/services/auth/auth.service';
 import type {
+  AlexpertoInternalStatus,
   AlexpertoRequestListItem,
   AlexpertoRequestListResponse,
 } from '@/types/alexperto';
@@ -107,6 +109,7 @@ function internalStatusBadge(status: string) {
 }
 
 function SolicitudesContent() {
+  const { user } = useAdminSession();
   const [requests, setRequests] = useState<AlexpertoRequestListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -238,6 +241,50 @@ function SolicitudesContent() {
   function toggleSortDirection() {
     setSortDirection(current => (current === 'desc' ? 'asc' : 'desc'));
     setPage(1);
+  }
+
+  async function handleStatusUpdate(input: {
+    requestId: string;
+    status: AlexpertoInternalStatus;
+    recordHistory: boolean;
+  }) {
+    const body = {
+      status: input.status,
+      recordHistory: input.recordHistory,
+    };
+
+    const response = await fetchWithAuth(
+      `/api/alexperto/solicitudes/${input.requestId}/acciones`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    );
+    if (!response.ok) {
+      throw new Error('No se pudo guardar la revisión en GEMA.');
+    }
+    const payload = (await response.json()) as {
+      historyEntry: AlexpertoRequestListItem['history'][number] | null;
+    };
+
+    function updateRequest(request: AlexpertoRequestListItem) {
+      if (request.externalRequestId !== input.requestId) return request;
+      return {
+        ...request,
+        internalStatus: input.status,
+        history: payload.historyEntry
+          ? [payload.historyEntry, ...request.history]
+          : request.history,
+      };
+    }
+
+    setRequests(current => current.map(updateRequest));
+    setSelectedRequest(current =>
+      current?.externalRequestId === input.requestId
+        ? updateRequest(current)
+        : current,
+    );
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -481,7 +528,9 @@ function SolicitudesContent() {
       </AdminTableShell>
       <RequestDetailDialog
         request={selectedRequest}
+        isSuperadmin={user?.role === 'SUPERADMIN'}
         onClose={() => setSelectedRequest(null)}
+        onStatusUpdate={handleStatusUpdate}
       />
     </main>
   );

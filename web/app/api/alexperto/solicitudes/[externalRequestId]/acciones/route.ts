@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { alexpertoAuditActionSchema } from '@/schemas/alexperto.schema';
-import { requireAuthorizedQuote } from '@/services/alexperto/alexperto-quote-access.service';
+import { alexpertoRequestAuditActionSchema } from '@/schemas/alexperto.schema';
+import { requireAuthorizedRequest } from '@/services/alexperto/alexperto-request-access.service';
 import { requireAlexpertoAccessSession } from '@/services/auth/server-auth.service';
 import type { AlexpertoInternalStatus } from '@/types/alexperto';
 
 interface RouteContext {
-  params: Promise<{ externalQuoteId: string }>;
+  params: Promise<{ externalRequestId: string }>;
 }
 
 interface ExistingAction {
@@ -29,52 +29,41 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const session = await requireAlexpertoAccessSession(request);
-    const { externalQuoteId } = await context.params;
-    const action = alexpertoAuditActionSchema.parse(await request.json());
+    const { externalRequestId } = await context.params;
+    const action = alexpertoRequestAuditActionSchema.parse(
+      await request.json(),
+    );
 
     if (
       session.user.role === 'AUDITOR' &&
-      (!AUDITOR_STATUSES.has(action.status) || action.paulComment !== undefined)
+      !AUDITOR_STATUSES.has(action.status)
     ) {
       return NextResponse.json({ code: 'FORBIDDEN' }, { status: 403 });
     }
 
-    const property = await requireAuthorizedQuote(
-      externalQuoteId,
+    const property = await requireAuthorizedRequest(
+      externalRequestId,
       session.userSupabase,
     );
-
     const { data: existingAction, error: existingActionError } =
       await session.supabase
         .from('alexperto_audit_actions')
         .select('current_status, auditor_comment, paul_comment')
-        .eq('external_entity_type', 'QUOTE')
-        .eq('external_entity_id', externalQuoteId)
+        .eq('external_entity_type', 'REQUEST')
+        .eq('external_entity_id', externalRequestId)
         .maybeSingle();
     if (existingActionError) throw existingActionError;
 
     const existing = existingAction as ExistingAction | null;
-    const auditorComment =
-      session.user.role === 'AUDITOR'
-        ? action.auditorComment === undefined
-          ? (existing?.auditor_comment ?? null)
-          : action.auditorComment
-        : (existing?.auditor_comment ?? null);
-    const paulComment =
-      session.user.role === 'SUPERADMIN'
-        ? action.paulComment === undefined
-          ? (existing?.paul_comment ?? null)
-          : action.paulComment
-        : (existing?.paul_comment ?? null);
-    const { data, error } = await session.supabase.rpc(
+    const { error } = await session.supabase.rpc(
       'save_alexperto_audit_action',
       {
-        p_external_entity_type: 'QUOTE',
-        p_external_entity_id: externalQuoteId,
+        p_external_entity_type: 'REQUEST',
+        p_external_entity_id: externalRequestId,
         p_gema_property_id: property.id,
         p_status: action.status,
-        p_auditor_comment: auditorComment,
-        p_paul_comment: paulComment,
+        p_auditor_comment: existing?.auditor_comment ?? null,
+        p_paul_comment: existing?.paul_comment ?? null,
         p_updated_by: session.user.id,
         p_record_history: action.recordHistory,
       },
@@ -89,13 +78,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       session.user.username ||
       session.user.email;
     return NextResponse.json({
-      action: data,
       historyEntry: action.recordHistory
         ? {
             previousStatus,
             newStatus: action.status,
-            auditorComment,
-            paulComment,
             createdAt: new Date().toISOString(),
             createdBy: { id: session.user.id, name: actorName },
           }
@@ -111,7 +97,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json({ code: 'INVALID_ACTION' }, { status: 400 });
     }
-    console.error('Alexperto audit action failed');
+    console.error('Alexperto request audit action failed');
     return NextResponse.json({ code: 'ACTION_UNAVAILABLE' }, { status: 500 });
   }
 }
