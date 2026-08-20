@@ -91,6 +91,7 @@ export async function listAlexpertoQuoteDocuments(quoteId: string) {
 export async function getAlexpertoQuoteDocumentUrl(
   quoteId: string,
   documentId: string,
+  source?: 'QUOTE' | 'PROPOSAL',
 ) {
   const { rows } = await getAlexpertoPool().query<QuoteDocumentRow>({
     text: `
@@ -98,15 +99,17 @@ export async function getAlexpertoQuoteDocumentUrl(
         d.document_size, d.created_at, 'QUOTE'::text AS source
       FROM sch_main.quote_documents d
       WHERE d.id = $2 AND d.quote_id = $1 AND d.deleted_at IS NULL
+        AND ($3::text IS NULL OR $3 = 'QUOTE')
       UNION ALL
       SELECT d.id AS document_id, d.document_name, d.document_path, d.mime_type,
         d.document_size, d.created_at, 'PROPOSAL'::text AS source
       FROM sch_main.proposal_documents d
       INNER JOIN sch_main.proposals p ON p.id = d.proposal_id
       WHERE d.id = $2 AND p.quote_id = $1 AND d.deleted_at IS NULL
+        AND ($3::text IS NULL OR $3 = 'PROPOSAL')
       LIMIT 1
     `,
-    values: [quoteId, documentId],
+    values: [quoteId, documentId, source ?? null],
   });
   const document = rows[0];
   if (!document) return null;

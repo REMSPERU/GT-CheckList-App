@@ -28,6 +28,11 @@ interface RequestRow {
   total: string;
 }
 
+interface SummaryRequestRow {
+  id: string;
+  external_status: string | null;
+}
+
 interface AuditActionRow {
   id: string;
   external_entity_id: string;
@@ -78,7 +83,11 @@ export async function listAlexpertoRequests(
   );
   const externalIds = properties.map(property => property.alexpertoPropertyId);
   if (!externalIds.length)
-    return { total: 0, items: [] as AlexpertoRequestListItem[] };
+    return {
+      total: 0,
+      items: [] as AlexpertoRequestListItem[],
+      summary: { externalStatuses: {}, gemaStatuses: {} },
+    };
 
   const offset = (filters.page - 1) * filters.pageSize;
   const order = `${SORT_COLUMNS[filters.sort]} ${filters.direction === 'asc' ? 'ASC' : 'DESC'} NULLS LAST`;
@@ -96,6 +105,7 @@ export async function listAlexpertoRequests(
   ];
   const client = await getAlexpertoPool().connect();
   let result: { rows: RequestRow[] };
+  let summaryResult: { rows: SummaryRequestRow[] };
   try {
     await client.query('SET statement_timeout TO 30000');
     result = await client.query<RequestRow>({
@@ -162,29 +172,77 @@ export async function listAlexpertoRequests(
       ORDER BY ${order}, p.id DESC`,
       values,
     });
+    summaryResult = await client.query<SummaryRequestRow>({
+      text: `
+        SELECT r.id, r.latest_request_status AS external_status
+        FROM sch_main.requests r
+        INNER JOIN sch_main.properties prop ON prop.id = r.property_id AND prop.deleted_at IS NULL
+        LEFT JOIN sch_main.sub_specialties subesp ON subesp.id = r.sub_speciality_id
+        WHERE r.property_id = ANY($1::text[]) AND r.deleted_at IS NULL
+          AND (cardinality($2::text[]) = 0 OR r.request_type = ANY($2::text[]))
+          AND (cardinality($3::text[]) = 0 OR ${SPECIALTY_CASE} = ANY($3::text[]))
+          AND (cardinality($4::text[]) = 0 OR r.latest_request_status = ANY($4::text[]))
+          AND ($5 = '' OR r.code ILIKE '%' || $5 || '%' OR prop.name ILIKE '%' || $5 || '%' OR coalesce(r.description, '') ILIKE '%' || $5 || '%')
+          AND (cardinality($6::text[]) = 0 OR prop.name = ANY($6::text[]))
+          AND ($7::date IS NULL OR r.start_time >= $7::date)
+          AND ($8::date IS NULL OR r.start_time < ($8::date + INTERVAL '1 day'))
+      `,
+      values: values.slice(0, 8),
+    });
   } finally {
     client.release();
   }
   const ids = result.rows.map(row => row.id);
-  const actionResult = ids.length
-    ? await supabase
+  const summaryRows = summaryResult.rows;
+  const summaryIds = summaryRows.map(row => row.id);
+  const actionChunks = Array.from(
+    { length: Math.ceil(summaryIds.length / 100) },
+    (_, index) => summaryIds.slice(index * 100, index * 100 + 100),
+  );
+  const actionResults = await Promise.all(
+    actionChunks.map(chunk =>
+      supabase
         .from('alexperto_audit_actions')
         .select('id, external_entity_id, current_status')
         .eq('external_entity_type', 'REQUEST')
-        .in('external_entity_id', ids)
-    : { data: [], error: null };
-  const { data, error } = actionResult;
-  if (error) throw error;
-  const actions = (data ?? []) as AuditActionRow[];
+        .in('external_entity_id', chunk),
+    ),
+  );
+  const actionError = actionResults.find(result => result.error)?.error;
+  if (actionError) throw actionError;
+  const actions = actionResults.flatMap(result =>
+    (result.data ?? []) as AuditActionRow[],
+  );
   const actionsByExternalId = new Map(
     actions.map(action => [action.external_entity_id, action]),
   );
+  const pageActions = actions.filter(action => ids.includes(action.external_entity_id));
   const historyByActionId = await getActionHistory(
     supabase,
-    actions.map(action => action.id),
+    pageActions.map(action => action.id),
   );
+  const externalStatusCounts: Record<string, number> = {};
+  const gemaStatusCounts: Record<string, number> = {};
+  for (const row of summaryRows) {
+    const internalStatus =
+      actionsByExternalId.get(row.id)?.current_status ?? 'PENDIENTE_REVISION';
+    if (
+      filters.estadoInterno.length > 0 &&
+      !filters.estadoInterno.includes(internalStatus)
+    ) {
+      continue;
+    }
+    const externalStatus = row.external_status ?? 'SIN_ESTADO';
+    externalStatusCounts[externalStatus] =
+      (externalStatusCounts[externalStatus] ?? 0) + 1;
+    gemaStatusCounts[internalStatus] = (gemaStatusCounts[internalStatus] ?? 0) + 1;
+  }
   return {
     total: Number(result.rows[0]?.total ?? 0),
+    summary: {
+      externalStatuses: externalStatusCounts,
+      gemaStatuses: gemaStatusCounts,
+    },
     items: result.rows
       .map(row => {
         const property = propertyByExternalId.get(row.property_id);

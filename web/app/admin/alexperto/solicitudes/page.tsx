@@ -117,16 +117,28 @@ function internalStatusBadge(status: string) {
 
 function externalStatusBadge(status: string | null) {
   const normalizedStatus = status?.trim().toUpperCase().replace(/\s+/g, '_');
+  const statusKey =
+    normalizedStatus === 'PROGRAMADO'
+      ? 'SCHEDULED'
+      : normalizedStatus === 'CONFIRMADO'
+        ? 'CONFIRMED'
+        : normalizedStatus === 'EN_PROGRESO' || normalizedStatus === 'IN_PROGRESS'
+          ? 'INPROGRESS'
+          : normalizedStatus === 'EJECUTADO'
+            ? 'EXECUTED'
+            : normalizedStatus === 'COMPLETADO'
+              ? 'COMPLETED'
+              : normalizedStatus;
   const styles =
-    normalizedStatus === 'SCHEDULED'
+    statusKey === 'SCHEDULED'
       ? 'bg-sky-50 text-sky-800 border-sky-200'
-      : normalizedStatus === 'CONFIRMED'
+      : statusKey === 'CONFIRMED'
         ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
-        : normalizedStatus === 'INPROGRESS' || normalizedStatus === 'IN_PROGRESS'
+        : statusKey === 'INPROGRESS'
           ? 'bg-amber-50 text-amber-800 border-amber-200'
-          : normalizedStatus === 'EXECUTED'
+          : statusKey === 'EXECUTED'
             ? 'bg-orange-50 text-orange-800 border-orange-200'
-            : normalizedStatus === 'COMPLETED'
+            : statusKey === 'COMPLETED'
               ? 'bg-teal-50 text-teal-800 border-teal-200'
               : 'bg-slate-100 text-slate-700 border-slate-200';
   return `inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold ${styles}`;
@@ -136,6 +148,9 @@ function SolicitudesContent() {
   const { user } = useAdminSession();
   const [requests, setRequests] = useState<AlexpertoRequestListItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState<
+    AlexpertoRequestListResponse['summary']
+  >({ externalStatuses: {}, gemaStatuses: {} });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(30);
   const [search, setSearch] = useState('');
@@ -212,6 +227,7 @@ function SolicitudesContent() {
         if (cancelled) return;
         setRequests(payload.items);
         setTotal(payload.total);
+        setSummary(payload.summary);
         setPropertyOptions(current => {
           const options = new Map(
             current.map(option => [option.value, option]),
@@ -291,6 +307,9 @@ function SolicitudesContent() {
     const payload = (await response.json()) as {
       historyEntry: AlexpertoRequestListItem['history'][number] | null;
     };
+    const previousRequest = requests.find(
+      request => request.externalRequestId === input.requestId,
+    );
 
     function updateRequest(request: AlexpertoRequestListItem) {
       if (request.externalRequestId !== input.requestId) return request;
@@ -304,6 +323,17 @@ function SolicitudesContent() {
     }
 
     setRequests(current => current.map(updateRequest));
+    if (previousRequest && previousRequest.internalStatus !== input.status) {
+      setSummary(current => {
+        const gemaStatuses = { ...current.gemaStatuses };
+        gemaStatuses[previousRequest.internalStatus] = Math.max(
+          0,
+          (gemaStatuses[previousRequest.internalStatus] ?? 0) - 1,
+        );
+        gemaStatuses[input.status] = (gemaStatuses[input.status] ?? 0) + 1;
+        return { ...current, gemaStatuses };
+      });
+    }
     setSelectedRequest(current =>
       current?.externalRequestId === input.requestId
         ? updateRequest(current)
@@ -314,10 +344,6 @@ function SolicitudesContent() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const startItem = total ? (page - 1) * pageSize + 1 : 0;
   const endItem = Math.min(page * pageSize, total);
-  const countExternalStatus = (status: string) =>
-    requests.filter(item => item.externalStatus === status).length;
-  const countGemaStatus = (status: string) =>
-    requests.filter(item => item.internalStatus === status).length;
 
   return (
     <main className="flex h-[calc(100vh-52px)] min-h-0 flex-col gap-2.5 overflow-hidden px-4 py-2.5 lg:px-6">
@@ -330,29 +356,35 @@ function SolicitudesContent() {
             {startItem} - {endItem} de {total}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-y border-slate-100 bg-slate-50/70 px-2.5 py-1.5 text-[10px]">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-y border-slate-100 bg-slate-50/70 px-2.5 py-1.5 text-[10px]">
           <span className="font-bold uppercase tracking-wide text-slate-500">
-            Resumen
+            Resumen global
           </span>
           <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-bold text-slate-700">
             Total: {total}
           </span>
-          <span className="font-semibold text-slate-400">Alexperto</span>
-          {EXTERNAL_STATUS_OPTIONS.map(option => (
-            <span
-              key={option.value}
-              className={`${externalStatusBadge(option.value)} px-1.5 py-0 text-[9px]`}>
-              {option.label}: {countExternalStatus(option.value)}
-            </span>
-          ))}
-          <span className="font-semibold text-slate-400">GEMA</span>
-          {GEMA_STATUS_OPTIONS.map(option => (
-            <span
-              key={option.value}
-              className={`inline-flex rounded-md border px-1.5 py-0 text-[9px] font-semibold ${internalStatusStyles(option.value)}`}>
-              {option.label}: {countGemaStatus(option.value)}
-            </span>
-          ))}
+          <span className="mx-0.5 hidden h-4 w-px bg-slate-200 sm:block" />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-semibold text-slate-400">Alexperto</span>
+            {EXTERNAL_STATUS_OPTIONS.map(option => (
+              <span
+                key={option.value}
+                className={`${externalStatusBadge(option.value)} px-1.5 py-0 text-[9px]`}>
+                {option.label}: {summary.externalStatuses[option.value] ?? 0}
+              </span>
+            ))}
+          </div>
+          <span className="mx-0.5 hidden h-4 w-px bg-slate-200 sm:block" />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-semibold text-slate-400">GEMA</span>
+            {GEMA_STATUS_OPTIONS.map(option => (
+              <span
+                key={option.value}
+                className={`inline-flex rounded-md border px-1.5 py-0 text-[9px] font-semibold ${internalStatusStyles(option.value)}`}>
+                {option.label}: {summary.gemaStatuses[option.value] ?? 0}
+              </span>
+            ))}
+          </div>
         </div>
         <div className="grid grid-cols-1 items-center gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
           <SearchInput

@@ -93,6 +93,10 @@ export interface AlexpertoRequestListResponse {
   pageSize: number;
   total: number;
   items: AlexpertoRequestListItem[];
+  summary: {
+    externalStatuses: Record<string, number>;
+    gemaStatuses: Record<string, number>;
+  };
   queriedAt: string;
 }
 
