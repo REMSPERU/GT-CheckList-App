@@ -26,8 +26,10 @@ import type {
   DateRangeValue,
 } from '@/components/ui/date-range-filter';
 import { SearchableMultiSelectField } from '@/components/ui/searchable-multi-select-field';
+import { useAdminSession } from '@/hooks/auth/use-admin-session';
 import { fetchWithAuth } from '@/services/auth/auth.service';
 import type {
+  AlexpertoInternalStatus,
   AlexpertoRequestListItem,
   AlexpertoRequestListResponse,
 } from '@/types/alexperto';
@@ -80,23 +82,35 @@ function formatRequestType(type: string | null) {
   );
 }
 
-function internalStatusBadge(status: string) {
-  const styles =
-    status === 'CULMINADO' || status === 'VALIDADO'
+function internalStatusStyles(status: string) {
+  const statusKey = status.trim().toUpperCase().replace(/\s+/g, '_');
+  return statusKey === 'CULMINADO'
       ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-      : status === 'OBSERVADO'
-        ? 'bg-amber-50 text-amber-800 border-amber-200'
-        : 'bg-slate-100 text-slate-700 border-slate-200';
+    : statusKey === 'VALIDADO'
+      ? 'bg-violet-50 text-violet-800 border-violet-200'
+      : statusKey === 'OBSERVADO'
+        ? 'bg-rose-50 text-rose-800 border-rose-200'
+        : statusKey === 'PENDIENTE_REVISION'
+          ? 'bg-purple-50 text-purple-800 border-purple-300'
+          : 'bg-slate-100 text-slate-700 border-slate-200';
+}
+
+function internalStatusBadge(status: string) {
+  const styles = internalStatusStyles(status);
+  const statusKey = status.trim().toUpperCase().replace(/\s+/g, '_');
   const Icon =
-    status === 'CULMINADO' || status === 'VALIDADO'
+    statusKey === 'CULMINADO'
       ? CheckCircle2
-      : status === 'OBSERVADO'
-        ? AlertCircle
-        : Clock;
+      : statusKey === 'VALIDADO'
+        ? CheckCircle2
+        : statusKey === 'OBSERVADO'
+          ? AlertCircle
+          : Clock;
   const label =
-    status === 'VALIDADO'
+    statusKey === 'VALIDADO'
       ? 'Revisado'
-      : status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' ');
+      : statusKey.charAt(0) +
+        statusKey.slice(1).toLowerCase().replace(/_/g, ' ');
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${styles}`}>
@@ -106,15 +120,49 @@ function internalStatusBadge(status: string) {
   );
 }
 
+function externalStatusBadge(status: string | null) {
+  const normalizedStatus = status?.trim().toUpperCase().replace(/\s+/g, '_');
+  const statusKey =
+    normalizedStatus === 'PROGRAMADO'
+      ? 'SCHEDULED'
+      : normalizedStatus === 'CONFIRMADO'
+        ? 'CONFIRMED'
+        : normalizedStatus === 'EN_PROGRESO' ||
+            normalizedStatus === 'IN_PROGRESS'
+          ? 'INPROGRESS'
+          : normalizedStatus === 'EJECUTADO'
+            ? 'EXECUTED'
+            : normalizedStatus === 'COMPLETADO'
+              ? 'COMPLETED'
+              : normalizedStatus;
+  const styles =
+    statusKey === 'SCHEDULED'
+      ? 'bg-blue-50 text-blue-800 border-blue-300'
+      : statusKey === 'CONFIRMED'
+        ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+        : statusKey === 'INPROGRESS'
+          ? 'bg-amber-50 text-amber-800 border-amber-200'
+          : statusKey === 'EXECUTED'
+            ? 'bg-orange-50 text-orange-800 border-orange-200'
+            : statusKey === 'COMPLETED'
+              ? 'bg-teal-50 text-teal-800 border-teal-200'
+              : 'bg-slate-100 text-slate-700 border-slate-200';
+  return `inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold ${styles}`;
+}
+
 function SolicitudesContent() {
+  const { user } = useAdminSession();
   const [requests, setRequests] = useState<AlexpertoRequestListItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState<
+    AlexpertoRequestListResponse['summary']
+  >({ externalStatuses: {}, gemaStatuses: {} });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(30);
   const [search, setSearch] = useState('');
-  const [selectedRequestTypes, setSelectedRequestTypes] = useState<string[]>(
-    [],
-  );
+  const [selectedRequestTypes, setSelectedRequestTypes] = useState<string[]>([
+    'PREVENTIVE',
+  ]);
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   const [selectedExternalStatuses, setSelectedExternalStatuses] = useState<
@@ -185,6 +233,7 @@ function SolicitudesContent() {
         if (cancelled) return;
         setRequests(payload.items);
         setTotal(payload.total);
+        setSummary(payload.summary);
         setPropertyOptions(current => {
           const options = new Map(
             current.map(option => [option.value, option]),
@@ -240,6 +289,64 @@ function SolicitudesContent() {
     setPage(1);
   }
 
+  async function handleStatusUpdate(input: {
+    requestId: string;
+    status: AlexpertoInternalStatus;
+    recordHistory: boolean;
+  }) {
+    const body = {
+      status: input.status,
+      recordHistory: input.recordHistory,
+    };
+
+    const response = await fetchWithAuth(
+      `/api/alexperto/solicitudes/${input.requestId}/acciones`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    );
+    if (!response.ok) {
+      throw new Error('No se pudo guardar la revisión en GEMA.');
+    }
+    const payload = (await response.json()) as {
+      historyEntry: AlexpertoRequestListItem['history'][number] | null;
+    };
+    const previousRequest = requests.find(
+      request => request.externalRequestId === input.requestId,
+    );
+
+    function updateRequest(request: AlexpertoRequestListItem) {
+      if (request.externalRequestId !== input.requestId) return request;
+      return {
+        ...request,
+        internalStatus: input.status,
+        history: payload.historyEntry
+          ? [payload.historyEntry, ...request.history]
+          : request.history,
+      };
+    }
+
+    setRequests(current => current.map(updateRequest));
+    if (previousRequest && previousRequest.internalStatus !== input.status) {
+      setSummary(current => {
+        const gemaStatuses = { ...current.gemaStatuses };
+        gemaStatuses[previousRequest.internalStatus] = Math.max(
+          0,
+          (gemaStatuses[previousRequest.internalStatus] ?? 0) - 1,
+        );
+        gemaStatuses[input.status] = (gemaStatuses[input.status] ?? 0) + 1;
+        return { ...current, gemaStatuses };
+      });
+    }
+    setSelectedRequest(current =>
+      current?.externalRequestId === input.requestId
+        ? updateRequest(current)
+        : current,
+    );
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const startItem = total ? (page - 1) * pageSize + 1 : 0;
   const endItem = Math.min(page * pageSize, total);
@@ -254,6 +361,34 @@ function SolicitudesContent() {
           <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
             {startItem} - {endItem} de {total}
           </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-y border-slate-100 bg-slate-50/70 px-2.5 py-1.5 text-[10px]">
+          <span className="font-bold uppercase tracking-wide text-slate-500">
+            Resumen global
+          </span>
+          <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 font-bold text-slate-700">
+            Total: {total}
+          </span>
+          <div className="flex min-h-9 min-w-0 flex-1 flex-wrap items-center gap-1.5 rounded-lg border border-slate-100 bg-white/70 px-2 py-1">
+            <span className="font-semibold text-slate-400">Alexperto</span>
+            {EXTERNAL_STATUS_OPTIONS.map(option => (
+              <span
+                key={option.value}
+                className={`${externalStatusBadge(option.value)} px-1.5 py-0.5 text-[9px]`}>
+                {option.label}: {summary.externalStatuses[option.value] ?? 0}
+              </span>
+            ))}
+          </div>
+          <div className="flex min-h-9 min-w-0 flex-1 flex-wrap items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50/30 px-2 py-1">
+            <span className="font-semibold text-slate-400">GEMA</span>
+            {GEMA_STATUS_OPTIONS.map(option => (
+              <span
+                key={option.value}
+                className={`inline-flex rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${internalStatusStyles(option.value)}`}>
+                {option.label}: {summary.gemaStatuses[option.value] ?? 0}
+              </span>
+            ))}
+          </div>
         </div>
         <div className="grid grid-cols-1 items-center gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
           <SearchInput
@@ -420,7 +555,8 @@ function SolicitudesContent() {
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-center">
-                      <span className="inline-flex rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                      <span
+                        className={externalStatusBadge(item.externalStatus)}>
                         {formatExternalStatus(item.externalStatus)}
                       </span>
                     </td>
@@ -481,7 +617,9 @@ function SolicitudesContent() {
       </AdminTableShell>
       <RequestDetailDialog
         request={selectedRequest}
+        isSuperadmin={user?.role === 'SUPERADMIN'}
         onClose={() => setSelectedRequest(null)}
+        onStatusUpdate={handleStatusUpdate}
       />
     </main>
   );

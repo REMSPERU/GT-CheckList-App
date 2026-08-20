@@ -50,3 +50,8 @@ export const alexpertoAuditActionSchema = z.object({
 });
 
 export type AlexpertoAuditAction = z.infer<typeof alexpertoAuditActionSchema>;
+
+export const alexpertoRequestAuditActionSchema = z.object({
+  status: z.enum(ALEXPERTO_INTERNAL_STATUSES),
+  recordHistory: z.boolean().default(true),
+});

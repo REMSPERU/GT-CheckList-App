@@ -32,6 +32,13 @@ export interface AlexpertoQuoteHistoryItem {
   createdBy: { id: string; name: string | null } | null;
 }
 
+export interface AlexpertoRequestHistoryItem {
+  previousStatus: AlexpertoInternalStatus | null;
+  newStatus: AlexpertoInternalStatus;
+  createdAt: string;
+  createdBy: { id: string; name: string | null } | null;
+}
+
 export interface AlexpertoQuoteListItem {
   externalQuoteId: string;
   code: string;
@@ -78,6 +85,7 @@ export interface AlexpertoRequestListItem {
   quoteCount: number;
   attachmentCount: number;
   internalStatus: AlexpertoInternalStatus;
+  history: AlexpertoRequestHistoryItem[];
 }
 
 export interface AlexpertoRequestListResponse {
@@ -85,6 +93,10 @@ export interface AlexpertoRequestListResponse {
   pageSize: number;
   total: number;
   items: AlexpertoRequestListItem[];
+  summary: {
+    externalStatuses: Record<string, number>;
+    gemaStatuses: Record<string, number>;
+  };
   queriedAt: string;
 }
 

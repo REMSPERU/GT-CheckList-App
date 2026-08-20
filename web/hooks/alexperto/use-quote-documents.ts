@@ -14,6 +14,9 @@ export function useQuoteDocuments(quoteId: string | null) {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingDocument, setIsLoadingDocument] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedDocumentSource =
+    documents.find(document => document.id === selectedDocumentId)?.source ??
+    '';
 
   useEffect(() => {
     if (!quoteId) return;
@@ -76,7 +79,7 @@ export function useQuoteDocuments(quoteId: string | null) {
       setError(null);
       try {
         const response = await fetchWithAuth(
-          `/api/alexperto/cotizaciones/${quoteId}/documentos/${selectedDocumentId}`,
+          `/api/alexperto/cotizaciones/${quoteId}/documentos/${selectedDocumentId}?source=${selectedDocumentSource}`,
         );
         if (!response.ok) throw new Error('No se pudo cargar la vista previa.');
         const payload = (await response.json()) as { url: string };
@@ -99,7 +102,7 @@ export function useQuoteDocuments(quoteId: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [quoteId, selectedDocumentId]);
+  }, [quoteId, selectedDocumentId, selectedDocumentSource]);
 
   return {
     documents,

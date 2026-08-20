@@ -9,7 +9,13 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
-export type DatePreset = 'ALL' | 'TODAY' | 'WEEK' | 'MONTH' | 'CUSTOM';
+export type DatePreset =
+  | 'ALL'
+  | 'TODAY'
+  | 'WEEK'
+  | 'MONTH'
+  | 'YEAR'
+  | 'CUSTOM';
 
 export interface DateRangeValue {
   from: string;
@@ -27,7 +33,8 @@ const DATE_PRESET_OPTIONS = [
   { value: 'ALL', label: 'Todas las fechas' },
   { value: 'TODAY', label: 'Hoy' },
   { value: 'WEEK', label: 'Esta semana' },
-  { value: 'MONTH', label: 'Último mes' },
+  { value: 'MONTH', label: 'Este mes' },
+  { value: 'YEAR', label: 'Este año' },
   { value: 'CUSTOM', label: 'Personalizado' },
 ] as const;
 
@@ -85,17 +92,27 @@ export function resolveDateRange(
   if (preset === 'ALL') return { from: null, to: null };
 
   const today = new Date();
-  const to = formatDateInput(today);
-  if (preset === 'TODAY') return { from: to, to };
-
-  const from = new Date(today);
-  if (preset === 'WEEK') {
-    const daysSinceMonday = today.getDay() === 0 ? 6 : today.getDay() - 1;
-    from.setDate(today.getDate() - daysSinceMonday);
-  } else {
-    from.setMonth(today.getMonth() - 1);
+  if (preset === 'TODAY') {
+    const date = formatDateInput(today);
+    return { from: date, to: date };
   }
-  return { from: formatDateInput(from), to };
+
+  let from: Date;
+  let to: Date;
+  if (preset === 'YEAR') {
+    from = new Date(today.getFullYear(), 0, 1);
+    to = new Date(today.getFullYear(), 11, 31);
+  } else if (preset === 'MONTH') {
+    from = new Date(today.getFullYear(), today.getMonth(), 1);
+    to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  } else {
+    const daysSinceMonday = today.getDay() === 0 ? 6 : today.getDay() - 1;
+    from = new Date(today);
+    from.setDate(today.getDate() - daysSinceMonday);
+    to = new Date(from);
+    to.setDate(from.getDate() + 6);
+  }
+  return { from: formatDateInput(from), to: formatDateInput(to) };
 }
 
 export function DateRangeFilter({
