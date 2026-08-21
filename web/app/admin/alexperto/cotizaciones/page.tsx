@@ -5,11 +5,7 @@ import { Suspense, useDeferredValue, useEffect, useState } from 'react';
 import { SearchInput } from '@/components/ui/search-input';
 import { SearchableMultiSelectField } from '@/components/ui/searchable-multi-select-field';
 import { AdminTableShell } from '@/components/admin/admin-table-shell';
-import {
-  TABLE_CLASS,
-  TD_CLASS,
-  TH_CLASS,
-} from '@/components/admin/table-primitives';
+import { TABLE_CLASS, TH_CLASS } from '@/components/admin/table-primitives';
 import { formatExternalStatus } from '@/components/admin/alexperto/quote-formatters';
 import { QuoteWorkspaceDialog } from '@/components/admin/alexperto/quote-workspace-dialog';
 import {
@@ -44,7 +40,7 @@ const GEMA_STATUS_OPTIONS = [
   { value: 'VALIDADO', label: 'Marcado como revisado' },
 ];
 
-const PAGE_SIZE_OPTIONS = [25, 50, 100];
+const PAGE_SIZE_OPTIONS = [30, 50, 100];
 
 type FilterOption = { value: string; label: string };
 
@@ -64,7 +60,7 @@ function CotizacionesContent() {
   const [quotes, setQuotes] = useState<AlexpertoQuoteAuditItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(30);
   const [sortBy, setSortBy] = useState<'createdAt' | 'amount'>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isLoading, setIsLoading] = useState(false);
@@ -392,32 +388,26 @@ function CotizacionesContent() {
   return (
     <main className="flex h-[calc(100vh-52px)] min-h-0 flex-col gap-2.5 overflow-hidden px-4 py-2.5 lg:px-6">
       {/* COMPACT & BALANCED HEADER & FILTERS BAR */}
-      <section className="shrink-0 rounded-xl border border-slate-200/80 bg-white p-3 shadow-2xs space-y-2.5">
-        <div className="flex items-center justify-between gap-2 px-0.5">
-          <div className="flex items-center gap-2.5">
-            <h2 className="m-0 text-sm font-bold tracking-tight text-slate-900 leading-none">
-              Cotizaciones Alexperto
-            </h2>
-            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 border border-slate-200">
-              {startItem} - {endItem} de {total}
-            </span>
-          </div>
+      <section className="shrink-0 space-y-2.5 rounded-xl border border-slate-200/80 bg-white p-3 shadow-2xs">
+        <div className="flex items-center gap-2.5 px-0.5">
+          <h2 className="m-0 text-sm font-bold tracking-tight text-slate-900">
+            Cotizaciones Alexperto
+          </h2>
+          <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+            {startItem} - {endItem} de {total}
+          </span>
         </div>
 
-        {/* SEARCH & SEARCHABLE MULTI-SELECT FILTERS GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-2.5 items-center">
-          <div className="w-full">
-            <SearchInput
-              placeholder="Buscar código, inmueble..."
-              value={search}
-              onChange={val => handleFilterChange(setSearch, val)}
-              compact
-            />
-          </div>
+        <div className="grid grid-cols-1 items-center gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+          <SearchInput
+            placeholder="Buscar código, inmueble..."
+            value={search}
+            onChange={val => handleFilterChange(setSearch, val)}
+            compact
+          />
 
-          {/* EDITABLE MINIMUM AMOUNT FILTER (DEFAULT 3000) */}
-          <div className="relative flex items-center w-full">
-            <span className="absolute left-2.5 text-xs font-bold text-slate-400 select-none">
+          <div className="relative flex w-full items-center">
+            <span className="pointer-events-none absolute left-2.5 select-none text-xs font-bold text-slate-400">
               S/ &ge;
             </span>
             <input
@@ -427,7 +417,7 @@ function CotizacionesContent() {
               value={minAmount}
               onChange={e => handleFilterChange(setMinAmount, e.target.value)}
               placeholder="Monto mín."
-              className="h-9 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-2 text-xs font-semibold text-slate-900 outline-none transition-colors focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20 placeholder:text-slate-400"
+              className="h-9 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-2 text-xs font-semibold text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-800 focus:ring-1 focus:ring-emerald-800/20"
               aria-label="Filtro de monto mínimo"
             />
           </div>
@@ -488,38 +478,16 @@ function CotizacionesContent() {
         <div className="min-h-0 flex-1 overflow-auto">
           <table className={TABLE_CLASS}>
             <thead>
-              <tr className="bg-[#e8f1ee] text-[10px] font-bold uppercase tracking-[0.14em] text-[#23584d]">
-                <th
-                  className="border-b border-[#c7ddd7] px-4 py-2 text-left"
-                  colSpan={3}
-                  scope="colgroup">
-                  Registro
-                </th>
-                <th
-                  className="border-b border-l border-[#c7ddd7] px-4 py-2 text-left"
-                  colSpan={3}
-                  scope="colgroup">
-                  Servicio
-                </th>
-                <th
-                  className="border-b border-l border-[#c7ddd7] px-4 py-2 text-center"
-                  colSpan={user?.role === 'SUPERADMIN' ? 4 : 3}
-                  scope="colgroup">
-                  Control y evaluación
-                </th>
-              </tr>
-              <tr className="border-b border-slate-200 bg-[#f7faf9] text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              <tr>
                 <th className={`${TH_CLASS} py-2.5`}>Código</th>
-
-                {/* SORTABLE DATE COLUMN */}
                 <th className={`${TH_CLASS} py-2.5`}>
                   <button
                     type="button"
                     onClick={() => handleSort('createdAt')}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-950 uppercase tracking-wider transition group cursor-pointer"
+                    className="group inline-flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600 transition hover:text-emerald-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                     title={`Ordenar por fecha (${sortBy === 'createdAt' && sortDirection === 'desc' ? 'Más recientes primero' : 'Más antiguas primero'})`}>
                     <span>Fecha</span>
-                    <span className="flex items-center text-slate-400 group-hover:text-emerald-700 transition">
+                    <span className="flex items-center text-slate-400 transition group-hover:text-emerald-700">
                       {sortBy === 'createdAt' ? (
                         sortDirection === 'desc' ? (
                           <ArrowDown size={13} className="text-emerald-700" />
@@ -537,27 +505,21 @@ function CotizacionesContent() {
                 </th>
 
                 <th className={`${TH_CLASS} py-2.5 text-center`}>Creado por</th>
-                <th
-                  className={`${TH_CLASS} border-l border-slate-200 py-2.5 min-w-[200px]`}>
-                  Inmueble
-                </th>
-                <th className={`${TH_CLASS} py-2.5 min-w-[170px]`}>
+                <th className={`${TH_CLASS} min-w-[190px] py-2.5`}>Inmueble</th>
+                <th className={`${TH_CLASS} min-w-[170px] py-2.5`}>
                   Especialidad
                 </th>
-                <th className={`${TH_CLASS} py-2.5 min-w-[160px]`}>
+                <th className={`${TH_CLASS} min-w-[160px] py-2.5`}>
                   Proveedor
                 </th>
-
-                {/* SORTABLE AMOUNT COLUMN */}
-                <th
-                  className={`${TH_CLASS} border-l border-slate-200 py-2.5 text-right`}>
+                <th className={`${TH_CLASS} py-2.5 text-right`}>
                   <button
                     type="button"
                     onClick={() => handleSort('amount')}
-                    className="inline-flex items-center justify-end gap-1 text-[11px] font-semibold text-slate-600 hover:text-emerald-950 uppercase tracking-wider transition group cursor-pointer ml-auto"
+                    className="group ml-auto inline-flex cursor-pointer items-center justify-end gap-1 rounded px-1 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600 transition hover:text-emerald-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                     title={`Ordenar por monto (${sortBy === 'amount' && sortDirection === 'desc' ? 'Mayor a menor' : 'Menor a mayor'})`}>
                     <span>Monto</span>
-                    <span className="flex items-center text-slate-400 group-hover:text-emerald-700 transition">
+                    <span className="flex items-center text-slate-400 transition group-hover:text-emerald-700">
                       {sortBy === 'amount' ? (
                         sortDirection === 'desc' ? (
                           <ArrowDown size={13} className="text-emerald-700" />
@@ -583,9 +545,7 @@ function CotizacionesContent() {
                 {user?.role === 'SUPERADMIN' && (
                   <th className={`${TH_CLASS} py-2.5 text-center`}>Auditor</th>
                 )}
-                <th
-                  className={`${TH_CLASS} border-l border-slate-200 py-2.5 text-right`}
-                  scope="col">
+                <th className={`${TH_CLASS} py-2.5 text-right`} scope="col">
                   Acciones
                 </th>
               </tr>
@@ -621,25 +581,27 @@ function CotizacionesContent() {
                   const rowClass = isObserved
                     ? 'bg-amber-50/90 shadow-[inset_0_1px_0_rgb(253_230_138),inset_0_-1px_0_rgb(253_230_138)] hover:bg-amber-100/80'
                     : 'hover:bg-slate-50/80';
-                  const groupBorder = isObserved
-                    ? 'border-l border-amber-200'
-                    : 'border-l border-slate-200/90';
-
                   return (
                     <tr
                       key={item.id}
                       onClick={() => setSelectedQuote(item)}
-                      className={`cursor-pointer transition-colors duration-150 ${rowClass}`}>
-                      <td
-                        className={`${TD_CLASS} py-2.5 whitespace-nowrap font-bold`}>
+                      tabIndex={0}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setSelectedQuote(item);
+                        }
+                      }}
+                      aria-label={`Ver detalle de cotización ${item.code}`}
+                      className={`cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:bg-emerald-50 ${rowClass}`}>
+                      <td className="whitespace-nowrap px-4 py-2.5 font-medium">
                         <span className="font-mono text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                           {item.code}
                         </span>
                       </td>
 
                       {/* FECHA */}
-                      <td
-                        className={`${TD_CLASS} py-2.5 whitespace-nowrap text-slate-700 font-medium`}>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-slate-700">
                         {new Date(item.createdAt).toLocaleDateString('es-PE', {
                           day: '2-digit',
                           month: '2-digit',
@@ -648,8 +610,7 @@ function CotizacionesContent() {
                       </td>
 
                       {/* CREADO POR / ORIGEN */}
-                      <td
-                        className={`${TD_CLASS} py-2.5 whitespace-nowrap text-center`}>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-center">
                         {item.creationUserType === 'ADMINISTRATOR' ? (
                           <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-800 border border-slate-200">
                             Administrador
@@ -665,25 +626,27 @@ function CotizacionesContent() {
                         )}
                       </td>
 
-                      {/* INMUEBLE - FULL TEXT WRAP */}
-                      <td
-                        className={`${TD_CLASS} ${groupBorder} py-2.5 min-w-[200px] max-w-[280px]`}>
-                        <p className="font-semibold text-slate-900 m-0 leading-snug break-words">
+                      <td className="max-w-[280px] min-w-[190px] px-4 py-2.5">
+                        <p
+                          className="m-0 truncate font-semibold text-slate-900"
+                          title={item.propertyName}>
                           {item.propertyName}
                         </p>
                       </td>
 
-                      {/* ESPECIALIDAD */}
-                      <td className={`${TD_CLASS} py-2.5 min-w-[170px]`}>
-                        <p className="font-semibold text-slate-800 m-0 leading-snug break-words">
+                      <td className="max-w-[240px] min-w-[170px] px-4 py-2.5">
+                        <p
+                          className="m-0 truncate font-semibold text-slate-800"
+                          title={item.specialty}>
                           {item.specialty}
                         </p>
                       </td>
 
-                      {/* PROVEEDOR */}
-                      <td className={`${TD_CLASS} py-2.5 min-w-[160px]`}>
+                      <td className="max-w-[220px] min-w-[160px] px-4 py-2.5">
                         {item.provider ? (
-                          <p className="font-semibold text-slate-900 m-0 leading-snug break-words">
+                          <p
+                            className="m-0 truncate font-semibold text-slate-900"
+                            title={item.provider}>
                             {item.provider}
                           </p>
                         ) : (
@@ -693,9 +656,7 @@ function CotizacionesContent() {
                         )}
                       </td>
 
-                      {/* MONTO */}
-                      <td
-                        className={`${TD_CLASS} ${groupBorder} py-2.5 whitespace-nowrap text-right font-bold text-slate-900 font-mono`}>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right font-mono font-bold text-slate-900">
                         S/{' '}
                         {item.amount
                           ? Number(item.amount).toLocaleString('es-PE', {
@@ -704,26 +665,22 @@ function CotizacionesContent() {
                           : '0.00'}
                       </td>
 
-                      {/* ESTADO ALEXPERTO */}
-                      <td className={`${TD_CLASS} py-2.5 text-center`}>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-center">
                         <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-200">
                           {formatExternalStatus(item.externalStatus)}
                         </span>
                       </td>
 
-                      {/* GESTIÓN GEMA */}
-                      <td className={`${TD_CLASS} py-2.5 text-center`}>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-center">
                         {getGemaBadge(item.gemaStatus)}
                       </td>
                       {user?.role === 'SUPERADMIN' && (
-                        <td className={`${TD_CLASS} py-2.5 text-center`}>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-center">
                           {getDispatchBadge(item.auditorDispatchStatus)}
                         </td>
                       )}
 
-                      {/* ACCIONES */}
-                      <td
-                        className={`${TD_CLASS} ${groupBorder} py-2.5 whitespace-nowrap text-right`}>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right">
                         <button
                           type="button"
                           onClick={e => {
