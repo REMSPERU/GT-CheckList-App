@@ -85,7 +85,7 @@ function formatRequestType(type: string | null) {
 function internalStatusStyles(status: string) {
   const statusKey = status.trim().toUpperCase().replace(/\s+/g, '_');
   return statusKey === 'CULMINADO'
-      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
     : statusKey === 'VALIDADO'
       ? 'bg-violet-50 text-violet-800 border-violet-200'
       : statusKey === 'OBSERVADO'
@@ -171,7 +171,7 @@ function SolicitudesContent() {
   const [selectedGemaStatuses, setSelectedGemaStatuses] = useState<string[]>(
     [],
   );
-  const [datePreset, setDatePreset] = useState<DatePreset>('ALL');
+  const [datePreset, setDatePreset] = useState<DatePreset>('YEAR');
   const [customDateRange, setCustomDateRange] = useState<DateRangeValue>({
     from: '',
     to: '',

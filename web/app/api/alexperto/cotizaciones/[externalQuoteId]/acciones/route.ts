@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { alexpertoAuditActionSchema } from '@/schemas/alexperto.schema';
-import { requireAuthorizedQuote } from '@/services/alexperto/alexperto-quote-access.service';
+import {
+  alexpertoAuditActionSchema,
+  alexpertoQuoteDispatchSchema,
+} from '@/schemas/alexperto.schema';
+import {
+  requireAuthorizedQuote,
+  requireVisibleQuote,
+} from '@/services/alexperto/alexperto-quote-access.service';
 import { requireAlexpertoAccessSession } from '@/services/auth/server-auth.service';
 import type { AlexpertoInternalStatus } from '@/types/alexperto';
 
@@ -30,7 +36,33 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const session = await requireAlexpertoAccessSession(request);
     const { externalQuoteId } = await context.params;
-    const action = alexpertoAuditActionSchema.parse(await request.json());
+    const body = await request.json();
+    const dispatch = alexpertoQuoteDispatchSchema.safeParse(body);
+
+    if (dispatch.success) {
+      if (session.user.role !== 'SUPERADMIN') {
+        return NextResponse.json({ code: 'FORBIDDEN' }, { status: 403 });
+      }
+      const property = await requireAuthorizedQuote(
+        externalQuoteId,
+        session.userSupabase,
+      );
+      const { data, error } = await session.supabase.rpc(
+        'set_alexperto_quote_auditor_dispatch',
+        {
+          p_external_entity_id: externalQuoteId,
+          p_gema_property_id: property.id,
+          p_dispatch_status: dispatch.data.dispatchStatus,
+          p_updated_by: session.user.id,
+        },
+      );
+      if (error) throw error;
+      return NextResponse.json({
+        dispatchStatus: data.auditor_dispatch_status,
+      });
+    }
+
+    const action = alexpertoAuditActionSchema.parse(body);
 
     if (
       session.user.role === 'AUDITOR' &&
@@ -39,9 +71,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ code: 'FORBIDDEN' }, { status: 403 });
     }
 
-    const property = await requireAuthorizedQuote(
+    const property = await requireVisibleQuote(
       externalQuoteId,
       session.userSupabase,
+      session.supabase,
+      session.user.role,
     );
 
     const { data: existingAction, error: existingActionError } =

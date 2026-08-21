@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
       filters,
       scopedProperties,
       session.supabase,
+      session.user.role === 'AUDITOR',
     );
     return NextResponse.json(
       {
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
     const code = error instanceof Error ? error.message : 'INTERNAL_ERROR';
     const status =
       code === 'UNAUTHENTICATED' ? 401 : code === 'FORBIDDEN' ? 403 : 500;
-    console.error('Alexperto quotes list failed', { code });
+    console.error('Alexperto quotes list failed', { code, error });
     return NextResponse.json(
       { code: status === 500 ? 'ALEXPERTO_UNAVAILABLE' : code },
       { status },

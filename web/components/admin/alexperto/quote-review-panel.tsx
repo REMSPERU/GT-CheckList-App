@@ -1,4 +1,13 @@
-import { CheckCircle2, Copy, FileCheck, Save } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Copy,
+  FileCheck,
+  Save,
+  Send,
+  Undo2,
+} from 'lucide-react';
 
 import { formatExternalStatus, formatInternalStatus } from './quote-formatters';
 import type {
@@ -37,6 +46,7 @@ interface QuoteReviewPanelProps {
   onAuditorCommentChange: (value: string) => void;
   onPaulCommentChange: (value: string) => void;
   onSave: (status: AlexpertoInternalStatus, recordHistory: boolean) => void;
+  onDispatch: (dispatchStatus: 'ENVIADO' | 'RETIRADO') => void;
   onNotice: (message: string) => void;
 }
 
@@ -50,10 +60,29 @@ export function QuoteReviewPanel({
   onAuditorCommentChange,
   onPaulCommentChange,
   onSave,
+  onDispatch,
   onNotice,
 }: QuoteReviewPanelProps) {
-  const isCompleted =
-    quote.gemaStatus === 'CULMINADO' || quote.gemaStatus === 'VALIDADO';
+  const gemaStatusStyle =
+    quote.gemaStatus === 'OBSERVADO'
+      ? {
+          label: 'Observado',
+          className: 'border border-amber-300 bg-amber-100 text-amber-950',
+          Icon: AlertCircle,
+        }
+      : quote.gemaStatus === 'CULMINADO' || quote.gemaStatus === 'VALIDADO'
+        ? {
+            label: formatInternalStatus(quote.gemaStatus),
+            className:
+              'border border-emerald-200 bg-emerald-100 text-emerald-900',
+            Icon: CheckCircle2,
+          }
+        : {
+            label: 'Pendiente de revisión',
+            className: 'border border-slate-200 bg-slate-100 text-slate-700',
+            Icon: Clock,
+          };
+  const GemaStatusIcon = gemaStatusStyle.Icon;
 
   return (
     <div className="space-y-4">
@@ -67,14 +96,48 @@ export function QuoteReviewPanel({
               {formatExternalStatus(quote.externalStatus)}
             </p>
           </div>
-          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-1 text-[11px] font-bold text-emerald-900">
-            <CheckCircle2 size={14} className="text-emerald-700" />
-            {isCompleted
-              ? formatInternalStatus(quote.gemaStatus)
-              : formatInternalStatus(quote.gemaStatus)}
+          <span
+            className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold ${gemaStatusStyle.className}`}>
+            <GemaStatusIcon size={14} />
+            {gemaStatusStyle.label}
           </span>
         </div>
       </section>
+
+      {isSuperadmin && (
+        <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <p className="m-0 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            Visibilidad para auditor
+          </p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <span
+              className={`text-xs font-bold ${quote.auditorDispatchStatus === 'ENVIADO' ? 'text-sky-800' : quote.auditorDispatchStatus === 'RETIRADO' ? 'text-rose-800' : 'text-slate-600'}`}>
+              {quote.auditorDispatchStatus === 'ENVIADO'
+                ? 'Enviada al auditor del inmueble'
+                : quote.auditorDispatchStatus === 'RETIRADO'
+                  ? 'Retirada de la bandeja del auditor'
+                  : 'Aún no enviada al auditor'}
+            </span>
+            {quote.auditorDispatchStatus === 'ENVIADO' ? (
+              <button
+                type="button"
+                onClick={() => onDispatch('RETIRADO')}
+                disabled={isSaving}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-bold text-rose-800 transition hover:bg-rose-50 disabled:opacity-60">
+                <Undo2 size={13} /> Retirar
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onDispatch('ENVIADO')}
+                disabled={isSaving}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-sky-700 bg-sky-700 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-sky-800 disabled:opacity-60">
+                <Send size={13} /> Mandar a auditor
+              </button>
+            )}
+          </div>
+        </section>
+      )}
 
       <section>
         <h3 className="m-0 text-sm font-bold text-slate-900">Información</h3>
