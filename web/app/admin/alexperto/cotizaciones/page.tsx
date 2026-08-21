@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  Suspense,
-  useDeferredValue,
-  useEffect,
-  useState,
-} from 'react';
+import { Suspense, useDeferredValue, useEffect, useState } from 'react';
 
 import { SearchInput } from '@/components/ui/search-input';
 import { SearchableMultiSelectField } from '@/components/ui/searchable-multi-select-field';
@@ -26,6 +21,8 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Send,
+  Undo2,
 } from 'lucide-react';
 
 import { useAdminSession } from '@/hooks/auth/use-admin-session';
@@ -34,22 +31,6 @@ import type {
   AlexpertoQuoteAuditItem,
   AlexpertoQuoteListResponse,
 } from '@/types/alexperto';
-
-const SPECIALTY_OPTIONS = [
-  { value: 'AA', label: 'Sistema de aire acondicionado' },
-  { value: 'VM', label: 'Equipos de ventilación mecánica' },
-  { value: 'SCI', label: 'Sistemas contra incendio' },
-  { value: 'TE', label: 'Tableros eléctricos' },
-  { value: 'GE', label: 'Grupos electrógenos' },
-  { value: 'BOM', label: 'Bombas de agua y desagüe' },
-  { value: 'SSC', label: 'Sistemas de seguridad y control' },
-  { value: 'SEE', label: 'Sub estación eléctrica' },
-  {
-    value: 'TTA',
-    label: 'Tableros de transferencia | distribución | otros relacionados',
-  },
-  { value: 'ASC', label: 'Ascensores' },
-];
 
 const CREATION_USER_OPTIONS = [
   { value: 'PROVIDER', label: 'Proveedor' },
@@ -104,6 +85,7 @@ function CotizacionesContent() {
     string[]
   >([]);
   const [propertyOptions, setPropertyOptions] = useState<FilterOption[]>([]);
+  const [specialtyOptions, setSpecialtyOptions] = useState<FilterOption[]>([]);
   const [externalStatusOptions, setExternalStatusOptions] = useState<
     FilterOption[]
   >([]);
@@ -167,6 +149,9 @@ function CotizacionesContent() {
             })),
           ),
         );
+        setSpecialtyOptions(current =>
+          mergeFilterOptions(current, payload.specialties),
+        );
         setExternalStatusOptions(current =>
           mergeFilterOptions(
             current,
@@ -197,6 +182,7 @@ function CotizacionesContent() {
             auditorComment: item.auditorComment,
             paulComment: item.paulComment,
             history: item.history,
+            auditorDispatchStatus: item.auditorDispatchStatus,
           })),
         );
       } catch (error) {
@@ -230,6 +216,32 @@ function CotizacionesContent() {
   const handleFilterChange = (setter: (val: any) => void, value: any) => {
     setter(value);
     setPage(1);
+  };
+
+  const handleDispatchUpdate = async (
+    quoteId: string,
+    dispatchStatus: 'ENVIADO' | 'RETIRADO',
+  ) => {
+    const response = await fetchWithAuth(
+      `/api/alexperto/cotizaciones/${quoteId}/acciones`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dispatchStatus }),
+      },
+    );
+    if (!response.ok) {
+      throw new Error('No se pudo actualizar el despacho al auditor.');
+    }
+    const payload = (await response.json()) as {
+      dispatchStatus: AlexpertoQuoteAuditItem['auditorDispatchStatus'];
+    };
+    const updateQuote = (quote: AlexpertoQuoteAuditItem) =>
+      quote.id === quoteId
+        ? { ...quote, auditorDispatchStatus: payload.dispatchStatus }
+        : quote;
+    setQuotes(previous => previous.map(updateQuote));
+    setSelectedQuote(current => (current ? updateQuote(current) : current));
   };
 
   const handleSort = (column: 'createdAt' | 'amount') => {
@@ -353,6 +365,30 @@ function CotizacionesContent() {
     }
   };
 
+  const getDispatchBadge = (
+    status: AlexpertoQuoteAuditItem['auditorDispatchStatus'],
+  ) => {
+    if (status === 'ENVIADO') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-800">
+          <Send size={11} className="text-sky-600" /> Enviado
+        </span>
+      );
+    }
+    if (status === 'RETIRADO') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-800">
+          <Undo2 size={11} className="text-rose-600" /> Retirado
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+        <Clock size={11} className="text-slate-500" /> Sin enviar
+      </span>
+    );
+  };
+
   return (
     <main className="flex h-[calc(100vh-52px)] min-h-0 flex-col gap-2.5 overflow-hidden px-4 py-2.5 lg:px-6">
       {/* COMPACT & BALANCED HEADER & FILTERS BAR */}
@@ -398,7 +434,7 @@ function CotizacionesContent() {
 
           <SearchableMultiSelectField
             values={selectedSpecialties}
-            options={SPECIALTY_OPTIONS}
+            options={specialtyOptions}
             onChange={vals => handleFilterChange(setSelectedSpecialties, vals)}
             placeholder="Especialidad (Todas)"
             ariaLabel="Filtrar por especialidad"
@@ -444,7 +480,6 @@ function CotizacionesContent() {
             ariaLabel="Filtrar por estado interno GEMA"
             compact
           />
-
         </div>
       </section>
 
@@ -521,6 +556,9 @@ function CotizacionesContent() {
                 <th className={`${TH_CLASS} py-2.5 text-center`}>
                   Gestión GEMA
                 </th>
+                {user?.role === 'SUPERADMIN' && (
+                  <th className={`${TH_CLASS} py-2.5 text-center`}>Auditor</th>
+                )}
                 <th className={`${TH_CLASS} py-2.5 text-right`}>Acciones</th>
               </tr>
             </thead>
@@ -528,7 +566,7 @@ function CotizacionesContent() {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={user?.role === 'SUPERADMIN' ? 11 : 10}
                     className="px-4 py-8 text-center text-slate-500">
                     Consultando Alexperto...
                   </td>
@@ -536,7 +574,7 @@ function CotizacionesContent() {
               ) : loadError ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={user?.role === 'SUPERADMIN' ? 11 : 10}
                     className="px-4 py-8 text-center text-red-700">
                     {loadError}
                   </td>
@@ -544,7 +582,7 @@ function CotizacionesContent() {
               ) : filteredQuotes.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={user?.role === 'SUPERADMIN' ? 11 : 10}
                     className="px-4 py-8 text-center text-slate-500">
                     No hay cotizaciones para los filtros seleccionados.
                   </td>
@@ -603,9 +641,6 @@ function CotizacionesContent() {
                       <p className="font-semibold text-slate-800 m-0 leading-snug break-words">
                         {item.specialty}
                       </p>
-                      <span className="text-[10px] text-slate-500 font-normal block mt-0.5">
-                        {item.subSpecialty}
-                      </span>
                     </td>
 
                     {/* PROVEEDOR */}
@@ -643,6 +678,11 @@ function CotizacionesContent() {
                     <td className={`${TD_CLASS} py-2.5 text-center`}>
                       {getGemaBadge(item.gemaStatus)}
                     </td>
+                    {user?.role === 'SUPERADMIN' && (
+                      <td className={`${TD_CLASS} py-2.5 text-center`}>
+                        {getDispatchBadge(item.auditorDispatchStatus)}
+                      </td>
+                    )}
 
                     {/* ACCIONES */}
                     <td
@@ -728,6 +768,7 @@ function CotizacionesContent() {
         onClose={() => setSelectedQuote(null)}
         isSuperadmin={user?.role === 'SUPERADMIN'}
         onStatusUpdate={handleStatusUpdate}
+        onDispatchUpdate={handleDispatchUpdate}
       />
     </main>
   );

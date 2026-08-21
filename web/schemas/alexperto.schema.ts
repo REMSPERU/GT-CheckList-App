@@ -9,7 +9,7 @@ export const alexpertoQuoteFiltersSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
   montoMinimo: z.coerce.number().min(0).default(0),
-  especialidades: z.array(z.enum(ALEXPERTO_SPECIALTY_CODES)).default([]),
+  especialidades: z.array(z.string().trim().min(1).max(200)).default([]),
   estadoExterno: z.array(z.string().trim().min(1).max(80)).default([]),
   estadoInterno: z.array(z.enum(ALEXPERTO_INTERNAL_STATUSES)).default([]),
   creadoPor: z.array(z.enum(['PROVIDER', 'ADMINISTRATOR'])).default([]),
@@ -47,6 +47,10 @@ export const alexpertoAuditActionSchema = z.object({
   auditorComment: z.string().trim().max(2000).nullable().optional(),
   paulComment: z.string().trim().max(2000).nullable().optional(),
   recordHistory: z.boolean().default(true),
+});
+
+export const alexpertoQuoteDispatchSchema = z.object({
+  dispatchStatus: z.enum(['ENVIADO', 'RETIRADO']),
 });
 
 export type AlexpertoAuditAction = z.infer<typeof alexpertoAuditActionSchema>;

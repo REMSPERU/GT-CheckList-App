@@ -11,7 +11,7 @@ export const ALEXPERTO_SPECIALTY_CODES = [
   'ASC',
 ] as const;
 
-export type AlexpertoSpecialtyCode = (typeof ALEXPERTO_SPECIALTY_CODES)[number];
+export type AlexpertoSpecialtyCode = string;
 
 export const ALEXPERTO_INTERNAL_STATUSES = [
   'PENDIENTE_REVISION',
@@ -22,6 +22,15 @@ export const ALEXPERTO_INTERNAL_STATUSES = [
 
 export type AlexpertoInternalStatus =
   (typeof ALEXPERTO_INTERNAL_STATUSES)[number];
+
+export const ALEXPERTO_AUDITOR_DISPATCH_STATUSES = [
+  'PENDIENTE_ENVIO',
+  'ENVIADO',
+  'RETIRADO',
+] as const;
+
+export type AlexpertoAuditorDispatchStatus =
+  (typeof ALEXPERTO_AUDITOR_DISPATCH_STATUSES)[number];
 
 export interface AlexpertoQuoteHistoryItem {
   previousStatus: AlexpertoInternalStatus | null;
@@ -59,6 +68,7 @@ export interface AlexpertoQuoteListItem {
   creationUserType: string | null;
   providerName: string | null;
   requesterName: string | null;
+  auditorDispatchStatus: AlexpertoAuditorDispatchStatus;
 }
 
 export interface AlexpertoQuoteListResponse {
@@ -66,6 +76,7 @@ export interface AlexpertoQuoteListResponse {
   pageSize: number;
   total: number;
   items: AlexpertoQuoteListItem[];
+  specialties: { value: string; label: string }[];
   queriedAt: string;
 }
 
@@ -128,6 +139,7 @@ export interface AlexpertoQuoteAuditItem {
   auditorComment: string | null;
   paulComment: string | null;
   history: AlexpertoQuoteHistoryItem[];
+  auditorDispatchStatus: AlexpertoAuditorDispatchStatus;
 }
 
 export interface AlexpertoQuoteDocument {
