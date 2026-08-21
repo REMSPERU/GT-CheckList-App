@@ -488,7 +488,27 @@ function CotizacionesContent() {
         <div className="min-h-0 flex-1 overflow-auto">
           <table className={TABLE_CLASS}>
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+              <tr className="bg-[#e8f1ee] text-[10px] font-bold uppercase tracking-[0.14em] text-[#23584d]">
+                <th
+                  className="border-b border-[#c7ddd7] px-4 py-2 text-left"
+                  colSpan={3}
+                  scope="colgroup">
+                  Registro
+                </th>
+                <th
+                  className="border-b border-l border-[#c7ddd7] px-4 py-2 text-left"
+                  colSpan={3}
+                  scope="colgroup">
+                  Servicio
+                </th>
+                <th
+                  className="border-b border-l border-[#c7ddd7] px-4 py-2 text-center"
+                  colSpan={user?.role === 'SUPERADMIN' ? 4 : 3}
+                  scope="colgroup">
+                  Control y evaluación
+                </th>
+              </tr>
+              <tr className="border-b border-slate-200 bg-[#f7faf9] text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 <th className={`${TH_CLASS} py-2.5`}>Código</th>
 
                 {/* SORTABLE DATE COLUMN */}
@@ -517,7 +537,10 @@ function CotizacionesContent() {
                 </th>
 
                 <th className={`${TH_CLASS} py-2.5 text-center`}>Creado por</th>
-                <th className={`${TH_CLASS} py-2.5 min-w-[200px]`}>Inmueble</th>
+                <th
+                  className={`${TH_CLASS} border-l border-slate-200 py-2.5 min-w-[200px]`}>
+                  Inmueble
+                </th>
                 <th className={`${TH_CLASS} py-2.5 min-w-[170px]`}>
                   Especialidad
                 </th>
@@ -526,7 +549,8 @@ function CotizacionesContent() {
                 </th>
 
                 {/* SORTABLE AMOUNT COLUMN */}
-                <th className={`${TH_CLASS} py-2.5 text-right`}>
+                <th
+                  className={`${TH_CLASS} border-l border-slate-200 py-2.5 text-right`}>
                   <button
                     type="button"
                     onClick={() => handleSort('amount')}
@@ -559,7 +583,11 @@ function CotizacionesContent() {
                 {user?.role === 'SUPERADMIN' && (
                   <th className={`${TH_CLASS} py-2.5 text-center`}>Auditor</th>
                 )}
-                <th className={`${TH_CLASS} py-2.5 text-right`}>Acciones</th>
+                <th
+                  className={`${TH_CLASS} border-l border-slate-200 py-2.5 text-right`}
+                  scope="col">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700 text-xs">
@@ -588,118 +616,131 @@ function CotizacionesContent() {
                   </td>
                 </tr>
               ) : (
-                filteredQuotes.map(item => (
-                  <tr
-                    key={item.id}
-                    onClick={() => setSelectedQuote(item)}
-                    className="cursor-pointer transition hover:bg-slate-50/60">
-                    <td
-                      className={`${TD_CLASS} py-2.5 whitespace-nowrap font-bold`}>
-                      <span className="font-mono text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                        {item.code}
-                      </span>
-                    </td>
+                filteredQuotes.map(item => {
+                  const isObserved = item.gemaStatus === 'OBSERVADO';
+                  const rowClass = isObserved
+                    ? 'bg-amber-50/90 shadow-[inset_0_1px_0_rgb(253_230_138),inset_0_-1px_0_rgb(253_230_138)] hover:bg-amber-100/80'
+                    : 'hover:bg-slate-50/80';
+                  const groupBorder = isObserved
+                    ? 'border-l border-amber-200'
+                    : 'border-l border-slate-200/90';
 
-                    {/* FECHA */}
-                    <td
-                      className={`${TD_CLASS} py-2.5 whitespace-nowrap text-slate-700 font-medium`}>
-                      {new Date(item.createdAt).toLocaleDateString('es-PE', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                      })}
-                    </td>
-
-                    {/* CREADO POR / ORIGEN */}
-                    <td
-                      className={`${TD_CLASS} py-2.5 whitespace-nowrap text-center`}>
-                      {item.creationUserType === 'ADMINISTRATOR' ? (
-                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-800 border border-slate-200">
-                          Administrador
+                  return (
+                    <tr
+                      key={item.id}
+                      onClick={() => setSelectedQuote(item)}
+                      className={`cursor-pointer transition-colors duration-150 ${rowClass}`}>
+                      <td
+                        className={`${TD_CLASS} py-2.5 whitespace-nowrap font-bold`}>
+                        <span className="font-mono text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                          {item.code}
                         </span>
-                      ) : item.creationUserType === 'PROVIDER' ? (
-                        <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-200">
-                          Proveedor
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 border border-slate-200">
-                          {item.creationUserType || 'Administrador'}
-                        </span>
-                      )}
-                    </td>
-
-                    {/* INMUEBLE - FULL TEXT WRAP */}
-                    <td
-                      className={`${TD_CLASS} py-2.5 min-w-[200px] max-w-[280px]`}>
-                      <p className="font-semibold text-slate-900 m-0 leading-snug break-words">
-                        {item.propertyName}
-                      </p>
-                    </td>
-
-                    {/* ESPECIALIDAD */}
-                    <td className={`${TD_CLASS} py-2.5 min-w-[170px]`}>
-                      <p className="font-semibold text-slate-800 m-0 leading-snug break-words">
-                        {item.specialty}
-                      </p>
-                    </td>
-
-                    {/* PROVEEDOR */}
-                    <td className={`${TD_CLASS} py-2.5 min-w-[160px]`}>
-                      {item.provider ? (
-                        <p className="font-semibold text-slate-900 m-0 leading-snug break-words">
-                          {item.provider}
-                        </p>
-                      ) : (
-                        <span className="text-slate-400 font-normal italic">
-                          Sin asignar
-                        </span>
-                      )}
-                    </td>
-
-                    {/* MONTO */}
-                    <td
-                      className={`${TD_CLASS} py-2.5 whitespace-nowrap text-right font-bold text-slate-900 font-mono`}>
-                      S/{' '}
-                      {item.amount
-                        ? Number(item.amount).toLocaleString('es-PE', {
-                            minimumFractionDigits: 2,
-                          })
-                        : '0.00'}
-                    </td>
-
-                    {/* ESTADO ALEXPERTO */}
-                    <td className={`${TD_CLASS} py-2.5 text-center`}>
-                      <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-200">
-                        {formatExternalStatus(item.externalStatus)}
-                      </span>
-                    </td>
-
-                    {/* GESTIÓN GEMA */}
-                    <td className={`${TD_CLASS} py-2.5 text-center`}>
-                      {getGemaBadge(item.gemaStatus)}
-                    </td>
-                    {user?.role === 'SUPERADMIN' && (
-                      <td className={`${TD_CLASS} py-2.5 text-center`}>
-                        {getDispatchBadge(item.auditorDispatchStatus)}
                       </td>
-                    )}
 
-                    {/* ACCIONES */}
-                    <td
-                      className={`${TD_CLASS} py-2.5 whitespace-nowrap text-right`}>
-                      <button
-                        type="button"
-                        onClick={e => {
-                          e.stopPropagation();
-                          setSelectedQuote(item);
-                        }}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-[#072e27] hover:text-emerald-700 transition px-2 py-0.5 rounded-md hover:bg-emerald-50">
-                        <span>Ver detalle</span>
-                        <ChevronRight size={13} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                      {/* FECHA */}
+                      <td
+                        className={`${TD_CLASS} py-2.5 whitespace-nowrap text-slate-700 font-medium`}>
+                        {new Date(item.createdAt).toLocaleDateString('es-PE', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                        })}
+                      </td>
+
+                      {/* CREADO POR / ORIGEN */}
+                      <td
+                        className={`${TD_CLASS} py-2.5 whitespace-nowrap text-center`}>
+                        {item.creationUserType === 'ADMINISTRATOR' ? (
+                          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-800 border border-slate-200">
+                            Administrador
+                          </span>
+                        ) : item.creationUserType === 'PROVIDER' ? (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-200">
+                            Proveedor
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 border border-slate-200">
+                            {item.creationUserType || 'Administrador'}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* INMUEBLE - FULL TEXT WRAP */}
+                      <td
+                        className={`${TD_CLASS} ${groupBorder} py-2.5 min-w-[200px] max-w-[280px]`}>
+                        <p className="font-semibold text-slate-900 m-0 leading-snug break-words">
+                          {item.propertyName}
+                        </p>
+                      </td>
+
+                      {/* ESPECIALIDAD */}
+                      <td className={`${TD_CLASS} py-2.5 min-w-[170px]`}>
+                        <p className="font-semibold text-slate-800 m-0 leading-snug break-words">
+                          {item.specialty}
+                        </p>
+                      </td>
+
+                      {/* PROVEEDOR */}
+                      <td className={`${TD_CLASS} py-2.5 min-w-[160px]`}>
+                        {item.provider ? (
+                          <p className="font-semibold text-slate-900 m-0 leading-snug break-words">
+                            {item.provider}
+                          </p>
+                        ) : (
+                          <span className="text-slate-400 font-normal italic">
+                            Sin asignar
+                          </span>
+                        )}
+                      </td>
+
+                      {/* MONTO */}
+                      <td
+                        className={`${TD_CLASS} ${groupBorder} py-2.5 whitespace-nowrap text-right font-bold text-slate-900 font-mono`}>
+                        S/{' '}
+                        {item.amount
+                          ? Number(item.amount).toLocaleString('es-PE', {
+                              minimumFractionDigits: 2,
+                            })
+                          : '0.00'}
+                      </td>
+
+                      {/* ESTADO ALEXPERTO */}
+                      <td className={`${TD_CLASS} py-2.5 text-center`}>
+                        <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-200">
+                          {formatExternalStatus(item.externalStatus)}
+                        </span>
+                      </td>
+
+                      {/* GESTIÓN GEMA */}
+                      <td className={`${TD_CLASS} py-2.5 text-center`}>
+                        {getGemaBadge(item.gemaStatus)}
+                      </td>
+                      {user?.role === 'SUPERADMIN' && (
+                        <td className={`${TD_CLASS} py-2.5 text-center`}>
+                          {getDispatchBadge(item.auditorDispatchStatus)}
+                        </td>
+                      )}
+
+                      {/* ACCIONES */}
+                      <td
+                        className={`${TD_CLASS} ${groupBorder} py-2.5 whitespace-nowrap text-right`}>
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setSelectedQuote(item);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+                          <span>Abrir</span>
+                          <ChevronRight
+                            size={14}
+                            className="text-emerald-700"
+                          />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
