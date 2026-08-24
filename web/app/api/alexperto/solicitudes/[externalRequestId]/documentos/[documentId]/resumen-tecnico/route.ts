@@ -50,6 +50,8 @@ function errorResponse(error: unknown) {
             ? 'El análisis IA no está configurado.'
             : code === 'OPENROUTER_TIMEOUT'
               ? 'OpenRouter tardó demasiado en responder. Intenta nuevamente o prueba otro modelo.'
+              : code === '42703'
+                ? 'La tabla de resúmenes IA está desactualizada. Aplica la última migración de Supabase.'
               : 'OpenRouter no pudo procesar el resumen técnico.';
   console.error('Technical report summary failed', {
     code,
