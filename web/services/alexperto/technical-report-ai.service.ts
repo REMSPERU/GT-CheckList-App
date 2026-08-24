@@ -19,7 +19,7 @@ import {
   splitPdfPages,
 } from './pdf-text-extractor.service';
 
-const PROMPT_VERSION = 'technical-report-v3-text';
+const PROMPT_VERSION = 'technical-report-v4-findings';
 const DEFAULT_MAX_PDF_BYTES = 25 * 1024 * 1024;
 const DEFAULT_MAX_PAGES = 50;
 const DEFAULT_MAX_INPUT_CHARS = 80_000;
@@ -86,11 +86,11 @@ function getOpenRouterConfig() {
 }
 
 function systemPrompt() {
-  return 'Eres un analista de informes técnicos de mantenimiento. Usa exclusivamente la información entregada. No inventes equipos, ubicaciones, páginas, evidencias ni datos técnicos. Cada hallazgo debe citar la página exacta donde aparece. Prioriza seguridad, continuidad operativa y riesgo de daño. La criticidad es una estimación: ALTA para riesgos a personas, incendio, falla inminente, equipo inoperativo o daño mayor; MEDIA para deficiencias que pueden escalar; BAJA para mejoras preventivas sin impacto inmediato.';
+  return 'Eres un analista de informes técnicos de mantenimiento. Usa exclusivamente la información entregada. No inventes equipos, ubicaciones, páginas, evidencias ni datos técnicos. Cada hallazgo debe citar la página exacta donde aparece. Prioriza seguridad, continuidad operativa y riesgo de daño. Un equipo inoperativo, fuera de servicio o con falla que impida operar siempre es criticidad ALTA y debe indicarse explícitamente. La criticidad es una estimación: ALTA para riesgos a personas, incendio, falla inminente, equipo inoperativo o daño mayor; MEDIA para deficiencias relevantes que pueden escalar. Omite mejoras menores y buenas prácticas.';
 }
 
 function outputInstructions(pageCount: number) {
-  return `Responde en Markdown simple, sin JSON ni bloques de código. Debe ser muy conciso: \"## Resumen ejecutivo\" con máximo dos frases y \"## Hallazgos\" con máximo tres hallazgos prioritarios. Omite hallazgos BAJA y buenas prácticas. Cada hallazgo debe usar \"### CRITICIDAD | Página N | Título\" seguido de una sola línea \"Evidencia: ... Acción: ...\". Usa frases breves, sin explicaciones adicionales. La página debe ser un entero entre 1 y ${pageCount}.`;
+  return `Responde únicamente con \"## Hallazgos\" y hasta cuatro hallazgos importantes. No incluyas resumen ejecutivo, impacto, acciones, recomendaciones, limitaciones ni texto introductorio. Cada hallazgo debe usar \"### CRITICIDAD | Página N | Título\" seguido de una sola línea \"Evidencia: ...\". Si un equipo está inoperativo o fuera de servicio, debe ser ALTA y el título debe empezar con \"INOPERATIVO:\". Usa frases breves. La página debe ser un entero entre 1 y ${pageCount}.`;
 }
 
 function isProviderFailure(error: unknown) {
@@ -157,6 +157,7 @@ async function callOpenRouter(
             ? config.temperature
             : 0.1,
           max_tokens: config.maxOutputTokens,
+          reasoning: { exclude: true },
           messages: [
             { role: 'system', content: systemPrompt() },
             {

@@ -8,6 +8,8 @@ import {
   LoaderCircle,
   RefreshCw,
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import { useRequestDocuments } from '@/hooks/alexperto/use-request-documents';
 import { useTechnicalReportSummary } from '@/hooks/alexperto/use-technical-report-summary';
@@ -50,6 +52,88 @@ function summaryText(summary: TechnicalReportSummary) {
         `### ${finding.criticality} | Página ${finding.page} | ${finding.title}\nEvidencia: ${finding.evidence}\nImpacto: ${finding.impact}\nRecomendación: ${finding.recommendation}`,
     ),
   ].join('\n\n');
+}
+
+function MarkdownSummary({ children }: { children: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        h1: ({ children }) => (
+          <h4 className="m-0 text-base font-bold tracking-tight text-slate-950">
+            {children}
+          </h4>
+        ),
+        h2: ({ children }) => (
+          <h5 className="mt-5 border-b border-slate-200 pb-2 text-sm font-bold text-[#072e27] first:mt-0">
+            {children}
+          </h5>
+        ),
+        h3: ({ children }) => (
+          <h6 className="mt-4 text-xs font-bold text-slate-900">{children}</h6>
+        ),
+        p: ({ children }) => (
+          <p className="my-2 text-xs leading-5 text-slate-700">{children}</p>
+        ),
+        ul: ({ children }) => (
+          <ul className="my-2 list-disc space-y-1 pl-5 text-xs leading-5 text-slate-700">
+            {children}
+          </ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="my-2 list-decimal space-y-1 pl-5 text-xs leading-5 text-slate-700">
+            {children}
+          </ol>
+        ),
+        li: ({ children }) => <li className="pl-0.5">{children}</li>,
+        strong: ({ children }) => (
+          <strong className="font-bold text-slate-900">{children}</strong>
+        ),
+        a: ({ children, href }) => (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-emerald-800 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-950">
+            {children}
+          </a>
+        ),
+        blockquote: ({ children }) => (
+          <blockquote className="my-3 border-l border-emerald-500 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-950">
+            {children}
+          </blockquote>
+        ),
+        code: ({ children }) => (
+          <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px] text-slate-800">
+            {children}
+          </code>
+        ),
+        pre: ({ children }) => (
+          <pre className="my-3 overflow-x-auto rounded-md bg-slate-900 p-3 text-[11px] leading-5 text-slate-100">
+            {children}
+          </pre>
+        ),
+        table: ({ children }) => (
+          <div className="my-3 overflow-x-auto">
+            <table className="w-full border-collapse text-left text-[11px] text-slate-700">
+              {children}
+            </table>
+          </div>
+        ),
+        th: ({ children }) => (
+          <th className="border border-slate-200 bg-slate-50 px-2 py-1.5 font-bold text-slate-800">
+            {children}
+          </th>
+        ),
+        td: ({ children }) => (
+          <td className="border border-slate-200 px-2 py-1.5 align-top">
+            {children}
+          </td>
+        ),
+      }}>
+      {children}
+    </ReactMarkdown>
+  );
 }
 
 export function RequestDocumentViewer({
@@ -194,22 +278,31 @@ export function RequestDocumentViewer({
               <p className="max-w-xs text-sm text-red-700">{error}</p>
             </div>
           ) : documentUrl ? (
-            <div className="flex h-full min-h-[420px] flex-col">
+            <div
+              className={`grid h-full min-h-[420px] ${
+                technicalDocument
+                  ? 'xl:grid-cols-[minmax(0,1fr)_minmax(320px,360px)]'
+                  : ''
+              }`}>
+              <iframe
+                key={documentUrl}
+                src={documentUrl}
+                title={selectedDocument?.name ?? 'Documento de solicitud'}
+                className="min-h-[420px] h-full w-full border-0"
+              />
               {technicalDocument && (
-                <details
-                  className="shrink-0 border-b border-slate-200 bg-white"
-                  open={summary.result?.status === 'COMPLETED'}>
-                  <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-2 text-xs font-bold text-[#072e27] marker:text-slate-400">
-                    <span className="flex items-center gap-2">
+                <aside className="min-h-0 overflow-y-auto border-t border-slate-200 bg-white xl:border-l xl:border-t-0">
+                  <header className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                    <span className="flex items-center gap-2 text-xs font-bold text-[#072e27]">
                       <Bot size={15} /> Resumen técnico IA
                     </span>
                     {summary.result?.status === 'COMPLETED' && (
-                      <span className="text-[10px] font-medium text-slate-500">
+                      <span className="max-w-32 truncate text-right text-[10px] font-medium text-slate-500">
                         {summary.result.model ?? 'Modelo no disponible'}
                       </span>
                     )}
-                  </summary>
-                  <div className="border-t border-slate-100 px-4 py-3">
+                  </header>
+                  <div className="p-4">
                     {summary.isLoading ? (
                       <p className="m-0 flex items-center gap-2 text-xs text-slate-500">
                         <LoaderCircle size={14} className="animate-spin" />{' '}
@@ -268,9 +361,9 @@ export function RequestDocumentViewer({
                           {summary.result.attemptCount > 0 &&
                             ` · ${summary.result.attemptCount} intento${summary.result.attemptCount === 1 ? '' : 's'}`}
                         </p>
-                        <pre className="m-0 whitespace-pre-wrap font-sans leading-relaxed text-slate-700">
+                        <MarkdownSummary>
                           {summaryText(summary.result.summary)}
-                        </pre>
+                        </MarkdownSummary>
                         <button
                           type="button"
                           onClick={() => void summary.generate(true)}
@@ -306,14 +399,8 @@ export function RequestDocumentViewer({
                       </div>
                     )}
                   </div>
-                </details>
+                </aside>
               )}
-              <iframe
-                key={documentUrl}
-                src={documentUrl}
-                title={selectedDocument?.name ?? 'Documento de solicitud'}
-                className="min-h-[420px] flex-1 w-full border-0"
-              />
             </div>
           ) : (
             <div className="grid h-full min-h-[420px] place-items-center p-6 text-center text-sm text-slate-500">
