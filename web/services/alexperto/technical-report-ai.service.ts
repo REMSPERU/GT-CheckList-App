@@ -19,13 +19,15 @@ import {
   splitPdfPages,
 } from './pdf-text-extractor.service';
 
-const PROMPT_VERSION = 'technical-report-v1';
+const PROMPT_VERSION = 'technical-report-v3-text';
 const DEFAULT_MAX_PDF_BYTES = 25 * 1024 * 1024;
 const DEFAULT_MAX_PAGES = 50;
 const DEFAULT_MAX_INPUT_CHARS = 80_000;
-const DEFAULT_MAX_OUTPUT_TOKENS = 3_000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 900;
+const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 
 interface SummaryRow {
+  id: string;
   status: TechnicalReportSummaryResponse['status'];
   summary_json: unknown;
   model: string | null;
@@ -33,6 +35,25 @@ interface SummaryRow {
   error_message: string | null;
   processing_stage: TechnicalReportSummaryResponse['processingStage'];
   execution_id: string | null;
+  attempt_count: number | null;
+}
+
+interface OpenRouterResult {
+  summary: TechnicalReportSummary;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  generationId: string | null;
+  responseCharacters: number;
+}
+
+class AnalysisError extends Error {
+  constructor(
+    readonly code: string,
+    readonly detail: string | null = null,
+    readonly providerFailure = false,
+  ) {
+    super(code);
+  }
 }
 
 function getNumberEnv(name: string, fallback: number) {
@@ -43,7 +64,7 @@ function getNumberEnv(name: string, fallback: number) {
 function getOpenRouterConfig() {
   const apiKey = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL;
-  if (!apiKey || !model) throw new Error('OPENROUTER_NOT_CONFIGURED');
+  if (!apiKey || !model) throw new AnalysisError('OPENROUTER_NOT_CONFIGURED');
   return {
     apiKey,
     model,
@@ -56,33 +77,56 @@ function getOpenRouterConfig() {
       'OPENROUTER_MAX_OUTPUT_TOKENS',
       DEFAULT_MAX_OUTPUT_TOKENS,
     ),
+    requestTimeoutMs: getNumberEnv(
+      'OPENROUTER_REQUEST_TIMEOUT_MS',
+      DEFAULT_REQUEST_TIMEOUT_MS,
+    ),
     temperature: Number(process.env.OPENROUTER_TEMPERATURE ?? 0.1),
   };
 }
 
 function systemPrompt() {
-  return `Eres un analista de informes técnicos de mantenimiento. Usa exclusivamente la información entregada. No inventes equipos, ubicaciones, páginas, evidencias ni datos técnicos. Cada hallazgo debe citar la página exacta donde aparece. Prioriza seguridad, continuidad operativa y riesgo de daño. La criticidad es una estimación: ALTA para riesgos a personas, incendio, falla inminente, equipo inoperativo o daño mayor; MEDIA para deficiencias que pueden escalar; BAJA para mejoras preventivas sin impacto inmediato. Devuelve solamente JSON válido.`;
+  return 'Eres un analista de informes técnicos de mantenimiento. Usa exclusivamente la información entregada. No inventes equipos, ubicaciones, páginas, evidencias ni datos técnicos. Cada hallazgo debe citar la página exacta donde aparece. Prioriza seguridad, continuidad operativa y riesgo de daño. La criticidad es una estimación: ALTA para riesgos a personas, incendio, falla inminente, equipo inoperativo o daño mayor; MEDIA para deficiencias que pueden escalar; BAJA para mejoras preventivas sin impacto inmediato.';
 }
 
 function outputInstructions(pageCount: number) {
-  return `Responde el objeto JSON con executiveSummary, importantHighlights, findings y limitations. Cada hallazgo requiere id, criticality (ALTA, MEDIA o BAJA), title, equipment (string o null), location (string o null), page (entero entre 1 y ${pageCount}), evidence, impact y recommendation. Máximo 15 hallazgos. El resumen ejecutivo debe ser conciso, de 3 a 5 líneas como máximo.`;
+  return `Responde en Markdown simple, sin JSON ni bloques de código. Debe ser muy conciso: \"## Resumen ejecutivo\" con máximo dos frases y \"## Hallazgos\" con máximo tres hallazgos prioritarios. Omite hallazgos BAJA y buenas prácticas. Cada hallazgo debe usar \"### CRITICIDAD | Página N | Título\" seguido de una sola línea \"Evidencia: ... Acción: ...\". Usa frases breves, sin explicaciones adicionales. La página debe ser un entero entre 1 y ${pageCount}.`;
 }
 
-function parseSummary(content: string, pageCount: number) {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    throw new Error('OPENROUTER_INVALID_RESPONSE');
-  }
-  const summary = technicalReportSummarySchema.safeParse(parsed);
-  if (
-    !summary.success ||
-    summary.data.findings.some(finding => finding.page > pageCount)
-  ) {
-    throw new Error('OPENROUTER_INVALID_RESPONSE');
-  }
-  return summary.data;
+function isProviderFailure(error: unknown) {
+  return error instanceof AnalysisError && error.providerFailure;
+}
+
+async function recordAttempt(
+  summaryId: string,
+  executionId: string,
+  model: string,
+  responseFormat: string,
+  startedAt: number,
+  result?: OpenRouterResult,
+  error?: unknown,
+) {
+  const failure = error instanceof AnalysisError ? error : null;
+  const durationMs = Date.now() - startedAt;
+  const supabase = createServiceRoleSupabaseClient();
+  const { error: insertError } = await supabase
+    .from('alexperto_document_ai_summary_attempts')
+    .insert({
+      summary_id: summaryId,
+      execution_id: executionId,
+      model,
+      response_format: responseFormat,
+      duration_ms: durationMs,
+      input_tokens: result?.inputTokens ?? null,
+      output_tokens: result?.outputTokens ?? null,
+      response_characters: result?.responseCharacters ?? null,
+      failure_code: failure?.code ?? (error ? 'ANALYSIS_FAILED' : null),
+      failure_detail: failure?.detail ?? null,
+    });
+  if (insertError)
+    console.error('Technical report attempt audit failed', {
+      code: insertError.code,
+    });
 }
 
 async function callOpenRouter(
@@ -90,13 +134,19 @@ async function callOpenRouter(
   pageCount: number,
   model: string,
   config: ReturnType<typeof getOpenRouterConfig>,
-) {
-  console.info('OpenRouter analysis started', { model, pageCount });
+  summaryId: string,
+  executionId: string,
+): Promise<OpenRouterResult> {
+  const startedAt = Date.now();
+  const responseFormat = 'text';
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
   try {
     const response = await fetch(
       'https://openrouter.ai/api/v1/chat/completions',
       {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           Authorization: `Bearer ${config.apiKey}`,
           'Content-Type': 'application/json',
@@ -107,7 +157,6 @@ async function callOpenRouter(
             ? config.temperature
             : 0.1,
           max_tokens: config.maxOutputTokens,
-          response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: systemPrompt() },
             {
@@ -119,34 +168,77 @@ async function callOpenRouter(
       },
     );
     if (!response.ok) {
-      const body = (await response.text()).slice(0, 1_000);
-      console.error('OpenRouter request failed', {
-        model,
-        status: response.status,
-        body,
-      });
-      throw new Error(`OPENROUTER_HTTP_${response.status}`);
+      const providerFailure =
+        response.status === 429 ||
+        response.status >= 500 ||
+        response.status === 408;
+      throw new AnalysisError(
+        `OPENROUTER_HTTP_${response.status}`,
+        null,
+        providerFailure,
+      );
     }
     const payload = (await response.json()) as {
       choices?: { message?: { content?: string } }[];
       usage?: { prompt_tokens?: number; completion_tokens?: number };
       id?: string;
     };
-    const result = payload.choices?.[0]?.message?.content;
-    if (!result) throw new Error('OPENROUTER_INVALID_RESPONSE');
-    console.info('OpenRouter analysis completed', {
-      model,
-      inputTokens: payload.usage?.prompt_tokens ?? null,
-      outputTokens: payload.usage?.completion_tokens ?? null,
-    });
-    return {
-      summary: parseSummary(result, pageCount),
+    const contentResult = payload.choices?.[0]?.message?.content;
+    if (!contentResult?.trim())
+      throw new AnalysisError(
+        'OPENROUTER_EMPTY_RESPONSE',
+        'El modelo no devolvió contenido.',
+      );
+    const result = {
+      summary: { markdown: contentResult.trim() },
       inputTokens: payload.usage?.prompt_tokens ?? null,
       outputTokens: payload.usage?.completion_tokens ?? null,
       generationId: payload.id ?? null,
+      responseCharacters: contentResult.length,
     };
+    await recordAttempt(
+      summaryId,
+      executionId,
+      model,
+      responseFormat,
+      startedAt,
+      result,
+    );
+    console.info('Technical report AI attempt completed', {
+      model,
+      responseFormat,
+      durationMs: Date.now() - startedAt,
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+      responseCharacters: result.responseCharacters,
+    });
+    return result;
   } catch (error) {
-    throw error;
+    const normalized =
+      error instanceof DOMException && error.name === 'AbortError'
+        ? new AnalysisError('OPENROUTER_TIMEOUT', null, true)
+        : error;
+    await recordAttempt(
+      summaryId,
+      executionId,
+      model,
+      responseFormat,
+      startedAt,
+      undefined,
+      normalized,
+    );
+    console.info('Technical report AI attempt failed', {
+      model,
+      responseFormat,
+      durationMs: Date.now() - startedAt,
+      code:
+        normalized instanceof AnalysisError
+          ? normalized.code
+          : 'ANALYSIS_FAILED',
+    });
+    throw normalized;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -154,20 +246,31 @@ async function analyzeWithFallback(
   content: string,
   pageCount: number,
   config: ReturnType<typeof getOpenRouterConfig>,
+  summaryId: string,
+  executionId: string,
 ) {
   try {
     return {
-      ...(await callOpenRouter(content, pageCount, config.model, config)),
+      ...(await callOpenRouter(
+        content,
+        pageCount,
+        config.model,
+        config,
+        summaryId,
+        executionId,
+      )),
       model: config.model,
     };
   } catch (error) {
-    if (!config.fallbackModel) throw error;
+    if (!config.fallbackModel || !isProviderFailure(error)) throw error;
     return {
       ...(await callOpenRouter(
         content,
         pageCount,
         config.fallbackModel,
         config,
+        summaryId,
+        executionId,
       )),
       model: config.fallbackModel,
     };
@@ -176,9 +279,13 @@ async function analyzeWithFallback(
 
 function formatPartialSummaries(summaries: TechnicalReportSummary[]) {
   return summaries
-    .map((summary, index) =>
-      JSON.stringify({ lote: index + 1, hallazgos: summary.findings }),
-    )
+    .map((summary, index) => {
+      const markdown =
+        'markdown' in summary
+          ? summary.markdown
+          : `${summary.executiveSummary}\n\n${summary.findings.map(finding => `### ${finding.criticality} | Página ${finding.page} | ${finding.title}\n- Evidencia: ${finding.evidence}\n- Impacto: ${finding.impact}\n- Recomendación: ${finding.recommendation}`).join('\n\n')}`;
+      return `## Lote ${index + 1}\n${markdown}`;
+    })
     .join('\n');
 }
 
@@ -193,18 +300,19 @@ function responseFromRow(
       analyzedAt: null,
       errorMessage: null,
       processingStage: null,
+      attemptCount: 0,
     };
-  const summary =
-    row.status === 'COMPLETED'
-      ? technicalReportSummarySchema.parse(row.summary_json)
-      : null;
   return {
     status: row.status,
-    summary,
+    summary:
+      row.status === 'COMPLETED'
+        ? technicalReportSummarySchema.parse(row.summary_json)
+        : null,
     model: row.model,
     analyzedAt: row.updated_at,
     errorMessage: row.error_message,
     processingStage: row.processing_stage,
+    attemptCount: row.attempt_count ?? 0,
   };
 }
 
@@ -216,7 +324,7 @@ async function findSummary(
   let query = createServiceRoleSupabaseClient()
     .from('alexperto_document_ai_summaries')
     .select(
-      'status, summary_json, model, updated_at, error_message, processing_stage, execution_id',
+      'id, status, summary_json, model, updated_at, error_message, processing_stage, execution_id, attempt_count',
     )
     .eq('request_id', requestId)
     .eq('document_id', documentId)
@@ -235,6 +343,15 @@ export async function getTechnicalReportSummary(
   return responseFromRow(await findSummary(requestId, documentId));
 }
 
+function safeFailureMessage(error: unknown) {
+  if (error instanceof AnalysisError) {
+    if (error.code === 'OPENROUTER_EMPTY_RESPONSE')
+      return 'El modelo no devolvió un resultado.';
+    if (error.providerFailure) return 'El proveedor no estuvo disponible.';
+  }
+  return 'No se pudo completar el análisis del informe.';
+}
+
 export async function generateTechnicalReportSummary(
   requestId: string,
   documentId: string,
@@ -242,8 +359,7 @@ export async function generateTechnicalReportSummary(
   regenerate: boolean,
 ) {
   const document = await getAlexpertoTechnicalDocument(requestId, documentId);
-  if (!document) throw new Error('DOCUMENT_NOT_ALLOWED');
-  if (document.mimeType?.toLowerCase() !== 'application/pdf')
+  if (!document || document.mimeType?.toLowerCase() !== 'application/pdf')
     throw new Error('DOCUMENT_NOT_ALLOWED');
   const config = getOpenRouterConfig();
   const bytes = await downloadAlexpertoDocument(
@@ -254,7 +370,6 @@ export async function generateTechnicalReportSummary(
   const existing = await findSummary(requestId, documentId, hash);
   if (existing?.status === 'COMPLETED' && !regenerate)
     return responseFromRow(existing);
-
   const supabase = createServiceRoleSupabaseClient();
   const { data: claim, error: claimError } = await supabase.rpc(
     'claim_alexperto_document_ai_summary',
@@ -268,26 +383,19 @@ export async function generateTechnicalReportSummary(
     },
   );
   if (claimError) throw claimError;
-  const executionId = (
-    claim?.[0] as
-      { claimed?: boolean; execution_id?: string | null } | undefined
-  )?.execution_id;
-  const claimed = (claim?.[0] as { claimed?: boolean } | undefined)?.claimed;
-  if (!claimed || !executionId) {
+  const claimRow = claim?.[0] as
+    { claimed?: boolean; execution_id?: string | null } | undefined;
+  if (!claimRow?.claimed || !claimRow.execution_id)
     return responseFromRow(await findSummary(requestId, documentId, hash));
-  }
+  const executionId = claimRow.execution_id;
+  const claimedSummary = await findSummary(requestId, documentId, hash);
+  if (!claimedSummary) throw new Error('ANALYSIS_NOT_FOUND');
   try {
     const pages = await extractPdfText(
       bytes,
       getNumberEnv('OPENROUTER_MAX_PDF_PAGES', DEFAULT_MAX_PAGES),
     );
     const batches = splitPdfPages(pages, config.maxInputChars);
-    console.info('Technical report text extracted', {
-      requestId,
-      documentId,
-      pages: pages.length,
-      batches: batches.length,
-    });
     await setProcessingStage(
       supabase,
       requestId,
@@ -296,15 +404,17 @@ export async function generateTechnicalReportSummary(
       executionId,
       'ANALYZING',
     );
-    const batchResults = await Promise.all(
-      batches.map(batch =>
-        analyzeWithFallback(
+    const batchResults = [];
+    for (const batch of batches)
+      batchResults.push(
+        await analyzeWithFallback(
           formatPdfPages(batch, document.name),
           pages.length,
           config,
+          claimedSummary.id,
+          executionId,
         ),
-      ),
-    );
+      );
     const analysis =
       batchResults.length === 1
         ? batchResults[0]
@@ -321,9 +431,11 @@ export async function generateTechnicalReportSummary(
               `Consolida los hallazgos parciales siguientes. Elimina duplicados, conserva solamente páginas originales verificables y no inventes información.\n\n${formatPartialSummaries(batchResults.map(result => result.summary))}`,
               pages.length,
               config,
+              claimedSummary.id,
+              executionId,
             );
           })();
-    const { data: completedRows, error: completeError } = await supabase
+    const { data, error } = await supabase
       .from('alexperto_document_ai_summaries')
       .update({
         status: 'COMPLETED',
@@ -333,7 +445,11 @@ export async function generateTechnicalReportSummary(
         input_tokens: analysis.inputTokens,
         output_tokens: analysis.outputTokens,
         generation_id: analysis.generationId,
+        response_characters: analysis.responseCharacters,
+        duration_ms: Date.now() - new Date(claimedSummary.updated_at).getTime(),
         error_message: null,
+        failure_code: null,
+        failure_detail: null,
         updated_at: new Date().toISOString(),
       })
       .eq('request_id', requestId)
@@ -341,17 +457,38 @@ export async function generateTechnicalReportSummary(
       .eq('document_hash', hash)
       .eq('execution_id', executionId)
       .select('execution_id');
-    if (completeError) throw completeError;
-    if (!completedRows?.length) throw new Error('ANALYSIS_SUPERSEDED');
+    if (error) throw error;
+    if (!data?.length) throw new Error('ANALYSIS_SUPERSEDED');
+    const { count } = await supabase
+      .from('alexperto_document_ai_summary_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('summary_id', claimedSummary.id);
+    await supabase
+      .from('alexperto_document_ai_summaries')
+      .update({
+        attempt_count: count ?? 0,
+        last_attempt_at: new Date().toISOString(),
+      })
+      .eq('id', claimedSummary.id)
+      .eq('execution_id', executionId);
     return responseFromRow(await findSummary(requestId, documentId, hash));
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'ANALYSIS_FAILED';
+    const code =
+      error instanceof AnalysisError ? error.code : 'ANALYSIS_FAILED';
+    const { count } = await supabase
+      .from('alexperto_document_ai_summary_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('summary_id', claimedSummary.id);
     await supabase
       .from('alexperto_document_ai_summaries')
       .update({
         status: 'FAILED',
         processing_stage: null,
-        error_message: message,
+        attempt_count: count ?? 0,
+        last_attempt_at: new Date().toISOString(),
+        error_message: safeFailureMessage(error),
+        failure_code: code,
+        failure_detail: error instanceof AnalysisError ? error.detail : null,
         updated_at: new Date().toISOString(),
       })
       .eq('request_id', requestId)

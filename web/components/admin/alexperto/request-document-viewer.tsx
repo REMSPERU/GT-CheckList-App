@@ -11,6 +11,7 @@ import {
 
 import { useRequestDocuments } from '@/hooks/alexperto/use-request-documents';
 import { useTechnicalReportSummary } from '@/hooks/alexperto/use-technical-report-summary';
+import type { TechnicalReportSummary } from '@/types/alexperto';
 
 interface RequestDocumentViewerProps {
   requestId: string;
@@ -36,6 +37,19 @@ function processingLabel(stage: string | null, elapsedSeconds: number) {
   if (stage === 'CONSOLIDATING') return 'Consolidando hallazgos del informe...';
   if (elapsedSeconds < 5) return 'Preparando el informe para el análisis...';
   return 'Esperando respuesta del modelo gratuito...';
+}
+
+function summaryText(summary: TechnicalReportSummary) {
+  if ('markdown' in summary) return summary.markdown;
+  return [
+    '## Resumen ejecutivo',
+    summary.executiveSummary,
+    '## Hallazgos',
+    ...summary.findings.map(
+      finding =>
+        `### ${finding.criticality} | Página ${finding.page} | ${finding.title}\nEvidencia: ${finding.evidence}\nImpacto: ${finding.impact}\nRecomendación: ${finding.recommendation}`,
+    ),
+  ].join('\n\n');
 }
 
 export function RequestDocumentViewer({
@@ -226,6 +240,22 @@ export function RequestDocumentViewer({
                           Reintentar
                         </button>
                       </div>
+                    ) : summary.result?.status === 'FAILED' ? (
+                      <div className="flex items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                        <span>
+                          {summary.result.errorMessage ??
+                            'No se pudo completar el análisis del informe.'}
+                          {summary.result.attemptCount > 0 &&
+                            ` (${summary.result.attemptCount} intento${summary.result.attemptCount === 1 ? '' : 's'}).`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void summary.generate(true)}
+                          disabled={summary.isGenerating}
+                          className="shrink-0 rounded-md border border-red-200 bg-white px-2 py-1 font-bold disabled:opacity-50">
+                          Reintentar
+                        </button>
+                      </div>
                     ) : summary.result?.status === 'COMPLETED' &&
                       summary.result.summary ? (
                       <div className="space-y-3 text-xs text-slate-700">
@@ -233,67 +263,14 @@ export function RequestDocumentViewer({
                           Resultado asistido por IA. Verifica la evidencia en el
                           informe original.
                         </p>
-                        <p className="m-0 whitespace-pre-line leading-relaxed">
-                          {summary.result.summary.executiveSummary}
+                        <p className="m-0 text-[10px] text-slate-500">
+                          {summary.result.model ?? 'Modelo no disponible'}
+                          {summary.result.attemptCount > 0 &&
+                            ` · ${summary.result.attemptCount} intento${summary.result.attemptCount === 1 ? '' : 's'}`}
                         </p>
-                        <div className="flex gap-2 text-[10px] font-bold">
-                          {(['ALTA', 'MEDIA', 'BAJA'] as const).map(
-                            criticality => (
-                              <span
-                                key={criticality}
-                                className="rounded bg-slate-100 px-2 py-1">
-                                {criticality}:{' '}
-                                {summary.result?.summary?.findings.filter(
-                                  finding =>
-                                    finding.criticality === criticality,
-                                ).length ?? 0}
-                              </span>
-                            ),
-                          )}
-                        </div>
-                        {summary.result.summary.importantHighlights.length >
-                          0 && (
-                          <ul className="m-0 list-disc space-y-1 pl-4">
-                            {summary.result.summary.importantHighlights.map(
-                              highlight => (
-                                <li key={highlight}>{highlight}</li>
-                              ),
-                            )}
-                          </ul>
-                        )}
-                        <div className="space-y-2">
-                          {summary.result.summary.findings.map(finding => (
-                            <article
-                              key={finding.id}
-                              className="rounded-md border border-slate-200 p-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <strong>{finding.title}</strong>
-                                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold">
-                                  {finding.criticality}
-                                </span>
-                              </div>
-                              <p className="mb-1 mt-1 text-slate-500">
-                                {[finding.equipment, finding.location]
-                                  .filter(Boolean)
-                                  .join(' · ') ||
-                                  'Equipo o ubicación no identificados'}
-                              </p>
-                              <p className="m-0">
-                                <b>Evidencia:</b> {finding.evidence}
-                              </p>
-                              <p className="m-0 mt-1">
-                                <b>Recomendación:</b> {finding.recommendation}
-                              </p>
-                              <a
-                                href={`${documentUrl}#page=${finding.page}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mt-2 inline-flex font-bold text-[#076653] hover:underline">
-                                Ver página {finding.page}
-                              </a>
-                            </article>
-                          ))}
-                        </div>
+                        <pre className="m-0 whitespace-pre-wrap font-sans leading-relaxed text-slate-700">
+                          {summaryText(summary.result.summary)}
+                        </pre>
                         <button
                           type="button"
                           onClick={() => void summary.generate(true)}

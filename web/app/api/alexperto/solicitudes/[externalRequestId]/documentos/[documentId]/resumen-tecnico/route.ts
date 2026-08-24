@@ -8,7 +8,7 @@ import { requireAuthorizedRequest } from '@/services/alexperto/alexperto-request
 import { requireAlexpertoAccessSession } from '@/services/auth/server-auth.service';
 
 export const runtime = 'nodejs';
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 interface RouteContext {
   params: Promise<{ externalRequestId: string; documentId: string }>;
@@ -52,7 +52,7 @@ function errorResponse(error: unknown) {
               ? 'OpenRouter tardó demasiado en responder. Intenta nuevamente o prueba otro modelo.'
               : code === '42703'
                 ? 'La tabla de resúmenes IA está desactualizada. Aplica la última migración de Supabase.'
-              : 'OpenRouter no pudo procesar el resumen técnico.';
+                : 'OpenRouter no pudo procesar el resumen técnico.';
   console.error('Technical report summary failed', {
     code,
     details: typeof details?.details === 'string' ? details.details : undefined,
@@ -65,10 +65,20 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const session = await requireAlexpertoAccessSession(request);
     const { externalRequestId, documentId } = await context.params;
     await requireAuthorizedRequest(externalRequestId, session.userSupabase);
-    return NextResponse.json(
-      await getTechnicalReportSummary(externalRequestId, documentId),
-      { headers: { 'Cache-Control': 'private, no-store' } },
+    const result = await getTechnicalReportSummary(
+      externalRequestId,
+      documentId,
     );
+    const etag = `"${result.status}:${result.analyzedAt ?? 'none'}:${result.attemptCount}"`;
+    if (request.headers.get('if-none-match') === etag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: { ETag: etag, 'Cache-Control': 'private, no-cache' },
+      });
+    }
+    return NextResponse.json(result, {
+      headers: { ETag: etag, 'Cache-Control': 'private, no-cache' },
+    });
   } catch (error) {
     return errorResponse(error);
   }

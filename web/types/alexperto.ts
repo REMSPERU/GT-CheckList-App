@@ -137,15 +137,22 @@ export interface TechnicalFinding {
   recommendation: string;
 }
 
-export interface TechnicalReportSummary {
+export interface TechnicalReportStructuredSummary {
   executiveSummary: string;
   importantHighlights: string[];
   findings: TechnicalFinding[];
   limitations: string[];
 }
 
+export interface TechnicalReportTextSummary {
+  markdown: string;
+}
+
+export type TechnicalReportSummary =
+  TechnicalReportStructuredSummary | TechnicalReportTextSummary;
+
 export type TechnicalReportSummaryStatus =
-  'NOT_ANALYZED' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  'NOT_ANALYZED' | 'QUEUED' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 
 export type TechnicalReportProcessingStage =
   'EXTRACTING' | 'ANALYZING' | 'CONSOLIDATING' | null;
@@ -157,6 +164,7 @@ export interface TechnicalReportSummaryResponse {
   analyzedAt: string | null;
   errorMessage: string | null;
   processingStage: TechnicalReportProcessingStage;
+  attemptCount: number;
 }
 
 export interface AlexpertoQuoteAuditItem {

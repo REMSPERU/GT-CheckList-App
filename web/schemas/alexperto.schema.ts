@@ -73,12 +73,21 @@ export const technicalFindingSchema = z.object({
   recommendation: z.string().trim().min(1).max(1_000),
 });
 
-export const technicalReportSummarySchema = z.object({
+const technicalReportStructuredSummarySchema = z.object({
   executiveSummary: z.string().trim().min(1).max(3_000),
   importantHighlights: z.array(z.string().trim().min(1).max(500)).max(10),
-  findings: z.array(technicalFindingSchema).max(15),
+  findings: z.array(technicalFindingSchema).max(10),
   limitations: z.array(z.string().trim().min(1).max(500)).max(10),
 });
+
+const technicalReportTextSummarySchema = z.object({
+  markdown: z.string().trim().min(1).max(20_000),
+});
+
+export const technicalReportSummarySchema = z.union([
+  technicalReportStructuredSummarySchema,
+  technicalReportTextSummarySchema,
+]);
 
 export type TechnicalReportSummaryInput = z.infer<
   typeof technicalReportSummarySchema
