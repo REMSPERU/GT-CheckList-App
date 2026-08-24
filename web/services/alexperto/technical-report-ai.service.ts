@@ -19,7 +19,7 @@ import {
   splitPdfPages,
 } from './pdf-text-extractor.service';
 
-const PROMPT_VERSION = 'technical-report-v4-findings';
+const PROMPT_VERSION = 'technical-report-v5-findings';
 const DEFAULT_MAX_PDF_BYTES = 25 * 1024 * 1024;
 const DEFAULT_MAX_PAGES = 50;
 const DEFAULT_MAX_INPUT_CHARS = 80_000;
@@ -68,7 +68,13 @@ function getOpenRouterConfig() {
   return {
     apiKey,
     model,
-    fallbackModel: process.env.OPENROUTER_FALLBACK_MODEL ?? null,
+    fallbackModels: [
+      process.env.OPENROUTER_FALLBACK_MODEL,
+      ...(process.env.OPENROUTER_FALLBACK_MODELS?.split(',') ?? []),
+    ]
+      .map(candidate => candidate?.trim())
+      .filter((candidate): candidate is string => Boolean(candidate))
+      .filter(candidate => candidate !== model),
     maxInputChars: getNumberEnv(
       'OPENROUTER_MAX_INPUT_CHARS',
       DEFAULT_MAX_INPUT_CHARS,
@@ -90,7 +96,7 @@ function systemPrompt() {
 }
 
 function outputInstructions(pageCount: number) {
-  return `Responde únicamente con \"## Hallazgos\" y hasta cuatro hallazgos importantes. No incluyas resumen ejecutivo, impacto, acciones, recomendaciones, limitaciones ni texto introductorio. Cada hallazgo debe usar \"### CRITICIDAD | Página N | Título\" seguido de una sola línea \"Evidencia: ...\". Si un equipo está inoperativo o fuera de servicio, debe ser ALTA y el título debe empezar con \"INOPERATIVO:\". Usa frases breves. La página debe ser un entero entre 1 y ${pageCount}.`;
+  return `Responde EN ESPAÑOL y comienza exactamente con \"## Hallazgos\". Incluye máximo cuatro hallazgos importantes. No incluyas resumen ejecutivo, impacto, acciones, recomendaciones, limitaciones ni texto introductorio. Cada hallazgo debe usar \"### ALTA | Página N | Título\" o \"### MEDIA | Página N | Título\", seguido de una sola línea \"Evidencia: ...\". No uses la palabra \"criticidad\". Si un equipo está inoperativo o fuera de servicio, debe ser ALTA y el título debe empezar con \"INOPERATIVO:\". Usa frases breves. La página debe ser un entero entre 1 y ${pageCount}.`;
 }
 
 function isProviderFailure(error: unknown) {
@@ -136,6 +142,7 @@ async function callOpenRouter(
   config: ReturnType<typeof getOpenRouterConfig>,
   summaryId: string,
   executionId: string,
+  retryForFormat = false,
 ): Promise<OpenRouterResult> {
   const startedAt = Date.now();
   const responseFormat = 'text';
@@ -162,7 +169,7 @@ async function callOpenRouter(
             { role: 'system', content: systemPrompt() },
             {
               role: 'user',
-              content: `${outputInstructions(pageCount)}\n\n${content}`,
+              content: `${outputInstructions(pageCount)}${retryForFormat ? '\n\nLa respuesta anterior no cumplió el formato. Entrega directamente el resultado final; la primera línea debe ser exactamente ## Hallazgos.' : ''}\n\n${content}`,
             },
           ],
         }),
@@ -189,9 +196,17 @@ async function callOpenRouter(
       throw new AnalysisError(
         'OPENROUTER_EMPTY_RESPONSE',
         'El modelo no devolvió contenido.',
+        true,
       );
+    const summaryMarkdown = contentResult.trim();
+    if (!summaryMarkdown.startsWith('## Hallazgos')) {
+      throw new AnalysisError(
+        'OPENROUTER_INVALID_FORMAT',
+        'El modelo devolvió razonamiento en lugar del resultado final.',
+      );
+    }
     const result = {
-      summary: { markdown: contentResult.trim() },
+      summary: { markdown: summaryMarkdown },
       inputTokens: payload.usage?.prompt_tokens ?? null,
       outputTokens: payload.usage?.completion_tokens ?? null,
       generationId: payload.id ?? null,
@@ -250,32 +265,48 @@ async function analyzeWithFallback(
   summaryId: string,
   executionId: string,
 ) {
-  try {
-    return {
-      ...(await callOpenRouter(
+  const models = [...new Set([config.model, ...config.fallbackModels])];
+  console.info('Technical report AI models queued', { models });
+
+  async function analyzeModel(model: string) {
+    try {
+      return await callOpenRouter(
         content,
         pageCount,
-        config.model,
+        model,
         config,
         summaryId,
         executionId,
-      )),
-      model: config.model,
-    };
-  } catch (error) {
-    if (!config.fallbackModel || !isProviderFailure(error)) throw error;
-    return {
-      ...(await callOpenRouter(
-        content,
-        pageCount,
-        config.fallbackModel,
-        config,
-        summaryId,
-        executionId,
-      )),
-      model: config.fallbackModel,
-    };
+      );
+    } catch (error) {
+      if (
+        error instanceof AnalysisError &&
+        error.code === 'OPENROUTER_INVALID_FORMAT'
+      ) {
+        return callOpenRouter(
+          content,
+          pageCount,
+          model,
+          config,
+          summaryId,
+          executionId,
+          true,
+        );
+      }
+      throw error;
+    }
   }
+
+  let lastProviderError: unknown;
+  for (const model of models) {
+    try {
+      return { ...(await analyzeModel(model)), model };
+    } catch (error) {
+      if (!isProviderFailure(error)) throw error;
+      lastProviderError = error;
+    }
+  }
+  throw lastProviderError;
 }
 
 function formatPartialSummaries(summaries: TechnicalReportSummary[]) {

@@ -8,6 +8,7 @@ import {
   LoaderCircle,
   RefreshCw,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -54,6 +55,23 @@ function summaryText(summary: TechnicalReportSummary) {
   ].join('\n\n');
 }
 
+function criticalityHeadingClass(children: ReactNode) {
+  const content = Array.isArray(children)
+    ? children.join('')
+    : String(children ?? '');
+
+  if (/^ALTA\b/i.test(content)) {
+    return 'border border-rose-200 bg-rose-50 text-rose-950';
+  }
+  if (/^MEDIA\b/i.test(content)) {
+    return 'border border-amber-200 bg-amber-50 text-amber-950';
+  }
+  if (/^BAJA\b/i.test(content)) {
+    return 'border border-emerald-200 bg-emerald-50 text-emerald-950';
+  }
+  return 'text-slate-900';
+}
+
 function MarkdownSummary({ children }: { children: string }) {
   return (
     <ReactMarkdown
@@ -70,7 +88,10 @@ function MarkdownSummary({ children }: { children: string }) {
           </h5>
         ),
         h3: ({ children }) => (
-          <h6 className="mt-4 text-xs font-bold text-slate-900">{children}</h6>
+          <h6
+            className={`mt-4 rounded-md px-3 py-2 text-xs font-bold ${criticalityHeadingClass(children)}`}>
+            {children}
+          </h6>
         ),
         p: ({ children }) => (
           <p className="my-2 text-xs leading-5 text-slate-700">{children}</p>
