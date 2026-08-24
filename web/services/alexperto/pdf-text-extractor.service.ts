@@ -1,11 +1,20 @@
 import 'server-only';
 
+import { DOMMatrix, ImageData, Path2D } from '@napi-rs/canvas';
+
 export interface ExtractedPdfPage {
   number: number;
   text: string;
 }
 
 const MIN_USEFUL_TEXT_LENGTH = 20;
+
+const nodeCanvasGlobals = globalThis as Record<string, unknown>;
+
+// PDF.js needs these browser APIs while extracting text in the Node runtime.
+nodeCanvasGlobals.DOMMatrix ??= DOMMatrix;
+nodeCanvasGlobals.ImageData ??= ImageData;
+nodeCanvasGlobals.Path2D ??= Path2D;
 
 function normalizeText(value: string) {
   return value.replace(/\s+/g, ' ').trim();

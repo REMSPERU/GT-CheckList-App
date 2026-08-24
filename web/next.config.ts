@@ -3,6 +3,7 @@ import path from 'node:path';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  serverExternalPackages: ['@napi-rs/canvas'],
   turbopack: {
     root: path.join(__dirname),
   },
