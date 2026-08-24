@@ -1,6 +1,4 @@
-ALTER TABLE public.alexperto_document_ai_summaries
-  ADD COLUMN IF NOT EXISTS execution_id UUID;
-
+-- Evita la ambigüedad entre la columna execution_id y el campo de retorno.
 CREATE OR REPLACE FUNCTION public.claim_alexperto_document_ai_summary(
   p_request_id TEXT,
   p_document_id TEXT,
@@ -58,6 +56,3 @@ BEGIN
   RETURN QUERY SELECT TRUE, v_execution_id;
 END;
 $$;
-
-REVOKE ALL ON FUNCTION public.claim_alexperto_document_ai_summary(TEXT, TEXT, TEXT, UUID, TEXT, BOOLEAN) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.claim_alexperto_document_ai_summary(TEXT, TEXT, TEXT, UUID, TEXT, BOOLEAN) TO service_role;
