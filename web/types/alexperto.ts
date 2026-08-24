@@ -121,6 +121,44 @@ export interface AlexpertoRequestDocument {
   createdAt: string;
 }
 
+export const TECHNICAL_CRITICALITIES = ['ALTA', 'MEDIA', 'BAJA'] as const;
+
+export type TechnicalCriticality = (typeof TECHNICAL_CRITICALITIES)[number];
+
+export interface TechnicalFinding {
+  id: string;
+  criticality: TechnicalCriticality;
+  title: string;
+  equipment: string | null;
+  location: string | null;
+  page: number;
+  evidence: string;
+  impact: string;
+  recommendation: string;
+}
+
+export interface TechnicalReportSummary {
+  executiveSummary: string;
+  importantHighlights: string[];
+  findings: TechnicalFinding[];
+  limitations: string[];
+}
+
+export type TechnicalReportSummaryStatus =
+  'NOT_ANALYZED' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+
+export type TechnicalReportProcessingStage =
+  'EXTRACTING' | 'ANALYZING' | 'CONSOLIDATING' | null;
+
+export interface TechnicalReportSummaryResponse {
+  status: TechnicalReportSummaryStatus;
+  summary: TechnicalReportSummary | null;
+  model: string | null;
+  analyzedAt: string | null;
+  errorMessage: string | null;
+  processingStage: TechnicalReportProcessingStage;
+}
+
 export interface AlexpertoQuoteAuditItem {
   id: string;
   code: string;
