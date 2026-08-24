@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   ALEXPERTO_INTERNAL_STATUSES,
   ALEXPERTO_SPECIALTY_CODES,
+  TECHNICAL_CRITICALITIES,
 } from '@/types/alexperto';
 
 export const alexpertoQuoteFiltersSchema = z.object({
@@ -59,3 +60,35 @@ export const alexpertoRequestAuditActionSchema = z.object({
   status: z.enum(ALEXPERTO_INTERNAL_STATUSES),
   recordHistory: z.boolean().default(true),
 });
+
+export const technicalFindingSchema = z.object({
+  id: z.string().trim().min(1).max(100),
+  criticality: z.enum(TECHNICAL_CRITICALITIES),
+  title: z.string().trim().min(1).max(300),
+  equipment: z.string().trim().min(1).max(300).nullable(),
+  location: z.string().trim().min(1).max(300).nullable(),
+  page: z.number().int().min(1),
+  evidence: z.string().trim().min(1).max(1_500),
+  impact: z.string().trim().min(1).max(1_000),
+  recommendation: z.string().trim().min(1).max(1_000),
+});
+
+const technicalReportStructuredSummarySchema = z.object({
+  executiveSummary: z.string().trim().min(1).max(3_000),
+  importantHighlights: z.array(z.string().trim().min(1).max(500)).max(10),
+  findings: z.array(technicalFindingSchema).max(10),
+  limitations: z.array(z.string().trim().min(1).max(500)).max(10),
+});
+
+const technicalReportTextSummarySchema = z.object({
+  markdown: z.string().trim().min(1).max(20_000),
+});
+
+export const technicalReportSummarySchema = z.union([
+  technicalReportStructuredSummarySchema,
+  technicalReportTextSummarySchema,
+]);
+
+export type TechnicalReportSummaryInput = z.infer<
+  typeof technicalReportSummarySchema
+>;
