@@ -19,6 +19,7 @@ export function useTechnicalReportSummary(
   const [isGenerating, setIsGenerating] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const isProcessing = isGenerating || result?.status === 'PROCESSING';
 
   useEffect(() => {
     if (!requestId || !documentId || !enabled) {
@@ -59,15 +60,15 @@ export function useTechnicalReportSummary(
   }, [documentId, enabled, requestId]);
 
   useEffect(() => {
-    if (!isGenerating) return;
+    if (!isProcessing) return;
     const interval = window.setInterval(() => {
       setElapsedSeconds(seconds => seconds + 1);
     }, 1_000);
     return () => window.clearInterval(interval);
-  }, [isGenerating]);
+  }, [isProcessing]);
 
   useEffect(() => {
-    if (!isGenerating || !requestId || !documentId) return;
+    if (!isProcessing || !requestId || !documentId) return;
     let cancelled = false;
     const currentRequestId = requestId;
     const currentDocumentId = documentId;
@@ -90,10 +91,10 @@ export function useTechnicalReportSummary(
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [documentId, isGenerating, requestId]);
+  }, [documentId, isProcessing, requestId]);
 
   async function generate(regenerate = false) {
-    if (!requestId || !documentId) return;
+    if (!requestId || !documentId || isProcessing) return;
     const currentRequestId = requestId;
     const currentDocumentId = documentId;
     setIsGenerating(true);
@@ -129,7 +130,7 @@ export function useTechnicalReportSummary(
   return {
     result,
     isLoading,
-    isGenerating,
+    isGenerating: isProcessing,
     elapsedSeconds,
     error,
     generate,

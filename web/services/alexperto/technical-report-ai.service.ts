@@ -24,7 +24,6 @@ const DEFAULT_MAX_PDF_BYTES = 25 * 1024 * 1024;
 const DEFAULT_MAX_PAGES = 50;
 const DEFAULT_MAX_INPUT_CHARS = 80_000;
 const DEFAULT_MAX_OUTPUT_TOKENS = 3_000;
-const DEFAULT_TIMEOUT_MS = 60_000;
 
 interface SummaryRow {
   status: TechnicalReportSummaryResponse['status'];
@@ -33,6 +32,7 @@ interface SummaryRow {
   updated_at: string;
   error_message: string | null;
   processing_stage: TechnicalReportSummaryResponse['processingStage'];
+  execution_id: string | null;
 }
 
 function getNumberEnv(name: string, fallback: number) {
@@ -57,10 +57,6 @@ function getOpenRouterConfig() {
       DEFAULT_MAX_OUTPUT_TOKENS,
     ),
     temperature: Number(process.env.OPENROUTER_TEMPERATURE ?? 0.1),
-    timeoutMs: getNumberEnv(
-      'OPENROUTER_REQUEST_TIMEOUT_MS',
-      DEFAULT_TIMEOUT_MS,
-    ),
   };
 }
 
@@ -96,14 +92,11 @@ async function callOpenRouter(
   config: ReturnType<typeof getOpenRouterConfig>,
 ) {
   console.info('OpenRouter analysis started', { model, pageCount });
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
   try {
     const response = await fetch(
       'https://openrouter.ai/api/v1/chat/completions',
       {
         method: 'POST',
-        signal: controller.signal,
         headers: {
           Authorization: `Bearer ${config.apiKey}`,
           'Content-Type': 'application/json',
@@ -153,12 +146,7 @@ async function callOpenRouter(
       generationId: payload.id ?? null,
     };
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('OPENROUTER_TIMEOUT');
-    }
     throw error;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -168,10 +156,21 @@ async function analyzeWithFallback(
   config: ReturnType<typeof getOpenRouterConfig>,
 ) {
   try {
-    return await callOpenRouter(content, pageCount, config.model, config);
+    return {
+      ...(await callOpenRouter(content, pageCount, config.model, config)),
+      model: config.model,
+    };
   } catch (error) {
     if (!config.fallbackModel) throw error;
-    return callOpenRouter(content, pageCount, config.fallbackModel, config);
+    return {
+      ...(await callOpenRouter(
+        content,
+        pageCount,
+        config.fallbackModel,
+        config,
+      )),
+      model: config.fallbackModel,
+    };
   }
 }
 
@@ -217,7 +216,7 @@ async function findSummary(
   let query = createServiceRoleSupabaseClient()
     .from('alexperto_document_ai_summaries')
     .select(
-      'status, summary_json, model, updated_at, error_message, processing_stage',
+      'status, summary_json, model, updated_at, error_message, processing_stage, execution_id',
     )
     .eq('request_id', requestId)
     .eq('document_id', documentId)
@@ -257,23 +256,26 @@ export async function generateTechnicalReportSummary(
     return responseFromRow(existing);
 
   const supabase = createServiceRoleSupabaseClient();
-  const { error: processingError } = await supabase
-    .from('alexperto_document_ai_summaries')
-    .upsert(
-      {
-        request_id: requestId,
-        document_id: documentId,
-        document_hash: hash,
-        status: 'PROCESSING',
-        processing_stage: 'EXTRACTING',
-        generated_by: generatedBy,
-        prompt_version: PROMPT_VERSION,
-        error_message: null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'request_id,document_id,document_hash' },
-    );
-  if (processingError) throw processingError;
+  const { data: claim, error: claimError } = await supabase.rpc(
+    'claim_alexperto_document_ai_summary',
+    {
+      p_request_id: requestId,
+      p_document_id: documentId,
+      p_document_hash: hash,
+      p_generated_by: generatedBy,
+      p_prompt_version: PROMPT_VERSION,
+      p_regenerate: regenerate,
+    },
+  );
+  if (claimError) throw claimError;
+  const executionId = (
+    claim?.[0] as
+      { claimed?: boolean; execution_id?: string | null } | undefined
+  )?.execution_id;
+  const claimed = (claim?.[0] as { claimed?: boolean } | undefined)?.claimed;
+  if (!claimed || !executionId) {
+    return responseFromRow(await findSummary(requestId, documentId, hash));
+  }
   try {
     const pages = await extractPdfText(
       bytes,
@@ -291,6 +293,7 @@ export async function generateTechnicalReportSummary(
       requestId,
       documentId,
       hash,
+      executionId,
       'ANALYZING',
     );
     const batchResults = await Promise.all(
@@ -311,6 +314,7 @@ export async function generateTechnicalReportSummary(
               requestId,
               documentId,
               hash,
+              executionId,
               'CONSOLIDATING',
             );
             return analyzeWithFallback(
@@ -319,14 +323,13 @@ export async function generateTechnicalReportSummary(
               config,
             );
           })();
-    const usedModel = batchResults.length === 1 ? config.model : config.model;
-    const { error: completeError } = await supabase
+    const { data: completedRows, error: completeError } = await supabase
       .from('alexperto_document_ai_summaries')
       .update({
         status: 'COMPLETED',
         processing_stage: null,
         summary_json: analysis.summary,
-        model: usedModel,
+        model: analysis.model,
         input_tokens: analysis.inputTokens,
         output_tokens: analysis.outputTokens,
         generation_id: analysis.generationId,
@@ -335,8 +338,11 @@ export async function generateTechnicalReportSummary(
       })
       .eq('request_id', requestId)
       .eq('document_id', documentId)
-      .eq('document_hash', hash);
+      .eq('document_hash', hash)
+      .eq('execution_id', executionId)
+      .select('execution_id');
     if (completeError) throw completeError;
+    if (!completedRows?.length) throw new Error('ANALYSIS_SUPERSEDED');
     return responseFromRow(await findSummary(requestId, documentId, hash));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'ANALYSIS_FAILED';
@@ -350,7 +356,8 @@ export async function generateTechnicalReportSummary(
       })
       .eq('request_id', requestId)
       .eq('document_id', documentId)
-      .eq('document_hash', hash);
+      .eq('document_hash', hash)
+      .eq('execution_id', executionId);
     throw error;
   }
 }
@@ -360,11 +367,12 @@ async function setProcessingStage(
   requestId: string,
   documentId: string,
   hash: string,
+  executionId: string,
   processingStage: NonNullable<
     TechnicalReportSummaryResponse['processingStage']
   >,
 ) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('alexperto_document_ai_summaries')
     .update({
       processing_stage: processingStage,
@@ -372,6 +380,9 @@ async function setProcessingStage(
     })
     .eq('request_id', requestId)
     .eq('document_id', documentId)
-    .eq('document_hash', hash);
+    .eq('document_hash', hash)
+    .eq('execution_id', executionId)
+    .select('execution_id');
   if (error) throw error;
+  if (!data?.length) throw new Error('ANALYSIS_SUPERSEDED');
 }
