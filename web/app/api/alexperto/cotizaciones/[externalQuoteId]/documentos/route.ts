@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { listAlexpertoQuoteDocuments } from '@/services/alexperto/alexperto-documents.service';
-import { requireAuthorizedQuote } from '@/services/alexperto/alexperto-quote-access.service';
+import { requireVisibleQuote } from '@/services/alexperto/alexperto-quote-access.service';
 import { requireAlexpertoAccessSession } from '@/services/auth/server-auth.service';
 
 interface RouteContext {
@@ -12,7 +12,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const session = await requireAlexpertoAccessSession(request);
     const { externalQuoteId } = await context.params;
-    await requireAuthorizedQuote(externalQuoteId, session.userSupabase);
+    await requireVisibleQuote(
+      externalQuoteId,
+      session.userSupabase,
+      session.supabase,
+      session.user.role,
+    );
 
     const items = await listAlexpertoQuoteDocuments(externalQuoteId);
     return NextResponse.json(

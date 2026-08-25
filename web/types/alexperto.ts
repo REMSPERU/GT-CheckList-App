@@ -11,7 +11,7 @@ export const ALEXPERTO_SPECIALTY_CODES = [
   'ASC',
 ] as const;
 
-export type AlexpertoSpecialtyCode = (typeof ALEXPERTO_SPECIALTY_CODES)[number];
+export type AlexpertoSpecialtyCode = string;
 
 export const ALEXPERTO_INTERNAL_STATUSES = [
   'PENDIENTE_REVISION',
@@ -22,6 +22,15 @@ export const ALEXPERTO_INTERNAL_STATUSES = [
 
 export type AlexpertoInternalStatus =
   (typeof ALEXPERTO_INTERNAL_STATUSES)[number];
+
+export const ALEXPERTO_AUDITOR_DISPATCH_STATUSES = [
+  'PENDIENTE_ENVIO',
+  'ENVIADO',
+  'RETIRADO',
+] as const;
+
+export type AlexpertoAuditorDispatchStatus =
+  (typeof ALEXPERTO_AUDITOR_DISPATCH_STATUSES)[number];
 
 export interface AlexpertoQuoteHistoryItem {
   previousStatus: AlexpertoInternalStatus | null;
@@ -59,6 +68,7 @@ export interface AlexpertoQuoteListItem {
   creationUserType: string | null;
   providerName: string | null;
   requesterName: string | null;
+  auditorDispatchStatus: AlexpertoAuditorDispatchStatus;
 }
 
 export interface AlexpertoQuoteListResponse {
@@ -66,6 +76,7 @@ export interface AlexpertoQuoteListResponse {
   pageSize: number;
   total: number;
   items: AlexpertoQuoteListItem[];
+  specialties: { value: string; label: string }[];
   queriedAt: string;
 }
 
@@ -110,6 +121,52 @@ export interface AlexpertoRequestDocument {
   createdAt: string;
 }
 
+export const TECHNICAL_CRITICALITIES = ['ALTA', 'MEDIA', 'BAJA'] as const;
+
+export type TechnicalCriticality = (typeof TECHNICAL_CRITICALITIES)[number];
+
+export interface TechnicalFinding {
+  id: string;
+  criticality: TechnicalCriticality;
+  title: string;
+  equipment: string | null;
+  location: string | null;
+  page: number;
+  evidence: string;
+  impact: string;
+  recommendation: string;
+}
+
+export interface TechnicalReportStructuredSummary {
+  executiveSummary: string;
+  importantHighlights: string[];
+  findings: TechnicalFinding[];
+  limitations: string[];
+}
+
+export interface TechnicalReportTextSummary {
+  markdown: string;
+}
+
+export type TechnicalReportSummary =
+  TechnicalReportStructuredSummary | TechnicalReportTextSummary;
+
+export type TechnicalReportSummaryStatus =
+  'NOT_ANALYZED' | 'QUEUED' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+
+export type TechnicalReportProcessingStage =
+  'EXTRACTING' | 'ANALYZING' | 'CONSOLIDATING' | null;
+
+export interface TechnicalReportSummaryResponse {
+  status: TechnicalReportSummaryStatus;
+  summary: TechnicalReportSummary | null;
+  model: string | null;
+  analyzedAt: string | null;
+  errorMessage: string | null;
+  processingStage: TechnicalReportProcessingStage;
+  attemptCount: number;
+}
+
 export interface AlexpertoQuoteAuditItem {
   id: string;
   code: string;
@@ -128,6 +185,7 @@ export interface AlexpertoQuoteAuditItem {
   auditorComment: string | null;
   paulComment: string | null;
   history: AlexpertoQuoteHistoryItem[];
+  auditorDispatchStatus: AlexpertoAuditorDispatchStatus;
 }
 
 export interface AlexpertoQuoteDocument {

@@ -1,6 +1,10 @@
 import 'server-only';
 
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 import type {
@@ -29,6 +33,10 @@ interface RequestDocumentRow {
   created_at: string;
   type_name: string | null;
   source: 'REQUEST' | 'QUOTE' | 'PROPOSAL';
+}
+
+export interface AlexpertoTechnicalDocument extends AlexpertoRequestDocument {
+  path: string;
 }
 
 function required(value: string | undefined, name: string) {
@@ -217,4 +225,58 @@ export async function getAlexpertoRequestDocumentUrl(
     new GetObjectCommand({ Bucket: bucket, Key: key }),
     { expiresIn: 300 },
   );
+}
+
+export async function getAlexpertoTechnicalDocument(
+  requestId: string,
+  documentId: string,
+): Promise<AlexpertoTechnicalDocument | null> {
+  const { rows } = await getAlexpertoPool().query<RequestDocumentRow>({
+    text: `
+      SELECT d.id AS document_id, d.document_name, d.document_path, d.mime_type,
+        d.document_size, d.created_at, dt.name AS type_name,
+        'REQUEST'::text AS source
+      FROM sch_main.request_documents d
+      INNER JOIN sch_main.request_document_type dt ON dt.id = d.type_id
+      WHERE d.id = $2 AND d.request_id = $1 AND d.deleted_at IS NULL
+        AND lower(trim(dt.name)) IN ('informes técnicos', 'informes tecnicos')
+      LIMIT 1
+    `,
+    values: [requestId, documentId],
+  });
+  const document = rows[0];
+  if (!document) return null;
+  return {
+    id: String(document.document_id),
+    name: document.document_name?.trim() || 'Documento sin nombre',
+    typeName: document.type_name?.trim() || 'Sin tipo',
+    mimeType: document.mime_type,
+    size:
+      document.document_size === null ? null : Number(document.document_size),
+    createdAt: new Date(document.created_at).toISOString(),
+    source: document.source,
+    path: document.document_path,
+  };
+}
+
+export async function downloadAlexpertoDocument(
+  path: string,
+  maxBytes: number,
+) {
+  const { bucket, prefix, region } = getS3Config();
+  const key = validateDocumentPath(path, prefix);
+  const client = getS3Client(region);
+  const head = await client.send(
+    new HeadObjectCommand({ Bucket: bucket, Key: key }),
+  );
+  if (head.ContentLength && head.ContentLength > maxBytes) {
+    throw new Error('PDF_TOO_LARGE');
+  }
+  const response = await client.send(
+    new GetObjectCommand({ Bucket: bucket, Key: key }),
+  );
+  if (!response.Body) throw new Error('DOCUMENT_UNAVAILABLE');
+  const bytes = await response.Body.transformToByteArray();
+  if (bytes.byteLength > maxBytes) throw new Error('PDF_TOO_LARGE');
+  return bytes;
 }

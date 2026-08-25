@@ -36,6 +36,7 @@ interface AuditActionRow {
   notes: string | null;
   auditor_comment: string | null;
   paul_comment: string | null;
+  auditor_dispatch_status: AlexpertoQuoteListItem['auditorDispatchStatus'];
 }
 
 interface AuditHistoryRow {
@@ -59,6 +60,7 @@ interface UserNameRow {
 interface AuditStatusRow {
   external_entity_id: string;
   current_status: AlexpertoQuoteListItem['internalStatus'];
+  auditor_dispatch_status: AlexpertoQuoteListItem['auditorDispatchStatus'];
 }
 
 const SORT_COLUMNS = {
@@ -127,13 +129,18 @@ export async function listAlexpertoQuotes(
   filters: AlexpertoQuoteFilters,
   properties: AuthorizedProperty[],
   supabase: SupabaseClient,
+  onlyDispatchedToAuditor = false,
 ) {
   const propertyByExternalId = new Map(
     properties.map(property => [property.alexpertoPropertyId, property]),
   );
   const externalIds = properties.map(property => property.alexpertoPropertyId);
   if (!externalIds.length) {
-    return { total: 0, items: [] as AlexpertoQuoteListItem[] };
+    return {
+      total: 0,
+      items: [] as AlexpertoQuoteListItem[],
+      specialties: [] as { value: string; label: string }[],
+    };
   }
   const statusActions = await getActionsForProperties(
     supabase,
@@ -146,25 +153,19 @@ export async function listAlexpertoQuotes(
     action => action.external_entity_id,
   );
   const includesPending = filters.estadoInterno.includes('PENDIENTE_REVISION');
+  const dispatchedQuoteIds = statusActions
+    .filter(action => action.auditor_dispatch_status === 'ENVIADO')
+    .map(action => action.external_entity_id);
+  if (onlyDispatchedToAuditor && !dispatchedQuoteIds.length) {
+    return {
+      total: 0,
+      items: [] as AlexpertoQuoteListItem[],
+      specialties: [] as { value: string; label: string }[],
+    };
+  }
 
   const specialtyFilter = `AND (
-    CASE lower(trim(subesp.name))
-      WHEN 'sistema de aire acondicionado' THEN 'AA'
-      WHEN 'equipos de ventilación mecánica' THEN 'VM'
-      WHEN 'sistemas contra incendio' THEN 'SCI'
-      WHEN 'tableros eléctricos' THEN 'TE'
-      WHEN 'grupos electrógenos' THEN 'GE'
-      WHEN 'bombas de agua y desagüe' THEN 'BOM'
-      WHEN 'sistemas de seguridad y control' THEN 'SSC'
-      WHEN 'sub estación eléctrica' THEN 'SEE'
-      WHEN 'tableros de transferencia | distribución | otros relacionados' THEN 'TTA'
-      WHEN 'ascensores' THEN 'ASC'
-    END = ANY(
-      CASE WHEN cardinality($3::text[]) = 0
-        THEN ARRAY['AA', 'VM', 'SCI', 'TE', 'GE', 'BOM', 'SSC', 'SEE', 'TTA', 'ASC']::text[]
-        ELSE $3::text[]
-      END
-    )
+    cardinality($3::text[]) = 0 OR subesp.name = ANY($3::text[])
   )`;
   const externalStatusFilter = `AND (
     cardinality($4::text[]) = 0 OR
@@ -197,6 +198,10 @@ export async function listAlexpertoQuotes(
     values.push(selectedStatusActionIds);
     if (includesPending) values.push(allStatusActionIds);
   }
+  const auditorDispatchFilter = onlyDispatchedToAuditor
+    ? `AND q.id = ANY($${values.length + 1}::text[])`
+    : '';
+  if (onlyDispatchedToAuditor) values.push(dispatchedQuoteIds);
 
   const client = await getAlexpertoPool().connect();
   let result;
@@ -240,7 +245,7 @@ export async function listAlexpertoQuotes(
           AND coalesce(up.cost, 0) >= $2
           AND ($7 = '' OR q.code ILIKE '%' || $7 || '%' OR prop.name ILIKE '%' || $7 || '%' OR coalesce(q.description, '') ILIKE '%' || $7 || '%')
           AND (cardinality($8::text[]) = 0 OR prop.name = ANY($8::text[]))
-           ${specialtyFilter} ${externalStatusFilter} ${creationUserTypeFilter} ${internalStatusFilter}
+           ${specialtyFilter} ${externalStatusFilter} ${creationUserTypeFilter} ${internalStatusFilter} ${auditorDispatchFilter}
     )
     SELECT *, count(*) OVER() AS total FROM base
     ORDER BY ${order} LIMIT $5 OFFSET $6`;
@@ -273,7 +278,6 @@ export async function listAlexpertoQuotes(
       .map(row => {
         const property = propertyByExternalId.get(String(row.property_id));
         const action = actionById.get(String(row.id));
-        const code = specialtyCode(String(row.specialty_name));
         return {
           externalQuoteId: String(row.id),
           code: String(row.code),
@@ -283,7 +287,10 @@ export async function listAlexpertoQuotes(
             name: String(row.property_name),
             gemaPropertyId: property!.id,
           },
-          specialty: { name: String(row.specialty_name), code },
+          specialty: {
+            name: String(row.specialty_name),
+            code: String(row.specialty_name),
+          },
           service: row.service ? String(row.service) : null,
           serviceCode: row.service_code ? String(row.service_code) : null,
           amount: row.cost === null ? null : String(row.cost),
@@ -302,8 +309,11 @@ export async function listAlexpertoQuotes(
           paulComment: action?.paul_comment ?? null,
           history: action ? (historyByActionId.get(action.id) ?? []) : [],
           responsible: null,
+          auditorDispatchStatus:
+            action?.auditor_dispatch_status ?? 'PENDIENTE_ENVIO',
         } satisfies AlexpertoQuoteListItem;
       }),
+    specialties: await listAlexpertoQuoteSpecialties(externalIds),
   };
 }
 
@@ -333,31 +343,12 @@ export async function findAuthorizedQuoteProperty(
   );
 }
 
-function specialtyCode(
-  name: string,
-): AlexpertoQuoteListItem['specialty']['code'] {
-  const codes: Record<string, AlexpertoQuoteListItem['specialty']['code']> = {
-    'sistema de aire acondicionado': 'AA',
-    'equipos de ventilación mecánica': 'VM',
-    'sistemas contra incendio': 'SCI',
-    'tableros eléctricos': 'TE',
-    'grupos electrógenos': 'GE',
-    'bombas de agua y desagüe': 'BOM',
-    'sistemas de seguridad y control': 'SSC',
-    'sub estación eléctrica': 'SEE',
-    'tableros de transferencia | distribución | otros relacionados': 'TTA',
-    ascensores: 'ASC',
-  };
-  // La consulta excluye especialidades fuera de este catalogo antes de llegar aqui.
-  return codes[name.trim().toLowerCase()] ?? 'AA';
-}
-
 async function getActions(supabase: SupabaseClient, ids: string[]) {
   if (!ids.length) return [];
   const { data, error } = await supabase
     .from('alexperto_audit_actions')
     .select(
-      'id, external_entity_id, current_status, notes, auditor_comment, paul_comment',
+      'id, external_entity_id, current_status, notes, auditor_comment, paul_comment, auditor_dispatch_status',
     )
     .eq('external_entity_type', 'QUOTE')
     .in('external_entity_id', ids);
@@ -420,9 +411,26 @@ async function getActionsForProperties(
 ) {
   const { data, error } = await supabase
     .from('alexperto_audit_actions')
-    .select('external_entity_id, current_status')
+    .select('external_entity_id, current_status, auditor_dispatch_status')
     .eq('external_entity_type', 'QUOTE')
     .in('gema_property_id', propertyIds);
   if (error) throw error;
   return (data ?? []) as AuditStatusRow[];
+}
+
+async function listAlexpertoQuoteSpecialties(externalPropertyIds: string[]) {
+  const { rows } = await getAlexpertoPool().query<{ name: string }>({
+    text: `
+      SELECT DISTINCT trim(subesp.name) AS name
+      FROM sch_main.quotes q
+      INNER JOIN sch_main.sub_specialties subesp ON subesp.id = q.sub_specialty_id
+      WHERE q.property_id = ANY($1::text[])
+        AND q.created_at >= '${ALEXPERTO_REPORT_START}'::date
+        AND q.created_at < '${ALEXPERTO_REPORT_END}'::date
+        AND trim(subesp.name) <> ''
+      ORDER BY name
+    `,
+    values: [externalPropertyIds],
+  });
+  return rows.map(row => ({ value: row.name, label: row.name }));
 }

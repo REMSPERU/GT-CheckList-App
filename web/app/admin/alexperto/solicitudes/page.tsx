@@ -85,7 +85,7 @@ function formatRequestType(type: string | null) {
 function internalStatusStyles(status: string) {
   const statusKey = status.trim().toUpperCase().replace(/\s+/g, '_');
   return statusKey === 'CULMINADO'
-      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
     : statusKey === 'VALIDADO'
       ? 'bg-violet-50 text-violet-800 border-violet-200'
       : statusKey === 'OBSERVADO'
@@ -171,7 +171,7 @@ function SolicitudesContent() {
   const [selectedGemaStatuses, setSelectedGemaStatuses] = useState<string[]>(
     [],
   );
-  const [datePreset, setDatePreset] = useState<DatePreset>('ALL');
+  const [datePreset, setDatePreset] = useState<DatePreset>('YEAR');
   const [customDateRange, setCustomDateRange] = useState<DateRangeValue>({
     from: '',
     to: '',
@@ -474,6 +474,7 @@ function SolicitudesContent() {
                   </button>
                 </th>
                 <th className={`${TH_CLASS} min-w-[190px] py-2.5`}>Inmueble</th>
+                <th className={`${TH_CLASS} py-2.5`}>Especialidad</th>
                 <th className={`${TH_CLASS} py-2.5 text-center`}>
                   Archivos adjuntos
                 </th>
@@ -490,7 +491,7 @@ function SolicitudesContent() {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-8 text-center text-slate-500">
                     Consultando Alexperto...
                   </td>
@@ -498,7 +499,7 @@ function SolicitudesContent() {
               ) : error ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-8 text-center text-red-700">
                     {error}
                   </td>
@@ -506,7 +507,7 @@ function SolicitudesContent() {
               ) : requests.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-8 text-center text-slate-500">
                     No hay solicitudes para los filtros seleccionados.
                   </td>
@@ -537,6 +538,9 @@ function SolicitudesContent() {
                     </td>
                     <td className="px-4 py-2.5 font-semibold text-slate-900">
                       {item.property.name}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {item.specialty?.name ?? 'Sin especialidad'}
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       <span

@@ -20,6 +20,10 @@ interface QuoteWorkspaceDialogProps {
     paulComment: string | null;
     recordHistory: boolean;
   }) => Promise<void>;
+  onDispatchUpdate: (
+    quoteId: string,
+    dispatchStatus: 'ENVIADO' | 'RETIRADO',
+  ) => Promise<void>;
 }
 
 export function QuoteWorkspaceDialog({
@@ -27,6 +31,7 @@ export function QuoteWorkspaceDialog({
   isSuperadmin,
   onClose,
   onStatusUpdate,
+  onDispatchUpdate,
 }: QuoteWorkspaceDialogProps) {
   const dialogRef = useRef<HTMLElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
@@ -109,6 +114,27 @@ export function QuoteWorkspaceDialog({
     }
   };
 
+  const handleDispatch = async (dispatchStatus: 'ENVIADO' | 'RETIRADO') => {
+    setIsSaving(true);
+    setError(null);
+    try {
+      await onDispatchUpdate(quote.id, dispatchStatus);
+      setNotice(
+        dispatchStatus === 'ENVIADO'
+          ? 'Cotización enviada al auditor del inmueble.'
+          : 'Cotización retirada de la bandeja del auditor.',
+      );
+    } catch (dispatchError) {
+      setError(
+        dispatchError instanceof Error
+          ? dispatchError.message
+          : 'No se pudo actualizar el despacho al auditor.',
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-0 sm:p-5">
       <button
@@ -160,6 +186,7 @@ export function QuoteWorkspaceDialog({
               onSave={(status, recordHistory) =>
                 void handleSave(status, recordHistory)
               }
+              onDispatch={dispatchStatus => void handleDispatch(dispatchStatus)}
               onNotice={setNotice}
             />
             {notice && (
