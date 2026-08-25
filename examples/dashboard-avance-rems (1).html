@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REMS · Avance de proyectos</title>
+<style>
+  :root{
+    --navy:#16233F;
+    --navy2:#1E3159;
+    --blue:#3E7CB8;
+    --blue-light:#EAF2FA;
+    --paper:#F6F7F5;
+    --ink:#1B2A4A;
+    --muted:#6B7280;
+    --line:#D7DCE3;
+    --amber:#B9781F;
+    --amber-bg:#FBF0DE;
+    --green:#2E7D5B;
+    --green-bg:#E5F3EB;
+    --red:#B23A34;
+    --red-bg:#FBE7E5;
+    --gray-bg:#EDEEEA;
+    --gray:#5B5E56;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+  .wrap{max-width:900px;margin:0 auto;padding:28px 20px 60px;}
+  .brand{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;}
+  .brand .mark{font-family:'Courier New',monospace;font-size:12px;letter-spacing:2px;color:var(--blue);border:1px solid var(--blue);padding:2px 6px;border-radius:2px;}
+  h1{font-size:22px;font-weight:700;margin:0 0 2px;color:var(--navy);}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:22px;}
+  .tabs{display:flex;gap:0;border-bottom:2px solid var(--line);margin-bottom:24px;}
+  .tab{padding:10px 18px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;}
+  .tab.active{color:var(--navy);border-bottom-color:var(--blue);}
+  .card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:20px;margin-bottom:16px;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;}
+  label{display:block;font-size:12px;font-weight:600;color:var(--gray);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px;}
+  select,input,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:4px;font-size:14px;font-family:inherit;background:#fff;color:var(--ink);}
+  textarea{resize:vertical;min-height:60px;}
+  .field{flex:1;min-width:160px;margin-bottom:14px;}
+  button{background:var(--navy);color:#fff;border:none;padding:10px 18px;border-radius:4px;font-size:14px;font-weight:600;cursor:pointer;}
+  button:hover{background:var(--navy2);}
+  button.secondary{background:#fff;color:var(--navy);border:1px solid var(--navy);}
+  .msg{font-size:13px;margin-top:8px;}
+  .msg.err{color:var(--red);}
+  .msg.ok{color:var(--green);}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:0.3px;}
+  .b-plan{background:var(--gray-bg);color:var(--gray);}
+  .b-curso{background:var(--blue-light);color:var(--blue);}
+  .b-pausado{background:var(--amber-bg);color:var(--amber);}
+  .b-retrasado{background:var(--red-bg);color:var(--red);}
+  .b-completado{background:var(--green-bg);color:var(--green);}
+  .proj-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}
+  .proj-head h2{font-size:18px;margin:0 0 4px;}
+  .proj-head .code{font-family:'Courier New',monospace;font-size:12px;color:var(--muted);}
+  .bar-track{height:10px;background:var(--gray-bg);border-radius:6px;overflow:hidden;margin:8px 0 4px;}
+  .bar-fill{height:100%;background:var(--blue);border-radius:6px;transition:width .3s;}
+  .pct{font-size:26px;font-weight:700;color:var(--navy);}
+  .timeline{margin-top:18px;}
+  .tl-item{display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--line);}
+  .tl-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);margin-top:6px;flex-shrink:0;}
+  .tl-date{font-size:11px;color:var(--muted);font-family:'Courier New',monospace;}
+  .tl-body{font-size:14px;margin-top:2px;}
+  .empty{text-align:center;color:var(--muted);font-size:14px;padding:30px 0;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><span class="mark">REMS · GT</span></div>
+  <h1>Avance de proyectos</h1>
+  <div class="sub">Gestión técnica y seguimiento para clientes</div>
+
+  <div class="tabs">
+    <div class="tab active" id="tabAdmin">Panel de gestión</div>
+    <div class="tab" id="tabClient">Vista de cliente</div>
+  </div>
+
+  <!-- ADMIN VIEW -->
+  <div id="viewAdmin">
+    <div class="card" id="loginCard">
+      <div class="field" style="max-width:260px;">
+        <label>Clave de gestor</label>
+        <input type="password" id="pin" placeholder="Ingresa tu clave">
+      </div>
+      <button id="loginBtn">Ingresar</button>
+      <div class="msg err" id="loginMsg"></div>
+    </div>
+
+    <div id="adminPanel" class="hidden">
+      <div class="card">
+        <div class="row">
+          <div class="field">
+            <label>Proyecto</label>
+            <select id="projSelect"></select>
+          </div>
+          <div class="field" style="flex:0 0 auto;align-self:flex-end;margin-bottom:14px;">
+            <button class="secondary" id="newProjBtn">+ Nuevo proyecto</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="newProjForm" style="display:none;">
+        <div class="row">
+          <div class="field"><label>Nombre del proyecto</label><input id="npNombre" placeholder="Ej: Mantenimiento Torre A"></div>
+          <div class="field"><label>Cliente</label><input id="npCliente" placeholder="Ej: Inmobiliaria XYZ"></div>
+        </div>
+        <button id="npCreate">Crear</button>
+        <button class="secondary" id="npCancel">Cancelar</button>
+      </div>
+
+      <div class="card" id="updateForm">
+        <div class="row">
+          <div class="field">
+            <label>% de avance</label>
+            <input type="number" id="uAvance" min="0" max="100" value="0">
+          </div>
+          <div class="field">
+            <label>Estado</label>
+            <select id="uEstado">
+              <option>Planificación</option>
+              <option>En curso</option>
+              <option>Pausado</option>
+              <option>Retrasado</option>
+              <option>Completado</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Comentario para el cliente</label>
+          <textarea id="uComentario" placeholder="Ej: Se culminó instalación eléctrica del 3er nivel"></textarea>
+        </div>
+        <button id="uSave">Guardar actualización</button>
+        <div class="msg ok" id="uMsg"></div>
+      </div>
+
+      <div class="card">
+        <div id="adminHistory"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLIENT VIEW -->
+  <div id="viewClient" class="hidden">
+    <div class="card">
+      <div class="field" style="max-width:260px;">
+        <label>Código de proyecto</label>
+        <input id="clientCode" placeholder="Ej: TORRE-A24">
+      </div>
+      <button id="clientLoad">Ver avance</button>
+      <div class="msg err" id="clientMsg"></div>
+    </div>
+    <div id="clientResult"></div>
+  </div>
+</div>
+
+<script>
+const MANAGER_KEYS = ["CLAVE1","CLAVE2","CLAVE3","CLAVE4"];
+const badgeClass = {
+  "Planificación":"b-plan","En curso":"b-curso","Pausado":"b-pausado",
+  "Retrasado":"b-retrasado","Completado":"b-completado"
+};
+let db = {};
+
+async function loadDB(){
+  try{
+    const r = await window.storage.get('rems-proyectos', true);
+    db = r ? JSON.parse(r.value) : {};
+  }catch(e){ db = {}; }
+}
+async function saveDB(){
+  await window.storage.set('rems-proyectos', JSON.stringify(db), true);
+}
+function slug(nombre){
+  return nombre.toUpperCase().replace(/[^A-Z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,16) + '-' + Math.floor(Math.random()*90+10);
+}
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + d.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+}
+
+// Tabs
+document.getElementById('tabAdmin').onclick = () => {
+  document.getElementById('tabAdmin').classList.add('active');
+  document.getElementById('tabClient').classList.remove('active');
+  document.getElementById('viewAdmin').classList.remove('hidden');
+  document.getElementById('viewClient').classList.add('hidden');
+};
+document.getElementById('tabClient').onclick = () => {
+  document.getElementById('tabClient').classList.add('active');
+  document.getElementById('tabAdmin').classList.remove('active');
+  document.getElementById('viewClient').classList.remove('hidden');
+  document.getElementById('viewAdmin').classList.add('hidden');
+};
+
+// Login
+document.getElementById('loginBtn').onclick = () => {
+  const pin = document.getElementById('pin').value.trim();
+  if(!MANAGER_KEYS.includes(pin)){
+    document.getElementById('loginMsg').textContent = 'Clave incorrecta.';
+    return;
+  }
+  document.getElementById('loginMsg').textContent = '';
+  document.getElementById('loginCard').classList.add('hidden');
+  document.getElementById('adminPanel').classList.remove('hidden');
+  refreshProjSelect();
+};
+
+function refreshProjSelect(){
+  const sel = document.getElementById('projSelect');
+  sel.innerHTML = '';
+  const ids = Object.keys(db);
+  if(ids.length===0){
+    sel.innerHTML = '<option value="">— sin proyectos —</option>';
+  }
+  ids.forEach(id=>{
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = db[id].nombre + '  (' + id + ')';
+    sel.appendChild(opt);
+  });
+  sel.onchange = renderAdminHistory;
+  renderAdminHistory();
+}
+
+document.getElementById('newProjBtn').onclick = () => {
+  document.getElementById('newProjForm').style.display = 'block';
+};
+document.getElementById('npCancel').onclick = () => {
+  document.getElementById('newProjForm').style.display = 'none';
+};
+document.getElementById('npCreate').onclick = async () => {
+  const nombre = document.getElementById('npNombre').value.trim();
+  const cliente = document.getElementById('npCliente').value.trim();
+  if(!nombre || !cliente) return;
+  const id = slug(nombre);
+  db[id] = { nombre, cliente, avance:0, estado:'Planificación', historial:[] };
+  await saveDB();
+  document.getElementById('npNombre').value='';
+  document.getElementById('npCliente').value='';
+  document.getElementById('newProjForm').style.display='none';
+  refreshProjSelect();
+  document.getElementById('projSelect').value = id;
+  renderAdminHistory();
+};
+
+document.getElementById('uSave').onclick = async () => {
+  const id = document.getElementById('projSelect').value;
+  if(!id) return;
+  const avance = Math.max(0, Math.min(100, parseInt(document.getElementById('uAvance').value||'0',10)));
+  const estado = document.getElementById('uEstado').value;
+  const comentario = document.getElementById('uComentario').value.trim();
+  const entry = { fecha: new Date().toISOString(), avance, estado, comentario };
+  db[id].avance = avance;
+  db[id].estado = estado;
+  db[id].historial.unshift(entry);
+  await saveDB();
+  document.getElementById('uComentario').value='';
+  document.getElementById('uMsg').textContent = 'Actualización guardada.';
+  setTimeout(()=>document.getElementById('uMsg').textContent='',2500);
+  renderAdminHistory();
+};
+
+function renderAdminHistory(){
+  const id = document.getElementById('projSelect').value;
+  const box = document.getElementById('adminHistory');
+  if(!id || !db[id]){ box.innerHTML = '<div class="empty">Selecciona o crea un proyecto.</div>'; return; }
+  const p = db[id];
+  document.getElementById('uAvance').value = p.avance;
+  document.getElementById('uEstado').value = p.estado;
+  let html = '<div class="proj-head"><div><h2>'+p.nombre+'</h2><div class="code">'+id+' · '+p.cliente+'</div></div>'+
+    '<span class="badge '+badgeClass[p.estado]+'">'+p.estado+'</span></div>';
+  html += '<div class="pct">'+p.avance+'%</div><div class="bar-track"><div class="bar-fill" style="width:'+p.avance+'%"></div></div>';
+  html += '<div class="timeline">';
+  if(p.historial.length===0) html += '<div class="empty">Sin actualizaciones registradas.</div>';
+  p.historial.forEach(h=>{
+    html += '<div class="tl-item"><div class="tl-dot"></div><div><div class="tl-date">'+fmtDate(h.fecha)+' · '+h.avance+'% · '+h.estado+'</div><div class="tl-body">'+(h.comentario||'<em>Sin comentario</em>')+'</div></div></div>';
+  });
+  html += '</div>';
+  box.innerHTML = html;
+}
+
+document.getElementById('clientLoad').onclick = () => {
+  const code = document.getElementById('clientCode').value.trim().toUpperCase();
+  const box = document.getElementById('clientResult');
+  const msg = document.getElementById('clientMsg');
+  if(!db[code]){
+    msg.textContent = 'No encontramos un proyecto con ese código.';
+    box.innerHTML = '';
+    return;
+  }
+  msg.textContent = '';
+  const p = db[code];
+  let html = '<div class="card"><div class="proj-head"><div><h2>'+p.nombre+'</h2><div class="code">Cliente: '+p.cliente+'</div></div>'+
+    '<span class="badge '+badgeClass[p.estado]+'">'+p.estado+'</span></div>';
+  html += '<div class="pct">'+p.avance+'%</div><div class="bar-track"><div class="bar-fill" style="width:'+p.avance+'%"></div></div>';
+  html += '<div class="timeline">';
+  if(p.historial.length===0) html += '<div class="empty">Aún no hay actualizaciones registradas.</div>';
+  p.historial.forEach(h=>{
+    html += '<div class="tl-item"><div class="tl-dot"></div><div><div class="tl-date">'+fmtDate(h.fecha)+'</div><div class="tl-body">'+(h.comentario||'<em>Actualización de estado</em>')+'</div></div></div>';
+  });
+  html += '</div></div>';
+  box.innerHTML = html;
+};
+
+(async () => {
+  await loadDB();
+})();
+</script>
+</body>
+</html>
