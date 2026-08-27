@@ -4,6 +4,7 @@ import {
   Clock,
   Copy,
   FileCheck,
+  Loader2,
   MessageSquare,
   Save,
   Send,
@@ -11,6 +12,7 @@ import {
   User,
 } from 'lucide-react';
 
+import { useQuoteNotes } from '@/hooks/alexperto/use-quote-notes';
 import { formatExternalStatus, formatInternalStatus } from './quote-formatters';
 import type {
   AlexpertoInternalStatus,
@@ -65,6 +67,7 @@ export function QuoteReviewPanel({
   onDispatch,
   onNotice,
 }: QuoteReviewPanelProps) {
+  const { notes, isLoading: isLoadingNotes } = useQuoteNotes(quote.id);
   const gemaStatusStyle =
     quote.gemaStatus === 'OBSERVADO'
       ? {
@@ -203,14 +206,23 @@ export function QuoteReviewPanel({
               Notas de Alexperto
             </h3>
           </div>
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 border border-slate-200">
-            {quote.notes?.length ?? 0}
-          </span>
+          {isLoadingNotes ? (
+            <Loader2 size={12} className="animate-spin text-slate-400" />
+          ) : (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 border border-slate-200">
+              {notes.length}
+            </span>
+          )}
         </div>
 
-        {quote.notes && quote.notes.length > 0 ? (
+        {isLoadingNotes ? (
+          <div className="mt-2.5 flex items-center justify-center gap-2 rounded-lg border border-slate-100 bg-slate-50/60 py-4 text-xs text-slate-500">
+            <Loader2 size={13} className="animate-spin text-emerald-800" />
+            <span>Consultando notas...</span>
+          </div>
+        ) : notes.length > 0 ? (
           <div className="mt-2.5 max-h-56 space-y-2 overflow-y-auto pr-1">
-            {quote.notes.map(note => (
+            {notes.map(note => (
               <div
                 key={note.id}
                 className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-2xs">

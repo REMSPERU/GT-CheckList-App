@@ -256,10 +256,7 @@ export async function listAlexpertoQuotes(
     client.release();
   }
   const ids = result.rows.map(row => String(row.id));
-  const [actions, notesByQuoteId] = await Promise.all([
-    getActions(supabase, ids),
-    getQuoteNotes(ids),
-  ]);
+  const actions = await getActions(supabase, ids);
   const actionById = new Map(
     actions.map(action => [action.external_entity_id, action]),
   );
@@ -312,7 +309,7 @@ export async function listAlexpertoQuotes(
           auditorComment: action?.auditor_comment ?? action?.notes ?? null,
           paulComment: action?.paul_comment ?? null,
           history: action ? (historyByActionId.get(action.id) ?? []) : [],
-          notes: notesByQuoteId.get(String(row.id)) ?? [],
+          notes: [],
           responsible: null,
           auditorDispatchStatus:
             action?.auditor_dispatch_status ?? 'PENDIENTE_ENVIO',
@@ -423,21 +420,36 @@ async function getActionsForProperties(
   return (data ?? []) as AuditStatusRow[];
 }
 
+let specialtiesCache: { value: string; label: string }[] | null = null;
+let specialtiesCacheExpiry = 0;
+const SPECIALTIES_CACHE_TTL = 30 * 60 * 1000; // 30 minutos
+
 async function listAlexpertoQuoteSpecialties(externalPropertyIds: string[]) {
-  const { rows } = await getAlexpertoPool().query<{ name: string }>({
-    text: `
-      SELECT DISTINCT trim(subesp.name) AS name
-      FROM sch_main.quotes q
-      INNER JOIN sch_main.sub_specialties subesp ON subesp.id = q.sub_specialty_id
-      WHERE q.property_id = ANY($1::text[])
-        AND q.created_at >= '${ALEXPERTO_REPORT_START}'::date
-        AND q.created_at < '${ALEXPERTO_REPORT_END}'::date
-        AND trim(subesp.name) <> ''
-      ORDER BY name
-    `,
-    values: [externalPropertyIds],
-  });
-  return rows.map(row => ({ value: row.name, label: row.name }));
+  const now = Date.now();
+  if (specialtiesCache && now < specialtiesCacheExpiry) {
+    return specialtiesCache;
+  }
+  try {
+    const { rows } = await getAlexpertoPool().query<{ name: string }>({
+      text: `
+        SELECT DISTINCT trim(subesp.name) AS name
+        FROM sch_main.quotes q
+        INNER JOIN sch_main.sub_specialties subesp ON subesp.id = q.sub_specialty_id
+        WHERE q.property_id = ANY($1::text[])
+          AND q.created_at >= '${ALEXPERTO_REPORT_START}'::date
+          AND q.created_at < '${ALEXPERTO_REPORT_END}'::date
+          AND trim(subesp.name) <> ''
+        ORDER BY name
+      `,
+      values: [externalPropertyIds],
+    });
+    specialtiesCache = rows.map(row => ({ value: row.name, label: row.name }));
+    specialtiesCacheExpiry = now + SPECIALTIES_CACHE_TTL;
+    return specialtiesCache;
+  } catch (error) {
+    console.error('Error fetching specialties:', error);
+    return specialtiesCache ?? [];
+  }
 }
 
 interface QuoteNoteRow {
@@ -449,10 +461,10 @@ interface QuoteNoteRow {
   author_email: string | null;
 }
 
-async function getQuoteNotes(
-  quoteIds: string[],
-): Promise<Map<string, AlexpertoQuoteNote[]>> {
-  if (!quoteIds.length) return new Map();
+export async function getAlexpertoQuoteNotes(
+  quoteId: string,
+): Promise<AlexpertoQuoteNote[]> {
+  if (!quoteId) return [];
   const { rows } = await getAlexpertoPool().query<QuoteNoteRow>({
     text: `
       SELECT qn.id, qn.quote_id, qn.content, qn.created_at,
@@ -460,23 +472,17 @@ async function getQuoteNotes(
              u.email AS author_email
       FROM sch_main.quote_notes qn
       LEFT JOIN sch_main.users u ON u.id = qn.creator_id
-      WHERE qn.quote_id = ANY($1::text[])
+      WHERE qn.quote_id = $1
       ORDER BY qn.created_at DESC
     `,
-    values: [quoteIds],
+    values: [quoteId],
   });
 
-  const notesByQuoteId = new Map<string, AlexpertoQuoteNote[]>();
-  for (const row of rows) {
-    const list = notesByQuoteId.get(String(row.quote_id)) ?? [];
-    list.push({
-      id: String(row.id),
-      content: String(row.content ?? ''),
-      createdAt: new Date(row.created_at).toISOString(),
-      authorName: row.author_name?.trim() || null,
-      authorEmail: row.author_email?.trim() || null,
-    });
-    notesByQuoteId.set(String(row.quote_id), list);
-  }
-  return notesByQuoteId;
+  return rows.map(row => ({
+    id: String(row.id),
+    content: String(row.content ?? ''),
+    createdAt: new Date(row.created_at).toISOString(),
+    authorName: row.author_name?.trim() || null,
+    authorEmail: row.author_email?.trim() || null,
+  }));
 }

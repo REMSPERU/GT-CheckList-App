@@ -19,9 +19,9 @@ export function getAlexpertoPool() {
     password: required(process.env.DATABASE_PASSWORD, 'DATABASE_PASSWORD'),
     // Mantiene el cifrado TLS, pero no valida la CA del certificado remoto.
     ssl: { rejectUnauthorized: false },
-    max: 2,
-    idleTimeoutMillis: 10_000,
-    connectionTimeoutMillis: 5_000,
+    max: 10,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
     application_name: 'gema-web',
   });
   return pool;
