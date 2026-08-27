@@ -6,6 +6,7 @@ import type { AlexpertoQuoteFilters } from '@/schemas/alexperto.schema';
 import type {
   AlexpertoQuoteHistoryItem,
   AlexpertoQuoteListItem,
+  AlexpertoQuoteNote,
 } from '@/types/alexperto';
 
 import { getAlexpertoPool } from './alexperto-db.server';
@@ -255,7 +256,10 @@ export async function listAlexpertoQuotes(
     client.release();
   }
   const ids = result.rows.map(row => String(row.id));
-  const actions = await getActions(supabase, ids);
+  const [actions, notesByQuoteId] = await Promise.all([
+    getActions(supabase, ids),
+    getQuoteNotes(ids),
+  ]);
   const actionById = new Map(
     actions.map(action => [action.external_entity_id, action]),
   );
@@ -308,6 +312,7 @@ export async function listAlexpertoQuotes(
           auditorComment: action?.auditor_comment ?? action?.notes ?? null,
           paulComment: action?.paul_comment ?? null,
           history: action ? (historyByActionId.get(action.id) ?? []) : [],
+          notes: notesByQuoteId.get(String(row.id)) ?? [],
           responsible: null,
           auditorDispatchStatus:
             action?.auditor_dispatch_status ?? 'PENDIENTE_ENVIO',
@@ -433,4 +438,45 @@ async function listAlexpertoQuoteSpecialties(externalPropertyIds: string[]) {
     values: [externalPropertyIds],
   });
   return rows.map(row => ({ value: row.name, label: row.name }));
+}
+
+interface QuoteNoteRow {
+  id: string;
+  quote_id: string;
+  content: string;
+  created_at: string;
+  author_name: string | null;
+  author_email: string | null;
+}
+
+async function getQuoteNotes(
+  quoteIds: string[],
+): Promise<Map<string, AlexpertoQuoteNote[]>> {
+  if (!quoteIds.length) return new Map();
+  const { rows } = await getAlexpertoPool().query<QuoteNoteRow>({
+    text: `
+      SELECT qn.id, qn.quote_id, qn.content, qn.created_at,
+             concat_ws(' ', trim(u.first_name), trim(u.last_name)) AS author_name,
+             u.email AS author_email
+      FROM sch_main.quote_notes qn
+      LEFT JOIN sch_main.users u ON u.id = qn.creator_id
+      WHERE qn.quote_id = ANY($1::text[])
+      ORDER BY qn.created_at DESC
+    `,
+    values: [quoteIds],
+  });
+
+  const notesByQuoteId = new Map<string, AlexpertoQuoteNote[]>();
+  for (const row of rows) {
+    const list = notesByQuoteId.get(String(row.quote_id)) ?? [];
+    list.push({
+      id: String(row.id),
+      content: String(row.content ?? ''),
+      createdAt: new Date(row.created_at).toISOString(),
+      authorName: row.author_name?.trim() || null,
+      authorEmail: row.author_email?.trim() || null,
+    });
+    notesByQuoteId.set(String(row.quote_id), list);
+  }
+  return notesByQuoteId;
 }

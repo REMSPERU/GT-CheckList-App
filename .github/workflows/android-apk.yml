@@ -4,8 +4,29 @@ on:
   push:
     branches:
       - dev
-    paths-ignore:
-      - 'web/**'
+    # Solo la app Expo raíz debe generar APK. El portal Next.js y la
+    # documentación tienen su propio ciclo de despliegue.
+    paths:
+      - 'app/**'
+      - 'assets/**'
+      - 'components/**'
+      - 'config/**'
+      - 'constants/**'
+      - 'contexts/**'
+      - 'hooks/**'
+      - 'lib/**'
+      - 'schemas/**'
+      - 'services/**'
+      - 'types/**'
+      - 'utils/**'
+      - 'app.config.js'
+      - 'eas.json'
+      - 'expo-env.d.ts'
+      - 'metro.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - '.github/workflows/android-apk.yml'
   workflow_dispatch:
     inputs:
       profile:

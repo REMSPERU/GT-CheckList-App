@@ -151,8 +151,8 @@ export function QuoteWorkspaceDialog({
         tabIndex={-1}
         onKeyDown={handleKeyDown}
         className="relative z-10 flex h-[100dvh] w-full flex-col overflow-hidden bg-[#f8faf6] shadow-2xl sm:h-[calc(100dvh-40px)] sm:max-w-none sm:rounded-2xl">
-        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[#05221d] bg-[#072e27] px-4 py-1.5 text-white sm:px-5">
-          <div className="flex min-w-0 items-center gap-2.5">
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[#05221d] bg-[#072e27] px-4 py-2 text-white sm:px-5">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-2.5">
             <h2
               id="quote-workspace-title"
               className="m-0 shrink-0 font-mono text-sm font-bold tracking-tight">
@@ -162,6 +162,18 @@ export function QuoteWorkspaceDialog({
             <p className="m-0 truncate text-xs text-emerald-100">
               {quote.propertyName}
             </p>
+            <span
+              aria-hidden="true"
+              className="h-4 w-px bg-emerald-800 hidden sm:inline"
+            />
+            <span className="hidden sm:inline-flex items-center rounded-md bg-emerald-950/80 px-2 py-0.5 font-mono text-xs font-bold text-emerald-300 border border-emerald-700/60">
+              {quote.amount
+                ? `S/ ${Number(quote.amount).toLocaleString('es-PE', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}`
+                : 'S/ 0.00'}
+            </span>
           </div>
           <button
             type="button"
@@ -172,7 +184,7 @@ export function QuoteWorkspaceDialog({
           </button>
         </header>
 
-        <div className="grid min-h-0 flex-1 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 lg:grid-cols-[340px_minmax(0,1fr)]">
           <aside className="min-h-0 overflow-y-auto border-b border-slate-200 bg-[#f8faf6] p-4 lg:border-b-0 lg:border-r">
             <QuoteReviewPanel
               quote={quote}

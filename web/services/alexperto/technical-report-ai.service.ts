@@ -96,7 +96,7 @@ function systemPrompt() {
 }
 
 function outputInstructions(pageCount: number) {
-  return `Responde EN ESPAÑOL y comienza exactamente con \"## Hallazgos\". Incluye máximo cuatro hallazgos importantes. No incluyas resumen ejecutivo, impacto, acciones, recomendaciones, limitaciones ni texto introductorio. Cada hallazgo debe usar \"### ALTA | Página N | Título\" o \"### MEDIA | Página N | Título\", seguido de una sola línea \"Evidencia: ...\". No uses la palabra \"criticidad\". Si un equipo está inoperativo o fuera de servicio, debe ser ALTA y el título debe empezar con \"INOPERATIVO:\". Usa frases breves. La página debe ser un entero entre 1 y ${pageCount}.`;
+  return `Responde EN ESPAÑOL y comienza exactamente con \"## Hallazgos\". Incluye todos los hallazgos importantes. No incluyas resumen ejecutivo, impacto, acciones, recomendaciones, limitaciones ni texto introductorio. Cada hallazgo debe usar \"### ALTA | Página N | Título\" o \"### MEDIA | Página N | Título\", seguido de una sola línea \"Evidencia: ...\". No uses la palabra \"criticidad\". Si un equipo está inoperativo o fuera de servicio, debe ser ALTA y el título debe empezar con \"INOPERATIVO:\". Usa frases breves. La página debe ser un entero entre 1 y ${pageCount}.`;
 }
 
 function isProviderFailure(error: unknown) {

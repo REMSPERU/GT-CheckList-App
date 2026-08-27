@@ -4,9 +4,11 @@ import {
   Clock,
   Copy,
   FileCheck,
+  MessageSquare,
   Save,
   Send,
   Undo2,
+  User,
 } from 'lucide-react';
 
 import { formatExternalStatus, formatInternalStatus } from './quote-formatters';
@@ -86,8 +88,9 @@ export function QuoteReviewPanel({
 
   return (
     <div className="space-y-4">
-      <section className="border-b border-slate-200 pb-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      {/* STATUS & AMOUNT OVERVIEW */}
+      <section className="space-y-2.5 border-b border-slate-200 pb-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <p className="m-0 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Estado Alexperto
@@ -101,6 +104,23 @@ export function QuoteReviewPanel({
             <GemaStatusIcon size={14} />
             {gemaStatusStyle.label}
           </span>
+        </div>
+
+        {/* IMPORTE / MONTO HIGHLIGHT */}
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+              Importe Económico
+            </span>
+            <span className="font-mono text-sm font-extrabold text-emerald-950">
+              {quote.amount
+                ? `S/ ${Number(quote.amount).toLocaleString('es-PE', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}`
+                : 'S/ 0.00'}
+            </span>
+          </div>
         </div>
       </section>
 
@@ -139,28 +159,86 @@ export function QuoteReviewPanel({
         </section>
       )}
 
+      {/* INFORMACIÓN GENERAL */}
       <section>
         <h3 className="m-0 text-sm font-bold text-slate-900">Información</h3>
-        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
+        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
           <div>
             <dt className="text-slate-500">Especialidad</dt>
-            <dd className="m-0 mt-1 font-semibold text-slate-900">
+            <dd className="m-0 mt-0.5 font-semibold text-slate-900">
               {quote.specialty}
             </dd>
           </div>
           <div>
+            <dt className="text-slate-500">Fecha creación</dt>
+            <dd className="m-0 mt-0.5 font-semibold text-slate-900">
+              {new Date(quote.createdAt).toLocaleDateString('es-PE', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })}
+            </dd>
+          </div>
+          <div className="col-span-2">
             <dt className="text-slate-500">Proveedor</dt>
-            <dd className="m-0 mt-1 font-semibold text-slate-900">
+            <dd className="m-0 mt-0.5 font-semibold text-slate-900">
               {quote.provider ?? 'Sin proveedor asignado'}
             </dd>
           </div>
           <div className="col-span-2">
             <dt className="text-slate-500">Descripción</dt>
-            <dd className="m-0 mt-1 whitespace-pre-wrap leading-relaxed text-slate-800">
+            <dd className="m-0 mt-0.5 whitespace-pre-wrap leading-relaxed text-slate-800">
               {quote.description ?? quote.requester ?? 'Sin descripción'}
             </dd>
           </div>
         </dl>
+      </section>
+
+      {/* SECCIÓN NOTAS DE ALEXPERTO */}
+      <section className="border-t border-slate-200 pt-3.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <MessageSquare size={14} className="text-slate-600" />
+            <h3 className="m-0 text-xs font-bold text-slate-900">
+              Notas de Alexperto
+            </h3>
+          </div>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 border border-slate-200">
+            {quote.notes?.length ?? 0}
+          </span>
+        </div>
+
+        {quote.notes && quote.notes.length > 0 ? (
+          <div className="mt-2.5 max-h-56 space-y-2 overflow-y-auto pr-1">
+            {quote.notes.map(note => (
+              <div
+                key={note.id}
+                className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-2xs">
+                <div className="flex items-center justify-between gap-2 text-[11px]">
+                  <span className="inline-flex items-center gap-1 font-bold text-slate-800">
+                    <User size={11} className="text-slate-400" />
+                    {note.authorName || note.authorEmail || 'Usuario Alexperto'}
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    {new Date(note.createdAt).toLocaleDateString('es-PE', {
+                      day: '2-digit',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+                <p className="m-0 mt-1.5 whitespace-pre-wrap text-xs leading-relaxed text-slate-700">
+                  {note.content}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-center text-xs italic text-slate-400 border border-slate-100">
+            Sin notas registradas en Alexperto
+          </p>
+        )}
       </section>
 
       {!isSuperadmin && (

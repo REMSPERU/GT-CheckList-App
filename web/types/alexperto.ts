@@ -48,6 +48,14 @@ export interface AlexpertoRequestHistoryItem {
   createdBy: { id: string; name: string | null } | null;
 }
 
+export interface AlexpertoQuoteNote {
+  id: string;
+  content: string;
+  createdAt: string;
+  authorName: string | null;
+  authorEmail: string | null;
+}
+
 export interface AlexpertoQuoteListItem {
   externalQuoteId: string;
   code: string;
@@ -64,6 +72,7 @@ export interface AlexpertoQuoteListItem {
   auditorComment: string | null;
   paulComment: string | null;
   history: AlexpertoQuoteHistoryItem[];
+  notes: AlexpertoQuoteNote[];
   responsible: { id: string; name: string | null } | null;
   creationUserType: string | null;
   providerName: string | null;
@@ -149,13 +158,22 @@ export interface TechnicalReportTextSummary {
 }
 
 export type TechnicalReportSummary =
-  TechnicalReportStructuredSummary | TechnicalReportTextSummary;
+  | TechnicalReportStructuredSummary
+  | TechnicalReportTextSummary;
 
 export type TechnicalReportSummaryStatus =
-  'NOT_ANALYZED' | 'QUEUED' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  | 'NOT_ANALYZED'
+  | 'QUEUED'
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'FAILED';
 
 export type TechnicalReportProcessingStage =
-  'EXTRACTING' | 'ANALYZING' | 'CONSOLIDATING' | null;
+  | 'EXTRACTING'
+  | 'ANALYZING'
+  | 'CONSOLIDATING'
+  | null;
 
 export interface TechnicalReportSummaryResponse {
   status: TechnicalReportSummaryStatus;
@@ -185,6 +203,7 @@ export interface AlexpertoQuoteAuditItem {
   auditorComment: string | null;
   paulComment: string | null;
   history: AlexpertoQuoteHistoryItem[];
+  notes: AlexpertoQuoteNote[];
   auditorDispatchStatus: AlexpertoAuditorDispatchStatus;
 }
 

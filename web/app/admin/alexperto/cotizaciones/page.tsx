@@ -17,6 +17,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  MessageSquare,
   Send,
   Undo2,
 } from 'lucide-react';
@@ -178,6 +179,7 @@ function CotizacionesContent() {
             auditorComment: item.auditorComment,
             paulComment: item.paulComment,
             history: item.history,
+            notes: item.notes ?? [],
             auditorDispatchStatus: item.auditorDispatchStatus,
           })),
         );
@@ -595,9 +597,22 @@ function CotizacionesContent() {
                       aria-label={`Ver detalle de cotización ${item.code}`}
                       className={`cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:bg-emerald-50 ${rowClass}`}>
                       <td className="whitespace-nowrap px-4 py-2.5 font-medium">
-                        <span className="font-mono text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                          {item.code}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            {item.code}
+                          </span>
+                          {item.notes && item.notes.length > 0 && (
+                            <span
+                              title={`${item.notes.length} nota(s) en Alexperto:\n${item.notes.map(n => `• ${n.authorName || 'Usuario'}: ${n.content}`).join('\n')}`}
+                              className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 border border-slate-200">
+                              <MessageSquare
+                                size={10}
+                                className="text-slate-500"
+                              />
+                              {item.notes.length}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* FECHA */}
