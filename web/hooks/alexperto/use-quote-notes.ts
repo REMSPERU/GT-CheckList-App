@@ -15,8 +15,9 @@ export function useQuoteNotes(quoteId: string | null) {
       setNotes([]);
       return;
     }
+    const currentQuoteId = quoteId;
 
-    const cached = notesCache.get(quoteId);
+    const cached = notesCache.get(currentQuoteId);
     if (cached) {
       setNotes(cached);
       return;
@@ -28,7 +29,7 @@ export function useQuoteNotes(quoteId: string | null) {
       setError(null);
       try {
         const response = await fetchWithAuth(
-          `/api/alexperto/cotizaciones/${quoteId}/notas`,
+          `/api/alexperto/cotizaciones/${currentQuoteId}/notas`,
         );
         if (!response.ok) {
           throw new Error('No se pudieron cargar las notas de Alexperto.');
@@ -37,7 +38,7 @@ export function useQuoteNotes(quoteId: string | null) {
           notes: AlexpertoQuoteNote[];
         };
         if (cancelled) return;
-        notesCache.set(quoteId, payload.notes);
+        notesCache.set(currentQuoteId, payload.notes);
         setNotes(payload.notes);
       } catch (err) {
         if (!cancelled) {
