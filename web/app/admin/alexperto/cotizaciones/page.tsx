@@ -69,6 +69,7 @@ function CotizacionesContent() {
   // Filters State
   const [search, setSearch] = useState('');
   const [minAmount, setMinAmount] = useState<string>('3000'); // Default 3000 editable
+  const [selectedAuditors, setSelectedAuditors] = useState<string[]>([]);
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   const [selectedExternalStatuses, setSelectedExternalStatuses] = useState<
@@ -80,6 +81,7 @@ function CotizacionesContent() {
   const [selectedCreationUserTypes, setSelectedCreationUserTypes] = useState<
     string[]
   >([]);
+  const [auditorOptions, setAuditorOptions] = useState<FilterOption[]>([]);
   const [propertyOptions, setPropertyOptions] = useState<FilterOption[]>([]);
   const [specialtyOptions, setSpecialtyOptions] = useState<FilterOption[]>([]);
   const [externalStatusOptions, setExternalStatusOptions] = useState<
@@ -105,6 +107,9 @@ function CotizacionesContent() {
         sort: sortBy,
         direction: sortDirection,
       });
+      if (selectedAuditors.length > 0) {
+        params.set('auditores', selectedAuditors.join(','));
+      }
       if (selectedSpecialties.length > 0) {
         params.set('especialidades', selectedSpecialties.join(','));
       }
@@ -136,6 +141,11 @@ function CotizacionesContent() {
         const payload = (await response.json()) as AlexpertoQuoteListResponse;
         if (cancelled) return;
         setTotal(payload.total);
+        if (payload.auditors) {
+          setAuditorOptions(current =>
+            mergeFilterOptions(current, payload.auditors || []),
+          );
+        }
         setPropertyOptions(current =>
           mergeFilterOptions(
             current,
@@ -201,6 +211,7 @@ function CotizacionesContent() {
     sortBy,
     sortDirection,
     minAmount,
+    selectedAuditors,
     selectedSpecialties,
     selectedExternalStatuses,
     selectedGemaStatuses,
@@ -399,7 +410,7 @@ function CotizacionesContent() {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 items-center gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+        <div className="grid grid-cols-1 items-center gap-2.5 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
           <SearchInput
             placeholder="Buscar código, inmueble..."
             value={search}
@@ -424,6 +435,24 @@ function CotizacionesContent() {
           </div>
 
           <SearchableMultiSelectField
+            values={selectedAuditors}
+            options={auditorOptions}
+            onChange={vals => handleFilterChange(setSelectedAuditors, vals)}
+            placeholder="Auditor (Todos)"
+            ariaLabel="Filtrar por auditor"
+            compact
+          />
+
+          <SearchableMultiSelectField
+            values={selectedProperties}
+            options={propertyOptions}
+            onChange={vals => handleFilterChange(setSelectedProperties, vals)}
+            placeholder="Inmueble (Todos)"
+            ariaLabel="Filtrar por inmueble"
+            compact
+          />
+
+          <SearchableMultiSelectField
             values={selectedSpecialties}
             options={specialtyOptions}
             onChange={vals => handleFilterChange(setSelectedSpecialties, vals)}
@@ -440,15 +469,6 @@ function CotizacionesContent() {
             }
             placeholder="Creado por (Todos)"
             ariaLabel="Filtrar por creador"
-            compact
-          />
-
-          <SearchableMultiSelectField
-            values={selectedProperties}
-            options={propertyOptions}
-            onChange={vals => handleFilterChange(setSelectedProperties, vals)}
-            placeholder="Inmueble (Todos)"
-            ariaLabel="Filtrar por inmueble"
             compact
           />
 

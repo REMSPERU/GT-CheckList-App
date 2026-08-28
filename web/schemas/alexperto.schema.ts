@@ -15,6 +15,7 @@ export const alexpertoQuoteFiltersSchema = z.object({
   estadoInterno: z.array(z.enum(ALEXPERTO_INTERNAL_STATUSES)).default([]),
   creadoPor: z.array(z.enum(['PROVIDER', 'ADMINISTRATOR'])).default([]),
   inmuebles: z.array(z.string().trim().min(1).max(200)).default([]),
+  auditores: z.array(z.string().uuid()).default([]),
   search: z.string().trim().max(100).default(''),
   propertyId: z.string().uuid().optional(),
   sort: z.enum(['createdAt', 'amount', 'delayDays']).default('createdAt'),
