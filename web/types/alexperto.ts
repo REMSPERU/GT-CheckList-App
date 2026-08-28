@@ -86,6 +86,7 @@ export interface AlexpertoQuoteListResponse {
   total: number;
   items: AlexpertoQuoteListItem[];
   specialties: { value: string; label: string }[];
+  auditors?: { value: string; label: string }[];
   queriedAt: string;
 }
 

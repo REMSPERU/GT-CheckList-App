@@ -486,3 +486,44 @@ export async function getAlexpertoQuoteNotes(
     authorEmail: row.author_email?.trim() || null,
   }));
 }
+
+interface AuditorUserRow {
+  id: string;
+  email: string | null;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+export async function listActiveAuditorOptions(
+  supabase: SupabaseClient,
+): Promise<{ value: string; label: string }[]> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, email, username, first_name, last_name')
+    .in('role', ['AUDITOR', 'TECNICO_REMS'])
+    .eq('is_active', true)
+    .order('first_name', { ascending: true });
+
+  if (error) {
+    console.error('[Alexperto] Error fetching auditor options:', error);
+    return [];
+  }
+
+  return ((data ?? []) as AuditorUserRow[])
+    .map(u => {
+      const fullName = [u.first_name, u.last_name]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      const label = fullName || u.username || u.email || 'Auditor';
+      return {
+        value: u.id,
+        label,
+      };
+    })
+    .sort((a, b) =>
+      a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }),
+    );
+}
+
