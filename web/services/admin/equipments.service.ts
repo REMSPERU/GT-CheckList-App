@@ -10,11 +10,9 @@ import type {
 } from '@/types/admin';
 
 import {
-  getPropertiesById,
-  uniqueValues,
   type EquipmentQueryRow,
 } from './admin-query-helpers';
-import { listAdminProperties } from './properties.service';
+import { listAdminEquipmentProperties } from './properties.service';
 import { listAdminEquipmentTypes } from './equipment-types.service';
 
 type AdminEquipmentRawRow = EquipmentQueryRow & {
@@ -65,6 +63,14 @@ const OPERATION_YEAR_KEYS = [
   'bomba_ano',
   'ano_tablero',
 ] as const;
+
+async function getEquipmentPropertyIds(supabase: SupabaseClient) {
+  const properties = await listAdminEquipmentProperties(supabase);
+  return {
+    properties,
+    ids: properties.map(property => property.id),
+  };
+}
 
 export const ADDITIONAL_DETAIL_FILTERS = [
   { key: 'numero_unidad', label: 'Número de unidad' },
@@ -128,6 +134,7 @@ export async function getEquipmentDetailFilterOptions(
   const values = new Map<string, Set<string>>(
     DETAIL_FILTER_KEYS.map(key => [key, new Set<string>()]),
   );
+  const propertyScope = await getEquipmentPropertyIds(supabase);
   let matchedIds: string[] | null = null;
   if (filters?.systemId) {
     matchedIds = await getEquipmentTypeIdsBySystem(supabase, filters.systemId);
@@ -143,6 +150,7 @@ export async function getEquipmentDetailFilterOptions(
       .select('equipment_detail')
       .not('equipment_detail', 'is', null)
       .range(pageNum * pageSize, pageNum * pageSize + pageSize - 1);
+    query = query.in('id_property', propertyScope.ids.length ? propertyScope.ids : [EMPTY_UUID]);
 
     if (filters?.propertyIds?.length) {
       query = query.in('id_property', filters.propertyIds);
@@ -229,6 +237,7 @@ export async function getDistinctEquipmentDetailTypes(
   let hasMore = true;
 
   // Pre-resolve system types once if systemId is provided
+  const propertyScope = await getEquipmentPropertyIds(supabase);
   let matchedIds: string[] | null = null;
   if (filters?.systemId) {
     matchedIds = await getEquipmentTypeIdsBySystem(supabase, filters.systemId);
@@ -243,6 +252,7 @@ export async function getDistinctEquipmentDetailTypes(
       .select('equipment_detail')
       .not('equipment_detail', 'is', null)
       .range(fromIdx, toIdx);
+    query = query.in('id_property', propertyScope.ids.length ? propertyScope.ids : [EMPTY_UUID]);
 
     if (filters?.propertyIds?.length) {
       query = query.in('id_property', filters.propertyIds);
@@ -384,6 +394,7 @@ export async function listAdminEquipments(
   const from = (filters.page - 1) * filters.pageSize;
   const to = from + filters.pageSize - 1;
   const search = filters.search?.trim();
+  const propertyScope = await getEquipmentPropertyIds(supabase);
 
   let query = supabase
     .from('equipos')
@@ -396,12 +407,16 @@ export async function listAdminEquipments(
         ubicacion,
         detalle_ubicacion,
         estatus,
-        config,
-        properties!inner(id)
+        config
       `,
       { count: 'exact' },
     )
     .order('codigo', { ascending: true });
+
+  query = query.in(
+    'id_property',
+    propertyScope.ids.length > 0 ? propertyScope.ids : [EMPTY_UUID],
+  );
 
   if (filters.status && filters.status !== 'TODOS') {
     query = query.eq('estatus', filters.status);
@@ -433,8 +448,7 @@ export async function listAdminEquipments(
   }
 
   if (filters.city) {
-    const allProps = await listAdminProperties(supabase);
-    const matchedPropIds = allProps
+    const matchedPropIds = propertyScope.properties
       .filter(p => p.city === filters.city)
       .map(p => p.id);
     query = query.in(
@@ -584,13 +598,12 @@ export async function listAdminEquipments(
   if (error) throw error;
 
   const rows = (data ?? []) as EquipmentQueryRow[];
-  const [propertiesById, equipmentTypes] = await Promise.all([
-    getPropertiesById(
-      supabase,
-      uniqueValues(rows.map(item => item.id_property)),
-    ),
+  const [equipmentTypes] = await Promise.all([
     listAdminEquipmentTypes(supabase),
   ]);
+  const propertiesById = new Map(
+    propertyScope.properties.map(property => [property.id, property]),
+  );
   const equipmentTypesById = new Map(
     equipmentTypes.map(item => [item.id, item]),
   );
@@ -627,6 +640,7 @@ export async function listAdminEquipmentsForQr(
   filters: Omit<AdminEquipmentFilters, 'page' | 'pageSize'>,
 ): Promise<AdminEquipmentQrRow[]> {
   const search = filters.search?.trim();
+  const propertyScope = await getEquipmentPropertyIds(supabase);
   const equipmentTypes = await listAdminEquipmentTypes(supabase);
   const equipmentTypesById = new Map(
     equipmentTypes.map(item => [item.id, item]),
@@ -637,6 +651,11 @@ export async function listAdminEquipmentsForQr(
     .order('codigo', {
       ascending: true,
     });
+
+  query = query.in(
+    'id_property',
+    propertyScope.ids.length > 0 ? propertyScope.ids : [EMPTY_UUID],
+  );
 
   if (filters.status && filters.status !== 'TODOS') {
     query = query.eq('estatus', filters.status);
@@ -668,8 +687,7 @@ export async function listAdminEquipmentsForQr(
   }
 
   if (filters.city) {
-    const allProps = await listAdminProperties(supabase);
-    const matchedPropIds = allProps
+    const matchedPropIds = propertyScope.properties
       .filter(p => p.city === filters.city)
       .map(p => p.id);
     query = query.in(
@@ -930,10 +948,11 @@ export async function listAdminEquipmentsForExport(
   filters: Omit<AdminEquipmentFilters, 'page' | 'pageSize'>,
 ): Promise<AdminEquipmentExportRow[]> {
   const search = filters.search?.trim();
-  const [equipmentTypes, properties] = await Promise.all([
+  const [equipmentTypes, propertyScope] = await Promise.all([
     listAdminEquipmentTypes(supabase),
-    listAdminProperties(supabase),
+    getEquipmentPropertyIds(supabase),
   ]);
+  const properties = propertyScope.properties;
   const equipmentTypesById = new Map(
     equipmentTypes.map(item => [item.id, item]),
   );
@@ -945,6 +964,11 @@ export async function listAdminEquipmentsForExport(
       'id, codigo, id_property, id_equipamento, ubicacion, detalle_ubicacion, estatus, config, equipment_detail',
     )
     .order('codigo', { ascending: true });
+
+  query = query.in(
+    'id_property',
+    propertyScope.ids.length > 0 ? propertyScope.ids : [EMPTY_UUID],
+  );
 
   if (filters.status && filters.status !== 'TODOS') {
     query = query.eq('estatus', filters.status);
@@ -976,7 +1000,7 @@ export async function listAdminEquipmentsForExport(
   }
 
   if (filters.city) {
-    const matchedPropIds = properties
+    const matchedPropIds = propertyScope.properties
       .filter(p => p.city === filters.city)
       .map(p => p.id);
     query = query.in(

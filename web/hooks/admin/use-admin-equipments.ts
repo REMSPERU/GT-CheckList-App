@@ -10,7 +10,7 @@ import {
   getEquipmentDetailFilterOptions,
   ADDITIONAL_DETAIL_FILTERS,
 } from '@/services/admin/equipments.service';
-import { listAdminProperties } from '@/services/admin/properties.service';
+import { listAdminEquipmentProperties } from '@/services/admin/properties.service';
 import type {
   AdminEquipmentRow,
   AdminEquipmentTypeRow,
@@ -249,7 +249,7 @@ export function useAdminEquipments() {
       try {
         const supabase = getSupabaseClient();
         const [props, types, systemsRes, brandsRes] = await Promise.all([
-          listAdminProperties(supabase),
+          listAdminEquipmentProperties(supabase),
           listAdminEquipmentTypes(supabase),
           supabase
             .from('sistemas')
