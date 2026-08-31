@@ -103,77 +103,72 @@ export async function listAlexpertoRequests(
     filters.pageSize,
     offset,
   ];
-  const client = await getAlexpertoPool().connect();
-  let result: { rows: RequestRow[] };
-  let summaryResult: { rows: SummaryRequestRow[] };
-  try {
-    await client.query('SET statement_timeout TO 30000');
-    result = await client.query<RequestRow>({
-      text: `WITH base AS (
-        SELECT r.id, r.code, r.created_at, r.start_time, r.property_id,
-          prop.name AS property_name, subesp.name AS specialty_name,
-          r.description, r.request_type, r.latest_request_status AS external_status
-        FROM sch_main.requests r
-        INNER JOIN sch_main.properties prop ON prop.id = r.property_id AND prop.deleted_at IS NULL
-        LEFT JOIN sch_main.sub_specialties subesp ON subesp.id = r.sub_speciality_id
-        WHERE r.property_id = ANY($1::text[]) AND r.deleted_at IS NULL
-          AND (cardinality($2::text[]) = 0 OR r.request_type = ANY($2::text[]))
-          AND (cardinality($3::text[]) = 0 OR ${SPECIALTY_CASE} = ANY($3::text[]))
-          AND (cardinality($4::text[]) = 0 OR r.latest_request_status = ANY($4::text[]))
-          AND ($5 = '' OR r.code ILIKE '%' || $5 || '%' OR prop.name ILIKE '%' || $5 || '%' OR coalesce(r.description, '') ILIKE '%' || $5 || '%')
-          AND (cardinality($6::text[]) = 0 OR prop.name = ANY($6::text[]))
-          AND ($7::date IS NULL OR r.start_time >= $7::date)
-          AND ($8::date IS NULL OR r.start_time < ($8::date + INTERVAL '1 day'))
-      ), paged AS (
-        SELECT *, count(*) OVER() AS total
-        FROM base
-        ORDER BY ${order}, id DESC
-        LIMIT $9 OFFSET $10
-      ), related_quotes AS (
-        SELECT q.id AS quote_id, q.generated_request_id AS request_id
-        FROM sch_main.quotes q
-        INNER JOIN paged p ON p.id = q.generated_request_id
-        WHERE q.generated_request_id IS NOT NULL
-        UNION
-        SELECT q.id AS quote_id, q.trigger_request_id AS request_id
-        FROM sch_main.quotes q
-        INNER JOIN paged p ON p.id = q.trigger_request_id
-        WHERE q.trigger_request_id IS NOT NULL
-      ), quote_counts AS (
-        SELECT request_id, count(*)::text AS quote_count
-        FROM related_quotes
-        GROUP BY request_id
-      ), all_attachments AS (
-        SELECT d.request_id, d.id AS document_id
-        FROM sch_main.request_documents d
-        INNER JOIN paged p ON p.id = d.request_id
-        WHERE d.deleted_at IS NULL
-        UNION ALL
-        SELECT rq.request_id, d.id AS document_id
-        FROM related_quotes rq
-        INNER JOIN sch_main.quote_documents d ON d.quote_id = rq.quote_id
-        WHERE d.deleted_at IS NULL
-        UNION ALL
-        SELECT rq.request_id, d.id AS document_id
-        FROM related_quotes rq
-        INNER JOIN sch_main.proposals p ON p.quote_id = rq.quote_id
-        INNER JOIN sch_main.proposal_documents d ON d.proposal_id = p.id
-        WHERE d.deleted_at IS NULL
-      ), attachment_counts AS (
-        SELECT request_id, count(*)::text AS attachment_count
-        FROM all_attachments
-        GROUP BY request_id
-      )
-      SELECT p.*, coalesce(qc.quote_count, '0') AS quote_count,
-        coalesce(ac.attachment_count, '0') AS attachment_count
-      FROM paged p
-      LEFT JOIN quote_counts qc ON qc.request_id = p.id
-      LEFT JOIN attachment_counts ac ON ac.request_id = p.id
-      ORDER BY ${order}, p.id DESC`,
-      values,
-    });
-    summaryResult = await client.query<SummaryRequestRow>({
-      text: `
+  const listQuery = {
+    text: `WITH base AS (
+         SELECT r.id, r.code, r.created_at, r.start_time, r.property_id,
+           prop.name AS property_name, subesp.name AS specialty_name,
+           r.description, r.request_type, r.latest_request_status AS external_status
+         FROM sch_main.requests r
+         INNER JOIN sch_main.properties prop ON prop.id = r.property_id AND prop.deleted_at IS NULL
+         LEFT JOIN sch_main.sub_specialties subesp ON subesp.id = r.sub_speciality_id
+         WHERE r.property_id = ANY($1::text[]) AND r.deleted_at IS NULL
+           AND (cardinality($2::text[]) = 0 OR r.request_type = ANY($2::text[]))
+           AND (cardinality($3::text[]) = 0 OR ${SPECIALTY_CASE} = ANY($3::text[]))
+           AND (cardinality($4::text[]) = 0 OR r.latest_request_status = ANY($4::text[]))
+           AND ($5 = '' OR r.code ILIKE '%' || $5 || '%' OR prop.name ILIKE '%' || $5 || '%' OR coalesce(r.description, '') ILIKE '%' || $5 || '%')
+           AND (cardinality($6::text[]) = 0 OR prop.name = ANY($6::text[]))
+           AND ($7::date IS NULL OR r.start_time >= $7::date)
+           AND ($8::date IS NULL OR r.start_time < ($8::date + INTERVAL '1 day'))
+       ), paged AS (
+         SELECT *, count(*) OVER() AS total
+         FROM base
+         ORDER BY ${order}, id DESC
+         LIMIT $9 OFFSET $10
+       ), related_quotes AS (
+         SELECT q.id AS quote_id, q.generated_request_id AS request_id
+         FROM sch_main.quotes q
+         INNER JOIN paged p ON p.id = q.generated_request_id
+         WHERE q.generated_request_id IS NOT NULL
+         UNION
+         SELECT q.id AS quote_id, q.trigger_request_id AS request_id
+         FROM sch_main.quotes q
+         INNER JOIN paged p ON p.id = q.trigger_request_id
+         WHERE q.trigger_request_id IS NOT NULL
+       ), quote_counts AS (
+         SELECT request_id, count(*)::text AS quote_count
+         FROM related_quotes
+         GROUP BY request_id
+       ), all_attachments AS (
+         SELECT d.request_id, d.id AS document_id
+         FROM sch_main.request_documents d
+         INNER JOIN paged p ON p.id = d.request_id
+         WHERE d.deleted_at IS NULL
+         UNION ALL
+         SELECT rq.request_id, d.id AS document_id
+         FROM related_quotes rq
+         INNER JOIN sch_main.quote_documents d ON d.quote_id = rq.quote_id
+         WHERE d.deleted_at IS NULL
+         UNION ALL
+         SELECT rq.request_id, d.id AS document_id
+         FROM related_quotes rq
+         INNER JOIN sch_main.proposals p ON p.quote_id = rq.quote_id
+         INNER JOIN sch_main.proposal_documents d ON d.proposal_id = p.id
+         WHERE d.deleted_at IS NULL
+       ), attachment_counts AS (
+         SELECT request_id, count(*)::text AS attachment_count
+         FROM all_attachments
+         GROUP BY request_id
+       )
+       SELECT p.*, coalesce(qc.quote_count, '0') AS quote_count,
+         coalesce(ac.attachment_count, '0') AS attachment_count
+       FROM paged p
+       LEFT JOIN quote_counts qc ON qc.request_id = p.id
+       LEFT JOIN attachment_counts ac ON ac.request_id = p.id
+       ORDER BY ${order}, p.id DESC`,
+    values,
+  };
+  const summaryQuery = {
+    text: `
         SELECT r.id, r.latest_request_status AS external_status
         FROM sch_main.requests r
         INNER JOIN sch_main.properties prop ON prop.id = r.property_id AND prop.deleted_at IS NULL
@@ -187,10 +182,26 @@ export async function listAlexpertoRequests(
           AND ($7::date IS NULL OR r.start_time >= $7::date)
           AND ($8::date IS NULL OR r.start_time < ($8::date + INTERVAL '1 day'))
       `,
-      values: values.slice(0, 8),
-    });
+    values: values.slice(0, 8),
+  };
+  const [listClient, summaryClient] = await Promise.all([
+    getAlexpertoPool().connect(),
+    getAlexpertoPool().connect(),
+  ]);
+  let result: { rows: RequestRow[] };
+  let summaryResult: { rows: SummaryRequestRow[] };
+  try {
+    await Promise.all([
+      listClient.query('SET statement_timeout TO 30000'),
+      summaryClient.query('SET statement_timeout TO 30000'),
+    ]);
+    [result, summaryResult] = await Promise.all([
+      listClient.query<RequestRow>(listQuery),
+      summaryClient.query<SummaryRequestRow>(summaryQuery),
+    ]);
   } finally {
-    client.release();
+    listClient.release();
+    summaryClient.release();
   }
   const ids = result.rows.map(row => row.id);
   const summaryRows = summaryResult.rows;
