@@ -73,59 +73,6 @@ const SORT_COLUMNS = {
 const ALEXPERTO_REPORT_START = '2026-01-01';
 const ALEXPERTO_REPORT_END = '2027-01-01';
 
-let cachedProviderColumn: string | null = null;
-let hasCheckedProviderColumn = false;
-
-interface InformationSchemaColumnRow {
-  column_name: string;
-}
-
-async function resolveProviderColumn(client: {
-  query: <T = unknown>(
-    queryConfig: { text: string } | string,
-  ) => Promise<{ rows: T[] }>;
-}): Promise<string | null> {
-  if (hasCheckedProviderColumn) return cachedProviderColumn;
-  try {
-    const res = await client.query<InformationSchemaColumnRow>(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_schema = 'sch_main' AND table_name = 'providers'
-    `);
-    const cols = res.rows.map(r => String(r.column_name).toLowerCase());
-    console.log('[Alexperto] Providers columns available:', cols);
-    const candidates = [
-      'business_name',
-      'trade_name',
-      'company_name',
-      'legal_name',
-      'name',
-      'commercial_name',
-      'razon_social',
-      'title',
-      'description',
-    ];
-    for (const c of candidates) {
-      if (cols.includes(c)) {
-        cachedProviderColumn = c;
-        hasCheckedProviderColumn = true;
-        return c;
-      }
-    }
-    const fallbackCol = cols.find(
-      c => !['id', 'created_at', 'updated_at', 'deleted_at'].includes(c),
-    );
-    cachedProviderColumn = fallbackCol || null;
-    hasCheckedProviderColumn = true;
-    return cachedProviderColumn;
-  } catch (err) {
-    console.error('[Alexperto] Error inspecting providers table:', err);
-    hasCheckedProviderColumn = true;
-    cachedProviderColumn = null;
-    return null;
-  }
-}
-
 export async function listAlexpertoQuotes(
   filters: AlexpertoQuoteFilters,
   properties: AuthorizedProperty[],
@@ -143,10 +90,14 @@ export async function listAlexpertoQuotes(
       specialties: [] as { value: string; label: string }[],
     };
   }
-  const statusActions = await getActionsForProperties(
-    supabase,
-    properties.map(property => property.id),
-  );
+  const needsStatusActions =
+    filters.estadoInterno.length > 0 || onlyDispatchedToAuditor;
+  const statusActions = needsStatusActions
+    ? await getActionsForProperties(
+        supabase,
+        properties.map(property => property.id),
+      )
+    : [];
   const selectedStatusActionIds = statusActions
     .filter(action => filters.estadoInterno.includes(action.current_status))
     .map(action => action.external_entity_id);
@@ -204,28 +155,21 @@ export async function listAlexpertoQuotes(
     : '';
   if (onlyDispatchedToAuditor) values.push(dispatchedQuoteIds);
 
+  // This list is independent of the paginated query; do not add its latency to
+  // the initial quote response.
+  const specialtiesPromise = listAlexpertoQuoteSpecialties(externalIds);
   const client = await getAlexpertoPool().connect();
   let result;
   try {
     await client.query('SET statement_timeout TO 30000');
-    const providerCol = await resolveProviderColumn(client);
-
-    const providerSelect = providerCol
-      ? `coalesce(prov.${providerCol}, prov_assigned.${providerCol}) AS provider_name`
-      : `NULL::text AS provider_name`;
-
-    const providerJoins = providerCol
-      ? `LEFT JOIN sch_main.providers prov ON prov.id = up.provider_id
-         LEFT JOIN sch_main.providers prov_assigned ON prov_assigned.id = q.assigned_provider_id`
-      : ``;
 
     const text = `WITH base AS (
        SELECT q.id, q.code, q.created_at, q.property_id, prop.name AS property_name,
           coalesce(subesp.name, 'Sin especialidad') AS specialty_name,
           coalesce(req.description, q.description) AS service,
-         req.code AS service_code, up.cost, coalesce(up.latest_proposal_status, q.latest_quote_status) AS external_status,
-         q.creation_user_type,
-         ${providerSelect},
+          req.code AS service_code, up.cost, coalesce(up.latest_proposal_status, q.latest_quote_status) AS external_status,
+          q.creation_user_type,
+          coalesce(prov.business_name, prov_assigned.business_name) AS provider_name,
          coalesce(req.code, q.description) AS requester_name,
          CASE WHEN lower(coalesce(q.latest_quote_status, '')) IN ('approved','completed','complete','closed','cancelled','canceled','resolved','rejected') THEN 0 ELSE greatest(0, current_date - q.created_at::date) END AS delay_days
        FROM sch_main.quotes q
@@ -239,7 +183,8 @@ export async function listAlexpertoQuotes(
          ORDER BY p.updated_at DESC NULLS LAST, p.created_at DESC NULLS LAST
          LIMIT 1
        ) up ON true
-       ${providerJoins}
+        LEFT JOIN sch_main.providers prov ON prov.id = up.provider_id
+        LEFT JOIN sch_main.providers prov_assigned ON prov_assigned.id = q.assigned_provider_id
         WHERE q.property_id = ANY($1::text[])
           AND q.created_at >= '${ALEXPERTO_REPORT_START}'::date
           AND q.created_at < '${ALEXPERTO_REPORT_END}'::date
@@ -315,7 +260,7 @@ export async function listAlexpertoQuotes(
             action?.auditor_dispatch_status ?? 'PENDIENTE_ENVIO',
         } satisfies AlexpertoQuoteListItem;
       }),
-    specialties: await listAlexpertoQuoteSpecialties(externalIds),
+    specialties: await specialtiesPromise,
   };
 }
 

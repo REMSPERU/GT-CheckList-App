@@ -23,8 +23,8 @@ const STATUS_OPTIONS = [
 ];
 
 function AdminEquipmentsContent() {
-  const equipments = useAdminEquipments();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const equipments = useAdminEquipments(isFilterOpen);
   const [isPropertyPickerOpen, setIsPropertyPickerOpen] = useState(false);
   const [propertySearch, setPropertySearch] = useState('');
   const propertyPickerRef = useRef<HTMLDivElement>(null);

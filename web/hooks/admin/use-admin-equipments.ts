@@ -21,7 +21,7 @@ import { useDebouncedValue } from './use-debounced-value';
 
 const PAGE_SIZE = 50;
 
-export function useAdminEquipments() {
+export function useAdminEquipments(loadTechnicalFilterOptions = false) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -86,6 +86,8 @@ export function useAdminEquipments() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search, 250);
+  const hasTechnicalFilterScope =
+    propertyIds.length > 0 || Boolean(systemId) || Boolean(equipmentTypeId);
 
   // Tracks the values last synced FROM the URL so we can detect real navigation changes
   // without including local state in the effect's dependency array (which caused a
@@ -282,6 +284,10 @@ export function useAdminEquipments() {
   useEffect(() => {
     let isMounted = true;
     async function loadDistinctTipos() {
+      if (!hasTechnicalFilterScope) {
+        if (isMounted) setDistinctTipos([]);
+        return;
+      }
       try {
         const supabase = getSupabaseClient();
         const types = await getDistinctEquipmentDetailTypes(supabase, {
@@ -300,7 +306,7 @@ export function useAdminEquipments() {
     return () => {
       isMounted = false;
     };
-  }, [propertyIds, systemId, equipmentTypeId]);
+  }, [propertyIds, systemId, equipmentTypeId, hasTechnicalFilterScope]);
 
   // Reset selected detail type if it is no longer available in the newly filtered set of distinct types
   useEffect(() => {
@@ -345,6 +351,10 @@ export function useAdminEquipments() {
   useEffect(() => {
     let isMounted = true;
     async function loadDetailFilterOptions() {
+      if (!loadTechnicalFilterOptions || !hasTechnicalFilterScope) {
+        if (isMounted) setDetailFilterOptions({});
+        return;
+      }
       try {
         const supabase = getSupabaseClient();
         const options = await getEquipmentDetailFilterOptions(supabase, {
@@ -361,7 +371,13 @@ export function useAdminEquipments() {
     return () => {
       isMounted = false;
     };
-  }, [propertyIds, systemId, equipmentTypeId]);
+  }, [
+    propertyIds,
+    systemId,
+    equipmentTypeId,
+    hasTechnicalFilterScope,
+    loadTechnicalFilterOptions,
+  ]);
 
   // Reset selected detail subtype if it is no longer available in distinctSubtipos
   useEffect(() => {

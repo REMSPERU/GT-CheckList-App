@@ -95,6 +95,7 @@ function CotizacionesContent() {
   // Load quotes with server-side pagination and sorting
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     async function loadQuotes() {
       setIsLoading(true);
       setLoadError(null);
@@ -130,6 +131,7 @@ function CotizacionesContent() {
       try {
         const response = await fetchWithAuth(
           `/api/alexperto/cotizaciones?${params}`,
+          { signal: controller.signal },
         );
         if (!response.ok) {
           throw new Error(
@@ -193,6 +195,9 @@ function CotizacionesContent() {
           })),
         );
       } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
         if (!cancelled)
           setLoadError(
             error instanceof Error ? error.message : 'Error al cargar datos.',
@@ -204,6 +209,7 @@ function CotizacionesContent() {
     void loadQuotes();
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [
     page,
