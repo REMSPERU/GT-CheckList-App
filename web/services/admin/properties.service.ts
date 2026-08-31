@@ -51,6 +51,18 @@ export async function listAdminProperties(
   return (data ?? []) as AdminPropertyRow[];
 }
 
+/** Active property scope used exclusively by the equipment inventory. */
+export async function listAdminEquipmentProperties(
+  supabase: SupabaseClient,
+): Promise<AdminPropertyRow[]> {
+  const { data, error } = await supabase.rpc(
+    'list_equipment_active_properties',
+  );
+
+  if (error) throw error;
+  return (data ?? []) as AdminPropertyRow[];
+}
+
 export async function getAdminProperty(
   supabase: SupabaseClient,
   propertyId: string,
