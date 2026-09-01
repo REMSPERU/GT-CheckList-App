@@ -17,6 +17,8 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Send,
+  Undo2,
 } from 'lucide-react';
 
 import { useAdminSession } from '@/hooks/auth/use-admin-session';
@@ -402,6 +404,30 @@ function CotizacionesContent() {
     }
   };
 
+  const getDispatchBadge = (
+    status: AlexpertoQuoteAuditItem['auditorDispatchStatus'],
+  ) => {
+    if (status === 'ENVIADO') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-800">
+          <Send size={11} className="text-sky-600" /> Enviado
+        </span>
+      );
+    }
+    if (status === 'RETIRADO') {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-800">
+          <Undo2 size={11} className="text-rose-600" /> Retirado
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+        <Clock size={11} className="text-slate-500" /> Sin enviar
+      </span>
+    );
+  };
+
   return (
     <main className="flex h-[calc(100vh-52px)] min-h-0 flex-col gap-2.5 overflow-hidden px-4 py-2.5 lg:px-6">
       {/* COMPACT & BALANCED HEADER & FILTERS BAR */}
@@ -598,6 +624,11 @@ function CotizacionesContent() {
                   Gestión GEMA
                 </th>
                 {user?.role === 'SUPERADMIN' && (
+                  <th className={`${TH_CLASS} py-2.5 text-center`}>
+                    Enviado al auditor
+                  </th>
+                )}
+                {user?.role === 'SUPERADMIN' && (
                   <th
                     className={`${TH_CLASS} min-w-[180px] py-2.5 text-center`}>
                     Auditores responsables
@@ -614,7 +645,7 @@ function CotizacionesContent() {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={user?.role === 'SUPERADMIN' ? 12 : 10}
                     className="px-4 py-8 text-center text-slate-500">
                     Consultando Alexperto...
                   </td>
@@ -622,7 +653,7 @@ function CotizacionesContent() {
               ) : loadError ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={user?.role === 'SUPERADMIN' ? 12 : 10}
                     className="px-4 py-8 text-center text-red-700">
                     {loadError}
                   </td>
@@ -630,7 +661,7 @@ function CotizacionesContent() {
               ) : filteredQuotes.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={user?.role === 'SUPERADMIN' ? 12 : 10}
                     className="px-4 py-8 text-center text-slate-500">
                     No hay cotizaciones para los filtros seleccionados.
                   </td>
@@ -746,6 +777,11 @@ function CotizacionesContent() {
                       <td className="whitespace-nowrap px-4 py-2.5 text-center">
                         {getGemaBadge(item.gemaStatus)}
                       </td>
+                      {user?.role === 'SUPERADMIN' && (
+                        <td className="whitespace-nowrap px-4 py-2.5 text-center">
+                          {getDispatchBadge(item.auditorDispatchStatus)}
+                        </td>
+                      )}
                       {user?.role === 'SUPERADMIN' && (
                         <td className="max-w-[260px] px-4 py-2.5 text-center">
                           {item.responsibleAuditors.length > 0 ? (
