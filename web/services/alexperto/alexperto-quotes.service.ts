@@ -78,6 +78,7 @@ export async function listAlexpertoQuotes(
   properties: AuthorizedProperty[],
   supabase: SupabaseClient,
   onlyDispatchedToAuditor = false,
+  includeAuditorNames = false,
 ) {
   const propertyByExternalId = new Map(
     properties.map(property => [property.alexpertoPropertyId, property]),
@@ -202,6 +203,14 @@ export async function listAlexpertoQuotes(
   }
   const ids = result.rows.map(row => String(row.id));
   const actions = await getActions(supabase, ids);
+  const auditorNamesByProperty = includeAuditorNames
+    ? await listAuditorsByProperties(
+        supabase,
+        result.rows
+          .map(row => propertyByExternalId.get(String(row.property_id))?.id)
+          .filter((id): id is string => Boolean(id)),
+      )
+    : new Map<string, { id: string; name: string }[]>();
   const actionById = new Map(
     actions.map(action => [action.external_entity_id, action]),
   );
@@ -256,12 +265,81 @@ export async function listAlexpertoQuotes(
           history: action ? (historyByActionId.get(action.id) ?? []) : [],
           notes: [],
           responsible: null,
+          responsibleAuditors: auditorNamesByProperty.get(property!.id) ?? [],
           auditorDispatchStatus:
             action?.auditor_dispatch_status ?? 'PENDIENTE_ENVIO',
         } satisfies AlexpertoQuoteListItem;
       }),
     specialties: await specialtiesPromise,
   };
+}
+
+export async function listAuditorsByProperties(
+  supabase: SupabaseClient,
+  propertyIds: string[],
+) {
+  const uniquePropertyIds = Array.from(new Set(propertyIds));
+  if (!uniquePropertyIds.length)
+    return new Map<string, { id: string; name: string }[]>();
+
+  const { data: assignments, error: assignmentsError } = await supabase
+    .from('user_properties')
+    .select('property_id, user_id')
+    .in('property_id', uniquePropertyIds)
+    .or('expires_at.is.null,expires_at.gt.now()');
+  if (assignmentsError) throw assignmentsError;
+
+  const typedAssignments = (assignments ?? []) as {
+    property_id: string;
+    user_id: string;
+  }[];
+  const userIds = Array.from(new Set(typedAssignments.map(row => row.user_id)));
+  if (!userIds.length) return new Map<string, { id: string; name: string }[]>();
+
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .select('id, email, username, first_name, last_name, role')
+    .in('id', userIds)
+    .in('role', ['AUDITOR', 'TECNICO_REMS'])
+    .eq('is_active', true);
+  if (usersError) throw usersError;
+
+  const usersById = new Map(
+    (users ?? []).map(user => {
+      const row = user as {
+        id: string;
+        email: string | null;
+        username: string | null;
+        first_name: string | null;
+        last_name: string | null;
+      };
+      return [
+        row.id,
+        {
+          id: row.id,
+          name:
+            [row.first_name, row.last_name].filter(Boolean).join(' ').trim() ||
+            row.username ||
+            row.email ||
+            'Auditor',
+        },
+      ] as const;
+    }),
+  );
+  const result = new Map<string, { id: string; name: string }[]>();
+  for (const assignment of typedAssignments) {
+    const user = usersById.get(assignment.user_id);
+    if (!user) continue;
+    const current = result.get(assignment.property_id) ?? [];
+    if (!current.some(item => item.id === user.id)) current.push(user);
+    result.set(assignment.property_id, current);
+  }
+  for (const auditors of result.values()) {
+    auditors.sort((a, b) =>
+      a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }),
+    );
+  }
+  return result;
 }
 
 export async function findAuthorizedQuoteProperty(
@@ -471,4 +549,3 @@ export async function listActiveAuditorOptions(
       a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }),
     );
 }
-

@@ -74,6 +74,7 @@ export interface AlexpertoQuoteListItem {
   history: AlexpertoQuoteHistoryItem[];
   notes: AlexpertoQuoteNote[];
   responsible: { id: string; name: string | null } | null;
+  responsibleAuditors: { id: string; name: string }[];
   creationUserType: string | null;
   providerName: string | null;
   requesterName: string | null;
@@ -196,6 +197,7 @@ export interface AlexpertoQuoteAuditItem {
   gemaStatus: AlexpertoInternalStatus;
   amount: string | null;
   createdAt: string;
+  delayDays: number;
   provider: string | null;
   creationUserType: string | null;
   requester: string | null;
@@ -205,6 +207,7 @@ export interface AlexpertoQuoteAuditItem {
   paulComment: string | null;
   history: AlexpertoQuoteHistoryItem[];
   notes: AlexpertoQuoteNote[];
+  responsibleAuditors: { id: string; name: string }[];
   auditorDispatchStatus: AlexpertoAuditorDispatchStatus;
 }
 

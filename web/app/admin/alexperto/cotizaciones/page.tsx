@@ -17,8 +17,6 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
-  Send,
-  Undo2,
 } from 'lucide-react';
 
 import { useAdminSession } from '@/hooks/auth/use-admin-session';
@@ -61,7 +59,9 @@ function CotizacionesContent() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(30);
-  const [sortBy, setSortBy] = useState<'createdAt' | 'amount'>('createdAt');
+  const [sortBy, setSortBy] = useState<'createdAt' | 'amount' | 'delayDays'>(
+    'createdAt',
+  );
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -90,6 +90,7 @@ function CotizacionesContent() {
 
   const [selectedQuote, setSelectedQuote] =
     useState<AlexpertoQuoteAuditItem | null>(null);
+  const [dateDisplay, setDateDisplay] = useState<'date' | 'delay'>('date');
   const deferredSearch = useDeferredValue(search);
 
   // Load quotes with server-side pagination and sorting
@@ -182,6 +183,7 @@ function CotizacionesContent() {
             gemaStatus: item.internalStatus,
             amount: item.amount,
             createdAt: item.createdAt,
+            delayDays: item.delayDays,
             provider: item.providerName,
             creationUserType: item.creationUserType,
             requester: item.serviceCode ? `Sol. ${item.serviceCode}` : null,
@@ -191,6 +193,7 @@ function CotizacionesContent() {
             paulComment: item.paulComment,
             history: item.history,
             notes: item.notes ?? [],
+            responsibleAuditors: item.responsibleAuditors,
             auditorDispatchStatus: item.auditorDispatchStatus,
           })),
         );
@@ -258,7 +261,7 @@ function CotizacionesContent() {
     setSelectedQuote(current => (current ? updateQuote(current) : current));
   };
 
-  const handleSort = (column: 'createdAt' | 'amount') => {
+  const handleSort = (column: 'createdAt' | 'amount' | 'delayDays') => {
     if (sortBy === column) {
       setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'));
     } else {
@@ -379,30 +382,6 @@ function CotizacionesContent() {
     }
   };
 
-  const getDispatchBadge = (
-    status: AlexpertoQuoteAuditItem['auditorDispatchStatus'],
-  ) => {
-    if (status === 'ENVIADO') {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-800">
-          <Send size={11} className="text-sky-600" /> Enviado
-        </span>
-      );
-    }
-    if (status === 'RETIRADO') {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-800">
-          <Undo2 size={11} className="text-rose-600" /> Retirado
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-        <Clock size={11} className="text-slate-500" /> Sin enviar
-      </span>
-    );
-  };
-
   return (
     <main className="flex h-[calc(100vh-52px)] min-h-0 flex-col gap-2.5 overflow-hidden px-4 py-2.5 lg:px-6">
       {/* COMPACT & BALANCED HEADER & FILTERS BAR */}
@@ -508,27 +487,56 @@ function CotizacionesContent() {
               <tr>
                 <th className={`${TH_CLASS} py-2.5`}>Código</th>
                 <th className={`${TH_CLASS} py-2.5`}>
-                  <button
-                    type="button"
-                    onClick={() => handleSort('createdAt')}
-                    className="group inline-flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600 transition hover:text-emerald-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                    title={`Ordenar por fecha (${sortBy === 'createdAt' && sortDirection === 'desc' ? 'Más recientes primero' : 'Más antiguas primero'})`}>
-                    <span>Fecha</span>
-                    <span className="flex items-center text-slate-400 transition group-hover:text-emerald-700">
-                      {sortBy === 'createdAt' ? (
-                        sortDirection === 'desc' ? (
-                          <ArrowDown size={13} className="text-emerald-700" />
-                        ) : (
-                          <ArrowUp size={13} className="text-emerald-700" />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleSort(
+                          dateDisplay === 'date' ? 'createdAt' : 'delayDays',
                         )
-                      ) : (
-                        <ArrowUpDown
-                          size={12}
-                          className="opacity-40 group-hover:opacity-100"
-                        />
-                      )}
+                      }
+                      className="group inline-flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600 transition hover:text-emerald-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                      title={`Ordenar por ${dateDisplay === 'date' ? 'fecha' : 'días de retraso'}`}>
+                      <span>
+                        {dateDisplay === 'date' ? 'Fecha' : 'Retraso'}
+                      </span>
+                      <span className="flex items-center text-slate-400 transition group-hover:text-emerald-700">
+                        {(dateDisplay === 'date' && sortBy === 'createdAt') ||
+                        (dateDisplay === 'delay' && sortBy === 'delayDays') ? (
+                          sortDirection === 'desc' ? (
+                            <ArrowDown size={13} className="text-emerald-700" />
+                          ) : (
+                            <ArrowUp size={13} className="text-emerald-700" />
+                          )
+                        ) : (
+                          <ArrowUpDown
+                            size={12}
+                            className="opacity-40 group-hover:opacity-100"
+                          />
+                        )}
+                      </span>
+                    </button>
+                    <span className="inline-flex rounded-md border border-slate-200 bg-white p-0.5 text-[10px] normal-case tracking-normal shadow-xs">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDateDisplay('date');
+                          handleSort('createdAt');
+                        }}
+                        className={`rounded px-1.5 py-0.5 font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${dateDisplay === 'date' ? 'bg-emerald-900 text-white' : 'text-slate-500 hover:text-emerald-900'}`}>
+                        Fecha
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDateDisplay('delay');
+                          handleSort('delayDays');
+                        }}
+                        className={`rounded px-1.5 py-0.5 font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${dateDisplay === 'delay' ? 'bg-emerald-900 text-white' : 'text-slate-500 hover:text-emerald-900'}`}>
+                        Días
+                      </button>
                     </span>
-                  </button>
+                  </div>
                 </th>
 
                 <th className={`${TH_CLASS} py-2.5 text-center`}>Creado por</th>
@@ -570,18 +578,23 @@ function CotizacionesContent() {
                   Gestión GEMA
                 </th>
                 {user?.role === 'SUPERADMIN' && (
-                  <th className={`${TH_CLASS} py-2.5 text-center`}>Auditor</th>
+                  <th
+                    className={`${TH_CLASS} min-w-[180px] py-2.5 text-center`}>
+                    Auditores responsables
+                  </th>
                 )}
-                <th className={`${TH_CLASS} py-2.5 text-right`} scope="col">
-                  Acciones
-                </th>
+                {user?.role !== 'SUPERADMIN' && (
+                  <th className={`${TH_CLASS} py-2.5 text-right`} scope="col">
+                    Acciones
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700 text-xs">
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={user?.role === 'SUPERADMIN' ? 11 : 10}
+                    colSpan={10}
                     className="px-4 py-8 text-center text-slate-500">
                     Consultando Alexperto...
                   </td>
@@ -589,7 +602,7 @@ function CotizacionesContent() {
               ) : loadError ? (
                 <tr>
                   <td
-                    colSpan={user?.role === 'SUPERADMIN' ? 11 : 10}
+                    colSpan={10}
                     className="px-4 py-8 text-center text-red-700">
                     {loadError}
                   </td>
@@ -597,7 +610,7 @@ function CotizacionesContent() {
               ) : filteredQuotes.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={user?.role === 'SUPERADMIN' ? 11 : 10}
+                    colSpan={10}
                     className="px-4 py-8 text-center text-slate-500">
                     No hay cotizaciones para los filtros seleccionados.
                   </td>
@@ -627,13 +640,25 @@ function CotizacionesContent() {
                         </span>
                       </td>
 
-                      {/* FECHA */}
+                      {/* FECHA / RETRASO */}
                       <td className="whitespace-nowrap px-4 py-2.5 text-slate-700">
-                        {new Date(item.createdAt).toLocaleDateString('es-PE', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                        })}
+                        {dateDisplay === 'date' ? (
+                          new Date(item.createdAt).toLocaleDateString('es-PE', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })
+                        ) : (
+                          <span
+                            className={
+                              item.delayDays > 0
+                                ? 'font-bold text-amber-700'
+                                : 'text-slate-500'
+                            }>
+                            {item.delayDays}{' '}
+                            {item.delayDays === 1 ? 'día' : 'días'}
+                          </span>
+                        )}
                       </td>
 
                       {/* CREADO POR / ORIGEN */}
@@ -702,26 +727,40 @@ function CotizacionesContent() {
                         {getGemaBadge(item.gemaStatus)}
                       </td>
                       {user?.role === 'SUPERADMIN' && (
-                        <td className="whitespace-nowrap px-4 py-2.5 text-center">
-                          {getDispatchBadge(item.auditorDispatchStatus)}
+                        <td className="max-w-[260px] px-4 py-2.5 text-center">
+                          {item.responsibleAuditors.length > 0 ? (
+                            <div className="flex flex-wrap justify-center gap-1">
+                              {item.responsibleAuditors.map(auditor => (
+                                <span
+                                  key={auditor.id}
+                                  className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                                  {auditor.name}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">Sin asignar</span>
+                          )}
                         </td>
                       )}
 
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right">
-                        <button
-                          type="button"
-                          onClick={e => {
-                            e.stopPropagation();
-                            setSelectedQuote(item);
-                          }}
-                          className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
-                          <span>Abrir</span>
-                          <ChevronRight
-                            size={14}
-                            className="text-emerald-700"
-                          />
-                        </button>
-                      </td>
+                      {user?.role !== 'SUPERADMIN' && (
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right">
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.stopPropagation();
+                              setSelectedQuote(item);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+                            <span>Abrir</span>
+                            <ChevronRight
+                              size={14}
+                              className="text-emerald-700"
+                            />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
