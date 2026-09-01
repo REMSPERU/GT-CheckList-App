@@ -19,6 +19,7 @@ import {
   Menu,
   Receipt,
   ClipboardList,
+  TrendingUp,
 } from 'lucide-react';
 
 import { useAdminSession } from '@/hooks/auth/use-admin-session';
@@ -85,6 +86,12 @@ const NAV_GROUPS: NavGroup[] = [
         href: '/admin/auditorias',
         label: 'Auditorías',
         icon: FileSearch,
+      },
+      {
+        href: '/admin/avance-proyectos',
+        label: 'Avance de proyectos',
+        icon: TrendingUp,
+        superadminOnly: true,
       },
     ],
   },
@@ -164,6 +171,10 @@ export function AdminShell({ children }: AdminShellProps) {
       return user.role !== 'SUPERADMIN';
     }
 
+    if (pathname.startsWith('/admin/avance-proyectos')) {
+      return user.role !== 'SUPERADMIN';
+    }
+
     return false;
   })();
 
@@ -218,6 +229,8 @@ export function AdminShell({ children }: AdminShellProps) {
       return 'Monitoreo · Checklists';
     if (pathname.startsWith('/admin/auditorias'))
       return 'Monitoreo · Auditorías';
+    if (pathname.startsWith('/admin/avance-proyectos'))
+      return 'Monitoreo · Avance de proyectos';
     if (pathname.startsWith('/admin/alexperto/cotizaciones'))
       return 'Alexperto · Cotizaciones';
     if (pathname.startsWith('/admin/alexperto/solicitudes'))
