@@ -93,6 +93,26 @@ function CotizacionesContent() {
   const [dateDisplay, setDateDisplay] = useState<'date' | 'delay'>('date');
   const deferredSearch = useDeferredValue(search);
 
+  useEffect(() => {
+    const handlePopState = () => setSelectedQuote(null);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  function openQuote(quote: AlexpertoQuoteAuditItem) {
+    setSelectedQuote(quote);
+    window.history.pushState(
+      null,
+      '',
+      `/admin/alexperto/cotizaciones/${encodeURIComponent(quote.code)}`,
+    );
+  }
+
+  function closeQuote() {
+    setSelectedQuote(null);
+    window.history.back();
+  }
+
   // Load quotes with server-side pagination and sorting
   useEffect(() => {
     let cancelled = false;
@@ -624,12 +644,12 @@ function CotizacionesContent() {
                   return (
                     <tr
                       key={item.id}
-                      onClick={() => setSelectedQuote(item)}
+                      onClick={() => openQuote(item)}
                       tabIndex={0}
                       onKeyDown={event => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault();
-                          setSelectedQuote(item);
+                          openQuote(item);
                         }
                       }}
                       aria-label={`Ver detalle de cotización ${item.code}`}
@@ -750,7 +770,7 @@ function CotizacionesContent() {
                             type="button"
                             onClick={e => {
                               e.stopPropagation();
-                              setSelectedQuote(item);
+                              openQuote(item);
                             }}
                             className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
                             <span>Abrir</span>
@@ -829,7 +849,7 @@ function CotizacionesContent() {
 
       <QuoteWorkspaceDialog
         quote={selectedQuote}
-        onClose={() => setSelectedQuote(null)}
+        onClose={closeQuote}
         isSuperadmin={user?.role === 'SUPERADMIN'}
         onStatusUpdate={handleStatusUpdate}
         onDispatchUpdate={handleDispatchUpdate}

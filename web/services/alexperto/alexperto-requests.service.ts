@@ -37,6 +37,7 @@ interface AuditActionRow {
   id: string;
   external_entity_id: string;
   current_status: AlexpertoRequestListItem['internalStatus'];
+  gema_property_id: string;
 }
 
 interface AuditHistoryRow {
@@ -205,29 +206,22 @@ export async function listAlexpertoRequests(
   }
   const ids = result.rows.map(row => row.id);
   const summaryRows = summaryResult.rows;
-  const summaryIds = summaryRows.map(row => row.id);
-  const actionChunks = Array.from(
-    { length: Math.ceil(summaryIds.length / 100) },
-    (_, index) => summaryIds.slice(index * 100, index * 100 + 100),
-  );
-  const actionResults = await Promise.all(
-    actionChunks.map(chunk =>
-      supabase
-        .from('alexperto_audit_actions')
-        .select('id, external_entity_id, current_status')
-        .eq('external_entity_type', 'REQUEST')
-        .in('external_entity_id', chunk),
-    ),
-  );
-  const actionError = actionResults.find(result => result.error)?.error;
+  const { data: actionData, error: actionError } = await supabase
+    .from('alexperto_audit_actions')
+    .select('id, external_entity_id, current_status, gema_property_id')
+    .eq('external_entity_type', 'REQUEST')
+    .in(
+      'gema_property_id',
+      properties.map(property => property.id),
+    );
   if (actionError) throw actionError;
-  const actions = actionResults.flatMap(result =>
-    (result.data ?? []) as AuditActionRow[],
-  );
+  const actions = (actionData ?? []) as AuditActionRow[];
   const actionsByExternalId = new Map(
     actions.map(action => [action.external_entity_id, action]),
   );
-  const pageActions = actions.filter(action => ids.includes(action.external_entity_id));
+  const pageActions = actions.filter(action =>
+    ids.includes(action.external_entity_id),
+  );
   const historyByActionId = await getActionHistory(
     supabase,
     pageActions.map(action => action.id),
@@ -246,7 +240,8 @@ export async function listAlexpertoRequests(
     const externalStatus = row.external_status ?? 'SIN_ESTADO';
     externalStatusCounts[externalStatus] =
       (externalStatusCounts[externalStatus] ?? 0) + 1;
-    gemaStatusCounts[internalStatus] = (gemaStatusCounts[internalStatus] ?? 0) + 1;
+    gemaStatusCounts[internalStatus] =
+      (gemaStatusCounts[internalStatus] ?? 0) + 1;
   }
   return {
     total: Number(result.rows[0]?.total ?? 0),
@@ -294,6 +289,98 @@ export async function listAlexpertoRequests(
           filters.estadoInterno.includes(item.internalStatus),
       ),
   };
+}
+
+export async function getAlexpertoRequestByCode(
+  code: string,
+  properties: AuthorizedProperty[],
+  supabase: SupabaseClient,
+) {
+  const normalizedCode = code.trim();
+  const { rows } = await getAlexpertoPool().query<RequestRow>({
+    text: `SELECT r.id, r.code, r.created_at, r.start_time, r.property_id,
+      prop.name AS property_name, subesp.name AS specialty_name, r.description,
+      r.request_type, r.latest_request_status AS external_status,
+      (SELECT count(*)::text FROM sch_main.quotes q
+       WHERE q.generated_request_id = r.id OR q.trigger_request_id = r.id) AS quote_count,
+      ((SELECT count(*) FROM sch_main.request_documents d
+       WHERE d.request_id = r.id AND d.deleted_at IS NULL) +
+      (SELECT count(*) FROM sch_main.quote_documents qd
+       INNER JOIN sch_main.quotes q ON q.id = qd.quote_id
+       WHERE (q.generated_request_id = r.id OR q.trigger_request_id = r.id)
+         AND qd.deleted_at IS NULL) +
+      (SELECT count(*) FROM sch_main.proposal_documents pd
+       INNER JOIN sch_main.proposals p ON p.id = pd.proposal_id
+       INNER JOIN sch_main.quotes q ON q.id = p.quote_id
+       WHERE (q.generated_request_id = r.id OR q.trigger_request_id = r.id)
+         AND pd.deleted_at IS NULL))::text AS attachment_count,
+      '1' AS total
+      FROM sch_main.requests r
+      INNER JOIN sch_main.properties prop ON prop.id = r.property_id AND prop.deleted_at IS NULL
+      LEFT JOIN sch_main.sub_specialties subesp ON subesp.id = r.sub_speciality_id
+      WHERE lower(btrim(r.code)) = lower($1) AND r.deleted_at IS NULL`,
+    values: [normalizedCode],
+  });
+  if (rows.length > 1) throw new Error('ALEXPERTO_CODE_CONFLICT');
+  const row = rows[0];
+  if (!row) return null;
+  const property = properties.find(
+    item => item.alexpertoPropertyId === row.property_id,
+  );
+  if (!property) throw new Error('FORBIDDEN');
+  const { data: action, error } = await supabase
+    .from('alexperto_audit_actions')
+    .select('id, external_entity_id, current_status')
+    .eq('external_entity_type', 'REQUEST')
+    .eq('external_entity_id', row.id)
+    .maybeSingle();
+  if (error) throw error;
+  const history = action
+    ? ((await getActionHistory(supabase, [action.id])).get(action.id) ?? [])
+    : [];
+  return {
+    externalRequestId: row.id,
+    code: row.code,
+    createdAt: new Date(row.created_at).toISOString(),
+    startTime: row.start_time ? new Date(row.start_time).toISOString() : null,
+    property: {
+      id: row.property_id,
+      name: row.property_name,
+      gemaPropertyId: property.id,
+    },
+    specialty: row.specialty_name
+      ? {
+          name: row.specialty_name,
+          code: specialtyCode(row.specialty_name) ?? 'OTHER',
+        }
+      : null,
+    description: row.description,
+    requestType: row.request_type,
+    externalStatus: row.external_status,
+    quoteCount: Number(row.quote_count),
+    attachmentCount: Number(row.attachment_count),
+    internalStatus: action?.current_status ?? 'PENDIENTE_REVISION',
+    history,
+  } satisfies AlexpertoRequestListItem;
+}
+
+export async function findRequestPropertyByCode(
+  code: string,
+  properties: AuthorizedProperty[],
+) {
+  const { rows } = await getAlexpertoPool().query<{ property_id: string }>({
+    text: 'SELECT property_id FROM sch_main.requests WHERE lower(btrim(code)) = lower($1) AND deleted_at IS NULL',
+    values: [code.trim()],
+  });
+  if (rows.length > 1) throw new Error('ALEXPERTO_CODE_CONFLICT');
+  return rows[0]
+    ? {
+        property:
+          properties.find(
+            item => item.alexpertoPropertyId === rows[0].property_id,
+          ) ?? null,
+      }
+    : null;
 }
 
 async function getActionHistory(supabase: SupabaseClient, actionIds: string[]) {

@@ -79,6 +79,7 @@ export async function listAlexpertoQuotes(
   supabase: SupabaseClient,
   onlyDispatchedToAuditor = false,
   includeAuditorNames = false,
+  exactCode?: string,
 ) {
   const propertyByExternalId = new Map(
     properties.map(property => [property.alexpertoPropertyId, property]),
@@ -147,6 +148,10 @@ export async function listAlexpertoQuotes(
     filters.inmuebles,
     filters.creadoPor,
   ];
+  const exactCodeFilter = exactCode
+    ? `AND lower(btrim(q.code)) = lower($${values.length + 1})`
+    : '';
+  if (exactCode) values.push(exactCode);
   if (filters.estadoInterno.length > 0) {
     values.push(selectedStatusActionIds);
     if (includesPending) values.push(allStatusActionIds);
@@ -192,7 +197,7 @@ export async function listAlexpertoQuotes(
           AND coalesce(up.cost, 0) >= $2
           AND ($7 = '' OR q.code ILIKE '%' || $7 || '%' OR prop.name ILIKE '%' || $7 || '%' OR coalesce(q.description, '') ILIKE '%' || $7 || '%')
           AND (cardinality($8::text[]) = 0 OR prop.name = ANY($8::text[]))
-           ${specialtyFilter} ${externalStatusFilter} ${creationUserTypeFilter} ${internalStatusFilter} ${auditorDispatchFilter}
+            ${specialtyFilter} ${externalStatusFilter} ${creationUserTypeFilter} ${internalStatusFilter} ${exactCodeFilter} ${auditorDispatchFilter}
     )
     SELECT *, count(*) OVER() AS total FROM base
     ORDER BY ${order} LIMIT $5 OFFSET $6`;
@@ -366,6 +371,61 @@ export async function findAuthorizedQuoteProperty(
       property => property.alexpertoPropertyId === externalPropertyId,
     ) ?? null
   );
+}
+
+export async function getAlexpertoQuoteByCode(
+  code: string,
+  properties: AuthorizedProperty[],
+  supabase: SupabaseClient,
+  onlyDispatchedToAuditor = false,
+  includeAuditorNames = false,
+) {
+  const normalizedCode = code.trim();
+  const result = await listAlexpertoQuotes(
+    {
+      page: 1,
+      pageSize: 100,
+      montoMinimo: 0,
+      especialidades: [],
+      estadoExterno: [],
+      estadoInterno: [],
+      creadoPor: [],
+      inmuebles: [],
+      auditores: [],
+      search: normalizedCode,
+      propertyId: undefined,
+      sort: 'createdAt',
+      direction: 'desc',
+    },
+    properties,
+    supabase,
+    onlyDispatchedToAuditor,
+    includeAuditorNames,
+    normalizedCode,
+  );
+  const item = result.items[0];
+  if (result.total > 1) throw new Error('ALEXPERTO_CODE_CONFLICT');
+  if (!item) return null;
+  return { ...item, notes: await getAlexpertoQuoteNotes(item.externalQuoteId) };
+}
+
+export async function findQuotePropertyByCode(
+  code: string,
+  properties: AuthorizedProperty[],
+) {
+  const { rows } = await getAlexpertoPool().query<{ property_id: string }>({
+    text: 'SELECT property_id FROM sch_main.quotes WHERE lower(btrim(code)) = lower($1)',
+    values: [code.trim()],
+  });
+  if (rows.length > 1) throw new Error('ALEXPERTO_CODE_CONFLICT');
+  return rows[0]
+    ? {
+        property:
+          properties.find(
+            item => item.alexpertoPropertyId === rows[0].property_id,
+          ) ?? null,
+      }
+    : null;
 }
 
 async function getActions(supabase: SupabaseClient, ids: string[]) {
