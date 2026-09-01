@@ -188,7 +188,28 @@ function SolicitudesContent() {
   const dateRange = resolveDateRange(datePreset, customDateRange);
 
   useEffect(() => {
+    const handlePopState = () => setSelectedRequest(null);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  function openRequest(request: AlexpertoRequestListItem) {
+    setSelectedRequest(request);
+    window.history.pushState(
+      null,
+      '',
+      `/admin/alexperto/solicitudes/${encodeURIComponent(request.code)}`,
+    );
+  }
+
+  function closeRequest() {
+    setSelectedRequest(null);
+    window.history.back();
+  }
+
+  useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     async function loadRequests() {
       if (
         datePreset === 'CUSTOM' &&
@@ -221,6 +242,7 @@ function SolicitudesContent() {
       try {
         const response = await fetchWithAuth(
           `/api/alexperto/solicitudes?${params}`,
+          { signal: controller.signal },
         );
         if (!response.ok) {
           throw new Error(
@@ -249,6 +271,12 @@ function SolicitudesContent() {
           );
         });
       } catch (loadError) {
+        if (
+          loadError instanceof DOMException &&
+          loadError.name === 'AbortError'
+        ) {
+          return;
+        }
         if (!cancelled)
           setError(
             loadError instanceof Error
@@ -262,6 +290,7 @@ function SolicitudesContent() {
     void loadRequests();
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [
     page,
@@ -517,11 +546,11 @@ function SolicitudesContent() {
                   <tr
                     key={item.externalRequestId}
                     tabIndex={0}
-                    onClick={() => setSelectedRequest(item)}
+                    onClick={() => openRequest(item)}
                     onKeyDown={event => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        setSelectedRequest(item);
+                        openRequest(item);
                       }
                     }}
                     aria-label={`Ver detalle de solicitud ${item.code}`}
@@ -622,7 +651,7 @@ function SolicitudesContent() {
       <RequestDetailDialog
         request={selectedRequest}
         isSuperadmin={user?.role === 'SUPERADMIN'}
-        onClose={() => setSelectedRequest(null)}
+        onClose={closeRequest}
         onStatusUpdate={handleStatusUpdate}
       />
     </main>

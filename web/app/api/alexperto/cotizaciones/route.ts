@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
         scopedProperties,
         session.supabase,
         session.user.role === 'AUDITOR',
+        session.user.role === 'SUPERADMIN',
       ),
       listActiveAuditorOptions(session.supabase),
     ]);
