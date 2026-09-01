@@ -71,6 +71,10 @@ export function useAdminProgress() {
     );
     return result.project;
   };
+  const deleteProject = async (id: string) => {
+    await request(`/api/admin/progress/projects/${id}`, { method: 'DELETE' });
+    setProjects(items => items.filter(item => item.id !== id));
+  };
   const updateStages = async (
     project: ProgressProject,
     stages: ProgressProject['stages'],
@@ -115,6 +119,17 @@ export function useAdminProgress() {
       items.map(item => (item.id === id ? result.viewer : item)),
     );
   };
+  const deleteViewer = async (id: string) => {
+    await request(`/api/admin/progress/viewers/${id}`, { method: 'DELETE' });
+    setViewers(items => items.filter(item => item.id !== id));
+    setProjects(items =>
+      items.map(item =>
+        item.assigned_viewer_id === id
+          ? { ...item, assigned_viewer_id: null, assigned_viewer: null }
+          : item,
+      ),
+    );
+  };
   return {
     projects,
     viewers,
@@ -122,8 +137,10 @@ export function useAdminProgress() {
     error,
     saveProject,
     updateProject,
+    deleteProject,
     updateStages,
     createViewer,
     updateViewer,
+    deleteViewer,
   };
 }

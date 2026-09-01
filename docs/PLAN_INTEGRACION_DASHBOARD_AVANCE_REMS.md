@@ -39,8 +39,11 @@ limitación aceptada para esta primera versión.
 - Edición de etapas y observaciones.
 - Cambio de estado.
 - Archivado y reactivación lógica.
+- Eliminación permanente de proyectos con confirmación explícita.
 - Detalle con avance, etapas e historial.
 - Creación, activación, desactivación y regeneración de enlaces.
+- Eliminación permanente de gerentes con confirmación explícita; sus proyectos
+  quedan sin asignación.
 - Copia del enlace público al portapapeles.
 
 ### Vista pública
@@ -132,7 +135,12 @@ No se expondrá el historial técnico completo a la vista pública.
 - Al llegar a 100%, el estado se vuelve `COMPLETADO` automáticamente.
 - Al desmarcar una etapa, el porcentaje baja y el estado no se fuerza a un valor
   concreto salvo el recálculo de `COMPLETADO` cuando ya no corresponde.
-- No se borrarán proyectos físicamente; se archivarán con `is_active = false`.
+- El archivado seguirá disponible para conservar proyectos temporalmente fuera de
+  operación.
+- `SUPERADMIN` podrá eliminar proyectos físicamente después de una confirmación;
+  sus etapas e historial se eliminarán en cascada.
+- `SUPERADMIN` podrá eliminar gerentes físicamente después de una confirmación;
+  sus proyectos permanecerán y quedarán sin gerente asignado por `on delete set null`.
 - El historial será inmutable.
 - Un proyecto sin gerente será visible solamente en administración.
 - Un gerente sin proyectos verá un estado vacío.
@@ -239,6 +247,8 @@ documento original menciona 31. No se inventarán registros para completar esa c
 - Confirmar recálculo al revertir una etapa.
 - Confirmar historial de cada cambio.
 - Confirmar archivado lógico.
+- Confirmar eliminación permanente de proyecto y cascada de etapas/historial.
+- Confirmar eliminación de gerente y desasignación de sus proyectos.
 - Confirmar bloqueo para roles no autorizados y `anon` directo.
 
 ### Enlaces
