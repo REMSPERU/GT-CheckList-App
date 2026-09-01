@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { progressProjectSchema } from '@/schemas/progress.schema';
 import {
+  deleteProgressProject,
   getProgressProject,
   updateProgressProject,
 } from '@/services/admin/progress.service';
@@ -36,6 +37,19 @@ export async function PATCH(request: NextRequest, context: Context) {
   } catch {
     return NextResponse.json(
       { error: 'No se pudo actualizar el proyecto' },
+      { status: 400 },
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest, context: Context) {
+  try {
+    const { supabase } = await requireSuperAdminSession(request);
+    await deleteProgressProject(supabase, (await context.params).projectId);
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json(
+      { error: 'No se pudo eliminar el proyecto' },
       { status: 400 },
     );
   }

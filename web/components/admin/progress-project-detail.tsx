@@ -1,21 +1,26 @@
 'use client';
 import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import type { ProgressProject } from '@/types/progress';
 export function ProgressProjectDetail({
   project,
   viewers,
   onSave,
   onStages,
+  onDelete,
   onClose,
 }: {
   project: ProgressProject;
   viewers: { id: string; display_name: string }[];
   onSave: (input: Partial<ProgressProject>) => Promise<void>;
   onStages: (stages: ProgressProject['stages']) => Promise<void>;
+  onDelete: () => Promise<void>;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState(project);
   const [saving, setSaving] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const stages = [...(draft.stages ?? [])].sort(
     (a, b) => a.position - b.position,
   );
@@ -30,6 +35,16 @@ export function ProgressProjectDetail({
         is_active: draft.is_active,
       });
       await onStages(stages);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function remove() {
+    setSaving(true);
+    try {
+      await onDelete();
+      setShowDeleteConfirmation(false);
       onClose();
     } finally {
       setSaving(false);
@@ -125,11 +140,21 @@ export function ProgressProjectDetail({
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <button
+            type="button"
+            disabled={saving}
+            className="mr-auto inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => setShowDeleteConfirmation(true)}>
+            <Trash2 size={15} />
+            Eliminar proyecto
+          </button>
+          <button
+            type="button"
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm"
             onClick={onClose}>
             Cancelar
           </button>
           <button
+            type="button"
             disabled={saving}
             className="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
             onClick={() => void save()}>
@@ -137,6 +162,21 @@ export function ProgressProjectDetail({
           </button>
         </div>
       </section>
+      <ConfirmationDialog
+        open={showDeleteConfirmation}
+        title="¿Eliminar proyecto?"
+        description={
+          <>
+            Se eliminará definitivamente <strong>{draft.name}</strong>, junto
+            con sus etapas e historial. Esta acción no se puede deshacer.
+          </>
+        }
+        confirmLabel="Sí, eliminar proyecto"
+        variant="danger"
+        isLoading={saving}
+        onConfirm={() => void remove()}
+        onCancel={() => setShowDeleteConfirmation(false)}
+      />
     </div>
   );
 }

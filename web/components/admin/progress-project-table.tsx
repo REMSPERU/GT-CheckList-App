@@ -6,6 +6,13 @@ const labels: Record<string, string> = {
   RETRASADO: 'Retrasado',
   COMPLETADO: 'Completado',
 };
+const statusStyles: Record<string, string> = {
+  PLANIFICACION: 'bg-slate-100 text-slate-700',
+  EN_CURSO: 'bg-blue-50 text-blue-800',
+  PAUSADO: 'bg-amber-50 text-amber-800',
+  RETRASADO: 'bg-red-50 text-red-800',
+  COMPLETADO: 'bg-emerald-50 text-emerald-800',
+};
 export function ProgressProjectTable({
   projects,
   onSelect,
@@ -30,8 +37,17 @@ export function ProgressProjectTable({
           {projects.map(project => (
             <tr
               key={project.id}
-              className="cursor-pointer hover:bg-emerald-50/50"
-              onClick={() => onSelect(project)}>
+              className="cursor-pointer transition-colors hover:bg-emerald-50/50 focus-within:bg-emerald-50/50"
+              onClick={() => onSelect(project)}
+              onKeyDown={event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onSelect(project);
+                }
+              }}
+              tabIndex={0}
+              role="button"
+              aria-label={`Abrir proyecto ${project.name}`}>
               <td className="px-4 py-3 font-mono text-xs text-slate-500">
                 {project.sequence_number}
               </td>
@@ -58,7 +74,8 @@ export function ProgressProjectTable({
                 </div>
               </td>
               <td className="px-4 py-3">
-                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+                <span
+                  className={`rounded-full px-2 py-1 text-xs font-bold ${statusStyles[project.current_status] ?? statusStyles.PLANIFICACION}`}>
                   {labels[project.current_status]}
                 </span>
               </td>

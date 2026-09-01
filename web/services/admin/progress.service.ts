@@ -110,6 +110,17 @@ export async function updateProgressProject(
   if (error) throw error;
   return getProgressProject(supabase, id);
 }
+
+export async function deleteProgressProject(
+  supabase: SupabaseClient,
+  id: string,
+) {
+  const { error } = await supabase
+    .from('progress_projects')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
 export async function updateProgressStages(
   supabase: SupabaseClient,
   id: string,
@@ -125,4 +136,15 @@ export async function updateProgressStages(
     if (error) throw error;
   }
   return getProgressProject(supabase, id);
+}
+
+export async function deleteProgressViewer(
+  supabase: SupabaseClient,
+  id: string,
+) {
+  const { error } = await supabase
+    .from('progress_viewers')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
 }
