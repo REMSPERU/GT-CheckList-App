@@ -185,6 +185,14 @@ export function PublicProgressDashboard({
                         {labels[project.current_status]}
                       </span>
                     </div>
+                    {project.observations?.trim() && (
+                      <div className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                        <span className="font-bold text-slate-700">
+                          Comentario:
+                        </span>{' '}
+                        {project.observations.trim()}
+                      </div>
+                    )}
                   </article>
                 ))
               )}

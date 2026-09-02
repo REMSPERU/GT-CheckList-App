@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Filter, Plus, RotateCcw, Search, X } from 'lucide-react';
 import { AdminTableShell } from '@/components/admin/admin-table-shell';
 import { ProgressProjectDetail } from '@/components/admin/progress-project-detail';
+import { ProgressGlobalDashboard } from '@/components/admin/progress-global-dashboard';
 import { ProgressProjectTable } from '@/components/admin/progress-project-table';
 import { ProgressViewerManager } from '@/components/admin/progress-viewer-manager';
 import { useAdminProgress } from '@/hooks/admin/use-admin-progress';
@@ -152,6 +153,7 @@ export default function ProgressAdminPage() {
             </div>
           </form>
         )}
+        <ProgressGlobalDashboard projects={data.projects} />
         <div className="grid gap-5 lg:grid-cols-[1fr_330px]">
           <div className="space-y-5">
             <AdminTableShell summary={`${filtered.length} proyectos`}>
