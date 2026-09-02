@@ -22,18 +22,18 @@ export function ProgressProjectTable({
   onSelect: (project: ProgressProject) => void;
 }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+    <div className="min-h-0 flex-1 overflow-auto">
+      <table className="w-full min-w-[820px] text-left text-sm">
+        <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 shadow-[0_1px_0_0_rgb(226_232_240)]">
           <tr>
-            <th className="px-4 py-3">#</th>
-            <th className="px-4 py-3">Proyecto</th>
-            <th className="px-4 py-3">Tipo</th>
-            <th className="px-4 py-3">Gerente</th>
-            <th className="px-4 py-3">Gestión técnica</th>
-            <th className="px-4 py-3">Administración</th>
-            <th className="px-4 py-3">Avance final</th>
-            <th className="px-4 py-3">Estado</th>
+            <th className="px-3 py-3">#</th>
+            <th className="px-3 py-3">Proyecto</th>
+            <th className="px-3 py-3">Tipo</th>
+            <th className="px-3 py-3">Gerente</th>
+            <th className="px-3 py-3">Gestión técnica</th>
+            <th className="px-3 py-3">Administración</th>
+            <th className="px-3 py-3">Avance final</th>
+            <th className="px-3 py-3">Estado</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -57,21 +57,25 @@ export function ProgressProjectTable({
                   tabIndex={0}
                   role="button"
                   aria-label={`Abrir proyecto ${project.name}`}>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-500">
+                  <td className="px-3 py-3 font-mono text-xs text-slate-500">
                     {project.sequence_number}
                   </td>
-                  <td className="px-4 py-3 font-semibold text-slate-900">
-                    {project.name}
+                  <td className="px-3 py-3 font-semibold text-slate-900">
+                    <span className="block break-words">{project.name}</span>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {project.project_type}
+                  <td className="px-3 py-3 text-slate-600">
+                    <span className="block break-words">
+                      {project.project_type}
+                    </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {project.assigned_viewer?.display_name ?? 'Sin asignar'}
+                  <td className="px-3 py-3 text-slate-600">
+                    <span className="block break-words">
+                      {project.assigned_viewer?.display_name ?? 'Sin asignar'}
+                    </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-24 rounded-full bg-slate-200">
+                      <div className="h-2 min-w-0 flex-1 rounded-full bg-slate-200">
                         <div
                           className="h-2 rounded-full bg-blue-600"
                           style={{ width: `${progress.technical}%` }}
@@ -82,9 +86,9 @@ export function ProgressProjectTable({
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-24 rounded-full bg-slate-200">
+                      <div className="h-2 min-w-0 flex-1 rounded-full bg-slate-200">
                         <div
                           className="h-2 rounded-full bg-amber-500"
                           style={{ width: `${progress.administration}%` }}
@@ -95,10 +99,10 @@ export function ProgressProjectTable({
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 font-bold text-slate-900">
+                  <td className="px-3 py-3 font-bold text-slate-900">
                     {progress.final}%
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     <span
                       className={`rounded-full px-2 py-1 text-xs font-bold ${statusStyles[project.current_status] ?? statusStyles.PLANIFICACION}`}>
                       {labels[project.current_status]}
