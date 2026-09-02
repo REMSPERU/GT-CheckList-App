@@ -1,6 +1,14 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { Filter, Plus, RotateCcw, Search, X } from 'lucide-react';
+import Link from 'next/link';
+import {
+  Filter,
+  LayoutDashboard,
+  Plus,
+  RotateCcw,
+  Search,
+  X,
+} from 'lucide-react';
 import { AdminTableShell } from '@/components/admin/admin-table-shell';
 import { ProgressProjectDetail } from '@/components/admin/progress-project-detail';
 import { ProgressProjectTable } from '@/components/admin/progress-project-table';
@@ -73,9 +81,9 @@ export default function ProgressAdminPage() {
     setNewProject({ sequence_number: '', name: '', project_type: '' });
   }
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+    <main className="h-full min-h-0 overflow-y-auto bg-slate-50 px-4 py-5 sm:px-6 xl:overflow-hidden xl:px-8">
+      <div className="mx-auto flex min-h-0 max-w-7xl flex-col xl:h-full">
+        <div className="mb-4 flex shrink-0 flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               Avance de proyectos
@@ -84,20 +92,28 @@ export default function ProgressAdminPage() {
               Controla etapas, responsables y enlaces de seguimiento.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowCreate(open => !open)}
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#072e27] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#05221d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">
-            {showCreate ? <X size={17} /> : <Plus size={17} />}
-            {showCreate ? 'Cerrar formulario' : 'Nuevo proyecto'}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+              href="/admin/avance-proyectos/dashboard">
+              <LayoutDashboard size={17} />
+              Dashboard general
+            </Link>
+            <button
+              type="button"
+              onClick={() => setShowCreate(open => !open)}
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#072e27] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#05221d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">
+              {showCreate ? <X size={17} /> : <Plus size={17} />}
+              {showCreate ? 'Cerrar formulario' : 'Nuevo proyecto'}
+            </button>
+          </div>
         </div>
         {showCreate && (
           <form
             onSubmit={e => {
               void create(e).then(() => setShowCreate(false));
             }}
-            className="mb-5 rounded-xl border border-emerald-900/15 bg-white p-5 shadow-sm">
+            className="mb-4 shrink-0 rounded-xl border border-emerald-900/15 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="font-bold text-slate-900">Nuevo proyecto</h2>
@@ -152,9 +168,11 @@ export default function ProgressAdminPage() {
             </div>
           </form>
         )}
-        <div className="grid gap-5 lg:grid-cols-[1fr_330px]">
-          <div className="space-y-5">
-            <AdminTableShell summary={`${filtered.length} proyectos`}>
+        <div className="grid min-h-0 gap-5 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_330px]">
+          <div className="flex min-h-0 flex-col">
+            <AdminTableShell
+              className="min-h-0 flex-1"
+              summary={`${filtered.length} proyectos`}>
               <div className="border-b border-slate-200 p-4">
                 <div className="flex flex-wrap gap-2">
                   <label className="relative min-w-[220px] flex-1">
@@ -236,11 +254,11 @@ export default function ProgressAdminPage() {
                 )}
               </div>
               {data.isLoading ? (
-                <p className="p-8 text-center text-sm text-slate-500">
+                <p className="flex flex-1 items-center justify-center p-8 text-center text-sm text-slate-500">
                   Cargando proyectos...
                 </p>
               ) : data.error ? (
-                <p className="p-8 text-center text-sm text-red-700">
+                <p className="flex flex-1 items-center justify-center p-8 text-center text-sm text-red-700">
                   {data.error}
                 </p>
               ) : filtered.length ? (
@@ -249,18 +267,20 @@ export default function ProgressAdminPage() {
                   onSelect={setSelected}
                 />
               ) : (
-                <p className="p-8 text-center text-sm text-slate-500">
+                <p className="flex flex-1 items-center justify-center p-8 text-center text-sm text-slate-500">
                   No hay proyectos que coincidan.
                 </p>
               )}
             </AdminTableShell>
           </div>
-          <ProgressViewerManager
-            viewers={data.viewers}
-            onCreate={data.createViewer}
-            onUpdate={data.updateViewer}
-            onDelete={data.deleteViewer}
-          />
+          <div className="shrink-0">
+            <ProgressViewerManager
+              viewers={data.viewers}
+              onCreate={data.createViewer}
+              onUpdate={data.updateViewer}
+              onDelete={data.deleteViewer}
+            />
+          </div>
         </div>
       </div>
       {selected && (
