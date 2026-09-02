@@ -46,6 +46,7 @@ interface QuoteReviewPanelProps {
   auditorComment: string;
   paulComment: string;
   isSaving: boolean;
+  savingAction: AlexpertoInternalStatus | 'ENVIADO' | 'RETIRADO' | 'COMMENTS' | null;
   error: string | null;
   onAuditorCommentChange: (value: string) => void;
   onPaulCommentChange: (value: string) => void;
@@ -60,6 +61,7 @@ export function QuoteReviewPanel({
   auditorComment,
   paulComment,
   isSaving,
+  savingAction,
   error,
   onAuditorCommentChange,
   onPaulCommentChange,
@@ -147,7 +149,15 @@ export function QuoteReviewPanel({
                 onClick={() => onDispatch('RETIRADO')}
                 disabled={isSaving}
                 className="inline-flex shrink-0 items-center gap-1 rounded-md border border-rose-300 bg-white px-2.5 py-1.5 text-xs font-bold text-rose-800 transition hover:bg-rose-50 disabled:opacity-60">
-                <Undo2 size={13} /> Retirar
+                {savingAction === 'RETIRADO' ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" /> Actualizando...
+                  </>
+                ) : (
+                  <>
+                    <Undo2 size={13} /> Retirar
+                  </>
+                )}
               </button>
             ) : (
               <button
@@ -155,7 +165,15 @@ export function QuoteReviewPanel({
                 onClick={() => onDispatch('ENVIADO')}
                 disabled={isSaving}
                 className="inline-flex shrink-0 items-center gap-1 rounded-md border border-sky-700 bg-sky-700 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-sky-800 disabled:opacity-60">
-                <Send size={13} /> Mandar a auditor
+                {savingAction === 'ENVIADO' ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" /> Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Send size={13} /> Mandar a auditor
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -330,37 +348,62 @@ export function QuoteReviewPanel({
           onClick={() => onSave(quote.gemaStatus, false)}
           disabled={isSaving}
           className="flex w-full items-center justify-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 transition hover:bg-slate-100 disabled:opacity-60">
-          <Save size={15} /> {isSaving ? 'Guardando...' : 'Guardar comentarios'}
+          <Save size={15} />{' '}
+          {savingAction === 'COMMENTS' ? 'Guardando...' : 'Guardar comentarios'}
         </button>
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => onSave('OBSERVADO', true)}
-            disabled={isSaving}
+            disabled={isSaving || quote.gemaStatus === 'OBSERVADO'}
             className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900 disabled:opacity-60">
-            Observar
+            {savingAction === 'OBSERVADO' ? (
+              <span className="inline-flex items-center gap-1">
+                <Loader2 size={13} className="animate-spin" /> Guardando...
+              </span>
+            ) : (
+              'Observar'
+            )}
           </button>
           <button
             type="button"
             onClick={() => onSave('CULMINADO', true)}
-            disabled={isSaving}
+            disabled={isSaving || quote.gemaStatus === 'CULMINADO'}
             className="rounded-md bg-[#072e27] px-3 py-2 text-xs font-bold text-white disabled:opacity-60">
-            Culminar
+            {savingAction === 'CULMINADO' ? (
+              <span className="inline-flex items-center gap-1">
+                <Loader2 size={13} className="animate-spin" /> Guardando...
+              </span>
+            ) : (
+              'Culminar'
+            )}
           </button>
           <button
             type="button"
             onClick={() => onSave('PENDIENTE_REVISION', true)}
             disabled={isSaving || quote.gemaStatus === 'PENDIENTE_REVISION'}
             className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 disabled:opacity-60">
-            Pendiente
+            {savingAction === 'PENDIENTE_REVISION' ? (
+              <span className="inline-flex items-center gap-1">
+                <Loader2 size={13} className="animate-spin" /> Guardando...
+              </span>
+            ) : (
+              'Pendiente'
+            )}
           </button>
           {isSuperadmin && (
             <button
               type="button"
               onClick={() => onSave('VALIDADO', true)}
-              disabled={isSaving}
+              disabled={isSaving || quote.gemaStatus === 'VALIDADO'}
               className="rounded-md bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-60">
-              Validar
+              {savingAction === 'VALIDADO' ? (
+                <span className="inline-flex items-center gap-1">
+                  <Loader2 size={13} className="animate-spin" /> Guardando...
+                </span>
+              ) : (
+                'Validar'
+              )}
             </button>
           )}
         </div>

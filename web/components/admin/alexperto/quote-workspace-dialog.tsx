@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { CheckCircle2, X } from 'lucide-react';
 
 import { QuoteDocumentViewer } from './quote-document-viewer';
 import { QuoteHistoryPanel } from './quote-history-panel';
 import { QuoteReviewPanel } from './quote-review-panel';
+import { formatInternalStatus } from './quote-formatters';
 import type {
   AlexpertoInternalStatus,
   AlexpertoQuoteAuditItem,
@@ -38,6 +39,9 @@ export function QuoteWorkspaceDialog({
   const [auditorComment, setAuditorComment] = useState('');
   const [paulComment, setPaulComment] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [savingAction, setSavingAction] = useState<
+    AlexpertoInternalStatus | 'ENVIADO' | 'RETIRADO' | 'COMMENTS' | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -89,6 +93,7 @@ export function QuoteWorkspaceDialog({
     recordHistory: boolean,
   ) => {
     setIsSaving(true);
+    setSavingAction(recordHistory ? status : 'COMMENTS');
     setError(null);
     try {
       await onStatusUpdate({
@@ -100,8 +105,8 @@ export function QuoteWorkspaceDialog({
       });
       setNotice(
         recordHistory
-          ? 'Estado y comentarios actualizados.'
-          : 'Comentarios guardados.',
+          ? `Confirmado: estado actualizado a ${formatInternalStatus(status)}.`
+          : 'Confirmado: comentarios guardados.',
       );
     } catch (saveError) {
       setError(
@@ -111,11 +116,13 @@ export function QuoteWorkspaceDialog({
       );
     } finally {
       setIsSaving(false);
+      setSavingAction(null);
     }
   };
 
   const handleDispatch = async (dispatchStatus: 'ENVIADO' | 'RETIRADO') => {
     setIsSaving(true);
+    setSavingAction(dispatchStatus);
     setError(null);
     try {
       await onDispatchUpdate(quote.id, dispatchStatus);
@@ -132,6 +139,7 @@ export function QuoteWorkspaceDialog({
       );
     } finally {
       setIsSaving(false);
+      setSavingAction(null);
     }
   };
 
@@ -192,6 +200,7 @@ export function QuoteWorkspaceDialog({
               auditorComment={auditorComment}
               paulComment={paulComment}
               isSaving={isSaving}
+              savingAction={savingAction}
               error={error}
               onAuditorCommentChange={setAuditorComment}
               onPaulCommentChange={setPaulComment}
@@ -202,7 +211,11 @@ export function QuoteWorkspaceDialog({
               onNotice={setNotice}
             />
             {notice && (
-              <p className="mt-4 rounded-lg bg-emerald-950 px-3 py-2 text-xs font-semibold text-white">
+              <p
+                role="status"
+                aria-live="polite"
+                className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
+                <CheckCircle2 size={15} className="shrink-0 text-emerald-700" />
                 {notice}
               </p>
             )}

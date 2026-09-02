@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, Clock3, X } from 'lucide-react';
+import { CheckCircle2, Clock3, Loader2, X } from 'lucide-react';
 
 import { RequestDocumentViewer } from './request-document-viewer';
 import { formatExternalStatus, formatInternalStatus } from './quote-formatters';
@@ -51,6 +51,8 @@ export function RequestDetailDialog({
   const dialogRef = useRef<HTMLElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingStatus, setPendingStatus] =
+    useState<AlexpertoInternalStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -99,6 +101,7 @@ export function RequestDetailDialog({
     recordHistory: boolean,
   ) => {
     setIsSaving(true);
+    setPendingStatus(status);
     setError(null);
     try {
       await onStatusUpdate({
@@ -106,7 +109,7 @@ export function RequestDetailDialog({
         status,
         recordHistory,
       });
-      setNotice('Estado actualizado.');
+      setNotice(`Confirmado: estado actualizado a ${formatInternalStatus(status)}.`);
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -115,6 +118,7 @@ export function RequestDetailDialog({
       );
     } finally {
       setIsSaving(false);
+      setPendingStatus(null);
     }
   };
 
@@ -220,16 +224,28 @@ export function RequestDetailDialog({
                   <button
                     type="button"
                     onClick={() => void handleSave('OBSERVADO', true)}
-                    disabled={isSaving}
+                    disabled={isSaving || request.internalStatus === 'OBSERVADO'}
                     className="cursor-pointer rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900 transition hover:border-amber-400 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60">
-                    Observar
+                    {pendingStatus === 'OBSERVADO' ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Loader2 size={13} className="animate-spin" /> Guardando...
+                      </span>
+                    ) : (
+                      'Observar'
+                    )}
                   </button>
                   <button
                     type="button"
                     onClick={() => void handleSave('CULMINADO', true)}
-                    disabled={isSaving}
+                    disabled={isSaving || request.internalStatus === 'CULMINADO'}
                     className="cursor-pointer rounded-md bg-[#072e27] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#0a3d34] disabled:cursor-not-allowed disabled:opacity-60">
-                    Culminar
+                    {pendingStatus === 'CULMINADO' ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Loader2 size={13} className="animate-spin" /> Guardando...
+                      </span>
+                    ) : (
+                      'Culminar'
+                    )}
                   </button>
                   <button
                     type="button"
@@ -239,21 +255,37 @@ export function RequestDetailDialog({
                       request.internalStatus === 'PENDIENTE_REVISION'
                     }
                     className="cursor-pointer rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 transition hover:border-slate-400 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60">
-                    Pendiente
+                    {pendingStatus === 'PENDIENTE_REVISION' ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Loader2 size={13} className="animate-spin" /> Guardando...
+                      </span>
+                    ) : (
+                      'Pendiente'
+                    )}
                   </button>
                   {isSuperadmin && (
                     <button
                       type="button"
                       onClick={() => void handleSave('VALIDADO', true)}
-                      disabled={isSaving}
+                      disabled={isSaving || request.internalStatus === 'VALIDADO'}
                       className="cursor-pointer rounded-md bg-emerald-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60">
-                      Validar
+                      {pendingStatus === 'VALIDADO' ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Loader2 size={13} className="animate-spin" /> Guardando...
+                        </span>
+                      ) : (
+                        'Validar'
+                      )}
                     </button>
                   )}
                 </div>
               </div>
               {notice && (
-                <p className="mt-4 rounded-lg bg-emerald-950 px-3 py-2 text-xs font-semibold text-white">
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
+                  <CheckCircle2 size={15} className="shrink-0 text-emerald-700" />
                   {notice}
                 </p>
               )}
