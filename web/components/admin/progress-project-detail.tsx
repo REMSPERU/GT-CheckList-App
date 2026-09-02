@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import type { ProgressProject } from '@/types/progress';
+import { getProgressBreakdown } from '@/utils/progress';
 export function ProgressProjectDetail({
   project,
   viewers,
@@ -23,6 +24,13 @@ export function ProgressProjectDetail({
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const stages = [...(draft.stages ?? [])].sort(
     (a, b) => a.position - b.position,
+  );
+  const progress = getProgressBreakdown(stages, draft.current_progress);
+  const technicalStages = stages.filter(
+    stage => stage.stage_group === 'GESTION_TECNICA',
+  );
+  const administrationStages = stages.filter(
+    stage => stage.stage_group === 'ADMINISTRACION',
   );
   async function save() {
     setSaving(true);
@@ -115,28 +123,68 @@ export function ProgressProjectDetail({
             onChange={e => setDraft({ ...draft, observations: e.target.value })}
           />
         </label>
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          {stages.map(stage => (
-            <label
-              key={stage.id}
-              className="flex items-center gap-2 rounded-lg border border-slate-200 p-3 text-sm">
-              <input
-                type="checkbox"
-                checked={stage.is_completed}
-                onChange={e =>
-                  setDraft({
-                    ...draft,
-                    stages: stages.map(item =>
-                      item.id === stage.id
-                        ? { ...item, is_completed: e.target.checked }
-                        : item,
-                    ),
-                  })
-                }
-              />
-              {stage.position}. {stage.stage_label}
-            </label>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {[
+            {
+              title: 'Gestión técnica',
+              stages: technicalStages,
+              colorText: 'text-blue-700',
+              colorCompleted: 'border-blue-200 bg-blue-50',
+              percentage: progress.technical,
+            },
+            {
+              title: 'Administración',
+              stages: administrationStages,
+              colorText: 'text-amber-700',
+              colorCompleted: 'border-amber-200 bg-amber-50',
+              percentage: progress.administration,
+            },
+          ].map(group => (
+            <section
+              className="rounded-xl border border-slate-200 p-3"
+              key={group.title}>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-800">
+                  {group.title}
+                </h3>
+                <span className={`text-sm font-extrabold ${group.colorText}`}>
+                  {group.percentage}%
+                </span>
+              </div>
+              <div className="space-y-2">
+                {group.stages.map(stage => (
+                  <label
+                    key={stage.id}
+                    className={`flex items-center gap-2 rounded-lg border p-3 text-sm ${stage.is_completed ? group.colorCompleted : 'border-slate-200'}`}>
+                    <input
+                      type="checkbox"
+                      checked={stage.is_completed}
+                      onChange={e =>
+                        setDraft({
+                          ...draft,
+                          stages: stages.map(item =>
+                            item.id === stage.id
+                              ? { ...item, is_completed: e.target.checked }
+                              : item,
+                          ),
+                        })
+                      }
+                    />
+                    <span>
+                      {stage.position}. {stage.stage_label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </section>
           ))}
+        </div>
+        <div className="mt-4 rounded-lg bg-slate-900 px-4 py-3 text-sm text-white">
+          <span className="font-semibold">Avance final ponderado:</span>{' '}
+          <strong>{progress.final}%</strong>
+          <span className="ml-2 text-slate-300">
+            (80% técnico + 20% administración)
+          </span>
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <button
