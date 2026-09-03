@@ -20,11 +20,6 @@ interface RequestDocumentViewerProps {
   requestId: string;
 }
 
-function formatFileSize(size: number | null) {
-  if (!size) return null;
-  return `${(size / 1024 / 1024).toFixed(size >= 10_485_760 ? 0 : 1)} MB`;
-}
-
 function isTechnicalReport(typeName: string) {
   return (
     typeName
@@ -190,8 +185,7 @@ export function RequestDocumentViewer({
   if (!isLoading && !error && documents.length === 0) {
     return (
       <section className="flex min-h-0 flex-col overflow-hidden bg-white">
-        <header className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3">
-          <h3 className="m-0 text-sm font-bold text-slate-900">Documentos</h3>
+        <header className="flex shrink-0 items-center justify-end border-b border-slate-200 px-2 py-1">
           <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
             Sin adjuntos
           </span>
@@ -216,8 +210,42 @@ export function RequestDocumentViewer({
 
   return (
     <section className="flex min-h-0 flex-col overflow-hidden bg-slate-100">
-      <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2">
-        <h3 className="m-0 text-sm font-bold text-slate-900">Documentos</h3>
+      <div className="flex min-w-0 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-2 py-1">
+        <div className="min-w-0 flex-1 overflow-x-auto">
+          <div className="flex min-w-max items-center gap-1.5">
+            {isLoading ? (
+              <div className="flex items-center gap-2 p-1 text-xs text-slate-500">
+                <LoaderCircle size={15} className="animate-spin" /> Cargando...
+              </div>
+            ) : (
+              Array.from(documentsByType).map(([typeName, typeDocuments]) => (
+                <section
+                  key={typeName}
+                  aria-label={typeName}
+                  className="flex items-center gap-1">
+                  {typeDocuments.map(document => (
+                    <button
+                      key={document.id}
+                      type="button"
+                      onClick={() => setSelectedDocumentId(document.id)}
+                      aria-label={`Ver ${typeName}`}
+                      aria-pressed={selectedDocumentId === document.id}
+                      className={`flex h-8 w-48 shrink-0 items-center gap-1.5 rounded-md border px-2 text-left transition ${
+                        selectedDocumentId === document.id
+                          ? 'border-emerald-200 bg-emerald-50 text-[#072e27]'
+                          : 'border-transparent text-slate-700 hover:bg-slate-100'
+                      }`}>
+                      <FileText size={14} className="shrink-0" />
+                      <span className="truncate text-[11px] font-bold">
+                        {typeName}
+                      </span>
+                    </button>
+                  ))}
+                </section>
+              ))
+            )}
+          </div>
+        </div>
         {documentUrl && selectedDocument && (
           <div className="flex items-center gap-1">
             <a
@@ -239,53 +267,10 @@ export function RequestDocumentViewer({
             </a>
           </div>
         )}
-      </header>
+      </div>
 
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[210px_minmax(0,1fr)]">
-        <aside className="min-h-0 overflow-y-auto border-b border-slate-200 bg-white p-2 lg:border-b-0 lg:border-r">
-          {isLoading ? (
-            <div className="flex items-center gap-2 p-3 text-xs text-slate-500">
-              <LoaderCircle size={15} className="animate-spin" /> Cargando...
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {Array.from(documentsByType).map(([typeName, typeDocuments]) => (
-                <section key={typeName} aria-label={typeName}>
-                  <h4 className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                    {typeName}
-                  </h4>
-                  <div className="space-y-1">
-                    {typeDocuments.map(document => (
-                      <button
-                        key={document.id}
-                        type="button"
-                        onClick={() => setSelectedDocumentId(document.id)}
-                        className={`flex w-full items-start gap-2 rounded-md p-2 text-left transition ${
-                          selectedDocumentId === document.id
-                            ? 'bg-emerald-50 text-[#072e27]'
-                            : 'text-slate-700 hover:bg-slate-100'
-                        }`}>
-                        <FileText size={15} className="mt-0.5 shrink-0" />
-                        <span className="min-w-0">
-                          <span className="block truncate text-xs font-bold">
-                            {document.name}
-                          </span>
-                          {formatFileSize(document.size) && (
-                            <span className="mt-0.5 block text-[10px] text-slate-500">
-                              {formatFileSize(document.size)}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          )}
-        </aside>
-
-        <div className="relative min-h-[420px] bg-slate-200">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="relative min-h-[420px] min-w-0 flex-1 bg-slate-200">
           {isLoadingDocument && (
             <div className="absolute inset-0 z-10 grid place-items-center bg-slate-100/80 text-xs font-medium text-slate-600">
               <span className="flex items-center gap-2">

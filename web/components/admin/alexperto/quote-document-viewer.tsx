@@ -6,11 +6,6 @@ interface QuoteDocumentViewerProps {
   quoteId: string;
 }
 
-function formatFileSize(size: number | null) {
-  if (!size) return null;
-  return `${(size / 1024 / 1024).toFixed(size >= 10_485_760 ? 0 : 1)} MB`;
-}
-
 export function QuoteDocumentViewer({ quoteId }: QuoteDocumentViewerProps) {
   const {
     documents,
@@ -27,9 +22,42 @@ export function QuoteDocumentViewer({ quoteId }: QuoteDocumentViewerProps) {
 
   return (
     <section className="flex min-h-0 flex-col overflow-hidden bg-slate-100">
-      <header className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2">
-        <div>
-          <h3 className="m-0 text-sm font-bold text-slate-900">Documentos</h3>
+      <div className="flex min-w-0 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-2 py-1">
+        <div className="min-w-0 flex-1 overflow-x-auto">
+          <div className="flex min-w-max items-center gap-1.5">
+            {isLoading ? (
+              <div className="flex items-center gap-2 p-1 text-xs text-slate-500">
+                <LoaderCircle size={15} className="animate-spin" /> Cargando...
+              </div>
+            ) : documents.length === 0 ? (
+              <p className="p-1 text-xs text-slate-500">
+                No hay documentos adjuntos en Alexperto.
+              </p>
+            ) : (
+              documents.map(document => (
+                <button
+                  key={document.id}
+                  type="button"
+                  onClick={() => setSelectedDocumentId(document.id)}
+                  aria-pressed={selectedDocumentId === document.id}
+                  aria-label={`Ver documento ${
+                    document.source === 'PROPOSAL' ? 'propuesta' : 'cotización'
+                  }`}
+                  className={`flex h-8 w-48 shrink-0 items-center gap-1.5 rounded-md border px-2 text-left transition ${
+                    selectedDocumentId === document.id
+                      ? 'border-emerald-200 bg-emerald-50 text-[#072e27]'
+                      : 'border-transparent text-slate-700 hover:bg-slate-100'
+                  }`}>
+                  <FileText size={14} className="shrink-0" />
+                  <span className="truncate text-[11px] font-bold">
+                    {document.source === 'PROPOSAL'
+                      ? 'Propuesta'
+                      : 'Cotización'}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
         </div>
         {documentUrl && selectedDocument && (
           <div className="flex items-center gap-1">
@@ -52,51 +80,10 @@ export function QuoteDocumentViewer({ quoteId }: QuoteDocumentViewerProps) {
             </a>
           </div>
         )}
-      </header>
+      </div>
 
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[180px_minmax(0,1fr)]">
-        <aside className="min-h-0 overflow-y-auto border-b border-slate-200 bg-white p-2 lg:border-b-0 lg:border-r">
-          {isLoading ? (
-            <div className="flex items-center gap-2 p-3 text-xs text-slate-500">
-              <LoaderCircle size={15} className="animate-spin" /> Cargando...
-            </div>
-          ) : documents.length === 0 ? (
-            <p className="p-3 text-xs leading-relaxed text-slate-500">
-              No hay documentos adjuntos en Alexperto.
-            </p>
-          ) : (
-            <div className="space-y-1">
-              {documents.map(document => (
-                <button
-                  key={document.id}
-                  type="button"
-                  onClick={() => setSelectedDocumentId(document.id)}
-                  className={`flex w-full items-start gap-2 rounded-md p-2 text-left transition ${
-                    selectedDocumentId === document.id
-                      ? 'bg-emerald-50 text-[#072e27]'
-                      : 'text-slate-700 hover:bg-slate-100'
-                  }`}>
-                  <FileText size={15} className="mt-0.5 shrink-0" />
-                  <span className="min-w-0">
-                    <span className="block truncate text-xs font-bold">
-                      {document.name}
-                    </span>
-                    <span className="mt-0.5 block text-[10px] text-slate-500">
-                      {document.source === 'PROPOSAL'
-                        ? 'Propuesta'
-                        : 'Cotización'}
-                      {formatFileSize(document.size)
-                        ? ` · ${formatFileSize(document.size)}`
-                        : ''}
-                    </span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </aside>
-
-        <div className="relative min-h-[420px] bg-slate-200">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="relative min-h-[420px] min-w-0 flex-1 bg-slate-200">
           {isLoadingDocument && (
             <div className="absolute inset-0 z-10 grid place-items-center bg-slate-100/80 text-xs font-medium text-slate-600">
               <span className="flex items-center gap-2">
