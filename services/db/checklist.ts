@@ -1,3 +1,5 @@
+import type { ChecklistPropertyTemplate } from '@/types/checklist';
+
 import { dbPromise, ensureInitialized, withLock } from './connection';
 
 export interface OfflineChecklistPhotoInput {
@@ -686,6 +688,26 @@ function getChecklistTargetDateForMonth(
   const targetDayStr = String(targetDay).padStart(2, '0');
 
   return `${targetYearStr}-${targetMonthStr}-${targetDayStr}`;
+}
+
+export async function getLocalChecklistPropertyTemplate(
+  propertyId: string,
+  equipamentoId: string,
+): Promise<ChecklistPropertyTemplate | null> {
+  await ensureInitialized();
+
+  return withLock(async () => {
+    const db = await dbPromise;
+    const row = await db.getFirstAsync<
+      Omit<ChecklistPropertyTemplate, 'questions'> & { questions: string }
+    >(
+      `SELECT * FROM local_checklist_property_templates
+       WHERE property_id = ? AND equipamento_id = ?`,
+      [propertyId, equipamentoId],
+    );
+
+    return row ? { ...row, questions: JSON.parse(row.questions) } : null;
+  });
 }
 
 export async function getLocalChecklistScheduleByScope(

@@ -415,7 +415,8 @@ function AnswerCard({ answer }: { answer: AdminChecklistAnswerItem }) {
             : isObserved
               ? 'Hallazgo'
               : 'Conforme'}{' '}
-          · {formatWeight(weight)} pts
+          · {formatWeight(weight)}
+          {answer.weight_unit === 'fraction' ? '%' : ' pts'}
         </span>
       </div>
 

@@ -1,3 +1,5 @@
+import type { ChecklistPropertyTemplate } from '@/types/checklist';
+
 import { dbPromise, withLock, ensureInitialized } from './connection';
 
 interface LocalSessionUpsertInput {
@@ -39,6 +41,7 @@ export async function clearMirrorTables() {
     DELETE FROM local_checklist_workday_config;
     DELETE FROM local_checklist_workday_exceptions;
     DELETE FROM local_checklist_schedules;
+    DELETE FROM local_checklist_property_templates;
     DELETE FROM local_audit_questions;
     DELETE FROM local_equipamentos_property;
     DELETE FROM offline_panel_configurations;
@@ -270,6 +273,7 @@ export async function bulkInsertMirrorData(
   checklistWorkdayConfig: any[] | null = null,
   checklistWorkdayExceptions: any[] | null = null,
   checklistSchedules: any[] | null = null,
+  checklistPropertyTemplates: ChecklistPropertyTemplate[] | null = null,
 ) {
   await ensureInitialized();
 
@@ -456,6 +460,26 @@ export async function bulkInsertMirrorData(
               item.description || null,
               item.is_working_day ? 1 : 0,
               item.updated_at || null,
+            ],
+          );
+        }
+
+        if (checklistPropertyTemplates !== null) {
+          await smartSyncTable(
+            db,
+            'local_checklist_property_templates',
+            checklistPropertyTemplates,
+            'id',
+            `INSERT OR REPLACE INTO local_checklist_property_templates
+              (id, property_id, equipamento_id, version, questions, created_at)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+            item => [
+              item.id,
+              item.property_id,
+              item.equipamento_id,
+              item.version,
+              JSON.stringify(item.questions),
+              item.created_at,
             ],
           );
         }

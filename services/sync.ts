@@ -6,6 +6,7 @@ import { supabaseGroundingWellService } from './supabase-grounding-well.service'
 import { supabaseAuditStorageService } from './supabase-audit-storage.service';
 import { checklistStorageService } from './checklist-storage.service';
 import NetInfo from '@react-native-community/netinfo';
+import type { ChecklistPropertyTemplate } from '@/types/checklist';
 import { syncQueue } from './sync-queue';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -237,6 +238,26 @@ async function safeFetch<T = any>(
   } catch (err) {
     console.error('[SYNC] Supabase query exception:', err);
     return { data: null, failed: true };
+  }
+}
+
+async function fetchChecklistPropertyTemplates() {
+  const pageSize = 500;
+  const templates: ChecklistPropertyTemplate[] = [];
+
+  for (let offset = 0; ; offset += pageSize) {
+    const page = await safeFetch<ChecklistPropertyTemplate>(() =>
+      supabase
+        .from('current_checklist_property_templates')
+        .select('*')
+        .order('property_id')
+        .order('equipamento_id')
+        .range(offset, offset + pageSize - 1),
+    );
+    if (page.data === null) return page;
+
+    templates.push(...page.data);
+    if (page.data.length < pageSize) return { data: templates, failed: false };
   }
 }
 
@@ -1903,6 +1924,7 @@ class SyncService {
           checklistWorkdayConfigResult,
           checklistWorkdayExceptionsResult,
           checklistSchedulesResult,
+          checklistPropertyTemplatesResult,
         ] = await Promise.all([
           fetchEquiposPaginated(assignedPropertyIds || undefined),
           safeFetch(() =>
@@ -2009,6 +2031,7 @@ class SyncService {
               .select('*')
               .limit(SYNC_ROW_LIMIT),
           ),
+          fetchChecklistPropertyTemplates(),
         ]);
 
         log('[SYNC] Pull table counts', {
@@ -2048,6 +2071,9 @@ class SyncService {
           failedTables.push('checklist_workday_exceptions');
         if (checklistSchedulesResult.failed)
           failedTables.push('checklist_schedules');
+        if (checklistPropertyTemplatesResult.failed) {
+          failedTables.push('current_checklist_property_templates');
+        }
 
         if (failedTables.length > 0) {
           console.warn(
@@ -2076,6 +2102,7 @@ class SyncService {
           checklistWorkdayConfigResult.data,
           checklistWorkdayExceptionsResult.data,
           checklistSchedulesResult.data,
+          checklistPropertyTemplatesResult.data,
         );
 
         if (auditSessionsResult.data !== null) {

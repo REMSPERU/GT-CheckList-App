@@ -253,6 +253,7 @@ export interface AdminChecklistAnswerItem {
   pregunta: string;
   orden: number | null;
   ponderado?: number | string | null;
+  weight_unit?: 'fraction';
   status_ok: boolean | null;
   observacion: string | null;
   fotos: AdminChecklistPhotoRef[];
