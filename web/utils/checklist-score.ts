@@ -11,7 +11,10 @@ export interface ChecklistWeightedScore {
 }
 
 export function getAnswerWeight(answer: AdminChecklistAnswerItem): number {
-  return parseWeight(answer.ponderado);
+  const weight = parseWeight(answer.ponderado);
+  return answer.weight_unit === 'fraction'
+    ? Math.round(weight * 10_000) / 100
+    : weight;
 }
 
 export function getChecklistWeightedScore(

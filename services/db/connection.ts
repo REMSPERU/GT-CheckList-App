@@ -216,6 +216,16 @@ export async function initDatabase() {
           updated_at TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS local_checklist_property_templates (
+          id TEXT PRIMARY KEY,
+          property_id TEXT NOT NULL,
+          equipamento_id TEXT NOT NULL,
+          version INTEGER NOT NULL,
+          questions TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE (property_id, equipamento_id)
+        );
+
         CREATE TABLE IF NOT EXISTS local_checklist_workday_config (
           id TEXT PRIMARY KEY,
           work_days TEXT NOT NULL,

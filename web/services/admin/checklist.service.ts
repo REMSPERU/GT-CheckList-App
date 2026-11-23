@@ -428,22 +428,28 @@ export async function listAdminChecklistPropertyEquipmentTypeIds(
   supabase: SupabaseClient,
   propertyId: string,
 ): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('equipos')
-    .select('id_equipamento')
-    .eq('id_property', propertyId)
-    .not('id_equipamento', 'is', null)
-    .limit(1000);
+  const pageSize = 500;
+  const typeIds = new Set<string>();
 
-  if (error) throw error;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from('equipos')
+      .select('id_equipamento')
+      .eq('id_property', propertyId)
+      .not('id_equipamento', 'is', null)
+      .order('id')
+      .range(offset, offset + pageSize - 1);
 
-  return Array.from(
-    new Set(
-      (data ?? [])
-        .map(item => item.id_equipamento)
-        .filter((id): id is string => typeof id === 'string' && id.length > 0),
-    ),
-  );
+    if (error) throw error;
+
+    const assets = data ?? [];
+    for (const asset of assets) {
+      if (typeof asset.id_equipamento === 'string' && asset.id_equipamento) {
+        typeIds.add(asset.id_equipamento);
+      }
+    }
+    if (assets.length < pageSize) return [...typeIds];
+  }
 }
 
 export async function getAdminChecklistScheduleProgress(

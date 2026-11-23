@@ -36,6 +36,7 @@ import { supabase } from '@/lib/supabase';
 import type { StoredPhotoRef } from '@/services/checklist-storage.service';
 import { supabaseChecklistScheduleService } from '@/services/supabase-checklist-schedule.service';
 import { DatabaseService } from '@/services/database';
+import { getChecklistPropertyTemplate } from '@/services/checklist-property-template';
 import { useUserRole } from '@/hooks/use-user-role';
 import { syncService } from '@/services/sync';
 
@@ -47,6 +48,7 @@ interface ChecklistAnswerJsonItem {
   pregunta: string;
   orden: number;
   ponderado: number | string | null;
+  weight_unit?: 'fraction';
   status_ok: boolean | null;
   observacion: string | null;
   fotos: StoredPhotoRef[];
@@ -55,6 +57,7 @@ interface ChecklistAnswerJsonItem {
 interface ChecklistAnswersJson {
   version: 1;
   respuestas: ChecklistAnswerJsonItem[];
+  checklist_template_id?: string;
   resumen: {
     total_preguntas: number;
     total_ok: number;
@@ -274,6 +277,7 @@ function buildChecklistAnswersJson(
       pregunta: question?.pregunta || '',
       orden: question?.orden || 0,
       ponderado: isStandBy ? null : (question?.ponderado ?? null),
+      weight_unit: question?.weight_unit,
       status_ok: statusOk,
       observacion: isInoperativo
         ? trimmedOperationalComment
@@ -317,6 +321,7 @@ function buildChecklistAnswersJson(
 
   return {
     version: 1,
+    checklist_template_id: questions[0]?.template_id,
     respuestas,
     resumen: {
       total_preguntas: scorableResponses.length,
@@ -499,6 +504,8 @@ export default function ChecklistFormScreen() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadQuestions = async () => {
       if (!params.equipamentoId) {
         setIsLoading(false);
@@ -507,12 +514,29 @@ export default function ChecklistFormScreen() {
 
       setIsLoading(true);
       try {
-        // 1) Prefer local mirror (offline-first)
-        let rows = (await DatabaseService.getChecklistQuestionsByEquipamento(
-          params.equipamentoId,
-        )) as PreguntaEquipamento[];
+        const template = params.buildingId
+          ? await getChecklistPropertyTemplate(
+              params.buildingId,
+              params.equipamentoId,
+            )
+          : null;
+        let rows: PreguntaEquipamento[] = template
+          ? template.questions.map((question, index) => ({
+              id: question.id,
+              equipamento_id: template.equipamento_id,
+              pregunta: question.text,
+              orden: index + 1,
+              activa: true,
+              ponderado: question.weight,
+              weight_unit: 'fraction',
+              template_id: template.id,
+              created_at: template.created_at,
+              updated_at: template.created_at,
+            }))
+          : await DatabaseService.getChecklistQuestionsByEquipamento(
+              params.equipamentoId,
+            );
 
-        // 2) Fallback to direct Supabase if local still empty
         if (rows.length === 0) {
           const { data, error } = await supabase
             .from('preguntas_equipamento')
@@ -528,6 +552,7 @@ export default function ChecklistFormScreen() {
           rows = (data || []) as PreguntaEquipamento[];
         }
 
+        if (!isMounted) return;
         setQuestions(rows);
 
         const nextAnswers: Record<string, ChecklistQuestionAnswer> = {};
@@ -541,18 +566,24 @@ export default function ChecklistFormScreen() {
         });
         setAnswers(nextAnswers);
       } catch (error) {
+        if (!isMounted) return;
+        setQuestions([]);
+        setAnswers({});
         console.error('Error loading checklist questions:', error);
         showAppAlert(
           'Error',
           'No se pudieron cargar las preguntas del checklist.',
         );
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
 
-    loadQuestions();
-  }, [params.equipamentoId, showAppAlert]);
+    void loadQuestions();
+    return () => {
+      isMounted = false;
+    };
+  }, [params.buildingId, params.equipamentoId, showAppAlert]);
 
   useEffect(() => {
     let isMounted = true;

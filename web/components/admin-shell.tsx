@@ -128,7 +128,7 @@ const NAV_GROUPS: NavGroup[] = [
 export function AdminShell({ children }: AdminShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isCheckingSession, handleSignOut } = useAdminSession();
+  const { user, isCheckingSession, sessionError, handleSignOut } = useAdminSession();
 
   // Sidebar behavior state:
   // - isPinned: if true, sidebar stays open at 260px width on desktop.
@@ -198,6 +198,24 @@ export function AdminShell({ children }: AdminShellProps) {
     setIsSigningOut(false);
     setShowSignOutConfirm(false);
   };
+
+  if (sessionError) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#f0f4f3] px-6">
+        <div className="grid justify-items-center gap-3">
+          <p role="alert" className="text-sm font-semibold text-slate-900">
+            {sessionError}
+          </p>
+          <button
+            type="button"
+            className="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white"
+            onClick={() => window.location.reload()}>
+            Recargar página
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (isCheckingSession) {
     return (

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { AdminPagination } from '@/components/admin/admin-pagination';
+import { ChecklistPropertyTemplateEditor } from '@/components/admin/checklist-property-template-editor';
 import { ChecklistQuestionGroups } from '@/components/admin/checklist-question-groups';
 import { ChecklistResponsesTable } from '@/components/admin/checklist-responses-table';
 import { ChecklistScheduleMatrix } from '@/components/admin/checklist-schedule-matrix';
@@ -348,6 +349,10 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
         </section>
       ) : activeTab === 'questions' ? (
         <section className="grid gap-4">
+          <ChecklistPropertyTemplateEditor
+            properties={propertyOptions}
+            equipmentTypes={equipmentOptions}
+          />
           <div className="grid grid-cols-[minmax(240px,1fr)_minmax(240px,1fr)_auto] items-end gap-3 max-[900px]:grid-cols-1">
             <label className="grid gap-1.5 text-sm font-bold text-slate-600">
               Tipo de activo
