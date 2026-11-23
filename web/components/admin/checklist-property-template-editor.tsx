@@ -26,6 +26,7 @@ interface PublishedTemplate {
 
 interface TemplateDraft {
   version: number;
+  canSave: boolean;
   questions: QuestionDraft[];
 }
 
@@ -163,12 +164,15 @@ function TemplateForm({
           .eq('property_id', propertyId)
           .eq('equipamento_id', equipamentoId)
           .maybeSingle<PublishedTemplate>();
-        if (error) throw error;
+        const schemaUnavailable =
+          error?.code === 'PGRST205' || error?.code === '42P01';
+        if (error && !schemaUnavailable) throw error;
         if (!active) return;
 
         if (data) {
           setDraft({
             version: data.version,
+            canSave: true,
             questions: data.questions.map(question => ({
               id: question.id,
               text: question.text,
@@ -193,6 +197,7 @@ function TemplateForm({
             );
           setDraft({
             version: 0,
+            canSave: !schemaUnavailable,
             questions: questions.length > 0 ? questions : [makeQuestionDraft()],
           });
         }
@@ -251,7 +256,7 @@ function TemplateForm({
   }
 
   async function publish() {
-    if (!draft || !canPublish || saving) return;
+    if (!draft?.canSave || !canPublish || saving) return;
 
     setSaving(true);
     setError('');
@@ -344,6 +349,12 @@ function TemplateForm({
       <p className="m-0 text-sm font-semibold">
         Total {new Intl.NumberFormat('es-PE').format(totalUnits / 100)}% de 100%
       </p>
+      {!draft.canSave ? (
+        <p role="status" className="m-0 text-sm text-slate-700">
+          Puedes probar el editor. Para publicar se requiere instalar la
+          migración de checklists por inmueble en esta base de datos.
+        </p>
+      ) : null}
       {!canPublish ? (
         <p className="m-0 text-sm text-slate-700">
           Completa cada pregunta y asigna pesos positivos que sumen 100%.
@@ -374,7 +385,7 @@ function TemplateForm({
         <button
           type="submit"
           className="min-h-10 rounded-lg bg-emerald-800 px-3 text-sm font-semibold text-white disabled:opacity-50"
-          disabled={saving || !canPublish}>
+          disabled={saving || !canPublish || !draft.canSave}>
           {saving ? 'Publicando…' : `Publicar en ${propertyLabel}`}
         </button>
       </div>

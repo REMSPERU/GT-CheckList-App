@@ -15,10 +15,13 @@ import type { AdminUser } from '@/types/auth';
 interface AdminSessionContextValue {
   user: AdminUser | null;
   isCheckingSession: boolean;
+  sessionError: string | null;
   handleSignOut: () => Promise<void>;
 }
 
-const AdminSessionContext = createContext<AdminSessionContextValue | null>(null);
+const AdminSessionContext = createContext<AdminSessionContextValue | null>(
+  null,
+);
 
 interface AdminSessionProviderProps {
   children: ReactNode;
@@ -28,22 +31,31 @@ export function AdminSessionProvider({ children }: AdminSessionProviderProps) {
   const router = useRouter();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [sessionError, setSessionError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     async function checkSession() {
-      const currentUser = await getCurrentAdminUser();
+      try {
+        const currentUser = await getCurrentAdminUser();
+        if (!isMounted) return;
 
-      if (!isMounted) return;
+        if (!currentUser) {
+          router.replace('/login');
+          return;
+        }
 
-      if (!currentUser) {
-        router.replace('/login');
-        return;
+        setUser(currentUser);
+        setIsCheckingSession(false);
+      } catch {
+        if (isMounted) {
+          setSessionError(
+            'No se pudo comprobar la sesión de GEMA. Intenta recargar la página.',
+          );
+          setIsCheckingSession(false);
+        }
       }
-
-      setUser(currentUser);
-      setIsCheckingSession(false);
     }
 
     void checkSession();
@@ -61,7 +73,7 @@ export function AdminSessionProvider({ children }: AdminSessionProviderProps) {
 
   return (
     <AdminSessionContext.Provider
-      value={{ user, isCheckingSession, handleSignOut }}>
+      value={{ user, isCheckingSession, sessionError, handleSignOut }}>
       {children}
     </AdminSessionContext.Provider>
   );

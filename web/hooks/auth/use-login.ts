@@ -19,11 +19,17 @@ export function useLogin() {
     let isMounted = true;
 
     async function redirectActiveSession() {
-      const user = await getCurrentAdminUser();
-      if (isMounted && user) {
-        router.replace(
-          user.role === 'SUPERADMIN' ? '/admin' : '/admin/checklist',
-        );
+      try {
+        const user = await getCurrentAdminUser();
+        if (isMounted && user) {
+          router.replace(
+            user.role === 'SUPERADMIN' ? '/admin' : '/admin/checklist',
+          );
+        }
+      } catch {
+        if (isMounted) {
+          setErrorMessage('No se pudo comprobar la sesión de GEMA.');
+        }
       }
     }
 
@@ -50,6 +56,8 @@ export function useLogin() {
       const user = await getCurrentAdminUser();
       setMessage('Sesion iniciada correctamente. Redirigiendo...');
       router.push(user?.role === 'SUPERADMIN' ? '/admin' : '/admin/checklist');
+    } catch {
+      setErrorMessage('No se pudo conectar con GEMA. Intenta nuevamente.');
     } finally {
       setIsSubmitting(false);
     }

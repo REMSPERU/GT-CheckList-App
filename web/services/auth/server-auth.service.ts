@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { NextRequest } from 'next/server';
 
+import { getPublicSupabaseEnv } from '@/lib/supabase-env';
+
 import type { AdminRole, AdminUser } from '@/types/auth';
 
 interface SuperAdminSession {
@@ -12,20 +14,6 @@ interface SuperAdminSession {
 }
 
 export type AlexpertoAccessSession = SuperAdminSession;
-
-function getEnvValues() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabasePublishableKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-  if (!supabaseUrl || !supabasePublishableKey) {
-    throw new Error(
-      'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
-    );
-  }
-
-  return { supabaseUrl, supabasePublishableKey };
-}
 
 function getServiceRoleEnvValues() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -48,7 +36,7 @@ function getBearerToken(request: NextRequest) {
 }
 
 export function createServerSupabaseClient(accessToken?: string | null) {
-  const { supabaseUrl, supabasePublishableKey } = getEnvValues();
+  const { supabaseUrl, supabasePublishableKey } = getPublicSupabaseEnv();
 
   return createClient(supabaseUrl, supabasePublishableKey, {
     auth: {
