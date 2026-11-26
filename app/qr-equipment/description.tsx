@@ -1,5 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { GemaPropertyAccess } from '@/components/gema-property-access';
+import { useUserRole } from '@/hooks/use-user-role';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -132,8 +134,26 @@ function DetailObject({
 }
 
 export default function QREquipmentDescriptionScreen() {
+  const params = useLocalSearchParams<{
+    buildingId?: string;
+    equipoId?: string;
+  }>();
+  const { canScanEquipment } = useUserRole();
+
+  return (
+    <GemaPropertyAccess
+      enabled={canScanEquipment}
+      propertyId={params.buildingId}
+      equipmentId={params.equipoId}>
+      <QREquipmentDescriptionScreenContent />
+    </GemaPropertyAccess>
+  );
+}
+
+function QREquipmentDescriptionScreenContent() {
   const router = useRouter();
   const params = useLocalSearchParams<QREquipmentRouteParams>();
+  const { canEditAssets } = useUserRole();
   const [equipment, setEquipment] = useState<BaseEquipment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -209,28 +229,30 @@ export default function QREquipmentDescriptionScreen() {
             Informacion local disponible
           </Text>
         </View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.editButton,
-            pressed && styles.pressed,
-          ]}
-          onPress={() => {
-            router.push({
-              pathname: '/inventory/[equipoId]/detail' as never,
-              params: {
-                equipoId: routeParams.equipoId,
-                propertyId: routeParams.buildingId,
-                propertyName: routeParams.buildingName,
-                equipamentoId: routeParams.equipamentoId,
-                equipamentoNombre: routeParams.equipamentoNombre,
-                autoEdit: 'true',
-              },
-            });
-          }}
-          accessibilityLabel="Editar equipo">
-          <MaterialIcons name="edit" size={16} color="#0891B2" />
-          <Text style={styles.editButtonText}>Editar</Text>
-        </Pressable>
+        {canEditAssets ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.editButton,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => {
+              router.push({
+                pathname: '/inventory/[equipoId]/detail' as never,
+                params: {
+                  equipoId: routeParams.equipoId,
+                  propertyId: routeParams.buildingId,
+                  propertyName: routeParams.buildingName,
+                  equipamentoId: routeParams.equipamentoId,
+                  equipamentoNombre: routeParams.equipamentoNombre,
+                  autoEdit: 'true',
+                },
+              });
+            }}
+            accessibilityLabel="Editar equipo">
+            <MaterialIcons name="edit" size={16} color="#0891B2" />
+            <Text style={styles.editButtonText}>Editar</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <ScrollView

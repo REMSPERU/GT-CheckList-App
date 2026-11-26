@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useUserRole } from '@/hooks/use-user-role';
 import {
   View,
   Text,
@@ -39,6 +40,7 @@ function getSingleParam(value: string | string[] | undefined) {
 export default function EquipoDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { canManageAssets } = useUserRole();
 
   const equipoId = getSingleParam(params.equipoId);
   const propertyId = getSingleParam(params.propertyId);
@@ -117,7 +119,7 @@ export default function EquipoDetailScreen() {
       try {
         await updateEquipo.mutateAsync({
           detalle_ubicacion: values.detalle_ubicacion ?? null,
-          estatus: values.estatus,
+          ...(canManageAssets ? { estatus: values.estatus } : {}),
           equipment_detail: values.equipment_detail as Record<string, unknown>,
         });
         setIsEditing(false);
@@ -128,7 +130,7 @@ export default function EquipoDetailScreen() {
         Alert.alert('Error', message);
       }
     },
-    [updateEquipo],
+    [canManageAssets, updateEquipo],
   );
 
   const displayNombre = equipo?.equipamento_nombre ?? equipamentoNombre;
@@ -257,37 +259,38 @@ export default function EquipoDetailScreen() {
                 />
               ) : (
                 <View style={styles.editSection}>
-                  {/* Edit status */}
-                  <View style={styles.fieldWrap}>
-                    <Text style={styles.label}>Estado</Text>
-                    <Controller
-                      control={control}
-                      name="estatus"
-                      render={({ field: { value, onChange } }) => (
-                        <View style={styles.optionsWrap}>
-                          {ESTATUS_OPTIONS.map(opt => (
-                            <Pressable
-                              key={opt.value}
-                              style={[
-                                styles.optionChip,
-                                value === opt.value &&
-                                  styles.optionChipSelected,
-                              ]}
-                              onPress={() => onChange(opt.value)}>
-                              <Text
+                  {canManageAssets ? (
+                    <View style={styles.fieldWrap}>
+                      <Text style={styles.label}>Estado</Text>
+                      <Controller
+                        control={control}
+                        name="estatus"
+                        render={({ field: { value, onChange } }) => (
+                          <View style={styles.optionsWrap}>
+                            {ESTATUS_OPTIONS.map(opt => (
+                              <Pressable
+                                key={opt.value}
                                 style={[
-                                  styles.optionChipText,
+                                  styles.optionChip,
                                   value === opt.value &&
-                                    styles.optionChipTextSelected,
-                                ]}>
-                                {opt.label}
-                              </Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      )}
-                    />
-                  </View>
+                                    styles.optionChipSelected,
+                                ]}
+                                onPress={() => onChange(opt.value)}>
+                                <Text
+                                  style={[
+                                    styles.optionChipText,
+                                    value === opt.value &&
+                                      styles.optionChipTextSelected,
+                                  ]}>
+                                  {opt.label}
+                                </Text>
+                              </Pressable>
+                            ))}
+                          </View>
+                        )}
+                      />
+                    </View>
+                  ) : null}
 
                   {/* Edit detalle ubicacion */}
                   <View style={styles.fieldWrap}>

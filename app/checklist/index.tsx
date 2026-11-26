@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { GemaPropertyAccess } from '@/components/gema-property-access';
+import { useUserRole } from '@/hooks/use-user-role';
 import {
   View,
   StyleSheet,
@@ -338,6 +340,17 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
 });
 
 export default function EquipmentChecklistListScreen() {
+  const params = useLocalSearchParams<{ buildingId?: string; equipoId?: string }>();
+  const { canUseChecklists } = useUserRole();
+
+  return (
+    <GemaPropertyAccess enabled={canUseChecklists} propertyId={params.buildingId}>
+      <EquipmentChecklistListScreenContent />
+    </GemaPropertyAccess>
+  );
+}
+
+function EquipmentChecklistListScreenContent() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();

@@ -266,6 +266,7 @@ async function fetchEquiposPaginated(propertyIds?: string[]): Promise<{
   failed: boolean;
 }> {
   try {
+    if (propertyIds?.length === 0) return { data: [], failed: false };
     const limit = 1000;
 
     // 1. Setup base query for count
@@ -999,7 +1000,7 @@ class SyncService {
           .from('checklist_response')
           .upsert(payload, {
             onConflict: 'client_submission_id',
-            ignoreDuplicates: false,
+            ignoreDuplicates: true,
           });
 
         if (error) throw error;
@@ -1582,25 +1583,26 @@ class SyncService {
 
         const detail = JSON.parse(item.equipment_detail || '{}');
 
-        // B. Reconstruct/Upsert to Supabase
-        const { error } = await supabase.from('equipos').upsert(
-          {
-            id: item.id_equipo,
-            id_property: item.id_property,
-            id_equipamento: item.id_equipamento,
-            codigo: item.codigo,
-            ubicacion: item.ubicacion,
-            detalle_ubicacion: item.detalle_ubicacion,
-            estatus: item.estatus,
-            equipment_detail: detail,
-            config: item.config === 1,
-          },
-          {
-            onConflict: 'id',
-          },
-        );
+        const payload = {
+          id: item.id_equipo,
+          id_property: item.id_property,
+          id_equipamento: item.id_equipamento,
+          codigo: item.codigo,
+          ubicacion: item.ubicacion,
+          detalle_ubicacion: item.detalle_ubicacion,
+          estatus: item.estatus,
+          equipment_detail: detail,
+          config: item.config === 1,
+        };
+        const equipos = supabase.from('equipos');
+        const { data, error } = await (item.action === 'create'
+          ? equipos.upsert(payload, { onConflict: 'id' })
+          : equipos.update(payload).eq('id', item.id_equipo))
+          .select('id')
+          .maybeSingle();
 
         if (error) throw error;
+        if (!data) throw new Error('No se pudo guardar el activo con los permisos actuales.');
 
         await DatabaseService.updateOfflineEquipmentStatus(
           item.local_id,
@@ -1886,21 +1888,17 @@ class SyncService {
           currentRole === 'TECNICO_REMS' ||
           currentRole === 'AUDITOR';
 
-        if (
-          userPropertiesResult.data &&
-          userPropertiesResult.data.length > 0 &&
-          isRestricted
-        ) {
-          assignedPropertyIds = userPropertiesResult.data.map(
-            (up: any) => up.property_id,
-          );
+        if (isRestricted) {
+          assignedPropertyIds = (userPropertiesResult.data ?? [])
+            .filter(up => !up.expires_at || new Date(up.expires_at).getTime() > Date.now())
+            .map(up => up.property_id);
           log(
             '[SYNC] Restricting equipos sync to assigned properties:',
             assignedPropertyIds,
           );
         } else {
           log(
-            '[SYNC] Syncing all equipments (no role-restriction or no property assignments)',
+            '[SYNC] Syncing equipos for an unrestricted role',
           );
         }
 

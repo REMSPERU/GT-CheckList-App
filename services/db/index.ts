@@ -224,6 +224,7 @@ export const DatabaseService = {
   getChecklistCountsByEquipo,
   validateLocalChecklistWorkingDay,
   validateLocalChecklistSchedule,
+  getLocalChecklistScheduleByScope,
 
   // Equipment CRUD
   createEquipment,

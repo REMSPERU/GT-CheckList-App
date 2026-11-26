@@ -5,9 +5,9 @@ import { syncService } from '@/services/sync';
 import {
   MaintenanceCreateRequest,
   MaintenanceStatusEnum,
-  RoleEnum,
   User,
 } from '@/types/api';
+import { getGemaPermissions, normalizeGemaRole } from '@/types/gema-role';
 
 interface CreateMaintenanceResult {
   maintenanceData: any[];
@@ -25,11 +25,13 @@ const log = (...args: unknown[]) => {
 const TECHNICIANS_TIMEOUT_MS = 5000;
 
 function keepTechnicians(users: User[]): User[] {
-  const filtered = users.filter(user => user.role === RoleEnum.TECNICO);
-  return filtered.length > 0 ? filtered : users;
+  return users.filter(
+    user =>
+      getGemaPermissions(normalizeGemaRole(user.role)).canExecuteMaintenance,
+  );
 }
 
-// Fetch technicians (Users with role TECNICO)
+// Fetch users authorized to execute maintenance.
 export const useTechnicians = () => {
   return useQuery({
     queryKey: ['technicians'],

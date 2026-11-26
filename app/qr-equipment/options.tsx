@@ -1,5 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { GemaPropertyAccess } from '@/components/gema-property-access';
+import { useUserRole } from '@/hooks/use-user-role';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +14,24 @@ import type {
 } from '@/types/qr-equipment';
 
 export default function QREquipmentOptionsScreen() {
+  const params = useLocalSearchParams<{
+    buildingId?: string;
+    equipoId?: string;
+  }>();
+  const { canScanEquipment } = useUserRole();
+
+  return (
+    <GemaPropertyAccess
+      enabled={canScanEquipment}
+      propertyId={params.buildingId}
+      equipmentId={params.equipoId}>
+      <QREquipmentOptionsScreenContent />
+    </GemaPropertyAccess>
+  );
+}
+
+function QREquipmentOptionsScreenContent() {
+  const { canUseChecklists } = useUserRole();
   const router = useRouter();
   const params = useLocalSearchParams<QREquipmentRouteParams>();
 
@@ -41,30 +61,33 @@ export default function QREquipmentOptionsScreen() {
   );
 
   const actions = useMemo<QREquipmentAction[]>(
-    () => [
-      {
-        key: 'checklist',
-        title: 'Checklist',
-        description: 'Registrar la inspeccion operativa de este equipo.',
-        iconName: 'fact-check',
-        onPress: () => {
-          router.push({ pathname: '/checklist/form', params: routeParams });
-        },
-      },
-      {
-        key: 'description',
-        title: 'Descripcion',
-        description: 'Ver datos, ubicacion y detalle tecnico disponible.',
-        iconName: 'description',
-        onPress: () => {
-          router.push({
-            pathname: '/qr-equipment/description',
-            params: routeParams,
-          });
-        },
-      },
-    ],
-    [routeParams, router],
+    () =>
+      (
+        [
+          {
+            key: 'checklist',
+            title: 'Checklist',
+            description: 'Registrar la inspeccion operativa de este equipo.',
+            iconName: 'fact-check',
+            onPress: () => {
+              router.push({ pathname: '/checklist/form', params: routeParams });
+            },
+          },
+          {
+            key: 'description',
+            title: 'Descripcion',
+            description: 'Ver datos, ubicacion y detalle tecnico disponible.',
+            iconName: 'description',
+            onPress: () => {
+              router.push({
+                pathname: '/qr-equipment/description',
+                params: routeParams,
+              });
+            },
+          },
+        ] satisfies QREquipmentAction[]
+      ).filter(action => canUseChecklists || action.key !== 'checklist'),
+    [canUseChecklists, routeParams, router],
   );
 
   return (

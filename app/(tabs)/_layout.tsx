@@ -11,7 +11,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function TabLayout() {
-  const { isAdmin } = useUserRole();
+  const { isAdmin, canScanEquipment, canGenerateMaintenanceReports } =
+    useUserRole();
   const [hasLocalMirror, setHasLocalMirror] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -77,6 +78,7 @@ export default function TabLayout() {
         name="qr-scanner"
         options={{
           title: 'Escanear QR',
+          href: canScanEquipment ? '/qr-scanner' : null,
           tabBarIcon: ({ color }) => (
             <MaterialIcons name="qr-code-scanner" size={24} color={color} />
           ),
@@ -95,6 +97,7 @@ export default function TabLayout() {
         name="reports"
         options={{
           title: 'Reportes',
+          href: canGenerateMaintenanceReports ? '/reports' : null,
           tabBarIcon: ({ color }) => (
             <Ionicons name="stats-chart" size={24} color={color} />
           ),

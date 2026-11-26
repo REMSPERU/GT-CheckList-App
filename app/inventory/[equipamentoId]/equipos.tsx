@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useUserRole } from '@/hooks/use-user-role';
 import {
   View,
   Text,
@@ -49,6 +50,7 @@ function normalizeSearch(val: string) {
 export default function InventoryEquiposScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { canManageAssets } = useUserRole();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
 
@@ -357,17 +359,19 @@ export default function InventoryEquiposScreen() {
       )}
 
       {/* FAB - Agregar equipo */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.fab,
-          { bottom: insets.bottom + 32 },
-          pressed && styles.fabPressed,
-        ]}
-        onPress={handleAddEquipo}
-        accessibilityRole="button"
-        accessibilityLabel="Agregar nuevo equipo">
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </Pressable>
+      {canManageAssets ? (
+        <Pressable
+          style={({ pressed }) => [
+            styles.fab,
+            { bottom: insets.bottom + 32 },
+            pressed && styles.fabPressed,
+          ]}
+          onPress={handleAddEquipo}
+          accessibilityRole="button"
+          accessibilityLabel="Agregar nuevo equipo">
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </Pressable>
+      ) : null}
 
       {/* Fast, Clean Filter Modal */}
       <Modal

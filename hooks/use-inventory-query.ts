@@ -1,3 +1,4 @@
+import { useUserRole } from '@/hooks/use-user-role';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DatabaseService } from '@/services/db';
 import { updateEquipment, createEquipment } from '@/services/db/equipment';
@@ -148,8 +149,13 @@ export function useAllInventoryEquipamentos() {
 export function useCreateEquipo() {
   const queryClient = useQueryClient();
 
+  const { canManageAssets } = useUserRole();
   return useMutation<unknown, Error, CreateEquipmentData>({
-    mutationFn: data => createEquipment(data),
+    mutationFn: data => {
+      if (!canManageAssets)
+        throw new Error('No tienes permiso para crear activos.');
+      return createEquipment(data);
+    },
     onSuccess: async (_result, variables) => {
       try {
         await syncService.triggerSync('inventory-equipo-created', {
@@ -179,8 +185,13 @@ export function useUpdateEquipo(
 ) {
   const queryClient = useQueryClient();
 
+  const { canEditAssets } = useUserRole();
   return useMutation<unknown, Error, UpdateEquipmentData>({
-    mutationFn: data => updateEquipment(equipoId, data),
+    mutationFn: data => {
+      if (!canEditAssets)
+        throw new Error('No tienes permiso para editar activos.');
+      return updateEquipment(equipoId, data);
+    },
     onSuccess: async () => {
       try {
         await syncService.triggerSync('inventory-equipo-updated', {

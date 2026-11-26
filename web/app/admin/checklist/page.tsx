@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useAdminSession } from '@/hooks/auth/use-admin-session';
+import { getGemaPermissions } from '../../../../types/gema-role';
 
 import { AdminPagination } from '@/components/admin/admin-pagination';
 import { ChecklistPropertyTemplateEditor } from '@/components/admin/checklist-property-template-editor';
@@ -98,6 +100,8 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const { user } = useAdminSession();
+  const canScheduleChecklists = getGemaPermissions(user?.role ?? null).canScheduleChecklists;
   const activeTab = routeTab;
   const checklist = useAdminChecklist(activeTab);
   const [isScheduleEditorOpen, setIsScheduleEditorOpen] = useState(false);
@@ -282,12 +286,13 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
           onNavigate={() => setActiveTab('responses')}>
           Respuestas recibidas
         </SectionLink>
-        <SectionLink
+        {user?.role !== 'TECNICO' ? <SectionLink
           active={activeTab === 'questions'}
           href={SECTION_ROUTES.questions}
           onNavigate={() => setActiveTab('questions')}>
           Preguntas del checklist
-        </SectionLink>
+        </SectionLink> : null}
+        {canScheduleChecklists ? <>
         <SectionLink
           active={activeTab === 'schedule'}
           href={SECTION_ROUTES.schedule}
@@ -300,6 +305,7 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
           onNavigate={() => setActiveTab('calendar')}>
           Calendario global
         </SectionLink>
+        </> : null}
       </section>
 
       {activeTab === 'responses' ? (

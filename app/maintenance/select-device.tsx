@@ -1,3 +1,5 @@
+import { useUserRole } from '@/hooks/use-user-role';
+import { GemaPropertyAccess } from '@/components/gema-property-access';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   FlatList,
@@ -172,6 +174,7 @@ const ChecklistEquipamentoRow = memo(function ChecklistEquipamentoRow({
     onPress(item);
   }, [item, onPress]);
 
+  const { canScheduleChecklists } = useUserRole();
   const handleSchedulePress = useCallback(
     (event: { stopPropagation: () => void }) => {
       event.stopPropagation();
@@ -204,14 +207,14 @@ const ChecklistEquipamentoRow = memo(function ChecklistEquipamentoRow({
         </Text>
       </View>
       <View style={styles.checklistActions}>
-        <Pressable
+        {canScheduleChecklists ? <Pressable
           style={styles.scheduleButton}
           onPress={handleSchedulePress}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={`Programar checklist de tipo ${item.nombre}`}>
           <Ionicons name="calendar-outline" size={18} color="#0891B2" />
-        </Pressable>
+        </Pressable> : null}
         <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
       </View>
     </Pressable>
@@ -219,6 +222,21 @@ const ChecklistEquipamentoRow = memo(function ChecklistEquipamentoRow({
 });
 
 export default function SelectDeviceScreen() {
+  const params = useLocalSearchParams<{ buildingId?: string; type?: string }>();
+  const { canUseChecklists, canScheduleMaintenance, canExecuteMaintenance } = useUserRole();
+  const enabled = params.type === 'checklist'
+    ? canUseChecklists
+    : canScheduleMaintenance || canExecuteMaintenance;
+
+  return (
+    <GemaPropertyAccess enabled={enabled} propertyId={params.buildingId}>
+      <SelectDeviceContent />
+    </GemaPropertyAccess>
+  );
+}
+
+function SelectDeviceContent() {
+  const { canScheduleChecklists, isTechnician } = useUserRole();
   const router = useRouter();
   const params = useLocalSearchParams();
   const flowType = params.type as string | undefined;
@@ -335,11 +353,11 @@ export default function SelectDeviceScreen() {
 
     try {
       if (flowType === 'checklist') {
-        const data = await DatabaseService.getChecklistSystemsByProperty(
+        const systems = await DatabaseService.getChecklistSystemsByProperty(
           building.id,
+          isTechnician,
         );
-        const systems = data as SistemaChecklistResponse[];
-        setChecklistSystems(systems);
+        setChecklistSystems(systems as SistemaChecklistResponse[]);
         setEquipamentos([]);
         // Do not auto-expand the first system card by default
         setExpandedSystemId(current => current ?? null);
@@ -359,7 +377,7 @@ export default function SelectDeviceScreen() {
     }
 
     setIsLoading(false);
-  }, [building?.id, flowType]);
+  }, [building?.id, flowType, isTechnician]);
 
   useEffect(() => {
     if (!paramsResolved) return;
@@ -539,7 +557,7 @@ export default function SelectDeviceScreen() {
             </View>
 
             <View style={styles.checklistActions}>
-              <Pressable
+              {canScheduleChecklists ? <Pressable
                 onPress={event => {
                   event.stopPropagation();
                   handleChecklistSchedulePress(item);
@@ -548,7 +566,7 @@ export default function SelectDeviceScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Programar checklist de tipo ${item.nombre}`}>
                 <Ionicons name="calendar-outline" size={20} color="#0891B2" />
-              </Pressable>
+              </Pressable> : null}
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </View>
           </Pressable>
@@ -565,7 +583,7 @@ export default function SelectDeviceScreen() {
         />
       );
     },
-    [flowType, handleChecklistSchedulePress, handleEquipamentoPress],
+    [flowType, canScheduleChecklists, handleChecklistSchedulePress, handleEquipamentoPress],
   );
 
   return (

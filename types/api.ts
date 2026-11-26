@@ -7,7 +7,6 @@ export enum RoleEnum {
   AUDITOR = 'AUDITOR',
   SUPERVISOR = 'SUPERVISOR',
   SUPERADMIN = 'SUPERADMIN',
-  TECNICO_REMS = 'TECNICO_REMS',
 }
 
 // User types
@@ -225,6 +224,7 @@ export interface EquipmentDetail {
 // Base Equipment interface (shared by all equipment types from 'equipos' table)
 export interface BaseEquipment {
   id: string;
+  equipamento_abreviatura?: string | null;
   id_property: string;
   id_equipamento?: string;
   codigo: string;

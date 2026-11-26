@@ -57,7 +57,7 @@ export async function getLocalAssignedProperties(userId: string) {
   await ensureInitialized();
   const db = await dbPromise;
   const now = new Date().toISOString();
-  return await db.getAllAsync(
+  return await db.getAllAsync<{ id: string } & Record<string, unknown>>(
     `SELECT p.*
        FROM local_properties p
        INNER JOIN local_user_properties up
@@ -115,7 +115,10 @@ export async function getEquipamentosByProperty(propertyId: string) {
   return rows;
 }
 
-export async function getChecklistSystemsByProperty(propertyId: string) {
+export async function getChecklistSystemsByProperty(
+  propertyId: string,
+  scheduledOnly = false,
+) {
   await ensureInitialized();
   const db = await dbPromise;
   const rows = (await db.getAllAsync(
@@ -135,6 +138,12 @@ export async function getChecklistSystemsByProperty(propertyId: string) {
         LEFT JOIN local_sistemas s ON s.id = e.id_sistema
         WHERE eq.id_property = ?
           AND (eq.estatus IS NULL OR eq.estatus != ?)
+          AND (? = 0 OR EXISTS (
+            SELECT 1 FROM local_checklist_schedules cs
+            WHERE cs.property_id = eq.id_property
+              AND cs.equipamento_id = eq.id_equipamento
+              AND cs.is_active = 1
+          ))
         GROUP BY
           sistema_id,
           sistema_nombre,
@@ -146,7 +155,7 @@ export async function getChecklistSystemsByProperty(propertyId: string) {
           e.id_sistema
         ORDER BY sistema_nombre ASC, e.nombre ASC
       `,
-    [propertyId, 'INACTIVO'],
+    [propertyId, 'INACTIVO', Number(scheduledOnly)],
   )) as any[];
 
   const groups = new Map<

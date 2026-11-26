@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { GemaPropertyAccess } from '@/components/gema-property-access';
 import {
   FlatList,
   ScrollView,
@@ -413,8 +414,19 @@ const ChecklistQuestionRow = memo(function ChecklistQuestionRow({
 });
 
 export default function ChecklistFormScreen() {
+  const params = useLocalSearchParams<{ buildingId?: string; equipoId?: string }>();
+  const { canUseChecklists } = useUserRole();
+
+  return (
+    <GemaPropertyAccess enabled={canUseChecklists} propertyId={params.buildingId} equipmentId={params.equipoId}>
+      <ChecklistFormScreenContent />
+    </GemaPropertyAccess>
+  );
+}
+
+function ChecklistFormScreenContent() {
   const router = useRouter();
-  const { canScheduleMaintenance } = useUserRole();
+  const { canScheduleChecklists, isTechnician } = useUserRole();
   const params = useLocalSearchParams<{
     buildingId: string;
     buildingName: string;
@@ -935,6 +947,11 @@ export default function ChecklistFormScreen() {
       return;
     }
 
+    if (isTechnician && !schedulePreview.hasSchedule) {
+      showAppAlert('Checklist sin programación', schedulePreview.message);
+      return;
+    }
+
     if (schedulePreview.hasSchedule && !schedulePreview.allowed) {
       showAppAlert(
         'Checklist fuera de programacion',
@@ -1041,6 +1058,11 @@ export default function ChecklistFormScreen() {
           'Schedule validation unavailable, using local checklist validation:',
           scheduleValidationError,
         );
+      }
+
+      if (isTechnician && !checklistScheduleId) {
+        showAppAlert('Checklist sin programación', 'El equipo no tiene una programación activa.');
+        return;
       }
 
       const fallbackPeriod = getPeriodFromFrequency(effectiveFrequency);
@@ -1227,6 +1249,7 @@ export default function ChecklistFormScreen() {
     router,
     schedulePreview.allowed,
     schedulePreview.hasSchedule,
+    isTechnician,
     schedulePreview.hint,
     schedulePreview.isLoading,
     schedulePreview.message,
@@ -1317,6 +1340,10 @@ export default function ChecklistFormScreen() {
       return 'No se puede guardar porque este checklist no tiene preguntas activas.';
     }
 
+    if (isTechnician && !schedulePreview.hasSchedule) {
+      return schedulePreview.message;
+    }
+
     if (schedulePreview.hasSchedule && !schedulePreview.allowed) {
       return (
         schedulePreview.message ||
@@ -1329,6 +1356,7 @@ export default function ChecklistFormScreen() {
     questions.length,
     schedulePreview.allowed,
     schedulePreview.hasSchedule,
+    isTechnician,
     schedulePreview.isLoading,
     schedulePreview.message,
   ]);
@@ -1509,7 +1537,7 @@ export default function ChecklistFormScreen() {
             ]}
             accessibilityRole="button">
             <Text style={styles.scheduleActionText}>
-              {canScheduleMaintenance
+              {canScheduleChecklists
                 ? schedulePreview.hasSchedule
                   ? 'Ajustar programacion'
                   : 'Crear programacion'

@@ -37,7 +37,7 @@ export const propertyKeys = {
 
 /**
  * Hook para obtener una propiedad específica por ID.
- * OFFLINE-FIRST: Carga la propiedad desde SQLite local primero, y si existe, 
+ * OFFLINE-FIRST: Carga la propiedad desde SQLite local primero, y si existe,
  * actualiza los datos en background desde Supabase.
  */
 export function useProperty(
@@ -66,7 +66,10 @@ export function useProperty(
         supabasePropertyService
           .getById(propertyId)
           .then(remoteProp => {
-            queryClient.setQueryData(propertyKeys.detail(propertyId), remoteProp);
+            queryClient.setQueryData(
+              propertyKeys.detail(propertyId),
+              remoteProp,
+            );
           })
           .catch(err => {
             console.log('[useProperty] background remote fetch failed', err);
@@ -95,7 +98,8 @@ function transformLocalToPropertyList(localProps: any[]): PropertyListResponse {
     city: p.city,
     image_url: p.image_url || null,
     floor: p.floor !== undefined && p.floor !== null ? p.floor : null,
-    basement: p.basement !== undefined && p.basement !== null ? p.basement : null,
+    basement:
+      p.basement !== undefined && p.basement !== null ? p.basement : null,
     // defaults for missing fields in mirror
     property_type: 'Unknown',
     is_active: true,
@@ -135,14 +139,18 @@ export function useProperties(
 ) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { isAuditor, isTecnicoRems } = useUserRole();
+  const { hasAssignedPropertyScope, isLoaded: roleLoaded } = useUserRole();
   const { enabled: optionsEnabled, ...restOptions } = options ?? {};
   const normalizedFilters = filters ?? null;
-  const queryKey = propertyKeys.list(normalizedFilters);
+  const queryKey = [
+    ...propertyKeys.list(normalizedFilters),
+    user?.id,
+    hasAssignedPropertyScope,
+  ];
 
   return useQuery({
     queryKey,
-    enabled: optionsEnabled ?? true,
+    enabled: roleLoaded && !!user?.id && (optionsEnabled ?? true),
     networkMode: 'always',
     queryFn: async () => {
       logPropertiesFlow('query start', {
@@ -151,10 +159,11 @@ export function useProperties(
       });
 
       // OFFLINE-FIRST: Start with local data immediately
-      const isRestricted = isAuditor || isTecnicoRems;
-      const localProps = isRestricted && user?.id
-        ? await getLocalAssignedProperties(user.id)
-        : await getLocalProperties();
+      const isRestricted = hasAssignedPropertyScope;
+      const localProps =
+        isRestricted && user?.id
+          ? await getLocalAssignedProperties(user.id)
+          : await getLocalProperties();
       const localData = transformLocalToPropertyList(localProps);
       logPropertiesFlow('local read complete', {
         localCount: localData.items.length,

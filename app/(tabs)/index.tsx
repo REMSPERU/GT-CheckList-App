@@ -34,7 +34,14 @@ function HomeScreen() {
   const { height } = useWindowDimensions();
   const isTallScreen = height >= 820;
   const appVersion = Constants.expoConfig?.version ?? '1.0.36';
-  const { isAdmin, isSupervisor, isTechnician, isTecnicoRems, canAudit } = useUserRole();
+  const {
+    canViewInventory,
+    canUseChecklists,
+    canScheduleMaintenance,
+    canExecuteMaintenance,
+    canGenerateMaintenanceReports,
+    canAudit,
+  } = useUserRole();
 
   const {
     userDisplayName,
@@ -69,20 +76,16 @@ function HomeScreen() {
   const actionCards = useMemo<HomeActionCard[]>(() => {
     const cards: HomeActionCard[] = [];
 
-    cards.push({
-      key: 'inventory',
-      title: 'Inventario',
-      description: 'Explore sistemas y equipos del inmueble',
-      icon: <Feather name="archive" size={24} color="#06B6D4" />,
-      onPress: handleInventoryPress,
-    });
+    if (canViewInventory)
+      cards.push({
+        key: 'inventory',
+        title: 'Inventario',
+        description: 'Explore sistemas y equipos del inmueble',
+        icon: <Feather name="archive" size={24} color="#06B6D4" />,
+        onPress: handleInventoryPress,
+      });
 
-    const canSeeChecklist = isAdmin || isTecnicoRems;
-    const canSeeSchedule = isTechnician || isSupervisor;
-    const canSeeExecute = isTechnician || isSupervisor;
-    const canSeeReports = isSupervisor;
-
-    if (canSeeChecklist) {
+    if (canUseChecklists) {
       cards.push({
         key: 'checklist',
         title: 'Checklist',
@@ -92,7 +95,7 @@ function HomeScreen() {
       });
     }
 
-    if (canSeeSchedule) {
+    if (canScheduleMaintenance) {
       cards.push({
         key: 'schedule-maintenance',
         title: 'Programar Mantenimiento',
@@ -104,7 +107,7 @@ function HomeScreen() {
       });
     }
 
-    if (canSeeExecute) {
+    if (canExecuteMaintenance) {
       cards.push({
         key: 'execute-maintenance',
         title: 'Ejecutar mantenimiento',
@@ -126,7 +129,7 @@ function HomeScreen() {
       });
     }
 
-    if (canSeeReports) {
+    if (canGenerateMaintenanceReports) {
       cards.push({
         key: 'reports',
         title: 'Generar informes',
@@ -139,10 +142,11 @@ function HomeScreen() {
     return cards;
   }, [
     canAudit,
-    isAdmin,
-    isSupervisor,
-    isTechnician,
-    isTecnicoRems,
+    canViewInventory,
+    canUseChecklists,
+    canScheduleMaintenance,
+    canExecuteMaintenance,
+    canGenerateMaintenanceReports,
     handleChecklistPress,
     handleAuditPress,
     handleExecuteMaintenancePress,
