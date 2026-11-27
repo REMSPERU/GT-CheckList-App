@@ -6,6 +6,8 @@ export type GemaRole =
   | 'PROVEEDOR'
   | 'GUEST';
 
+export const PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT = false;
+
 /** Accept the legacy value while saved sessions and assignments are migrated. */
 export function normalizeGemaRole(value: unknown): GemaRole | null {
   switch (value) {

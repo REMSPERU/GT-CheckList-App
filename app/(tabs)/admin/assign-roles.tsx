@@ -18,6 +18,7 @@ import { useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import RNPickerSelect from 'react-native-picker-select';
 import { UserRole } from '@/contexts/UserRoleContext';
+import { PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT } from '@/types/gema-role';
 import {
   supabaseCompanyService,
   type Company,
@@ -66,7 +67,9 @@ export default function AssignRolesScreen() {
       setLoading(true);
       const [userList, companyList] = await Promise.all([
         supabaseUserService.listUsers(),
-        supabaseCompanyService.listCompanies(),
+        PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT
+          ? supabaseCompanyService.listCompanies()
+          : [],
       ]);
       setUsers(userList);
       setCompanies(companyList);
@@ -86,7 +89,11 @@ export default function AssignRolesScreen() {
 
   const openRoleModal = (user: UserProfile) => {
     setSelectedUser(user);
-    setSelectedRole(user.role);
+    setSelectedRole(
+      !PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT && user.role === 'PROVEEDOR'
+        ? null
+        : user.role,
+    );
     setCompanyId(user.id_company);
     setModalVisible(true);
   };
@@ -117,7 +124,9 @@ export default function AssignRolesScreen() {
   const roleOptions = [
     { label: 'Técnico', value: 'TECNICO' },
     { label: 'Auditor', value: 'AUDITOR' },
-    { label: 'Proveedor', value: 'PROVEEDOR' },
+    ...(PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT
+      ? [{ label: 'Proveedor', value: 'PROVEEDOR' }]
+      : []),
     { label: 'Supervisor', value: 'SUPERVISOR' },
     { label: 'Super Admin', value: 'SUPERADMIN' },
   ];

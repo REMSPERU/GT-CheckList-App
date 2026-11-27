@@ -10,6 +10,7 @@ import type {
   AdminUserRow,
 } from '@/types/admin';
 import type { AdminRole } from '@/types/auth';
+import { PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT } from '../../../types/gema-role';
 
 const USER_SELECT =
   'id, email, username, first_name, last_name, role, is_active, id_company';
@@ -17,7 +18,9 @@ const USER_SELECT =
 export const ADMIN_ROLE_OPTIONS: { label: string; value: AdminRole }[] = [
   { label: 'Técnico', value: 'TECNICO' },
   { label: 'Auditor', value: 'AUDITOR' },
-  { label: 'Proveedor', value: 'PROVEEDOR' },
+  ...(PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT
+    ? [{ label: 'Proveedor', value: 'PROVEEDOR' as const }]
+    : []),
   { label: 'Supervisor', value: 'SUPERVISOR' },
   { label: 'Superadmin', value: 'SUPERADMIN' },
 ];
@@ -65,6 +68,7 @@ export async function listAdminUsers(
 export async function listProviderCompanies(
   supabase: SupabaseClient,
 ): Promise<AdminProviderCompany[]> {
+  if (!PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT) return [];
   const { data, error } = await supabase.from('company').select('id, nombre').order('nombre');
   if (error) throw error;
   return data ?? [];
