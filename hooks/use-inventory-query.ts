@@ -57,11 +57,16 @@ export function useInventoryChecklistSystems(propertyId: string) {
   return useQuery<SistemaChecklistResponse[], Error>({
     queryKey: inventoryKeys.checklistSystems(propertyId),
     networkMode: 'always',
-    queryFn: () =>
-      DatabaseService.getChecklistSystemsByProperty(propertyId) as Promise<
-        SistemaChecklistResponse[]
-      >,
+    queryFn: async () => {
+      const systems =
+        await DatabaseService.getChecklistSystemsByProperty(propertyId);
+      if (systems.length > 0) return systems;
+
+      await syncService.pullInventoryForProperty(propertyId);
+      return DatabaseService.getChecklistSystemsByProperty(propertyId);
+    },
     enabled: !!propertyId,
+    retry: false,
     staleTime: 30_000,
   });
 }

@@ -1,8 +1,23 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PostgrestError, SupabaseClient } from '@supabase/supabase-js';
 
 import type { AdminMetric } from '@/types/admin';
 
 const IN_FILTER_BATCH_SIZE = 400;
+const SESSION_PAGE_SIZE = 500;
+
+class AdminMetricsError extends Error {
+  readonly retryable: boolean;
+
+  constructor(resource: string, status: number, cause: PostgrestError) {
+    super(`No se pudieron cargar los datos de ${resource}.`, { cause });
+    this.retryable =
+      [0, 408, 429, 502, 503, 504].includes(status) || cause.code === '57014';
+  }
+}
+
+export function isRetryableAdminMetricsError(error: unknown) {
+  return error instanceof AdminMetricsError && error.retryable;
+}
 
 async function countMaintenancesBySession(
   supabase: SupabaseClient,
@@ -27,8 +42,8 @@ async function countMaintenancesBySession(
         ? query.eq('estatus', statuses[0])
         : query.in('estatus', statuses);
 
-    const { count, error } = await query;
-    if (error) throw error;
+    const { count, error, status } = await query;
+    if (error) throw new AdminMetricsError('mantenimientos', status, error);
     total += count ?? 0;
   }
 
@@ -47,13 +62,20 @@ async function listSessionIdsByProperties(
     index += IN_FILTER_BATCH_SIZE
   ) {
     const batch = propertyIds.slice(index, index + IN_FILTER_BATCH_SIZE);
-    const { data, error } = await supabase
-      .from('sesion_mantenimiento')
-      .select('id')
-      .in('id_property', batch);
+    for (let offset = 0; ; offset += SESSION_PAGE_SIZE) {
+      const { data, error, status } = await supabase
+        .from('sesion_mantenimiento')
+        .select('id')
+        .in('id_property', batch)
+        .order('id')
+        .range(offset, offset + SESSION_PAGE_SIZE - 1);
 
-    if (error) throw error;
-    sessionIds.push(...(data ?? []).map(item => item.id as string));
+      if (error)
+        throw new AdminMetricsError('sesiones de mantenimiento', status, error);
+      const page = data ?? [];
+      sessionIds.push(...page.map(item => item.id as string));
+      if (page.length < SESSION_PAGE_SIZE) break;
+    }
   }
 
   return sessionIds;
@@ -62,12 +84,14 @@ async function listSessionIdsByProperties(
 export async function getAdminMetrics(
   supabase: SupabaseClient,
 ): Promise<AdminMetric[]> {
-  const { data: activeProperties, error: propertiesError } = await supabase
-    .from('properties')
-    .select('id')
-    .eq('is_active', true);
+  const {
+    data: activeProperties,
+    error: propertiesError,
+    status,
+  } = await supabase.from('properties').select('id').eq('is_active', true);
 
-  if (propertiesError) throw propertiesError;
+  if (propertiesError)
+    throw new AdminMetricsError('inmuebles', status, propertiesError);
 
   const propertyIds = (activeProperties ?? []).map(item => item.id as string);
 
@@ -88,8 +112,20 @@ export async function getAdminMetrics(
     listSessionIdsByProperties(supabase, propertyIds),
   ]);
 
-  if (equipments.error) throw equipments.error;
-  if (activeEquipments.error) throw activeEquipments.error;
+  if (equipments.error) {
+    throw new AdminMetricsError(
+      'activos registrados',
+      equipments.status,
+      equipments.error,
+    );
+  }
+  if (activeEquipments.error) {
+    throw new AdminMetricsError(
+      'activos activos',
+      activeEquipments.status,
+      activeEquipments.error,
+    );
+  }
 
   const [pendingCount, completedCount] =
     sessionIds.length > 0

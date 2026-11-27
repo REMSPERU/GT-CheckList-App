@@ -145,12 +145,15 @@ async function smartSyncTable<T extends { id?: string }>(
   pkField: string,
   insertQuery: string,
   paramsFn: (item: T) => any[],
+  propertyId?: string,
 ) {
   const startedAt = Date.now();
+  const scope = propertyId === undefined ? '' : ' WHERE id_property = ?';
+  const scopeParams = propertyId === undefined ? [] : [propertyId];
 
   if (remoteData.length === 0) {
     // If no remote data, clear the table
-    await db.runAsync(`DELETE FROM ${tableName}`);
+    await db.runAsync(`DELETE FROM ${tableName}${scope}`, scopeParams);
     if (__DEV__) {
       console.log('[SmartSync] table done', {
         tableName,
@@ -163,7 +166,8 @@ async function smartSyncTable<T extends { id?: string }>(
 
   // 1. Get all local IDs
   const localRows = (await db.getAllAsync(
-    `SELECT ${pkField} as pk FROM ${tableName}`,
+    `SELECT ${pkField} as pk FROM ${tableName}${scope}`,
+    scopeParams,
   )) as { pk: string }[];
   const localIds = new Set(localRows.map((r: { pk: string }) => r.pk));
   const remoteIds = new Set(
@@ -189,11 +193,7 @@ async function smartSyncTable<T extends { id?: string }>(
     );
   }
 
-  // 4. Upsert all remote data in batches (INSERT OR REPLACE handles updates)
-  for (let i = 0; i < remoteData.length; i += INSERT_BATCH_SIZE) {
-    const batch = remoteData.slice(i, i + INSERT_BATCH_SIZE);
-    await executeBatchInsert(db, insertQuery, batch, paramsFn);
-  }
+  await upsertMirrorRows(db, insertQuery, remoteData, paramsFn);
 
   const elapsedMs = Date.now() - startedAt;
   if (__DEV__ && elapsedMs > 500) {
@@ -203,6 +203,88 @@ async function smartSyncTable<T extends { id?: string }>(
       elapsedMs,
     });
   }
+}
+
+async function upsertMirrorRows<T>(
+  db: Awaited<typeof dbPromise>,
+  query: string,
+  rows: T[],
+  params: (item: T) => any[],
+) {
+  for (let i = 0; i < rows.length; i += INSERT_BATCH_SIZE) {
+    await executeBatchInsert(
+      db,
+      query,
+      rows.slice(i, i + INSERT_BATCH_SIZE),
+      params,
+    );
+  }
+}
+
+const INSERT_EQUIPO =
+  'INSERT OR REPLACE INTO local_equipos (id, id_property, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus, equipment_detail, config, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+const INSERT_SISTEMA =
+  'INSERT OR REPLACE INTO local_sistemas (id, nombre, activo) VALUES (?, ?, ?)';
+const INSERT_EQUIPAMENTO =
+  'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura, frecuencia, id_sistema) VALUES (?, ?, ?, ?, ?)';
+
+function equipoParams(item: any) {
+  return [
+    item.id,
+    item.id_property,
+    item.id_equipamento,
+    item.codigo,
+    item.ubicacion,
+    item.detalle_ubicacion,
+    item.estatus,
+    JSON.stringify(item.equipment_detail),
+    item.config ? 1 : 0,
+    new Date().toISOString(),
+  ];
+}
+
+function sistemaParams(item: any) {
+  return [item.id, item.nombre, item.activo ? 1 : 0];
+}
+
+function equipamentoParams(item: any) {
+  return [
+    item.id,
+    item.nombre,
+    item.abreviatura,
+    item.frecuencia || item.Frecuencia || null,
+    item.id_sistema || null,
+  ];
+}
+
+export async function syncPropertyInventory(
+  propertyId: string,
+  equipos: any[],
+  equipamentos: any[],
+  sistemas: any[],
+) {
+  await ensureInitialized();
+  await withLock(async () => {
+    const db = await dbPromise;
+    await db.withTransactionAsync(async () => {
+      await upsertMirrorRows(db, INSERT_SISTEMA, sistemas, sistemaParams);
+      await upsertMirrorRows(
+        db,
+        INSERT_EQUIPAMENTO,
+        equipamentos,
+        equipamentoParams,
+      );
+      await smartSyncTable(
+        db,
+        'local_equipos',
+        equipos,
+        'id',
+        INSERT_EQUIPO,
+        equipoParams,
+        propertyId,
+      );
+    });
+  }, 'syncPropertyInventory');
 }
 
 async function runMirrorStep(
@@ -291,19 +373,8 @@ export async function bulkInsertMirrorData(
             'local_equipos',
             equipos,
             'id',
-            'INSERT OR REPLACE INTO local_equipos (id, id_property, id_equipamento, codigo, ubicacion, detalle_ubicacion, estatus, equipment_detail, config, last_synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            item => [
-              item.id,
-              item.id_property,
-              item.id_equipamento,
-              item.codigo,
-              item.ubicacion,
-              item.detalle_ubicacion,
-              item.estatus,
-              JSON.stringify(item.equipment_detail),
-              item.config ? 1 : 0,
-              new Date().toISOString(),
-            ],
+            INSERT_EQUIPO,
+            equipoParams,
           );
         }
 
@@ -392,8 +463,8 @@ export async function bulkInsertMirrorData(
             'local_sistemas',
             sistemas,
             'id',
-            'INSERT OR REPLACE INTO local_sistemas (id, nombre, activo) VALUES (?, ?, ?)',
-            item => [item.id, item.nombre, item.activo ? 1 : 0],
+            INSERT_SISTEMA,
+            sistemaParams,
           );
         }
 
@@ -403,14 +474,8 @@ export async function bulkInsertMirrorData(
             'local_equipamentos',
             equipamentos,
             'id',
-            'INSERT OR REPLACE INTO local_equipamentos (id, nombre, abreviatura, frecuencia, id_sistema) VALUES (?, ?, ?, ?, ?)',
-            item => [
-              item.id,
-              item.nombre,
-              item.abreviatura,
-              item.frecuencia || item.Frecuencia || null,
-              item.id_sistema || null,
-            ],
+            INSERT_EQUIPAMENTO,
+            equipamentoParams,
           );
         }
 
