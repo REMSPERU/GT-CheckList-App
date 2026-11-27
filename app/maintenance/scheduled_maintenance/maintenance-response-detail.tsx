@@ -15,9 +15,14 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '@/services/database';
 import MaintenanceHeader from '@/components/maintenance-header';
+import { ProviderFindingForm } from '@/components/maintenance/provider-finding-form';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserRole } from '@/hooks/use-user-role';
 
 export default function MaintenanceResponseDetailScreen() {
   const { maintenanceId } = useLocalSearchParams<{ maintenanceId: string }>();
+  const { user } = useAuth();
+  const { role } = useUserRole();
 
   const {
     data: responseData,
@@ -571,6 +576,15 @@ export default function MaintenanceResponseDetailScreen() {
           </>
         )}
 
+        {role === 'PROVEEDOR' &&
+        responseData.user_created === user?.id &&
+        !responseData.id.startsWith('local-') &&
+        !isReprogrammedGroundingWell ? (
+          <ProviderFindingForm
+            key={responseData.id}
+            responseId={responseData.id}
+          />
+        ) : null}
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>

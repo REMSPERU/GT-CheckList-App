@@ -40,6 +40,8 @@ import { DatabaseService } from '@/services/database';
 import { getChecklistPropertyTemplate } from '@/services/checklist-property-template';
 import { useUserRole } from '@/hooks/use-user-role';
 import { syncService } from '@/services/sync';
+import { getLocalProviderFindings } from '@/services/db/provider-findings';
+import type { ProviderFinding } from '@/types/provider-finding';
 
 type AnswerErrors = Record<string, { observation?: string; photos?: string }>;
 type EquipmentOperationalStatus = 'operativo' | 'stand_by' | 'inoperativo';
@@ -59,6 +61,7 @@ interface ChecklistAnswersJson {
   version: 1;
   respuestas: ChecklistAnswerJsonItem[];
   checklist_template_id?: string;
+  provider_finding_ids?: string[];
   resumen: {
     total_preguntas: number;
     total_ok: number;
@@ -414,11 +417,17 @@ const ChecklistQuestionRow = memo(function ChecklistQuestionRow({
 });
 
 export default function ChecklistFormScreen() {
-  const params = useLocalSearchParams<{ buildingId?: string; equipoId?: string }>();
+  const params = useLocalSearchParams<{
+    buildingId?: string;
+    equipoId?: string;
+  }>();
   const { canUseChecklists } = useUserRole();
 
   return (
-    <GemaPropertyAccess enabled={canUseChecklists} propertyId={params.buildingId} equipmentId={params.equipoId}>
+    <GemaPropertyAccess
+      enabled={canUseChecklists}
+      propertyId={params.buildingId}
+      equipmentId={params.equipoId}>
       <ChecklistFormScreenContent />
     </GemaPropertyAccess>
   );
@@ -440,6 +449,9 @@ function ChecklistFormScreenContent() {
   }>();
 
   const [questions, setQuestions] = useState<PreguntaEquipamento[]>([]);
+  const [providerFindings, setProviderFindings] = useState<ProviderFinding[]>(
+    [],
+  );
   const [answers, setAnswers] = useState<
     Record<string, ChecklistQuestionAnswer>
   >({});
@@ -506,6 +518,26 @@ function ChecklistFormScreenContent() {
   }
   const isNormalChecklistFlow = operationalStatus === 'operativo';
   const visibleQuestions = isNormalChecklistFlow ? questions : [];
+
+  useEffect(() => {
+    let active = true;
+    setProviderFindings([]);
+    if (isTechnician && params.equipoId) {
+      void DatabaseService.getSession()
+        .then(session =>
+          session?.user_id
+            ? getLocalProviderFindings(session.user_id, params.equipoId)
+            : [],
+        )
+        .then(findings => {
+          if (active) setProviderFindings(findings);
+        })
+        .catch(error => console.warn('Error leyendo hallazgos:', error));
+    }
+    return () => {
+      active = false;
+    };
+  }, [isTechnician, params.equipoId]);
 
   const showAppAlert = useCallback(
     (title: string, message: string, onClose?: () => void) => {
@@ -1059,7 +1091,10 @@ function ChecklistFormScreenContent() {
       }
 
       if (isTechnician && !checklistScheduleId) {
-        showAppAlert('Checklist sin programación', 'El equipo no tiene una programación activa.');
+        showAppAlert(
+          'Checklist sin programación',
+          'El equipo no tiene una programación activa.',
+        );
         return;
       }
 
@@ -1166,6 +1201,12 @@ function ChecklistFormScreenContent() {
         operationalStatus,
         operationalComment,
       );
+      const findingIds = providerFindings
+        .filter(finding => finding.asset_id === params.equipoId)
+        .map(finding => finding.id);
+      if (isTechnician && findingIds.length > 0) {
+        respuestasJson.provider_finding_ids = findingIds;
+      }
       const hasObservation = respuestasJson.resumen.total_observadas > 0;
       const formStartedAt = new Date(startedAtMsRef.current).toISOString();
       const firstInteractionAt = firstInteractionAtMsRef.current
@@ -1257,6 +1298,7 @@ function ChecklistFormScreenContent() {
     periodStart,
     periodStartLabel,
     questions,
+    providerFindings,
     router,
     schedulePreview.allowed,
     schedulePreview.hasSchedule,
@@ -1375,6 +1417,17 @@ function ChecklistFormScreenContent() {
   const listHeader = useMemo(
     () => (
       <>
+        {providerFindings.map(finding => (
+          <View key={finding.id} style={styles.operationalStatusCard}>
+            <Text style={styles.generalPhotoTitle}>
+              Inoperatividad reportada por el proveedor
+            </Text>
+            <Text style={styles.generalPhotoSubtitle}>{finding.note}</Text>
+            <Text style={styles.generalPhotoSubtitle}>
+              Comprueba el estado del activo y registra lo que observaste.
+            </Text>
+          </View>
+        ))}
         <View style={styles.operationalStatusCard}>
           <Text style={styles.generalPhotoTitle}>Estado del equipo</Text>
           <Text style={styles.generalPhotoSubtitle}>
@@ -1486,6 +1539,7 @@ function ChecklistFormScreenContent() {
       isSaving,
       operationalComment,
       operationalStatus,
+      providerFindings,
       renderGeneralPhoto,
     ],
   );

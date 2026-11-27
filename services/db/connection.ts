@@ -216,6 +216,16 @@ export async function initDatabase() {
           updated_at TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS local_provider_equipment_findings (
+          id TEXT PRIMARY KEY,
+          asset_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          note TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS local_provider_findings_lookup
+          ON local_provider_equipment_findings (user_id, asset_id);
+
         CREATE TABLE IF NOT EXISTS local_checklist_property_templates (
           id TEXT PRIMARY KEY,
           property_id TEXT NOT NULL,

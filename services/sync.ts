@@ -8,6 +8,8 @@ import { checklistStorageService } from './checklist-storage.service';
 import NetInfo from '@react-native-community/netinfo';
 import type { ChecklistPropertyTemplate } from '@/types/checklist';
 import { syncQueue } from './sync-queue';
+import { replaceProviderFindings } from './db/provider-findings';
+import type { ProviderFinding } from '@/types/provider-finding';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface NetworkState {
@@ -2121,6 +2123,31 @@ class SyncService {
           await DatabaseService.upsertSyncedAuditSessions(
             auditSessionsResult.data as RemoteAuditSession[],
           );
+        }
+
+        if (
+          currentUserId &&
+          ['TECNICO', 'TECNICO_REMS'].includes(currentRole)
+        ) {
+          const result = await safeFetch(async () => {
+            const findings: ProviderFinding[] = [];
+            const pageSize = 500;
+            for (let offset = 0; ; offset += pageSize) {
+              const { data, error } = await supabase
+                .from('provider_equipment_findings')
+                .select('id,asset_id,note,created_at')
+                .is('corroborating_response_id', null)
+                .order('id')
+                .range(offset, offset + pageSize - 1);
+              if (error) return { data: null, error };
+              findings.push(...data);
+              if (data.length < pageSize)
+                return { data: findings, error: null };
+            }
+          });
+          if (result.data !== null) {
+            await replaceProviderFindings(currentUserId, result.data);
+          }
         }
 
         this.lastPullTimestamp = Date.now();
