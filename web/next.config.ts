@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   serverExternalPackages: ['@napi-rs/canvas'],
   turbopack: {
-    root: path.join(__dirname),
+    root: path.resolve(__dirname, '..'),
   },
   images: {
     remotePatterns: [

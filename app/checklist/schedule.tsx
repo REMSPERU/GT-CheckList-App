@@ -131,7 +131,7 @@ export default function ChecklistScheduleScreen() {
     equipamentoId: string;
     equipamentoNombre: string;
   }>();
-  const { canScheduleMaintenance } = useUserRole();
+  const { canScheduleChecklists, isLoaded: roleLoaded } = useUserRole();
 
   const [frequency, setFrequency] =
     useState<ChecklistScheduleFrequency>('DIARIA');
@@ -189,20 +189,21 @@ export default function ChecklistScheduleScreen() {
   }, [params.buildingId, params.equipamentoId]);
 
   useEffect(() => {
-    loadSchedule();
-  }, [loadSchedule]);
+    if (canScheduleChecklists) loadSchedule();
+  }, [canScheduleChecklists, loadSchedule]);
 
   useEffect(() => {
-    if (!canScheduleMaintenance) {
+    if (roleLoaded && !canScheduleChecklists) {
       Alert.alert(
         'Sin permisos',
-        'Solo SUPERVISOR o SUPERADMIN pueden programar checklists.',
+        'Solo el superadministrador puede programar checklists.',
         [{ text: 'OK', onPress: () => router.back() }],
       );
     }
-  }, [canScheduleMaintenance, router]);
+  }, [canScheduleChecklists, roleLoaded, router]);
 
   const handleSave = useCallback(async () => {
+    if (!canScheduleChecklists) return;
     if (!params.buildingId || !params.equipamentoId) {
       Alert.alert('Error', 'No se encontró el inmueble o tipo de equipo.');
       return;
@@ -303,6 +304,7 @@ export default function ChecklistScheduleScreen() {
       setIsSaving(false);
     }
   }, [
+    canScheduleChecklists,
     endDate,
     executionRangeDays,
     frequency,
@@ -361,7 +363,7 @@ export default function ChecklistScheduleScreen() {
     setEndDate('');
   }, []);
 
-  if (isLoading || !canScheduleMaintenance) {
+  if (isLoading || !canScheduleChecklists) {
     return (
       <SafeAreaView style={styles.loaderWrap}>
         <ActivityIndicator size="large" color="#0891B2" />

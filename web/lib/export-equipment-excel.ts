@@ -1,6 +1,6 @@
 import type ExcelJS from 'exceljs';
 import type { AdminEquipmentExportRow } from '@/types/admin';
-import { mapTipoLabel } from '@/app/admin/equipos/page';
+import { mapTipoLabel } from '@/lib/equipment-labels';
 
 interface TechFieldConfig {
   key: string;

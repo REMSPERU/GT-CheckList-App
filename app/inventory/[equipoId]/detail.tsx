@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useUserRole } from '@/hooks/use-user-role';
 import {
   View,
   Text,
@@ -10,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TextInput,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -20,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { TechnicalDetailView } from '@/components/inventory/technical-detail-view';
 import { DynamicFieldRenderer } from '@/components/inventory/dynamic-field-renderer';
 import { EquipmentStatusBadge } from '@/components/inventory/equipment-status-badge';
+import { EquipmentAccessBadge } from '@/components/inventory/equipment-access-badge';
 import { UbicacionLabel } from '@/components/inventory/ubicacion-label';
 import { getTechnicalFields } from '@/types/inventory';
 import {
@@ -39,6 +42,7 @@ function getSingleParam(value: string | string[] | undefined) {
 export default function EquipoDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { canManageAssets } = useUserRole();
 
   const equipoId = getSingleParam(params.equipoId);
   const propertyId = getSingleParam(params.propertyId);
@@ -117,7 +121,7 @@ export default function EquipoDetailScreen() {
       try {
         await updateEquipo.mutateAsync({
           detalle_ubicacion: values.detalle_ubicacion ?? null,
-          estatus: values.estatus,
+          ...(canManageAssets ? { estatus: values.estatus } : {}),
           equipment_detail: values.equipment_detail as Record<string, unknown>,
         });
         setIsEditing(false);
@@ -128,7 +132,7 @@ export default function EquipoDetailScreen() {
         Alert.alert('Error', message);
       }
     },
-    [updateEquipo],
+    [canManageAssets, updateEquipo],
   );
 
   const displayNombre = equipo?.equipamento_nombre ?? equipamentoNombre;
@@ -237,6 +241,16 @@ export default function EquipoDetailScreen() {
                 ubicacion={equipo?.ubicacion}
                 detalleUbicacion={equipo?.detalle_ubicacion}
               />
+              <EquipmentAccessBadge
+                difficult={equipmentDetailData.dificil_acceso}
+              />
+              {typeof equipmentDetailData.ambiente_tecnico === 'string' &&
+              equipmentDetailData.ambiente_tecnico.trim() ? (
+                <Text style={styles.sistemaNombre}>
+                  Ambiente técnico ·{' '}
+                  {equipmentDetailData.ambiente_tecnico.trim()}
+                </Text>
+              ) : null}
               {equipo?.sistema_nombre ? (
                 <Text style={styles.sistemaNombre}>
                   {equipo.sistema_nombre}
@@ -257,37 +271,38 @@ export default function EquipoDetailScreen() {
                 />
               ) : (
                 <View style={styles.editSection}>
-                  {/* Edit status */}
-                  <View style={styles.fieldWrap}>
-                    <Text style={styles.label}>Estado</Text>
-                    <Controller
-                      control={control}
-                      name="estatus"
-                      render={({ field: { value, onChange } }) => (
-                        <View style={styles.optionsWrap}>
-                          {ESTATUS_OPTIONS.map(opt => (
-                            <Pressable
-                              key={opt.value}
-                              style={[
-                                styles.optionChip,
-                                value === opt.value &&
-                                  styles.optionChipSelected,
-                              ]}
-                              onPress={() => onChange(opt.value)}>
-                              <Text
+                  {canManageAssets ? (
+                    <View style={styles.fieldWrap}>
+                      <Text style={styles.label}>Estado</Text>
+                      <Controller
+                        control={control}
+                        name="estatus"
+                        render={({ field: { value, onChange } }) => (
+                          <View style={styles.optionsWrap}>
+                            {ESTATUS_OPTIONS.map(opt => (
+                              <Pressable
+                                key={opt.value}
                                 style={[
-                                  styles.optionChipText,
+                                  styles.optionChip,
                                   value === opt.value &&
-                                    styles.optionChipTextSelected,
-                                ]}>
-                                {opt.label}
-                              </Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      )}
-                    />
-                  </View>
+                                    styles.optionChipSelected,
+                                ]}
+                                onPress={() => onChange(opt.value)}>
+                                <Text
+                                  style={[
+                                    styles.optionChipText,
+                                    value === opt.value &&
+                                      styles.optionChipTextSelected,
+                                  ]}>
+                                  {opt.label}
+                                </Text>
+                              </Pressable>
+                            ))}
+                          </View>
+                        )}
+                      />
+                    </View>
+                  ) : null}
 
                   {/* Edit detalle ubicacion */}
                   <View style={styles.fieldWrap}>
@@ -303,6 +318,40 @@ export default function EquipoDetailScreen() {
                           onBlur={onBlur}
                           placeholder="ej. Sala de máquinas"
                           placeholderTextColor="#94A3B8"
+                        />
+                      )}
+                    />
+                  </View>
+
+                  <View style={styles.fieldWrap}>
+                    <Text style={styles.label}>Equipo de difícil acceso</Text>
+                    <Controller
+                      control={control}
+                      name="equipment_detail.dificil_acceso"
+                      render={({ field: { value, onChange } }) => (
+                        <Switch
+                          accessibilityLabel="Equipo de difícil acceso"
+                          value={value === true}
+                          onValueChange={onChange}
+                        />
+                      )}
+                    />
+                  </View>
+
+                  <View style={styles.fieldWrap}>
+                    <Text style={styles.label}>Ambiente o cuarto técnico</Text>
+                    <Controller
+                      control={control}
+                      name="equipment_detail.ambiente_tecnico"
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <TextInput
+                          style={styles.input}
+                          value={typeof value === 'string' ? value : ''}
+                          onChangeText={onChange}
+                          onBlur={onBlur}
+                          accessibilityLabel="Ambiente o cuarto técnico"
+                          placeholder="Ej. Cuarto de chillers"
+                          maxLength={80}
                         />
                       )}
                     />

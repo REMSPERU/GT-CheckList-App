@@ -1,6 +1,11 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { GemaPropertyAccess } from '@/components/gema-property-access';
+import { useUserRole } from '@/hooks/use-user-role';
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { DatabaseService } from '@/services/database';
+import { getChecklistLocalDate } from '@/utils/checklist-local-date';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,6 +17,24 @@ import type {
 } from '@/types/qr-equipment';
 
 export default function QREquipmentOptionsScreen() {
+  const params = useLocalSearchParams<{
+    buildingId?: string;
+    equipoId?: string;
+  }>();
+  const { canScanEquipment } = useUserRole();
+
+  return (
+    <GemaPropertyAccess
+      enabled={canScanEquipment}
+      propertyId={params.buildingId}
+      equipmentId={params.equipoId}>
+      <QREquipmentOptionsScreenContent />
+    </GemaPropertyAccess>
+  );
+}
+
+function QREquipmentOptionsScreenContent() {
+  const { canUseChecklists, isTechnician } = useUserRole();
   const router = useRouter();
   const params = useLocalSearchParams<QREquipmentRouteParams>();
 
@@ -40,31 +63,56 @@ export default function QREquipmentOptionsScreen() {
     ],
   );
 
-  const actions = useMemo<QREquipmentAction[]>(
-    () => [
-      {
-        key: 'checklist',
-        title: 'Checklist',
-        description: 'Registrar la inspeccion operativa de este equipo.',
-        iconName: 'fact-check',
-        onPress: () => {
-          router.push({ pathname: '/checklist/form', params: routeParams });
-        },
-      },
-      {
-        key: 'description',
-        title: 'Descripcion',
-        description: 'Ver datos, ubicacion y detalle tecnico disponible.',
-        iconName: 'description',
-        onPress: () => {
-          router.push({
-            pathname: '/qr-equipment/description',
-            params: routeParams,
-          });
-        },
-      },
+  const schedule = useQuery({
+    networkMode: 'always',
+    queryKey: [
+      'qr-checklist-schedule',
+      routeParams.buildingId,
+      routeParams.equipamentoId,
     ],
-    [routeParams, router],
+    enabled:
+      isTechnician && !!routeParams.buildingId && !!routeParams.equipamentoId,
+    queryFn: () =>
+      DatabaseService.getLocalChecklistScheduleByScope(
+        routeParams.buildingId,
+        routeParams.equipamentoId,
+      ),
+  });
+  const today = getChecklistLocalDate(new Date(), schedule.data?.timezone);
+  const scheduled =
+    !!schedule.data &&
+    schedule.data.start_date <= today &&
+    (!schedule.data.end_date || schedule.data.end_date >= today);
+  const showChecklist = canUseChecklists && (!isTechnician || scheduled);
+
+  const actions = useMemo<QREquipmentAction[]>(
+    () =>
+      (
+        [
+          {
+            key: 'checklist',
+            title: 'Checklist',
+            description: 'Registrar la inspeccion operativa de este equipo.',
+            iconName: 'fact-check',
+            onPress: () => {
+              router.push({ pathname: '/checklist/form', params: routeParams });
+            },
+          },
+          {
+            key: 'description',
+            title: 'Descripcion',
+            description: 'Ver datos, ubicacion y detalle tecnico disponible.',
+            iconName: 'description',
+            onPress: () => {
+              router.push({
+                pathname: '/qr-equipment/description',
+                params: routeParams,
+              });
+            },
+          },
+        ] satisfies QREquipmentAction[]
+      ).filter(action => showChecklist || action.key !== 'checklist'),
+    [showChecklist, routeParams, router],
   );
 
   return (
@@ -95,6 +143,9 @@ export default function QREquipmentOptionsScreen() {
           <Text style={styles.sectionTitle}>Opciones</Text>
         </View>
 
+        {isTechnician && schedule.fetchStatus === 'idle' && !scheduled ? (
+          <Text>No hay un checklist vigente para este equipo.</Text>
+        ) : null}
         <QREquipmentActions actions={actions} />
       </ScrollView>
     </SafeAreaView>

@@ -1,8 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useUserRole } from '@/hooks/use-user-role';
 import {
   View,
   Text,
-  FlatList,
+  SectionList,
   StyleSheet,
   ActivityIndicator,
   Alert,
@@ -18,6 +19,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { EquipoCard } from '@/components/inventory/equipo-card';
+import { groupEquipmentByEnvironment } from '@/utils/equipment-environment';
 import {
   useInventoryEquipos,
   inventoryKeys,
@@ -49,6 +51,7 @@ function normalizeSearch(val: string) {
 export default function InventoryEquiposScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { canManageAssets } = useUserRole();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
 
@@ -142,6 +145,10 @@ export default function InventoryEquiposScreen() {
       return true;
     });
   }, [equipos, searchText, selectedUbicacion, selectedTipo, selectedSubtipo]);
+  const equipmentSections = useMemo(
+    () => groupEquipmentByEnvironment(filteredEquipos),
+    [filteredEquipos],
+  );
 
   const activeCategoryFilterCount = useMemo(() => {
     let count = 0;
@@ -319,8 +326,16 @@ export default function InventoryEquiposScreen() {
           <Text style={styles.errorText}>Error al cargar los equipos</Text>
         </View>
       ) : (
-        <FlatList
-          data={filteredEquipos}
+        <SectionList
+          sections={equipmentSections}
+          stickySectionHeadersEnabled={false}
+          renderSectionHeader={({ section }) =>
+            section.title ? (
+              <Text accessibilityRole="header" style={styles.roomTitle}>
+                {section.title}
+              </Text>
+            ) : null
+          }
           keyExtractor={item => item.id}
           renderItem={renderItem}
           contentContainerStyle={[
@@ -357,17 +372,19 @@ export default function InventoryEquiposScreen() {
       )}
 
       {/* FAB - Agregar equipo */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.fab,
-          { bottom: insets.bottom + 32 },
-          pressed && styles.fabPressed,
-        ]}
-        onPress={handleAddEquipo}
-        accessibilityRole="button"
-        accessibilityLabel="Agregar nuevo equipo">
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </Pressable>
+      {canManageAssets ? (
+        <Pressable
+          style={({ pressed }) => [
+            styles.fab,
+            { bottom: insets.bottom + 32 },
+            pressed && styles.fabPressed,
+          ]}
+          onPress={handleAddEquipo}
+          accessibilityRole="button"
+          accessibilityLabel="Agregar nuevo equipo">
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </Pressable>
+      ) : null}
 
       {/* Fast, Clean Filter Modal */}
       <Modal
@@ -572,6 +589,12 @@ export default function InventoryEquiposScreen() {
 }
 
 const styles = StyleSheet.create({
+  roomTitle: {
+    color: '#334155',
+    fontSize: 15,
+    fontWeight: '700',
+    marginVertical: 10,
+  },
   container: { flex: 1, backgroundColor: '#F3F4F6' },
   header: {
     flexDirection: 'row',

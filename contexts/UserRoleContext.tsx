@@ -11,8 +11,13 @@ import { AppState, AppStateStatus } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { DatabaseService } from '@/services/database';
 import { useAuth } from './AuthContext';
+import {
+  getGemaPermissions,
+  normalizeGemaRole,
+  type GemaRole,
+} from '@/types/gema-role';
 
-export type UserRole = 'SUPERVISOR' | 'TECNICO' | 'AUDITOR' | 'SUPERADMIN' | 'TECNICO_REMS';
+export type UserRole = GemaRole;
 
 interface LocalUser {
   id: string;
@@ -23,8 +28,8 @@ interface LocalUser {
   role: string;
 }
 
-interface UserRoleContextType {
-  role: UserRole;
+interface UserRoleContextType extends ReturnType<typeof getGemaPermissions> {
+  role: UserRole | null;
   isLoaded: boolean;
   refreshRole: () => Promise<void>;
 
@@ -33,11 +38,8 @@ interface UserRoleContextType {
   isTechnician: boolean;
   isAuditor: boolean;
   isAdmin: boolean;
-  isTecnicoRems: boolean;
 
   // Permission checks
-  canScheduleMaintenance: boolean;
-  canExecuteMaintenance: boolean;
   canAudit: boolean;
   canViewAllMaintenances: boolean;
   canViewAssignedOnly: boolean;
@@ -56,9 +58,14 @@ const ROLE_FETCH_THROTTLE_MS = 60_000;
 
 export function UserRoleProvider({ children }: UserRoleProviderProps) {
   const { user } = useAuth();
-  const [localRole, setLocalRole] = useState<UserRole>('TECNICO');
-  const [remoteRole, setRemoteRole] = useState<UserRole | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [localRole, setLocalRole] = useState<{
+    userId: string;
+    role: UserRole | null;
+  } | null>(null);
+  const [remoteRole, setRemoteRole] = useState<{
+    userId: string;
+    role: UserRole | null;
+  } | null>(null);
   const lastFetchTime = useRef<number>(0);
 
   // Fetch role from Supabase (remote)
@@ -69,16 +76,14 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
       lastFetchTime.current = Date.now();
       const { data, error } = await supabase
         .from('users')
-        .select('role')
+        .select('role, is_active')
         .eq('id', user.id)
         .single();
 
-      if (!error && data?.role) {
-        const newRole = data.role as UserRole;
-        setRemoteRole(newRole);
-        // Update local SQLite with the latest role
-        await DatabaseService.updateLocalUserRole(user.id, newRole);
-        setLocalRole(newRole);
+      if (!error && data) {
+        const role = data.is_active ? normalizeGemaRole(data.role) : null;
+        await DatabaseService.updateLocalUserRole(user.id, role ?? '');
+        setRemoteRole({ userId: user.id, role });
       }
     } catch (error) {
       console.error('Error fetching remote user role:', error);
@@ -93,14 +98,15 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
           const localUser = (await DatabaseService.getLocalUserById(
             user.id,
           )) as LocalUser | null;
-          if (localUser?.role) {
-            setLocalRole(localUser.role as UserRole);
-          }
+          setLocalRole({
+            userId: user.id,
+            role: normalizeGemaRole(localUser?.role),
+          });
         } catch (error) {
+          setLocalRole({ userId: user.id, role: null });
           console.error('Error loading local user role:', error);
         }
       }
-      setIsLoaded(true);
     };
     loadLocalRole();
   }, [user?.id]);
@@ -109,7 +115,7 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
   useEffect(() => {
     if (!user?.id) {
       setRemoteRole(null);
-      setIsLoaded(false);
+      setLocalRole(null);
       return;
     }
 
@@ -136,11 +142,18 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
   }, [user?.id, fetchRemoteRole]);
 
   // Priority: remote Supabase role (real-time) > local SQLite (offline fallback)
-  const role: UserRole = remoteRole || localRole;
+  const profile =
+    remoteRole && remoteRole.userId === user?.id
+      ? remoteRole
+      : localRole && localRole.userId === user?.id
+        ? localRole
+        : null;
+  const role = profile?.role ?? null;
 
   const value: UserRoleContextType = {
     role,
-    isLoaded,
+    isLoaded: profile !== null,
+    ...getGemaPermissions(role),
     refreshRole: fetchRemoteRole,
 
     // Role checks
@@ -148,11 +161,8 @@ export function UserRoleProvider({ children }: UserRoleProviderProps) {
     isTechnician: role === 'TECNICO',
     isAuditor: role === 'AUDITOR',
     isAdmin: role === 'SUPERADMIN',
-    isTecnicoRems: role === 'TECNICO_REMS',
 
     // Permission checks
-    canScheduleMaintenance: role !== 'AUDITOR' && role !== 'TECNICO_REMS',
-    canExecuteMaintenance: role !== 'AUDITOR' && role !== 'TECNICO_REMS',
     canAudit: role === 'AUDITOR' || role === 'SUPERADMIN',
     canViewAllMaintenances: role === 'SUPERVISOR' || role === 'SUPERADMIN',
     canViewAssignedOnly: role === 'TECNICO' || role === 'AUDITOR',

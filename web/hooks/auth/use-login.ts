@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 
 import {
+  getAdminStartPath,
   getCurrentAdminUser,
   signInWithPassword,
 } from '@/services/auth/auth.service';
@@ -22,9 +23,7 @@ export function useLogin() {
       try {
         const user = await getCurrentAdminUser();
         if (isMounted && user) {
-          router.replace(
-            user.role === 'SUPERADMIN' ? '/admin' : '/admin/checklist',
-          );
+          router.replace(getAdminStartPath(user.role));
         }
       } catch {
         if (isMounted) {
@@ -55,7 +54,7 @@ export function useLogin() {
 
       const user = await getCurrentAdminUser();
       setMessage('Sesion iniciada correctamente. Redirigiendo...');
-      router.push(user?.role === 'SUPERADMIN' ? '/admin' : '/admin/checklist');
+      router.push(getAdminStartPath(user?.role));
     } catch {
       setErrorMessage('No se pudo conectar con GEMA. Intenta nuevamente.');
     } finally {

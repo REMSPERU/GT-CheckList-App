@@ -4,6 +4,21 @@ import type { AdminPropertyRow } from '@/types/admin';
 
 type AdminPropertyStatusFilter = 'active' | 'inactive' | 'all';
 
+export interface PropertyHvacOperability {
+  property_id: string;
+  percent: number | null;
+  assessed_assets: number;
+  hvac_assets: number;
+}
+
+export async function listPropertyHvacOperability(
+  supabase: SupabaseClient,
+): Promise<PropertyHvacOperability[]> {
+  const { data, error } = await supabase.rpc('get_gema_property_hvac_operability');
+  if (error) throw error;
+  return (data ?? []) as PropertyHvacOperability[];
+}
+
 export async function listAdminProperties(
   supabase: SupabaseClient,
   status: AdminPropertyStatusFilter = 'active',

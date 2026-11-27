@@ -23,7 +23,7 @@ import {
 function getUserDisplayName(user: AuditorUser) {
   const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
   const baseName = fullName.length > 0 ? fullName : (user.username || user.email);
-  const roleSuffix = user.role === 'TECNICO_REMS' ? 'Técnico REMS' : 'Auditor';
+  const roleSuffix = user.role === 'AUDITOR' ? 'Auditor' : 'Técnico';
   return `${baseName} (${roleSuffix})`;
 }
 

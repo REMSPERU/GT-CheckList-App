@@ -178,6 +178,13 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const deferredResponseSearch = useDeferredValue(responseSearch);
+  const responseSystemId = searchParams.get('specialty') || '';
+  const responseEquipmentTypeIds = useMemo(
+    () => responseSystemId
+      ? equipmentTypes.filter(type => type.systemId === responseSystemId).map(type => type.id)
+      : undefined,
+    [equipmentTypes, responseSystemId],
+  );
 
   // Synchronize URL search params to React state (handles back/forward navigation)
   useEffect(() => {
@@ -325,6 +332,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
         const supabase = getSupabaseClient();
         const result = await listAdminChecklistResponseFilterOptions(supabase, {
           equipamentoId: selectedEquipmentType || undefined,
+          equipmentTypeIds: responseEquipmentTypeIds,
         });
 
         if (isMounted) setResponseFilterOptions(result);
@@ -344,7 +352,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     return () => {
       isMounted = false;
     };
-  }, [activeTab, selectedEquipmentType]);
+  }, [activeTab, responseEquipmentTypeIds, selectedEquipmentType]);
 
   useEffect(() => {
     let isMounted = true;
@@ -375,6 +383,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
           page: responsePage,
           pageSize: RESPONSE_PAGE_SIZE,
           equipamentoId: selectedEquipmentType || undefined,
+          equipmentTypeIds: responseEquipmentTypeIds,
           buildingName: selectedBuildingName || undefined,
           search: deferredResponseSearch || undefined,
           reviewStatus:
@@ -407,6 +416,7 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
   }, [
     activeTab,
     deferredResponseSearch,
+    responseEquipmentTypeIds,
     selectedQuestionEquipmentType,
     responsePage,
     responseReviewStatus,
@@ -614,6 +624,12 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     setExpandedQuestionGroups({});
     setSuccessMessage(null);
     updateUrlParams({ eqType: value, page: 1 });
+  }
+
+  function handleResponseSystemChange(value: string) {
+    setSelectedEquipmentType('');
+    setResponsePage(1);
+    updateUrlParams({ specialty: value, eqType: null, page: 1 });
   }
 
   function handleQuestionEquipmentTypeChange(value: string) {
@@ -994,6 +1010,9 @@ export function useAdminChecklist(activeTab: AdminChecklistTab) {
     equipmentTypes,
     selectedEquipmentType,
     handleEquipmentTypeChange,
+    responseSystemId,
+    responseEquipmentTypeIds,
+    handleResponseSystemChange,
     selectedQuestionEquipmentType,
     handleQuestionEquipmentTypeChange,
     responses,

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 
 import { useAdminSession } from '@/hooks/auth/use-admin-session';
+import { getGemaPermissions } from '../../types/gema-role';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
 interface AdminShellProps {
@@ -154,13 +155,21 @@ export function AdminShell({ children }: AdminShellProps) {
   const isUnauthorizedRoute = (() => {
     if (isCheckingSession || !user) return false;
 
-    if (user.role === 'TECNICO_REMS') {
-      const allowedPaths = [
-        '/admin/equipos',
-        '/admin/inmuebles',
-        '/admin/checklist',
-      ];
-      return !allowedPaths.some(path => pathname.startsWith(path));
+    if (user.role === 'PROVEEDOR') {
+      return pathname !== '/admin/mantenimientos';
+    }
+
+    if (user.role === 'TECNICO') {
+      if (['/admin/checklist/preguntas', '/admin/checklist/programaciones', '/admin/checklist/calendario'].includes(pathname)) return true;
+      return pathname !== '/admin/checklist' &&
+        !pathname.startsWith('/admin/checklist/respuestas/') &&
+        pathname !== '/admin/checklist/respuestas' &&
+        !/^\/admin\/checklist\/[^/]+$/.test(pathname);
+    }
+
+    if (pathname.startsWith('/admin/checklist/programaciones') ||
+        pathname.startsWith('/admin/checklist/calendario')) {
+      return !getGemaPermissions(user.role).canScheduleChecklists;
     }
 
     if (pathname.startsWith('/admin/alexperto')) {
@@ -180,9 +189,9 @@ export function AdminShell({ children }: AdminShellProps) {
 
   useEffect(() => {
     if (isUnauthorizedRoute) {
-      router.replace('/admin/checklist');
+      router.replace(user?.role === 'PROVEEDOR' ? '/admin/mantenimientos' : '/admin/checklist');
     }
-  }, [isUnauthorizedRoute, router]);
+  }, [isUnauthorizedRoute, router, user?.role]);
 
   const togglePin = () => {
     setIsPinned(prev => {
@@ -264,9 +273,9 @@ export function AdminShell({ children }: AdminShellProps) {
     SUPERADMIN: 'Superadministrador',
     ADMIN: 'Administrador',
     AUDITOR: 'Auditor',
+    PROVEEDOR: 'Proveedor',
     SUPERVISOR: 'Supervisor',
     TECNICO: 'Técnico',
-    TECNICO_REMS: 'Técnico REMS',
   };
 
   const userRoleDisplay = user?.role
@@ -355,12 +364,11 @@ export function AdminShell({ children }: AdminShellProps) {
                 ) {
                   return false;
                 }
-                if (user?.role === 'TECNICO_REMS') {
-                  return (
-                    item.href === '/admin/equipos' ||
-                    item.href === '/admin/inmuebles' ||
-                    item.href === '/admin/checklist'
-                  );
+                if (user?.role === 'PROVEEDOR') {
+                  return item.href === '/admin/mantenimientos';
+                }
+                if (user?.role === 'TECNICO') {
+                  return item.href === '/admin/checklist';
                 }
                 return true;
               });

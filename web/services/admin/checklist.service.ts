@@ -225,6 +225,8 @@ export async function listAdminChecklistResponses(
   supabase: SupabaseClient,
   filters: AdminChecklistResponseFilters,
 ): Promise<AdminPaginatedResult<AdminChecklistResponseRow>> {
+  if (filters.equipmentTypeIds?.length === 0) return { items: [], total: 0 };
+
   const from = (filters.page - 1) * filters.pageSize;
   const to = from + filters.pageSize - 1;
 
@@ -259,6 +261,9 @@ export async function listAdminChecklistResponses(
 
   if (filters.equipamentoId) {
     query = query.eq('equipamento_id', filters.equipamentoId);
+  }
+  if (filters.equipmentTypeIds) {
+    query = query.in('equipamento_id', filters.equipmentTypeIds);
   }
 
   if (filters.buildingName) {
@@ -700,8 +705,10 @@ async function hydrateAnswerWeights(
 
 export async function listAdminChecklistResponseFilterOptions(
   supabase: SupabaseClient,
-  filters: Pick<AdminChecklistResponseFilters, 'equipamentoId'>,
+  filters: Pick<AdminChecklistResponseFilters, 'equipamentoId' | 'equipmentTypeIds'>,
 ): Promise<AdminChecklistResponseFilterOptions> {
+  if (filters.equipmentTypeIds?.length === 0) return { buildings: [] };
+
   let buildingQuery = supabase
     .from('checklist_response')
     .select('building_name')
@@ -711,6 +718,9 @@ export async function listAdminChecklistResponseFilterOptions(
 
   if (filters.equipamentoId) {
     buildingQuery = buildingQuery.eq('equipamento_id', filters.equipamentoId);
+  }
+  if (filters.equipmentTypeIds) {
+    buildingQuery = buildingQuery.in('equipamento_id', filters.equipmentTypeIds);
   }
 
   const buildingResult = await buildingQuery;

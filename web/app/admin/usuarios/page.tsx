@@ -18,6 +18,7 @@ import { SearchInput } from '@/components/ui/search-input';
 import { SearchableSelectField } from '@/components/ui/searchable-select-field';
 import { useAdminUsers } from '@/hooks/admin/use-admin-users';
 import { ADMIN_ROLE_OPTIONS } from '@/services/admin/users.service';
+import { PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT } from '../../../../types/gema-role';
 import type { AdminUserPropertyAccessRow, AdminUserRow } from '@/types/admin';
 import type { AdminRole } from '@/types/auth';
 
@@ -59,6 +60,11 @@ export default function AdminUsersPage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [role, setRole] = useState<AdminRole>('TECNICO');
+  const [companyId, setCompanyId] = useState('');
+  const [providerEdit, setProviderEdit] = useState<{ userId: string; companyId: string } | null>(null);
+  const editingProvider = providerEdit?.userId === users.selectedUser?.id
+    ? providerEdit
+    : null;
   const [isActive, setIsActive] = useState(true);
   const [password, setPassword] = useState('');
   const [generatePassword, setGeneratePassword] = useState(true);
@@ -74,22 +80,28 @@ export default function AdminUsersPage() {
     setFirstName('');
     setLastName('');
     setRole('TECNICO');
+    setCompanyId('');
     setIsActive(true);
     setPassword('');
     setGeneratePassword(true);
   }
 
-  function requestRoleChange(role: AdminRole) {
-    if (!users.selectedUser || role === users.selectedUser.role) return;
+  function requestRoleChange(role: AdminRole, providerCompanyId?: string) {
+    const user = users.selectedUser;
+    if (!user || (role === user.role && !providerCompanyId)) return;
+    if (role === 'PROVEEDOR' && !providerCompanyId) {
+      setProviderEdit({ userId: user.id, companyId: user.id_company ?? '' });
+      return;
+    }
 
     const roleLabel =
       ADMIN_ROLE_OPTIONS.find(option => option.value === role)?.label ?? role;
 
     setConfirmation({
       title: 'Confirmar cambio de rol',
-      description: `Estas seguro que quieres cambiar el rol de ${getUserName(users.selectedUser)} a ${roleLabel}?`,
+      description: `Estas seguro que quieres cambiar el rol de ${getUserName(user)} a ${roleLabel}?`,
       confirmLabel: 'Cambiar rol',
-      onConfirm: () => users.updateRole(users.selectedUser!.id, role),
+      onConfirm: () => users.updateRole(user.id, role, providerCompanyId),
     });
   }
 
@@ -138,6 +150,7 @@ export default function AdminUsersPage() {
       firstName,
       lastName,
       role,
+      companyId: role === 'PROVEEDOR' ? companyId : null,
       isActive,
       password,
       generatePassword,
@@ -284,6 +297,21 @@ export default function AdminUsersPage() {
                 ))}
               </select>
             </label>
+            {role === 'PROVEEDOR' ? (
+              <label className="grid gap-1.5 text-xs font-black uppercase tracking-wider text-slate-500">
+                Empresa del proveedor
+                <select
+                  required
+                  value={companyId}
+                  onChange={event => setCompanyId(event.target.value)}
+                  className="h-11 rounded-2xl border border-slate-200 bg-white px-3.5 text-sm font-bold text-slate-900">
+                  <option value="">Seleccionar empresa</option>
+                  {users.companies.map(company => (
+                    <option key={company.id} value={company.id}>{company.nombre}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <label className="grid gap-1.5 text-xs font-black uppercase tracking-wider text-slate-500">
               Estado
               <select
@@ -546,6 +574,33 @@ export default function AdminUsersPage() {
                         ))}
                       </select>
                     </label>
+                    {PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT &&
+                    (users.selectedUser.role === 'PROVEEDOR' || editingProvider) ? (
+                      <div className="grid gap-2">
+                        <label className="grid gap-1 text-xs font-bold text-slate-600">
+                          Empresa del proveedor
+                          <select
+                            value={editingProvider?.companyId ?? users.selectedUser.id_company ?? ''}
+                            onChange={event => setProviderEdit({
+                              userId: users.selectedUser!.id,
+                              companyId: event.target.value,
+                            })}
+                            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm">
+                            <option value="">Seleccionar empresa</option>
+                            {users.companies.map(company => (
+                              <option key={company.id} value={company.id}>{company.nombre}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          disabled={!editingProvider?.companyId || users.isSaving}
+                          onClick={() => requestRoleChange('PROVEEDOR', editingProvider?.companyId)}
+                          className="justify-self-start rounded-xl bg-emerald-800 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">
+                          Guardar proveedor
+                        </button>
+                      </div>
+                    ) : null}
                   </section>
 
                   <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3">

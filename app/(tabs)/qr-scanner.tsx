@@ -16,7 +16,9 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
+import { useUserRole } from '@/hooks/use-user-role';
+import { useAuth } from '@/contexts/AuthContext';
 import type { BarcodeScanningResult } from 'expo-camera';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -76,6 +78,14 @@ function extractEquipmentCode(rawValue: string) {
 }
 
 export default function QRScannerScreen() {
+  const { isLoaded, canScanEquipment } = useUserRole();
+  if (!isLoaded) return null;
+  return canScanEquipment ? <QRScannerContent /> : <Redirect href="/" />;
+}
+
+function QRScannerContent() {
+  const { user } = useAuth();
+  const { hasAssignedPropertyScope } = useUserRole();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const scanSize = Math.min(Math.max(width - 64, 240), 320);
@@ -192,6 +202,19 @@ export default function QRScannerScreen() {
           return;
         }
 
+        if (hasAssignedPropertyScope) {
+          const properties = user
+            ? await DatabaseService.getLocalAssignedProperties(user.id)
+            : [];
+          if (
+            !properties.some(property => property.id === launchData.buildingId)
+          ) {
+            reactivateScannerSoon(
+              'No tienes acceso al inmueble de este equipo.',
+            );
+            return;
+          }
+        }
         setIsResolving(false);
         router.push({
           pathname: '/qr-equipment/options',
@@ -218,6 +241,8 @@ export default function QRScannerScreen() {
       isActive,
       isResolving,
       reactivateScannerSoon,
+      hasAssignedPropertyScope,
+      user,
       resolveChecklistLaunchData,
       router,
     ],

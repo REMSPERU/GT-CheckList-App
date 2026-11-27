@@ -17,6 +17,8 @@ import { AppActionCard } from '@/components/app-action-card';
 import { AppAlertModal } from '@/components/app-alert-modal';
 import { BuildingHeroCard } from '@/components/home/building-hero-card';
 import { BuildingSelectorModal } from '@/components/home/building-selector-modal';
+import { ChecklistTodayCard } from '@/components/home/checklist-today-card';
+import { ExtraordinaryChecklistCards } from '@/components/home/extraordinary-checklist-cards';
 import { HomeHeader } from '@/components/home/home-header';
 import { LogoutConfirmModal } from '@/components/home/logout-confirm-modal';
 import { useHomeScreen } from '@/hooks/use-home-screen';
@@ -34,7 +36,15 @@ function HomeScreen() {
   const { height } = useWindowDimensions();
   const isTallScreen = height >= 820;
   const appVersion = Constants.expoConfig?.version ?? '1.0.36';
-  const { isAdmin, isSupervisor, isTechnician, isTecnicoRems, canAudit } = useUserRole();
+  const {
+    isTechnician,
+    canViewInventory,
+    canUseChecklists,
+    canScheduleMaintenance,
+    canExecuteMaintenance,
+    canGenerateMaintenanceReports,
+    canAudit,
+  } = useUserRole();
 
   const {
     userDisplayName,
@@ -61,6 +71,7 @@ function HomeScreen() {
     handleInventoryPress,
     handleAccountPress,
     handleLogoutConfirm,
+    lastSyncTimestamp,
     lastSyncTimeText,
     isManualSyncing,
     handleManualSync,
@@ -69,20 +80,16 @@ function HomeScreen() {
   const actionCards = useMemo<HomeActionCard[]>(() => {
     const cards: HomeActionCard[] = [];
 
-    cards.push({
-      key: 'inventory',
-      title: 'Inventario',
-      description: 'Explore sistemas y equipos del inmueble',
-      icon: <Feather name="archive" size={24} color="#06B6D4" />,
-      onPress: handleInventoryPress,
-    });
+    if (canViewInventory)
+      cards.push({
+        key: 'inventory',
+        title: 'Inventario',
+        description: 'Explore sistemas y equipos del inmueble',
+        icon: <Feather name="archive" size={24} color="#06B6D4" />,
+        onPress: handleInventoryPress,
+      });
 
-    const canSeeChecklist = isAdmin || isTecnicoRems;
-    const canSeeSchedule = isTechnician || isSupervisor;
-    const canSeeExecute = isTechnician || isSupervisor;
-    const canSeeReports = isSupervisor;
-
-    if (canSeeChecklist) {
+    if (canUseChecklists) {
       cards.push({
         key: 'checklist',
         title: 'Checklist',
@@ -92,7 +99,7 @@ function HomeScreen() {
       });
     }
 
-    if (canSeeSchedule) {
+    if (canScheduleMaintenance) {
       cards.push({
         key: 'schedule-maintenance',
         title: 'Programar Mantenimiento',
@@ -104,7 +111,7 @@ function HomeScreen() {
       });
     }
 
-    if (canSeeExecute) {
+    if (canExecuteMaintenance) {
       cards.push({
         key: 'execute-maintenance',
         title: 'Ejecutar mantenimiento',
@@ -126,7 +133,7 @@ function HomeScreen() {
       });
     }
 
-    if (canSeeReports) {
+    if (canGenerateMaintenanceReports) {
       cards.push({
         key: 'reports',
         title: 'Generar informes',
@@ -139,10 +146,11 @@ function HomeScreen() {
     return cards;
   }, [
     canAudit,
-    isAdmin,
-    isSupervisor,
-    isTechnician,
-    isTecnicoRems,
+    canViewInventory,
+    canUseChecklists,
+    canScheduleMaintenance,
+    canExecuteMaintenance,
+    canGenerateMaintenanceReports,
     handleChecklistPress,
     handleAuditPress,
     handleExecuteMaintenancePress,
@@ -196,6 +204,18 @@ function HomeScreen() {
           building={selectedBuilding}
           onPress={openBuildingModal}
         />
+        {isTechnician && selectedBuilding ? (
+          <ChecklistTodayCard
+            key={selectedBuilding.id}
+            propertyId={String(selectedBuilding.id)}
+            lastSync={lastSyncTimestamp}
+            onOpen={handleChecklistPress}
+          />
+        ) : null}
+
+        {isTechnician && selectedBuilding ? (
+          <ExtraordinaryChecklistCards propertyId={selectedBuilding.id} />
+        ) : null}
 
         <View style={[styles.sectionTitleWrapper, styles.actionsTitle]}>
           <Text style={styles.sectionTitle}>Que necesita hacer?</Text>

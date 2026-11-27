@@ -1,7 +1,10 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-import { getCurrentAdminUser } from '@/services/auth/auth.service';
+import {
+  getAdminStartPath,
+  getCurrentAdminUser,
+} from '@/services/auth/auth.service';
 
 export function useHomeRedirect() {
   const router = useRouter();
@@ -14,13 +17,7 @@ export function useHomeRedirect() {
 
       if (!isMounted) return;
 
-      router.replace(
-        user
-          ? user.role === 'SUPERADMIN'
-            ? '/admin'
-            : '/admin/checklist'
-          : '/login',
-      );
+      router.replace(user ? getAdminStartPath(user.role) : '/login');
     }
 
     void routeBySession();

@@ -8,6 +8,12 @@ import { checklistStorageService } from './checklist-storage.service';
 import NetInfo from '@react-native-community/netinfo';
 import type { ChecklistPropertyTemplate } from '@/types/checklist';
 import { syncQueue } from './sync-queue';
+import { replaceProviderFindings } from './db/provider-findings';
+import type { ProviderFinding } from '@/types/provider-finding';
+import {
+  replaceExtraordinaryChecklists,
+  type ExtraordinaryChecklist,
+} from './db/extraordinary-checklists';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface NetworkState {
@@ -266,6 +272,7 @@ async function fetchEquiposPaginated(propertyIds?: string[]): Promise<{
   failed: boolean;
 }> {
   try {
+    if (propertyIds?.length === 0) return { data: [], failed: false };
     const limit = 1000;
 
     // 1. Setup base query for count
@@ -999,7 +1006,7 @@ class SyncService {
           .from('checklist_response')
           .upsert(payload, {
             onConflict: 'client_submission_id',
-            ignoreDuplicates: false,
+            ignoreDuplicates: true,
           });
 
         if (error) throw error;
@@ -1582,25 +1589,26 @@ class SyncService {
 
         const detail = JSON.parse(item.equipment_detail || '{}');
 
-        // B. Reconstruct/Upsert to Supabase
-        const { error } = await supabase.from('equipos').upsert(
-          {
-            id: item.id_equipo,
-            id_property: item.id_property,
-            id_equipamento: item.id_equipamento,
-            codigo: item.codigo,
-            ubicacion: item.ubicacion,
-            detalle_ubicacion: item.detalle_ubicacion,
-            estatus: item.estatus,
-            equipment_detail: detail,
-            config: item.config === 1,
-          },
-          {
-            onConflict: 'id',
-          },
-        );
+        const payload = {
+          id: item.id_equipo,
+          id_property: item.id_property,
+          id_equipamento: item.id_equipamento,
+          codigo: item.codigo,
+          ubicacion: item.ubicacion,
+          detalle_ubicacion: item.detalle_ubicacion,
+          estatus: item.estatus,
+          equipment_detail: detail,
+          config: item.config === 1,
+        };
+        const equipos = supabase.from('equipos');
+        const { data, error } = await (item.action === 'create'
+          ? equipos.upsert(payload, { onConflict: 'id' })
+          : equipos.update(payload).eq('id', item.id_equipo))
+          .select('id')
+          .maybeSingle();
 
         if (error) throw error;
+        if (!data) throw new Error('No se pudo guardar el activo con los permisos actuales.');
 
         await DatabaseService.updateOfflineEquipmentStatus(
           item.local_id,
@@ -1867,7 +1875,21 @@ class SyncService {
 
         // 1. Fetch user properties FIRST to filter equipments by assigned properties
         log('[SYNC] Fetching user properties...');
-        const userPropertiesResult = await safeFetch(() => {
+        const userPropertiesResult = await safeFetch(async () => {
+          if (currentRole === 'PROVEEDOR' && currentUserId) {
+            const { data, error } = await supabase.rpc('list_gema_provider_properties');
+            return {
+              error,
+              data: data?.map((item: { property_id: string }) => ({
+                id: item.property_id,
+                user_id: currentUserId,
+                property_id: item.property_id,
+                property_role: 'PROVEEDOR',
+                expires_at: null,
+              })) ?? null,
+            };
+          }
+
           let query = supabase
             .from('user_properties')
             .select('*')
@@ -1884,23 +1906,19 @@ class SyncService {
         const isRestricted =
           currentRole === 'TECNICO' ||
           currentRole === 'TECNICO_REMS' ||
-          currentRole === 'AUDITOR';
+          currentRole === 'AUDITOR' || currentRole === 'PROVEEDOR';
 
-        if (
-          userPropertiesResult.data &&
-          userPropertiesResult.data.length > 0 &&
-          isRestricted
-        ) {
-          assignedPropertyIds = userPropertiesResult.data.map(
-            (up: any) => up.property_id,
-          );
+        if (isRestricted) {
+          assignedPropertyIds = (userPropertiesResult.data ?? [])
+            .filter(up => !up.expires_at || new Date(up.expires_at).getTime() > Date.now())
+            .map(up => up.property_id);
           log(
             '[SYNC] Restricting equipos sync to assigned properties:',
             assignedPropertyIds,
           );
         } else {
           log(
-            '[SYNC] Syncing all equipments (no role-restriction or no property assignments)',
+            '[SYNC] Syncing equipos for an unrestricted role',
           );
         }
 
@@ -2109,6 +2127,48 @@ class SyncService {
           await DatabaseService.upsertSyncedAuditSessions(
             auditSessionsResult.data as RemoteAuditSession[],
           );
+        }
+
+        if (
+          currentUserId &&
+          ['TECNICO', 'TECNICO_REMS'].includes(currentRole)
+        ) {
+          const result = await safeFetch(async () => {
+            const findings: ProviderFinding[] = [];
+            const pageSize = 500;
+            for (let offset = 0; ; offset += pageSize) {
+              const { data, error } = await supabase
+                .from('provider_equipment_findings')
+                .select('id,asset_id,note,created_at')
+                .is('corroborating_response_id', null)
+                .order('id')
+                .range(offset, offset + pageSize - 1);
+              if (error) return { data: null, error };
+              findings.push(...data);
+              if (data.length < pageSize)
+                return { data: findings, error: null };
+            }
+          });
+          if (result.data !== null) {
+            await replaceProviderFindings(currentUserId, result.data);
+          }
+
+          const assignments = await safeFetch(async () => {
+            const rows: ExtraordinaryChecklist[] = [];
+            const pageSize = 500;
+            for (let offset = 0; ; offset += pageSize) {
+              const { data, error } = await supabase
+                .rpc('list_open_extraordinary_checklists')
+                .order('id')
+                .range(offset, offset + pageSize - 1);
+              if (error) return { data: null, error };
+              rows.push(...data);
+              if (data.length < pageSize) return { data: rows, error: null };
+            }
+          });
+          if (assignments.data !== null) {
+            await replaceExtraordinaryChecklists(currentUserId, assignments.data);
+          }
         }
 
         this.lastPullTimestamp = Date.now();

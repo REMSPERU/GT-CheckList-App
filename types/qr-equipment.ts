@@ -1,4 +1,7 @@
-export interface QREquipmentRouteParams {
+import type { ComponentProps } from 'react';
+import type MaterialIcons from '@expo/vector-icons/MaterialIcons';
+
+export type QREquipmentRouteParams = {
   buildingId: string;
   buildingName: string;
   equipamentoId: string;
@@ -8,12 +11,12 @@ export interface QREquipmentRouteParams {
   equipoCodigo: string;
   equipoUbicacion: string;
   equipoDetalleUbicacion?: string;
-}
+};
 
 export interface QREquipmentAction {
   key: string;
   title: string;
   description: string;
-  iconName: MaterialIconName;
+  iconName: ComponentProps<typeof MaterialIcons>['name'];
   onPress: () => void;
 }

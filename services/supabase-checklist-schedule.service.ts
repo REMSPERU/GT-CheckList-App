@@ -153,12 +153,14 @@ class SupabaseChecklistScheduleService {
     propertyId: string,
     equipamentoId: string,
     equipoId?: string,
+    submittedAt?: string,
   ): Promise<ChecklistScheduleValidation> {
     // 100% Offline-First: Always validate against local SQLite mirror first (instant < 5ms)
     const localResult = await DatabaseService.validateLocalChecklistSchedule(
       propertyId,
       equipamentoId,
       equipoId || null,
+      submittedAt,
     );
 
     return {

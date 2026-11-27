@@ -1,10 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { getChecklistLocalDate } from '@/utils/checklist-local-date';
+import { groupEquipmentByEnvironment } from '@/utils/equipment-environment';
+import { GemaPropertyAccess } from '@/components/gema-property-access';
+import { EquipmentAccessBadge } from '@/components/inventory/equipment-access-badge';
+import { useUserRole } from '@/hooks/use-user-role';
 import {
   View,
   StyleSheet,
   Text,
-  FlatList,
+  SectionList,
   Pressable,
   ActivityIndicator,
   RefreshControl,
@@ -132,20 +137,6 @@ function formatLocalDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function getTodayInLimaDate() {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Lima',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date());
-  const year = parts.find(part => part.type === 'year')?.value ?? '1970';
-  const month = parts.find(part => part.type === 'month')?.value ?? '01';
-  const day = parts.find(part => part.type === 'day')?.value ?? '01';
-
-  return parseLocalDate(`${year}-${month}-${day}`);
-}
-
 function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
@@ -172,7 +163,14 @@ function getMonthlyTarget(anchor: Date, reference: Date) {
 }
 
 function getSchedulePeriodForToday(schedule: ChecklistSchedule) {
-  const today = getTodayInLimaDate();
+  const localDate = getChecklistLocalDate(new Date(), schedule.timezone);
+  const closingDate = schedule.end_date;
+  const isClosed = !!closingDate && localDate > closingDate;
+  const today = parseLocalDate(isClosed ? closingDate : localDate);
+  const clipToClose = (end: Date) => {
+    const periodEnd = formatLocalDate(end);
+    return closingDate && periodEnd > closingDate ? closingDate : periodEnd;
+  };
   const anchor = schedule.start_date
     ? parseLocalDate(schedule.start_date)
     : today;
@@ -181,7 +179,7 @@ function getSchedulePeriodForToday(schedule: ChecklistSchedule) {
   if (today < anchor) {
     return {
       periodStart: formatLocalDate(anchor),
-      periodEnd: formatLocalDate(addDays(anchor, rangeDays - 1)),
+      periodEnd: clipToClose(addDays(anchor, rangeDays - 1)),
       isWithinWindow: false,
     };
   }
@@ -190,7 +188,7 @@ function getSchedulePeriodForToday(schedule: ChecklistSchedule) {
     return {
       periodStart: formatLocalDate(today),
       periodEnd: formatLocalDate(today),
-      isWithinWindow: true,
+      isWithinWindow: !isClosed,
     };
   }
 
@@ -216,8 +214,8 @@ function getSchedulePeriodForToday(schedule: ChecklistSchedule) {
 
     return {
       periodStart: formatLocalDate(target),
-      periodEnd: formatLocalDate(addDays(target, rangeDays - 1)),
-      isWithinWindow: !!currentTarget,
+      periodEnd: clipToClose(addDays(target, rangeDays - 1)),
+      isWithinWindow: !isClosed && !!currentTarget,
     };
   }
 
@@ -236,8 +234,8 @@ function getSchedulePeriodForToday(schedule: ChecklistSchedule) {
 
   return {
     periodStart: formatLocalDate(target),
-    periodEnd: formatLocalDate(periodEnd),
-    isWithinWindow: today >= target && today <= periodEnd,
+    periodEnd: clipToClose(periodEnd),
+    isWithinWindow: !isClosed && today >= target && today <= periodEnd,
   };
 }
 
@@ -329,6 +327,9 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
         <Text style={styles.itemSubtitle}>
           {locationText || 'Sin ubicacion'}
         </Text>
+        <EquipmentAccessBadge
+          difficult={item.equipment_detail?.dificil_acceso}
+        />
       </View>
       <View style={styles.itemActions}>
         <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -338,6 +339,22 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
 });
 
 export default function EquipmentChecklistListScreen() {
+  const params = useLocalSearchParams<{
+    buildingId?: string;
+    equipoId?: string;
+  }>();
+  const { canUseChecklists } = useUserRole();
+
+  return (
+    <GemaPropertyAccess
+      enabled={canUseChecklists}
+      propertyId={params.buildingId}>
+      <EquipmentChecklistListScreenContent />
+    </GemaPropertyAccess>
+  );
+}
+
+function EquipmentChecklistListScreenContent() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
@@ -435,6 +452,10 @@ export default function EquipmentChecklistListScreen() {
         normalizeSearch(e.detalle_ubicacion || '').includes(q),
     );
   }, [equipos, searchText]);
+  const equipmentSections = useMemo(
+    () => groupEquipmentByEnvironment(filteredEquipos),
+    [filteredEquipos],
+  );
 
   useEffect(() => {
     if (!building?.id || !equipamento?.id) {
@@ -476,13 +497,24 @@ export default function EquipmentChecklistListScreen() {
           effectiveFrequency.charAt(0).toUpperCase() +
           effectiveFrequency.slice(1).toLowerCase();
 
-        const message = isScheduleActive
-          ? schedulePeriod?.isWithinWindow
-            ? schedulePeriod.periodStart === schedulePeriod.periodEnd
-              ? `Programación ${frequencyFriendly}: para el ${formatDateToSpanish(schedulePeriod.periodStart)}`
-              : `Programación ${frequencyFriendly}: del ${formatDateToSpanish(schedulePeriod.periodStart)} al ${formatDateToSpanish(schedulePeriod.periodEnd)}`
-            : `Programación ${frequencyFriendly}: hoy fuera de rango de ejecución`
-          : 'Sin programación activa (control por período)';
+        let message = 'Sin programación activa (control por período)';
+        if (isScheduleActive) {
+          const closingDate = schedule.end_date;
+          if (
+            closingDate &&
+            getChecklistLocalDate(new Date(), schedule.timezone) > closingDate
+          ) {
+            message = `Programación cerrada el ${formatDateToSpanish(closingDate)}`;
+          } else if (schedulePeriod?.isWithinWindow) {
+            const start = formatDateToSpanish(schedulePeriod.periodStart);
+            const end = formatDateToSpanish(schedulePeriod.periodEnd);
+            const period =
+              start === end ? `para el ${start}` : `del ${start} al ${end}`;
+            message = `Programación ${frequencyFriendly}: ${period}`;
+          } else {
+            message = `Programación ${frequencyFriendly}: hoy fuera de rango de ejecución`;
+          }
+        }
 
         setScheduleState({
           hasSchedule: !!schedule,
@@ -533,9 +565,11 @@ export default function EquipmentChecklistListScreen() {
         setPendingSyncCountByEquipo(pendingCounts);
         setConflictCountByEquipo(conflictCounts);
 
+        const required = isScheduleActive ? schedule.occurrences_per_day : 1;
         const completedCount = equipmentRows.reduce(
           (acc, item) =>
-            syncedCounts[item.id] > 0 || pendingCounts[item.id] > 0
+            (syncedCounts[item.id] ?? 0) + (pendingCounts[item.id] ?? 0) >=
+            required
               ? acc + 1
               : acc,
           0,
@@ -574,11 +608,11 @@ export default function EquipmentChecklistListScreen() {
     }
   }, [building?.id, equipamento?.id, loadChecklistStatus]);
 
-  useEffect(() => {
-    if (building?.id && equipamento?.id) {
-      loadData();
-    }
-  }, [building?.id, equipamento?.id, loadData]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadData();
+    }, [loadData]),
+  );
 
   useEffect(() => {
     const targetEquipoId = getSingleParam(params.equipoId);
@@ -730,6 +764,9 @@ export default function EquipmentChecklistListScreen() {
             Avance: {progressSummary.completed} de {progressSummary.total}{' '}
             equipos completados
           </Text>
+          <Text style={styles.summaryText}>
+            {progressSummary.total - progressSummary.completed} pendientes
+          </Text>
         </View>
       ) : null}
 
@@ -759,8 +796,16 @@ export default function EquipmentChecklistListScreen() {
           <ActivityIndicator size="large" color="#0891B2" />
         </View>
       ) : (
-        <FlatList
-          data={filteredEquipos}
+        <SectionList
+          sections={equipmentSections}
+          stickySectionHeadersEnabled={false}
+          renderSectionHeader={({ section }) =>
+            section.title ? (
+              <Text accessibilityRole="header" style={styles.roomTitle}>
+                {section.title}
+              </Text>
+            ) : null
+          }
           keyExtractor={item => item.id}
           renderItem={renderEquipmentItem}
           initialNumToRender={8}
@@ -787,6 +832,12 @@ export default function EquipmentChecklistListScreen() {
 }
 
 const styles = StyleSheet.create({
+  roomTitle: {
+    color: '#334155',
+    fontSize: 15,
+    fontWeight: '700',
+    marginVertical: 10,
+  },
   container: {
     flex: 1,
     backgroundColor: '#F3F4F6',

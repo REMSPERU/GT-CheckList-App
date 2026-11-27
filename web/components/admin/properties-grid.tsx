@@ -4,13 +4,15 @@ import { Building2, MapPin } from 'lucide-react';
 
 import type { AdminPropertyRow } from '@/types/admin';
 import { StatusBadge } from '@/components/ui/status-badge';
+import type { PropertyHvacOperability } from '@/services/admin/properties.service';
 
 interface PropertiesGridProps {
   items: AdminPropertyRow[];
   isLoading: boolean;
+  operability: Record<string, PropertyHvacOperability>;
 }
 
-export function PropertiesGrid({ items, isLoading }: PropertiesGridProps) {
+export function PropertiesGrid({ items, isLoading, operability }: PropertiesGridProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5 max-[640px]:grid-cols-1">
@@ -55,7 +57,7 @@ export function PropertiesGrid({ items, isLoading }: PropertiesGridProps) {
       </p>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5 max-[640px]:grid-cols-1">
         {items.map(item => (
-          <PropertyCard key={item.id} property={item} />
+          <PropertyCard key={item.id} property={item} operability={operability[item.id]} />
         ))}
       </div>
     </>
@@ -82,7 +84,7 @@ function isNextImageSafe(url: string): boolean {
   }
 }
 
-function PropertyCard({ property }: { property: AdminPropertyRow }) {
+function PropertyCard({ property, operability }: { property: AdminPropertyRow; operability?: PropertyHvacOperability }) {
   const useNextImage = property.image_url
     ? isNextImageSafe(property.image_url)
     : false;
@@ -134,6 +136,16 @@ function PropertyCard({ property }: { property: AdminPropertyRow }) {
           <h3 className="m-0 text-[1.05rem] font-black leading-tight tracking-[-0.02em] text-slate-950 group-hover:text-emerald-800 transition-colors">
             {property.name}
           </h3>
+          <p className="mb-0 mt-2 text-sm font-semibold text-slate-700">
+            Operatividad HVAC · {operability?.percent == null
+              ? 'Sin evaluaciones'
+              : new Intl.NumberFormat('es-PE', { maximumFractionDigits: 1 }).format(operability.percent) + '%'}
+          </p>
+          {operability && operability.hvac_assets > 0 ? (
+            <p className="m-0 text-xs text-slate-600">
+              {operability.assessed_assets} de {operability.hvac_assets} activos evaluados
+            </p>
+          ) : null}
         </div>
 
         <div className="grid gap-1.5">

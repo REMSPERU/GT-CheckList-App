@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useUserRole } from '@/hooks/use-user-role';
 import {
   View,
   Text,
@@ -198,6 +199,7 @@ const InventorySystemCard = memo(function InventorySystemCard({
 export default function InventorySystemsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { canManageAssets } = useUserRole();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
 
@@ -494,7 +496,7 @@ export default function InventorySystemsScreen() {
       )}
 
       {/* FAB - Agregar tipo de equipo */}
-      <Pressable
+      {canManageAssets ? <Pressable
         style={({ pressed }) => [
           styles.fab,
           { bottom: insets.bottom + 32 },
@@ -507,7 +509,7 @@ export default function InventorySystemsScreen() {
         accessibilityRole="button"
         accessibilityLabel="Agregar tipo de equipo">
         <Ionicons name="add" size={28} color="#FFFFFF" />
-      </Pressable>
+      </Pressable> : null}
 
       {/* Modal para seleccionar tipo de equipo */}
       <Modal

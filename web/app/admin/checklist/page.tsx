@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useAdminSession } from '@/hooks/auth/use-admin-session';
+import { getGemaPermissions } from '../../../../types/gema-role';
 
 import { AdminPagination } from '@/components/admin/admin-pagination';
 import { ChecklistPropertyTemplateEditor } from '@/components/admin/checklist-property-template-editor';
@@ -98,6 +100,8 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const { user } = useAdminSession();
+  const canScheduleChecklists = getGemaPermissions(user?.role ?? null).canScheduleChecklists;
   const activeTab = routeTab;
   const checklist = useAdminChecklist(activeTab);
   const [isScheduleEditorOpen, setIsScheduleEditorOpen] = useState(false);
@@ -142,6 +146,20 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
     { value: '', label: 'Todos los inmuebles' },
     ...checklist.responseFilterOptions.buildings,
   ];
+  const systems = new Map<string, string>();
+  for (const type of checklist.equipmentTypes) {
+    if (type.systemId) systems.set(type.systemId, type.systemName);
+  }
+  const specialtyOptions = [
+    { value: '', label: 'Todas las especialidades' },
+    ...Array.from(systems, ([value, label]) => ({ value, label })).sort((a, b) =>
+      a.label.localeCompare(b.label, 'es'),
+    ),
+  ];
+  const responseEquipmentOptions = equipmentOptions.filter(option =>
+    !option.value || !checklist.responseEquipmentTypeIds ||
+    checklist.responseEquipmentTypeIds.includes(option.value),
+  );
   const propertyOptions = [
     ...checklist.properties.map(item => ({
       value: item.id,
@@ -282,12 +300,13 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
           onNavigate={() => setActiveTab('responses')}>
           Respuestas recibidas
         </SectionLink>
-        <SectionLink
+        {user?.role !== 'TECNICO' ? <SectionLink
           active={activeTab === 'questions'}
           href={SECTION_ROUTES.questions}
           onNavigate={() => setActiveTab('questions')}>
           Preguntas del checklist
-        </SectionLink>
+        </SectionLink> : null}
+        {canScheduleChecklists ? <>
         <SectionLink
           active={activeTab === 'schedule'}
           href={SECTION_ROUTES.schedule}
@@ -300,19 +319,26 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
           onNavigate={() => setActiveTab('calendar')}>
           Calendario global
         </SectionLink>
+        </> : null}
       </section>
 
       {activeTab === 'responses' ? (
         <section className="grid gap-4">
-          <div className="grid grid-cols-[minmax(220px,1.2fr)_minmax(220px,1fr)_minmax(220px,1fr)_minmax(180px,0.8fr)] gap-3 max-[1180px]:grid-cols-2 max-[640px]:grid-cols-1">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <SearchInput
               placeholder="Buscar inmueble, activo, codigo o frecuencia"
               value={checklist.responseSearch}
               onChange={checklist.handleResponseSearchChange}
             />
             <SelectField
+              value={checklist.responseSystemId}
+              options={specialtyOptions}
+              onChange={checklist.handleResponseSystemChange}
+              ariaLabel="Filtrar respuestas por especialidad"
+            />
+            <SelectField
               value={checklist.selectedEquipmentType}
-              options={equipmentOptions}
+              options={responseEquipmentOptions}
               onChange={checklist.handleEquipmentTypeChange}
               ariaLabel="Filtrar respuestas por tipo de activo"
             />
@@ -489,6 +515,11 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
         </section>
       ) : activeTab === 'schedule' ? (
         <section className="grid gap-4">
+          {user?.role === 'SUPERADMIN' ? (
+            <Link className="w-fit font-bold text-cyan-800 underline" href="/admin/checklist/extraordinarios">
+              Checklists extraordinarios
+            </Link>
+          ) : null}
           <section className="rounded-[26px] border border-slate-900/10 bg-white/85 p-5 shadow-[0_22px_54px_rgba(15,23,42,0.08)]">
             <div className="mb-4 flex items-start justify-between gap-3 max-[640px]:grid">
               <div>

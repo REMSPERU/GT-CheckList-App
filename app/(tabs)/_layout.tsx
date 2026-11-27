@@ -7,11 +7,10 @@ import { AuthLoadingScreen } from '@/components/auth-loading-screen';
 
 import { Colors } from '@/constants/theme';
 import Feather from '@expo/vector-icons/Feather';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function TabLayout() {
-  const { isAdmin } = useUserRole();
+  const { isAdmin, canScanEquipment } = useUserRole();
   const [hasLocalMirror, setHasLocalMirror] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -77,6 +76,7 @@ export default function TabLayout() {
         name="qr-scanner"
         options={{
           title: 'Escanear QR',
+          href: canScanEquipment ? '/qr-scanner' : null,
           tabBarIcon: ({ color }) => (
             <MaterialIcons name="qr-code-scanner" size={24} color={color} />
           ),
@@ -91,15 +91,7 @@ export default function TabLayout() {
           ),
         }}
       /> */}
-      <Tabs.Screen
-        name="reports"
-        options={{
-          title: 'Reportes',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="stats-chart" size={24} color={color} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="reports" options={{ href: null }} />
       <Tabs.Screen
         name="admin"
         options={{

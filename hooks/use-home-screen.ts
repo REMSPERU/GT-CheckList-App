@@ -421,6 +421,7 @@ export function useHomeScreen() {
     handleInventoryPress,
     handleAccountPress,
     handleLogoutConfirm,
+    lastSyncTimestamp,
     lastSyncTimeText,
     isManualSyncing,
     handleManualSync,

@@ -3,20 +3,24 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   AdminPropertyRow,
   AdminUserCreateInput,
+  AdminProviderCompany,
   AdminUserPasswordResult,
   AdminUserPasswordUpdateInput,
   AdminUserPropertyAccessRow,
   AdminUserRow,
 } from '@/types/admin';
 import type { AdminRole } from '@/types/auth';
+import { PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT } from '../../../types/gema-role';
 
 const USER_SELECT =
-  'id, email, username, first_name, last_name, role, is_active';
+  'id, email, username, first_name, last_name, role, is_active, id_company';
 
 export const ADMIN_ROLE_OPTIONS: { label: string; value: AdminRole }[] = [
-  { label: 'Tecnico', value: 'TECNICO' },
-  { label: 'Tecnico REMS', value: 'TECNICO_REMS' },
+  { label: 'Técnico', value: 'TECNICO' },
   { label: 'Auditor', value: 'AUDITOR' },
+  ...(PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT
+    ? [{ label: 'Proveedor', value: 'PROVEEDOR' as const }]
+    : []),
   { label: 'Supervisor', value: 'SUPERVISOR' },
   { label: 'Superadmin', value: 'SUPERADMIN' },
 ];
@@ -61,6 +65,15 @@ export async function listAdminUsers(
   return (data ?? []) as AdminUserRow[];
 }
 
+export async function listProviderCompanies(
+  supabase: SupabaseClient,
+): Promise<AdminProviderCompany[]> {
+  if (!PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT) return [];
+  const { data, error } = await supabase.from('company').select('id, nombre').order('nombre');
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function createAdminUser(
   supabase: SupabaseClient,
   input: AdminUserCreateInput,
@@ -68,6 +81,15 @@ export async function createAdminUser(
   const password = resolvePassword(input);
   const email = input.email.trim().toLowerCase();
   const now = new Date().toISOString();
+
+  if (input.role === 'PROVEEDOR') {
+    const { data: company, error } = await supabase
+      .from('company')
+      .select('id')
+      .eq('id', input.companyId)
+      .maybeSingle();
+    if (error || !company) throw new Error('La empresa del proveedor no es válida');
+  }
 
   const { data: authData, error: authError } =
     await supabase.auth.admin.createUser({
@@ -94,6 +116,7 @@ export async function createAdminUser(
       first_name: emptyToNull(input.firstName),
       last_name: emptyToNull(input.lastName),
       role: input.role,
+      id_company: input.role === 'PROVEEDOR' ? input.companyId : null,
       is_active: input.isActive,
       updated_at: now,
     })
@@ -130,10 +153,15 @@ export async function updateAdminUserRole(
   supabase: SupabaseClient,
   userId: string,
   role: AdminRole,
+  companyId?: string | null,
 ): Promise<AdminUserRow> {
   const { data, error } = await supabase
     .from('users')
-    .update({ role, updated_at: new Date().toISOString() })
+    .update({
+      role,
+      ...(role === 'PROVEEDOR' ? { id_company: companyId } : {}),
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', userId)
     .select(USER_SELECT)
     .single();

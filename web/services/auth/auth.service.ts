@@ -1,5 +1,12 @@
 import { getSiteUrl, getSupabaseClient } from '@/lib/supabase-browser';
 import type { AdminUser, AuthResult } from '@/types/auth';
+import { normalizeGemaRole } from '../../../types/gema-role';
+
+export function getAdminStartPath(role?: AdminUser['role']) {
+  if (role === 'SUPERADMIN') return '/admin';
+  if (role === 'PROVEEDOR') return '/admin/mantenimientos';
+  return '/admin/checklist';
+}
 
 const TOKEN_REFRESH_MARGIN_MS = 60_000;
 
@@ -69,6 +76,8 @@ export async function getCurrentAdminUser(): Promise<AdminUser | null> {
     .single();
 
   if (!data?.is_active) return null;
+  const role = normalizeGemaRole(data.role);
+  if (!role || role === 'GUEST') return null;
 
   return {
     id: data.id,
@@ -76,7 +85,7 @@ export async function getCurrentAdminUser(): Promise<AdminUser | null> {
     username: data.username,
     first_name: data.first_name,
     last_name: data.last_name,
-    role: data.role,
+    role,
     is_active: data.is_active,
   };
 }

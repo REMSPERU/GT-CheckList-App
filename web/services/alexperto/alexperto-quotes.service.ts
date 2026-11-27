@@ -305,7 +305,7 @@ export async function listAuditorsByProperties(
     .from('users')
     .select('id, email, username, first_name, last_name, role')
     .in('id', userIds)
-    .in('role', ['AUDITOR', 'TECNICO_REMS'])
+    .in('role', ['AUDITOR', 'TECNICO', 'TECNICO_REMS'])
     .eq('is_active', true);
   if (usersError) throw usersError;
 
@@ -584,7 +584,7 @@ export async function listActiveAuditorOptions(
   const { data, error } = await supabase
     .from('users')
     .select('id, email, username, first_name, last_name')
-    .in('role', ['AUDITOR', 'TECNICO_REMS'])
+    .in('role', ['AUDITOR', 'TECNICO', 'TECNICO_REMS'])
     .eq('is_active', true)
     .order('first_name', { ascending: true });
 
