@@ -9,6 +9,7 @@ interface AssetOption {
   id: string;
   codigo: string;
   id_property: string;
+  property_name: string;
 }
 
 interface TechnicianOption {
@@ -134,12 +135,7 @@ export default function ExtraordinaryChecklistsPage() {
     setSearching(true);
     try {
       const { data, error } = await getSupabaseClient()
-        .from('equipos')
-        .select('id,codigo,id_property')
-        .ilike('codigo', code.trim().replace(/[\\%_]/g, '\\$&'))
-        .not('id_property', 'is', null)
-        .not('id_equipamento', 'is', null)
-        .or('estatus.is.null,estatus.neq.INACTIVO')
+        .rpc('find_extraordinary_checklist_asset', { p_code: code })
         .returns<AssetOption[]>();
       if (error) throw new Error(error.message);
       setAssets(data);
@@ -237,7 +233,7 @@ export default function ExtraordinaryChecklistsPage() {
               <option value="">Seleccionar activo</option>
               {assets.map(asset => (
                 <option key={asset.id} value={asset.id}>
-                  {asset.codigo}
+                  {asset.codigo} · {asset.property_name}
                 </option>
               ))}
             </select>
