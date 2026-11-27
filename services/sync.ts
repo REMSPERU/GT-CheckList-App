@@ -9,6 +9,7 @@ import NetInfo from '@react-native-community/netinfo';
 import type { ChecklistPropertyTemplate } from '@/types/checklist';
 import { syncQueue } from './sync-queue';
 import { replaceProviderFindings } from './db/provider-findings';
+import { syncPropertyInventory } from './db/sync';
 import type { ProviderFinding } from '@/types/provider-finding';
 import {
   replaceExtraordinaryChecklists,
@@ -267,7 +268,10 @@ async function fetchChecklistPropertyTemplates() {
   }
 }
 
-async function fetchEquiposPaginated(propertyIds?: string[]): Promise<{
+async function fetchEquiposPaginated(
+  propertyIds?: string[],
+  includeCatalog = false,
+): Promise<{
   data: any[] | null;
   failed: boolean;
 }> {
@@ -278,7 +282,7 @@ async function fetchEquiposPaginated(propertyIds?: string[]): Promise<{
     // 1. Setup base query for count
     let countQuery = supabase
       .from('equipos')
-      .select('*', { count: 'exact', head: true });
+      .select('id', { count: 'exact', head: true });
 
     if (propertyIds && propertyIds.length > 0) {
       countQuery = countQuery.in('id_property', propertyIds);
@@ -316,7 +320,11 @@ async function fetchEquiposPaginated(propertyIds?: string[]): Promise<{
         const from = pageIndex * limit;
         const to = from + limit - 1;
 
-        let query = supabase.from('equipos').select('*').range(from, to);
+        let query = supabase
+          .from('equipos')
+          .select(includeCatalog ? '*,equipamentos(*,sistemas(*))' : '*')
+          .order('id')
+          .range(from, to);
 
         if (propertyIds && propertyIds.length > 0) {
           query = query.in('id_property', propertyIds);
@@ -343,7 +351,16 @@ async function fetchEquiposPaginated(propertyIds?: string[]): Promise<{
     const workers = Array.from({ length: concurrency }, () => worker());
     await Promise.all(workers);
 
-    if (hasError) {
+    if (
+      hasError ||
+      allEquipos.length !== totalCount ||
+      new Set(allEquipos.map(equipo => equipo.id)).size !== totalCount
+    ) {
+      if (!hasError) {
+        console.warn(
+          '[SYNC] Inventario incompleto, se conserva la copia local.',
+        );
+      }
       return { data: null, failed: true };
     }
 
@@ -491,6 +508,56 @@ class SyncService {
     } finally {
       releaseLock();
     }
+  }
+
+  async pullInventoryForProperty(propertyId: string) {
+    const network = await NetInfo.fetch();
+    if (!network.isConnected || network.isInternetReachable === false) {
+      throw new Error('Conéctate a internet para descargar el inventario.');
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('Vuelve a iniciar sesión para descargar el inventario.');
+    }
+
+    await this.runSerializedSyncOperation(async () => {
+      const { data } = await fetchEquiposPaginated([propertyId], true);
+      if (!data) throw new Error('No se pudo descargar el inventario.');
+
+      const equipamentos = new Map<string, any>();
+      const sistemas = new Map<string, any>();
+      const equipos = data.map(({ equipamentos: tipo, ...equipo }) => {
+        if (equipo.id_equipamento && !tipo) {
+          throw new Error('No se pudo descargar el catálogo de equipos.');
+        }
+        if (tipo) {
+          const { sistemas: sistema, ...equipamento } = tipo;
+          if (equipamento.id_sistema && !sistema) {
+            throw new Error('No se pudo descargar el catálogo de sistemas.');
+          }
+          if (sistema) sistemas.set(sistema.id, sistema);
+          equipamentos.set(equipamento.id, equipamento);
+        }
+        return equipo;
+      });
+
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      if (currentSession?.user.id !== session.user.id) {
+        throw new Error('La sesión cambió durante la descarga del inventario.');
+      }
+
+      await syncPropertyInventory(
+        propertyId,
+        equipos,
+        [...equipamentos.values()],
+        [...sistemas.values()],
+      );
+    });
   }
 
   constructor() {
@@ -1944,7 +2011,9 @@ class SyncService {
           checklistSchedulesResult,
           checklistPropertyTemplatesResult,
         ] = await Promise.all([
-          fetchEquiposPaginated(assignedPropertyIds || undefined),
+          isRestricted && userPropertiesResult.failed
+            ? Promise.resolve({ data: null, failed: true })
+            : fetchEquiposPaginated(assignedPropertyIds || undefined),
           safeFetch(() =>
             supabase.from('properties').select('*').limit(SYNC_ROW_LIMIT),
           ),

@@ -25,6 +25,7 @@ import {
   useAllInventoryEquipamentos,
 } from '@/hooks/use-inventory-query';
 import { syncService } from '@/services/sync';
+import { DatabaseService } from '@/services/db';
 import { useQueryClient } from '@tanstack/react-query';
 import type {
   SistemaChecklistResponse,
@@ -212,12 +213,14 @@ export default function InventorySystemsScreen() {
   const [searchText, setSearchText] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalSearchText, setModalSearchText] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const {
     data: systems,
     isLoading,
     isRefetching,
     error,
+    refetch,
   } = useInventoryChecklistSystems(propertyId);
 
   const { data: allEquipamentos } = useAllInventoryEquipamentos();
@@ -340,15 +343,30 @@ export default function InventorySystemsScreen() {
   }, [router, propertyId, propertyName, propertyAddress, propertyImageUrl]);
 
   const onRefresh = useCallback(async () => {
+    setIsRefreshing(true);
     try {
-      await syncService.triggerSync('inventory-systems-refresh', {
-        force: true,
+      await syncService.pullInventoryForProperty(propertyId);
+      const updatedSystems =
+        await DatabaseService.getChecklistSystemsByProperty(propertyId);
+      const systemsKey = inventoryKeys.checklistSystems(propertyId);
+      queryClient.setQueryData(systemsKey, updatedSystems);
+      await queryClient.invalidateQueries({
+        queryKey: inventoryKeys.all,
+        predicate: query =>
+          query.queryKey[1] !== systemsKey[1] ||
+          query.queryKey[2] !== propertyId,
       });
-      await queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
-    } catch {
-      Alert.alert('Error', 'No se pudo sincronizar con el servidor.');
+    } catch (error) {
+      Alert.alert(
+        'Inventario',
+        error instanceof Error
+          ? error.message
+          : 'No se pudo sincronizar el inventario.',
+      );
+    } finally {
+      setIsRefreshing(false);
     }
-  }, [queryClient]);
+  }, [propertyId, queryClient]);
 
   const renderItem = useCallback<ListRenderItem<SistemaChecklistResponse>>(
     ({ item }) => (
@@ -454,15 +472,21 @@ export default function InventorySystemsScreen() {
       )}
 
       {/* Content */}
-      {isLoading && !systems ? (
+      {(isLoading || isRefetching) && !systems?.length ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#06B6D4" />
           <Text style={styles.loadingText}>Cargando sistemas...</Text>
         </View>
-      ) : error ? (
+      ) : error && !systems?.length ? (
         <View style={styles.centered}>
           <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
-          <Text style={styles.errorText}>Error al cargar los sistemas</Text>
+          <Text style={styles.errorText}>{error.message}</Text>
+          <Pressable
+            style={styles.allAssetsBtn}
+            accessibilityRole="button"
+            onPress={() => void refetch()}>
+            <Text style={styles.allAssetsBtnText}>Reintentar</Text>
+          </Pressable>
         </View>
       ) : (
         <FlatList
@@ -475,7 +499,7 @@ export default function InventorySystemsScreen() {
               styles.listEmpty,
           ]}
           showsVerticalScrollIndicator={false}
-          refreshing={isRefetching}
+          refreshing={isRefreshing || isRefetching}
           onRefresh={onRefresh}
           ListEmptyComponent={
             <View style={styles.centered}>
