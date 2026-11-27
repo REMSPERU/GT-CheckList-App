@@ -70,6 +70,25 @@ from public, anon;
 grant execute on function public.assign_extraordinary_checklist(uuid, uuid, text, date, date)
 to authenticated;
 
+create index if not exists equipos_codigo_lower_idx on public.equipos (lower(codigo));
+
+create function public.find_extraordinary_checklist_asset(p_code text)
+returns table (id uuid, codigo text, id_property uuid, property_name text)
+language sql stable security definer set search_path = ''
+as $$
+  select e.id, e.codigo, e.id_property, p.name
+  from public.equipos e
+  join public.properties p on p.id = e.id_property and p.is_active
+  where (select public.get_user_role()) = 'SUPERADMIN'
+    and lower(e.codigo) = lower(btrim(p_code))
+    and e.estatus is distinct from 'INACTIVO'
+    and e.id_equipamento is not null
+  order by p.name, e.id
+$$;
+
+revoke execute on function public.find_extraordinary_checklist_asset(text) from public, anon;
+grant execute on function public.find_extraordinary_checklist_asset(text) to authenticated;
+
 alter table public.checklist_response
   add column extraordinary_assignment_id uuid unique
     references public.extraordinary_checklist_assignments(id),
