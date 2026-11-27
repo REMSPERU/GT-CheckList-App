@@ -134,11 +134,13 @@ export default function ExtraordinaryChecklistsPage() {
     setTechnicianId('');
     setSearching(true);
     try {
-      const { data, error } = await getSupabaseClient()
-        .rpc('find_extraordinary_checklist_asset', { p_code: code })
-        .overrideTypes<AssetOption[], { merge: false }>();
+      const { data, error } = await getSupabaseClient().rpc(
+        'find_extraordinary_checklist_asset',
+        { p_code: code },
+      );
       if (error) throw new Error(error.message);
-      const matches = data ?? [];
+      if (!Array.isArray(data)) throw new Error('Respuesta de activos inválida.');
+      const matches = data as AssetOption[];
       setAssets(matches);
       if (matches.length === 1) setAssetId(matches[0].id);
       if (!matches.length)
