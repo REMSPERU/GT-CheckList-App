@@ -7,6 +7,8 @@ import { getSupabaseClient } from '@/lib/supabase-browser';
 import { listAdminEquipmentTypes } from '@/services/admin/equipment-types.service';
 import {
   listAdminProperties,
+  listPropertyHvacOperability,
+  type PropertyHvacOperability,
   updateAdminPropertyImage,
 } from '@/services/admin/properties.service';
 import type { AdminPropertyRow, AdminEquipmentTypeRow } from '@/types/admin';
@@ -43,6 +45,9 @@ export function useAdminProperties() {
   );
 
   const [items, setItems] = useState<AdminPropertyRow[]>([]);
+  const [operability, setOperability] = useState<Record<string, PropertyHvacOperability>>({});
+  const [operabilityUnavailable, setOperabilityUnavailable] = useState(false);
+  const [operabilityOrder, setOperabilityOrder] = useState('');
   const [search, setSearch] = useState(initialSearch);
   const [status, setStatus] = useState<PropertyStatusFilter>(() =>
     readStatusParam(searchParams.get('status')),
@@ -128,14 +133,31 @@ export function useAdminProperties() {
 
   const filteredItems = useMemo(() => {
     const query = normalizeSearchText(search);
-    if (!query) return items;
-
-    return items.filter(item =>
+    const matches = items.filter(item =>
       [item.code, item.name, item.address, item.city].some(value =>
         normalizeSearchText(value).includes(query),
       ),
     );
-  }, [items, search]);
+    if (!operabilityOrder) return matches;
+    return matches.sort((a, b) => {
+      const first = operability[a.id]?.percent;
+      const second = operability[b.id]?.percent;
+      if (first == null && second == null) return 0;
+      if (first == null) return 1;
+      if (second == null) return -1;
+      return operabilityOrder === 'asc' ? first - second : second - first;
+    });
+  }, [items, search, operability, operabilityOrder]);
+
+  useEffect(() => {
+    let active = true;
+    void listPropertyHvacOperability(getSupabaseClient())
+      .then(rows => {
+        if (active) setOperability(Object.fromEntries(rows.map(row => [row.property_id, row])));
+      })
+      .catch(() => { if (active) setOperabilityUnavailable(true); });
+    return () => { active = false; };
+  }, []);
 
   const changePropertyImage = async (propertyId: string, file: File) => {
     try {
@@ -189,6 +211,10 @@ export function useAdminProperties() {
 
   return {
     filteredItems,
+    operability,
+    operabilityUnavailable,
+    operabilityOrder,
+    setOperabilityOrder,
     search,
     setSearch,
     status,
