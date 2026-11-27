@@ -491,6 +491,19 @@ function ChecklistFormScreenContent() {
     () => formatDateToSpanish(periodEnd),
     [periodEnd],
   );
+  const { periodStart: scheduledStart, periodEnd: scheduledEnd } =
+    schedulePreview;
+  let headerPeriodLabel = null;
+  if (!schedulePreview.isLoading) {
+    if (!schedulePreview.hasSchedule) {
+      headerPeriodLabel = periodStartLabel;
+    } else if (scheduledStart) {
+      headerPeriodLabel = formatDateToSpanish(scheduledStart);
+      if (scheduledEnd && scheduledEnd !== scheduledStart) {
+        headerPeriodLabel += ` al ${formatDateToSpanish(scheduledEnd)}`;
+      }
+    }
+  }
   const isNormalChecklistFlow = operationalStatus === 'operativo';
   const visibleQuestions = isNormalChecklistFlow ? questions : [];
 
@@ -608,16 +621,23 @@ function ChecklistFormScreenContent() {
       setSchedulePreview(prev => ({ ...prev, isLoading: true }));
 
       try {
-        const calendarValidation =
-          await DatabaseService.validateLocalChecklistWorkingDay(
-            getLimaDateString(),
+        const result =
+          await supabaseChecklistScheduleService.validateChecklistSubmission(
+            params.buildingId,
+            params.equipamentoId,
+            params.equipoId,
           );
+        const calendarValidation = result.has_schedule
+          ? null
+          : await DatabaseService.validateLocalChecklistWorkingDay(
+              getLimaDateString(),
+            );
 
         if (!isMounted) {
           return;
         }
 
-        if (!calendarValidation.allowed) {
+        if (calendarValidation && !calendarValidation.allowed) {
           setSchedulePreview({
             isLoading: false,
             hasSchedule: true,
@@ -634,17 +654,6 @@ function ChecklistFormScreenContent() {
             periodStart: null,
             periodEnd: null,
           });
-          return;
-        }
-
-        const result =
-          await supabaseChecklistScheduleService.validateChecklistSubmission(
-            params.buildingId,
-            params.equipamentoId,
-            params.equipoId,
-          );
-
-        if (!isMounted) {
           return;
         }
 
@@ -990,20 +999,8 @@ function ChecklistFormScreenContent() {
       let effectivePeriodStart: string | null = null;
       let effectivePeriodEnd: string | null = null;
       let effectiveOccurrencesLimit: number | null = null;
-
-      const calendarValidation =
-        await DatabaseService.validateLocalChecklistWorkingDay(
-          getLimaDateString(),
-        );
-
-      if (!calendarValidation.allowed) {
-        showAppAlert(
-          'Checklist fuera de programacion',
-          calendarValidation.reason ||
-            'Hoy es un dia no laborable segun el calendario de checklist.',
-        );
-        return;
-      }
+      const submittedDate = new Date();
+      const submittedAt = submittedDate.toISOString();
 
       try {
         const scheduleValidation =
@@ -1011,6 +1008,7 @@ function ChecklistFormScreenContent() {
             params.buildingId,
             params.equipamentoId,
             params.equipoId,
+            submittedAt,
           );
 
         if (scheduleValidation.has_schedule) {
@@ -1063,6 +1061,21 @@ function ChecklistFormScreenContent() {
       if (isTechnician && !checklistScheduleId) {
         showAppAlert('Checklist sin programación', 'El equipo no tiene una programación activa.');
         return;
+      }
+
+      if (!checklistScheduleId) {
+        const calendarValidation =
+          await DatabaseService.validateLocalChecklistWorkingDay(
+            getLimaDateString(submittedDate),
+          );
+        if (!calendarValidation.allowed) {
+          showAppAlert(
+            'Checklist fuera de programación',
+            calendarValidation.reason ||
+              'Hoy es un día no laborable según el calendario de checklists.',
+          );
+          return;
+        }
       }
 
       const fallbackPeriod = getPeriodFromFrequency(effectiveFrequency);
@@ -1154,15 +1167,13 @@ function ChecklistFormScreenContent() {
         operationalComment,
       );
       const hasObservation = respuestasJson.resumen.total_observadas > 0;
-      const submittedAtMs = Date.now();
       const formStartedAt = new Date(startedAtMsRef.current).toISOString();
       const firstInteractionAt = firstInteractionAtMsRef.current
         ? new Date(firstInteractionAtMsRef.current).toISOString()
         : null;
-      const submittedAt = new Date(submittedAtMs).toISOString();
       const durationSeconds = Math.max(
         1,
-        Math.round((submittedAtMs - startedAtMsRef.current) / 1000),
+        Math.round((submittedDate.getTime() - startedAtMsRef.current) / 1000),
       );
       const clientSubmissionId = generateClientSubmissionId();
 
@@ -1500,7 +1511,9 @@ function ChecklistFormScreenContent() {
           <Text style={styles.title}>{params.equipoCodigo || 'Checklist'}</Text>
         </View>
         <Text style={styles.subtitle}>
-          {params.equipamentoNombre || '-'} - {frecuencia} ({periodStartLabel})
+          {params.equipamentoNombre || '-'} -{' '}
+          {schedulePreview.frequency || frecuencia}
+          {headerPeriodLabel ? ` (${headerPeriodLabel})` : ''}
         </Text>
       </View>
 
