@@ -14,6 +14,12 @@ export interface AdminUserRow {
   last_name: string | null;
   role: AdminRole;
   is_active: boolean;
+  id_company: string | null;
+}
+
+export interface AdminProviderCompany {
+  id: string;
+  nombre: string;
 }
 
 export interface AdminUserCreateInput {
@@ -24,6 +30,7 @@ export interface AdminUserCreateInput {
   firstName?: string | null;
   lastName?: string | null;
   role: AdminRole;
+  companyId?: string | null;
   isActive: boolean;
 }
 

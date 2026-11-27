@@ -18,6 +18,10 @@ import { useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import RNPickerSelect from 'react-native-picker-select';
 import { UserRole } from '@/contexts/UserRoleContext';
+import {
+  supabaseCompanyService,
+  type Company,
+} from '@/services/supabase-company.service';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const UserCard = ({
@@ -49,6 +53,8 @@ const UserCard = ({
 );
 
 export default function AssignRolesScreen() {
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalVisible, setModalVisible] = useState(false);
@@ -58,8 +64,12 @@ export default function AssignRolesScreen() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const userList = await supabaseUserService.listUsers();
+      const [userList, companyList] = await Promise.all([
+        supabaseUserService.listUsers(),
+        supabaseCompanyService.listCompanies(),
+      ]);
       setUsers(userList);
+      setCompanies(companyList);
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'No se pudo cargar la lista de usuarios.');
@@ -77,14 +87,23 @@ export default function AssignRolesScreen() {
   const openRoleModal = (user: UserProfile) => {
     setSelectedUser(user);
     setSelectedRole(user.role);
+    setCompanyId(user.id_company);
     setModalVisible(true);
   };
 
   const handleUpdateRole = async () => {
     if (!selectedUser || !selectedRole) return;
+    if (selectedRole === 'PROVEEDOR' && !companyId) {
+      Alert.alert('Empresa requerida', 'Selecciona la empresa del proveedor.');
+      return;
+    }
 
     try {
-      await supabaseUserService.updateUserRole(selectedUser.id, selectedRole);
+      await supabaseUserService.updateUserRole(
+        selectedUser.id,
+        selectedRole,
+        companyId,
+      );
       setModalVisible(false);
       Alert.alert('Éxito', 'El rol del usuario ha sido actualizado.');
       fetchUsers(); // Refresh list
@@ -98,6 +117,7 @@ export default function AssignRolesScreen() {
   const roleOptions = [
     { label: 'Técnico', value: 'TECNICO' },
     { label: 'Auditor', value: 'AUDITOR' },
+    { label: 'Proveedor', value: 'PROVEEDOR' },
     { label: 'Supervisor', value: 'SUPERVISOR' },
     { label: 'Super Admin', value: 'SUPERADMIN' },
   ];
@@ -149,6 +169,18 @@ export default function AssignRolesScreen() {
               style={pickerSelectStyles}
               placeholder={{ label: 'Seleccionar un rol...', value: null }}
             />
+            {selectedRole === 'PROVEEDOR' ? (
+              <RNPickerSelect
+                onValueChange={setCompanyId}
+                items={companies.map(company => ({
+                  label: company.nombre,
+                  value: company.id,
+                }))}
+                value={companyId}
+                style={pickerSelectStyles}
+                placeholder={{ label: 'Seleccionar empresa...', value: null }}
+              />
+            ) : null}
             <View style={styles.modalActions}>
               <Pressable
                 style={({ pressed }) => [

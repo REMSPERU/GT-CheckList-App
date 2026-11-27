@@ -5,6 +5,7 @@ import {
   createAdminUser,
   listAdminUsers,
   listAssignableProperties,
+  listProviderCompanies,
 } from '@/services/admin/users.service';
 import {
   createServiceRoleSupabaseClient,
@@ -27,6 +28,8 @@ function validateUserInput(input: AdminUserCreateInput) {
     return 'Rol invalido';
   }
 
+  if (input.role === 'PROVEEDOR' && !input.companyId) return 'Selecciona la empresa del proveedor';
+
   if (!input.generatePassword && (input.password?.trim().length ?? 0) < 8) {
     return 'La contraseña debe tener al menos 8 caracteres';
   }
@@ -37,12 +40,13 @@ function validateUserInput(input: AdminUserCreateInput) {
 export async function GET(request: NextRequest) {
   try {
     const { supabase } = await requireSuperAdminSession(request);
-    const [users, properties] = await Promise.all([
+    const [users, properties, companies] = await Promise.all([
       listAdminUsers(supabase),
       listAssignableProperties(supabase),
+      listProviderCompanies(supabase),
     ]);
 
-    return NextResponse.json({ users, properties });
+    return NextResponse.json({ users, properties, companies });
   } catch (error) {
     if (error instanceof Error && error.message === 'UNAUTHENTICATED') {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });

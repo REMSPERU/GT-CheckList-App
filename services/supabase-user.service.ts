@@ -9,6 +9,7 @@ export interface UserProfile {
   last_name: string | null;
   role: UserRole;
   is_active: boolean;
+  id_company: string | null;
 }
 
 class SupabaseUserService {
@@ -20,7 +21,9 @@ class SupabaseUserService {
   async listUsers(): Promise<UserProfile[]> {
     const { data, error } = await supabase
       .from(this.tableName)
-      .select('id, email, username, first_name, last_name, role, is_active');
+      .select(
+        'id, email, username, first_name, last_name, role, is_active, id_company',
+      );
 
     if (error) {
       console.error('Error fetching users:', error);
@@ -38,10 +41,15 @@ class SupabaseUserService {
   async updateUserRole(
     userId: string,
     role: UserRole,
+    companyId?: string | null,
   ): Promise<UserProfile> {
     const { data, error } = await supabase
       .from(this.tableName)
-      .update({ role, updated_at: new Date().toISOString() })
+      .update({
+        role,
+        ...(role === 'PROVEEDOR' ? { id_company: companyId } : {}),
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', userId)
       .select()
       .single();

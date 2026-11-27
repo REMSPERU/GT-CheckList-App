@@ -155,6 +155,10 @@ export function AdminShell({ children }: AdminShellProps) {
   const isUnauthorizedRoute = (() => {
     if (isCheckingSession || !user) return false;
 
+    if (user.role === 'PROVEEDOR') {
+      return pathname !== '/admin/mantenimientos';
+    }
+
     if (user.role === 'TECNICO') {
       if (['/admin/checklist/preguntas', '/admin/checklist/programaciones', '/admin/checklist/calendario'].includes(pathname)) return true;
       return pathname !== '/admin/checklist' &&
@@ -185,9 +189,9 @@ export function AdminShell({ children }: AdminShellProps) {
 
   useEffect(() => {
     if (isUnauthorizedRoute) {
-      router.replace('/admin/checklist');
+      router.replace(user?.role === 'PROVEEDOR' ? '/admin/mantenimientos' : '/admin/checklist');
     }
-  }, [isUnauthorizedRoute, router]);
+  }, [isUnauthorizedRoute, router, user?.role]);
 
   const togglePin = () => {
     setIsPinned(prev => {
@@ -269,6 +273,7 @@ export function AdminShell({ children }: AdminShellProps) {
     SUPERADMIN: 'Superadministrador',
     ADMIN: 'Administrador',
     AUDITOR: 'Auditor',
+    PROVEEDOR: 'Proveedor',
     SUPERVISOR: 'Supervisor',
     TECNICO: 'Técnico',
   };
@@ -358,6 +363,9 @@ export function AdminShell({ children }: AdminShellProps) {
                   (!user?.role || !item.allowedRoles.includes(user.role))
                 ) {
                   return false;
+                }
+                if (user?.role === 'PROVEEDOR') {
+                  return item.href === '/admin/mantenimientos';
                 }
                 if (user?.role === 'TECNICO') {
                   return item.href === '/admin/checklist';

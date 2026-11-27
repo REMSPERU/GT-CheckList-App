@@ -7,6 +7,7 @@ import {
   MaintenanceStatusEnum,
   User,
 } from '@/types/api';
+import { useUserRole } from '@/hooks/use-user-role';
 import { getGemaPermissions, normalizeGemaRole } from '@/types/gema-role';
 
 interface CreateMaintenanceResult {
@@ -24,17 +25,21 @@ const log = (...args: unknown[]) => {
 
 const TECHNICIANS_TIMEOUT_MS = 5000;
 
-function keepTechnicians(users: User[]): User[] {
-  return users.filter(
-    user =>
-      getGemaPermissions(normalizeGemaRole(user.role)).canExecuteMaintenance,
-  );
+function keepTechnicians(users: User[], providerOnly: boolean): User[] {
+  return users.filter(user => {
+    const role = normalizeGemaRole(user.role);
+    return providerOnly
+      ? role === 'PROVEEDOR'
+      : role !== 'PROVEEDOR' && getGemaPermissions(role).canExecuteMaintenance;
+  });
 }
 
 // Fetch users authorized to execute maintenance.
 export const useTechnicians = () => {
+  const { role } = useUserRole();
+  const providerOnly = role === 'PROVEEDOR';
   return useQuery({
-    queryKey: ['technicians'],
+    queryKey: ['technicians', role],
     queryFn: async (): Promise<User[]> => {
       try {
         const timeoutPromise = new Promise<never>((_, reject) => {
@@ -51,11 +56,12 @@ export const useTechnicians = () => {
 
         if (error) throw error;
 
-        return keepTechnicians((data as User[]) ?? []);
+        return keepTechnicians((data as User[]) ?? [], providerOnly);
       } catch (error) {
         log('useTechnicians remote failed, using local cache:', error);
+        if (providerOnly) return [];
         const localUsers = (await DatabaseService.getLocalUsers()) as User[];
-        return keepTechnicians(localUsers ?? []);
+        return keepTechnicians(localUsers ?? [], providerOnly);
       }
     },
     retry: 0,

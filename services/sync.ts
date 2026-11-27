@@ -1869,7 +1869,21 @@ class SyncService {
 
         // 1. Fetch user properties FIRST to filter equipments by assigned properties
         log('[SYNC] Fetching user properties...');
-        const userPropertiesResult = await safeFetch(() => {
+        const userPropertiesResult = await safeFetch(async () => {
+          if (currentRole === 'PROVEEDOR' && currentUserId) {
+            const { data, error } = await supabase.rpc('list_gema_provider_properties');
+            return {
+              error,
+              data: data?.map((item: { property_id: string }) => ({
+                id: item.property_id,
+                user_id: currentUserId,
+                property_id: item.property_id,
+                property_role: 'PROVEEDOR',
+                expires_at: null,
+              })) ?? null,
+            };
+          }
+
           let query = supabase
             .from('user_properties')
             .select('*')
@@ -1886,7 +1900,7 @@ class SyncService {
         const isRestricted =
           currentRole === 'TECNICO' ||
           currentRole === 'TECNICO_REMS' ||
-          currentRole === 'AUDITOR';
+          currentRole === 'AUDITOR' || currentRole === 'PROVEEDOR';
 
         if (isRestricted) {
           assignedPropertyIds = (userPropertiesResult.data ?? [])

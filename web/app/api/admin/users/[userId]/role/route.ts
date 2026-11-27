@@ -17,10 +17,14 @@ const ALLOWED_ROLES = new Set(ADMIN_ROLE_OPTIONS.map(item => item.value));
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const { userId } = await context.params;
-    const body = (await request.json()) as { role?: AdminRole };
+    const body = (await request.json()) as { role?: AdminRole; companyId?: string | null };
 
     if (!body.role || !ALLOWED_ROLES.has(body.role)) {
       return NextResponse.json({ error: 'Rol invalido' }, { status: 400 });
+    }
+
+    if (body.role === 'PROVEEDOR' && !body.companyId) {
+      return NextResponse.json({ error: 'Selecciona la empresa del proveedor' }, { status: 400 });
     }
 
     const { supabase, user } = await requireSuperAdminSession(request);
@@ -50,7 +54,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
     }
 
-    const updatedUser = await updateAdminUserRole(supabase, userId, body.role);
+    const updatedUser = await updateAdminUserRole(supabase, userId, body.role, body.companyId);
 
     return NextResponse.json({ user: updatedUser });
   } catch (error) {

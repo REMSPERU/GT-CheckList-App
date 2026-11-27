@@ -28,6 +28,7 @@ export function getGemaPermissions(role: GemaRole | null) {
   const isSupervisor = role === 'SUPERVISOR' || isAdmin;
   const isAuditor = role === 'AUDITOR';
   const isTechnician = role === 'TECNICO';
+  const isProvider = role === 'PROVEEDOR';
 
   return {
     canUseChecklists: isTechnician || isAuditor || isAdmin,
@@ -35,10 +36,10 @@ export function getGemaPermissions(role: GemaRole | null) {
     canViewInventory: isAuditor || isSupervisor,
     canEditAssets: isAuditor || isSupervisor,
     canManageAssets: isSupervisor,
-    canScheduleMaintenance: isSupervisor,
-    canExecuteMaintenance: isSupervisor,
-    canGenerateMaintenanceReports: isSupervisor,
+    canScheduleMaintenance: isSupervisor || isProvider,
+    canExecuteMaintenance: isSupervisor || isProvider,
+    canGenerateMaintenanceReports: isSupervisor || isProvider,
     canScanEquipment: isTechnician || isAuditor || isSupervisor,
-    hasAssignedPropertyScope: isTechnician || isAuditor,
+    hasAssignedPropertyScope: isTechnician || isAuditor || isProvider,
   };
 }

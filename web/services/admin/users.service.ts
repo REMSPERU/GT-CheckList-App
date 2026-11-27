@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   AdminPropertyRow,
   AdminUserCreateInput,
+  AdminProviderCompany,
   AdminUserPasswordResult,
   AdminUserPasswordUpdateInput,
   AdminUserPropertyAccessRow,
@@ -11,11 +12,12 @@ import type {
 import type { AdminRole } from '@/types/auth';
 
 const USER_SELECT =
-  'id, email, username, first_name, last_name, role, is_active';
+  'id, email, username, first_name, last_name, role, is_active, id_company';
 
 export const ADMIN_ROLE_OPTIONS: { label: string; value: AdminRole }[] = [
   { label: 'Técnico', value: 'TECNICO' },
   { label: 'Auditor', value: 'AUDITOR' },
+  { label: 'Proveedor', value: 'PROVEEDOR' },
   { label: 'Supervisor', value: 'SUPERVISOR' },
   { label: 'Superadmin', value: 'SUPERADMIN' },
 ];
@@ -60,6 +62,14 @@ export async function listAdminUsers(
   return (data ?? []) as AdminUserRow[];
 }
 
+export async function listProviderCompanies(
+  supabase: SupabaseClient,
+): Promise<AdminProviderCompany[]> {
+  const { data, error } = await supabase.from('company').select('id, nombre').order('nombre');
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function createAdminUser(
   supabase: SupabaseClient,
   input: AdminUserCreateInput,
@@ -67,6 +77,15 @@ export async function createAdminUser(
   const password = resolvePassword(input);
   const email = input.email.trim().toLowerCase();
   const now = new Date().toISOString();
+
+  if (input.role === 'PROVEEDOR') {
+    const { data: company, error } = await supabase
+      .from('company')
+      .select('id')
+      .eq('id', input.companyId)
+      .maybeSingle();
+    if (error || !company) throw new Error('La empresa del proveedor no es válida');
+  }
 
   const { data: authData, error: authError } =
     await supabase.auth.admin.createUser({
@@ -93,6 +112,7 @@ export async function createAdminUser(
       first_name: emptyToNull(input.firstName),
       last_name: emptyToNull(input.lastName),
       role: input.role,
+      id_company: input.role === 'PROVEEDOR' ? input.companyId : null,
       is_active: input.isActive,
       updated_at: now,
     })
@@ -129,10 +149,15 @@ export async function updateAdminUserRole(
   supabase: SupabaseClient,
   userId: string,
   role: AdminRole,
+  companyId?: string | null,
 ): Promise<AdminUserRow> {
   const { data, error } = await supabase
     .from('users')
-    .update({ role, updated_at: new Date().toISOString() })
+    .update({
+      role,
+      ...(role === 'PROVEEDOR' ? { id_company: companyId } : {}),
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', userId)
     .select(USER_SELECT)
     .single();

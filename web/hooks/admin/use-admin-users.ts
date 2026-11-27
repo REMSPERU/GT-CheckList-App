@@ -4,6 +4,7 @@ import { fetchWithAuth } from '@/services/auth/auth.service';
 import type {
   AdminPropertyRow,
   AdminUserCreateInput,
+  AdminProviderCompany,
   AdminUserPasswordResult,
   AdminUserPasswordUpdateInput,
   AdminUserPropertyAccessRow,
@@ -31,6 +32,7 @@ async function fetchAdminApi<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function useAdminUsers() {
+  const [companies, setCompanies] = useState<AdminProviderCompany[]>([]);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [properties, setProperties] = useState<AdminPropertyRow[]>([]);
   const [accesses, setAccesses] = useState<AdminUserPropertyAccessRow[]>([]);
@@ -77,9 +79,11 @@ export function useAdminUsers() {
       const data = await fetchAdminApi<{
         users: AdminUserRow[];
         properties: AdminPropertyRow[];
+        companies: AdminProviderCompany[];
       }>('/api/admin/users');
 
       setUsers(data.users);
+      setCompanies(data.companies);
       setProperties(data.properties);
       setSelectedUserId(current => current ?? data.users[0]?.id ?? null);
     } catch (error) {
@@ -127,7 +131,7 @@ export function useAdminUsers() {
     void loadAccesses(selectedUserId);
   }, [selectedUserId]);
 
-  async function updateRole(userId: string, role: AdminRole) {
+  async function updateRole(userId: string, role: AdminRole, companyId?: string) {
     try {
       setErrorMessage(null);
       setIsSaving(true);
@@ -135,7 +139,7 @@ export function useAdminUsers() {
         `/api/admin/users/${userId}/role`,
         {
           method: 'PATCH',
-          body: JSON.stringify({ role }),
+          body: JSON.stringify({ role, companyId }),
         },
       );
 
@@ -261,6 +265,7 @@ export function useAdminUsers() {
 
   return {
     users: filteredUsers,
+    companies,
     properties: availableProperties,
     accesses,
     selectedUser,

@@ -11,7 +11,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function TabLayout() {
-  const { isAdmin, canScanEquipment, canGenerateMaintenanceReports } =
+  const { role, isAdmin, canScanEquipment, canGenerateMaintenanceReports } =
     useUserRole();
   const [hasLocalMirror, setHasLocalMirror] = useState<boolean | null>(null);
 
@@ -97,7 +97,10 @@ export default function TabLayout() {
         name="reports"
         options={{
           title: 'Reportes',
-          href: canGenerateMaintenanceReports ? '/reports' : null,
+          href:
+            canGenerateMaintenanceReports && role !== 'PROVEEDOR'
+              ? '/reports'
+              : null,
           tabBarIcon: ({ color }) => (
             <Ionicons name="stats-chart" size={24} color={color} />
           ),
