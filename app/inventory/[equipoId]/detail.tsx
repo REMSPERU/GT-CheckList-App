@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TextInput,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -21,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { TechnicalDetailView } from '@/components/inventory/technical-detail-view';
 import { DynamicFieldRenderer } from '@/components/inventory/dynamic-field-renderer';
 import { EquipmentStatusBadge } from '@/components/inventory/equipment-status-badge';
+import { EquipmentAccessBadge } from '@/components/inventory/equipment-access-badge';
 import { UbicacionLabel } from '@/components/inventory/ubicacion-label';
 import { getTechnicalFields } from '@/types/inventory';
 import {
@@ -239,6 +241,16 @@ export default function EquipoDetailScreen() {
                 ubicacion={equipo?.ubicacion}
                 detalleUbicacion={equipo?.detalle_ubicacion}
               />
+              <EquipmentAccessBadge
+                difficult={equipmentDetailData.dificil_acceso}
+              />
+              {typeof equipmentDetailData.ambiente_tecnico === 'string' &&
+              equipmentDetailData.ambiente_tecnico.trim() ? (
+                <Text style={styles.sistemaNombre}>
+                  Ambiente técnico ·{' '}
+                  {equipmentDetailData.ambiente_tecnico.trim()}
+                </Text>
+              ) : null}
               {equipo?.sistema_nombre ? (
                 <Text style={styles.sistemaNombre}>
                   {equipo.sistema_nombre}
@@ -306,6 +318,40 @@ export default function EquipoDetailScreen() {
                           onBlur={onBlur}
                           placeholder="ej. Sala de máquinas"
                           placeholderTextColor="#94A3B8"
+                        />
+                      )}
+                    />
+                  </View>
+
+                  <View style={styles.fieldWrap}>
+                    <Text style={styles.label}>Equipo de difícil acceso</Text>
+                    <Controller
+                      control={control}
+                      name="equipment_detail.dificil_acceso"
+                      render={({ field: { value, onChange } }) => (
+                        <Switch
+                          accessibilityLabel="Equipo de difícil acceso"
+                          value={value === true}
+                          onValueChange={onChange}
+                        />
+                      )}
+                    />
+                  </View>
+
+                  <View style={styles.fieldWrap}>
+                    <Text style={styles.label}>Ambiente o cuarto técnico</Text>
+                    <Controller
+                      control={control}
+                      name="equipment_detail.ambiente_tecnico"
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <TextInput
+                          style={styles.input}
+                          value={typeof value === 'string' ? value : ''}
+                          onChangeText={onChange}
+                          onBlur={onBlur}
+                          accessibilityLabel="Ambiente o cuarto técnico"
+                          placeholder="Ej. Cuarto de chillers"
+                          maxLength={80}
                         />
                       )}
                     />

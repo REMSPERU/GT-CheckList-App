@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { getChecklistLocalDate } from '@/utils/checklist-local-date';
+import { groupEquipmentByEnvironment } from '@/utils/equipment-environment';
 import { GemaPropertyAccess } from '@/components/gema-property-access';
+import { EquipmentAccessBadge } from '@/components/inventory/equipment-access-badge';
 import { useUserRole } from '@/hooks/use-user-role';
 import {
   View,
   StyleSheet,
   Text,
-  FlatList,
+  SectionList,
   Pressable,
   ActivityIndicator,
   RefreshControl,
@@ -325,6 +327,9 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
         <Text style={styles.itemSubtitle}>
           {locationText || 'Sin ubicacion'}
         </Text>
+        <EquipmentAccessBadge
+          difficult={item.equipment_detail?.dificil_acceso}
+        />
       </View>
       <View style={styles.itemActions}>
         <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -447,6 +452,10 @@ function EquipmentChecklistListScreenContent() {
         normalizeSearch(e.detalle_ubicacion || '').includes(q),
     );
   }, [equipos, searchText]);
+  const equipmentSections = useMemo(
+    () => groupEquipmentByEnvironment(filteredEquipos),
+    [filteredEquipos],
+  );
 
   useEffect(() => {
     if (!building?.id || !equipamento?.id) {
@@ -787,8 +796,16 @@ function EquipmentChecklistListScreenContent() {
           <ActivityIndicator size="large" color="#0891B2" />
         </View>
       ) : (
-        <FlatList
-          data={filteredEquipos}
+        <SectionList
+          sections={equipmentSections}
+          stickySectionHeadersEnabled={false}
+          renderSectionHeader={({ section }) =>
+            section.title ? (
+              <Text accessibilityRole="header" style={styles.roomTitle}>
+                {section.title}
+              </Text>
+            ) : null
+          }
           keyExtractor={item => item.id}
           renderItem={renderEquipmentItem}
           initialNumToRender={8}
@@ -815,6 +832,12 @@ function EquipmentChecklistListScreenContent() {
 }
 
 const styles = StyleSheet.create({
+  roomTitle: {
+    color: '#334155',
+    fontSize: 15,
+    fontWeight: '700',
+    marginVertical: 10,
+  },
   container: {
     flex: 1,
     backgroundColor: '#F3F4F6',
