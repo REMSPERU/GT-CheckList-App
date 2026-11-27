@@ -9,9 +9,11 @@ import { SelectField } from '@/components/ui/select-field';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { SearchInput } from '@/components/ui/search-input';
 import { useAdminEquipments } from '@/hooks/admin/use-admin-equipments';
-import { QrCode } from 'lucide-react';
+import { Plus, QrCode } from 'lucide-react';
 import { ExportEquipmentButton } from '@/components/admin/export-equipment-button';
 import { mapTipoLabel } from '@/lib/equipment-labels';
+import { useAdminSession } from '@/hooks/auth/use-admin-session';
+import { getGemaPermissions } from '../../../../types/gema-role';
 
 // Mantiene el contrato usado por exportaciones y vistas históricas.
 export { mapTipoLabel };
@@ -23,6 +25,7 @@ const STATUS_OPTIONS = [
 ];
 
 function AdminEquipmentsContent() {
+  const { user } = useAdminSession();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const equipments = useAdminEquipments(isFilterOpen);
   const [isPropertyPickerOpen, setIsPropertyPickerOpen] = useState(false);
@@ -318,6 +321,13 @@ function AdminEquipmentsContent() {
               }}
               activeFilterCount={activeAdvancedCount}
             />
+            {getGemaPermissions(user?.role ?? null).canManageAssets ? (
+              <Link
+                href="/admin/equipos/nuevo"
+                className="flex h-9 items-center gap-2 rounded-lg bg-[#072e27] px-3 text-xs font-semibold text-white no-underline">
+                <Plus size={15} /> Nuevo activo
+              </Link>
+            ) : null}
             <Link
               className="flex h-9 items-center gap-2 rounded-lg bg-[#072e27] px-3 text-xs font-semibold text-white no-underline transition-colors hover:bg-[#05221d]"
               href="/admin/equipos/qr">
