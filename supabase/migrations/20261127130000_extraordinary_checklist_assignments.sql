@@ -74,12 +74,12 @@ create index if not exists equipos_codigo_lower_idx on public.equipos (lower(cod
 
 create function public.find_extraordinary_checklist_asset(p_code text)
 returns table (id uuid, codigo text, id_property uuid, property_name text)
-language sql stable security invoker set search_path = ''
+language sql stable security definer set search_path = ''
 as $$
   select e.id, e.codigo, e.id_property, p.name
   from public.equipos e
   join public.properties p on p.id = e.id_property and p.is_active
-  where public.get_user_role() = 'SUPERADMIN'
+  where (select public.get_user_role()) = 'SUPERADMIN'
     and lower(e.codigo) = lower(btrim(p_code))
     and e.estatus is distinct from 'INACTIVO'
     and e.id_equipamento is not null
