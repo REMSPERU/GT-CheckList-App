@@ -12,7 +12,7 @@ import { useAdminSession } from '@/hooks/auth/use-admin-session';
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { user, isCheckingSession } = useAdminSession();
-  const { metrics, isLoading, errorMessage } = useAdminMetrics(
+  const { metrics, isLoading, errorMessage, retry } = useAdminMetrics(
     user?.role === 'SUPERADMIN',
   );
 
@@ -40,7 +40,7 @@ export default function AdminDashboardPage() {
         description="Resumen en tiempo real del inventario de activos, estado de inmuebles, mantenimientos y auditorías activas."
         compact
       />
-      <Alert>{errorMessage}</Alert>
+      <Alert onRetry={retry}>{errorMessage}</Alert>
       <MetricCardGrid metrics={metrics} isLoading={isLoading} />
     </main>
   );
