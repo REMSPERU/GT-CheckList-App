@@ -323,6 +323,7 @@ export interface AdminMaintenanceRow {
 }
 
 export interface AdminChecklistResponseFilters {
+  equipmentTypeIds?: string[];
   page: number;
   pageSize: number;
   equipamentoId?: string;

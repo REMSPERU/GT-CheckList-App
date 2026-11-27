@@ -146,6 +146,20 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
     { value: '', label: 'Todos los inmuebles' },
     ...checklist.responseFilterOptions.buildings,
   ];
+  const systems = new Map<string, string>();
+  for (const type of checklist.equipmentTypes) {
+    if (type.systemId) systems.set(type.systemId, type.systemName);
+  }
+  const specialtyOptions = [
+    { value: '', label: 'Todas las especialidades' },
+    ...Array.from(systems, ([value, label]) => ({ value, label })).sort((a, b) =>
+      a.label.localeCompare(b.label, 'es'),
+    ),
+  ];
+  const responseEquipmentOptions = equipmentOptions.filter(option =>
+    !option.value || !checklist.responseEquipmentTypeIds ||
+    checklist.responseEquipmentTypeIds.includes(option.value),
+  );
   const propertyOptions = [
     ...checklist.properties.map(item => ({
       value: item.id,
@@ -310,15 +324,21 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
 
       {activeTab === 'responses' ? (
         <section className="grid gap-4">
-          <div className="grid grid-cols-[minmax(220px,1.2fr)_minmax(220px,1fr)_minmax(220px,1fr)_minmax(180px,0.8fr)] gap-3 max-[1180px]:grid-cols-2 max-[640px]:grid-cols-1">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <SearchInput
               placeholder="Buscar inmueble, activo, codigo o frecuencia"
               value={checklist.responseSearch}
               onChange={checklist.handleResponseSearchChange}
             />
             <SelectField
+              value={checklist.responseSystemId}
+              options={specialtyOptions}
+              onChange={checklist.handleResponseSystemChange}
+              ariaLabel="Filtrar respuestas por especialidad"
+            />
+            <SelectField
               value={checklist.selectedEquipmentType}
-              options={equipmentOptions}
+              options={responseEquipmentOptions}
               onChange={checklist.handleEquipmentTypeChange}
               ariaLabel="Filtrar respuestas por tipo de activo"
             />
