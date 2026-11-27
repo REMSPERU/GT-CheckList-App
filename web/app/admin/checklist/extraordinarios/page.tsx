@@ -136,11 +136,12 @@ export default function ExtraordinaryChecklistsPage() {
     try {
       const { data, error } = await getSupabaseClient()
         .rpc('find_extraordinary_checklist_asset', { p_code: code })
-        .returns<AssetOption[]>();
+        .overrideTypes<AssetOption[], { merge: false }>();
       if (error) throw new Error(error.message);
-      setAssets(data);
-      if (data.length === 1) setAssetId(data[0].id);
-      if (!data.length)
+      const matches = data ?? [];
+      setAssets(matches);
+      if (matches.length === 1) setAssetId(matches[0].id);
+      if (!matches.length)
         setMessage('No se encontró un activo vigente con ese código.');
     } catch (error) {
       setMessage(
