@@ -271,6 +271,13 @@ export async function getChecklistCountsByEquipo(
          AND equipamento_id = ?
          AND frequency = ?
          AND period_start = ?
+         AND EXISTS (
+           SELECT 1 FROM local_equipos e
+           WHERE e.id = offline_checklist_responses.equipo_id
+             AND e.id_property = offline_checklist_responses.building_id
+             AND e.id_equipamento = offline_checklist_responses.equipamento_id
+             AND (e.estatus IS NULL OR e.estatus != 'INACTIVO')
+         )
        GROUP BY equipo_id`,
       [buildingId, equipamentoId, frequency, periodStart],
     )) as OfflineChecklistCount[];
@@ -315,6 +322,7 @@ export async function validateLocalChecklistSchedule(
   equipamentoId: string,
   equipoId?: string | null,
   submittedAt: string = new Date().toISOString(),
+  options?: { calendarPreview?: boolean },
 ): Promise<ChecklistScheduleValidation> {
   await ensureInitialized();
 
@@ -453,7 +461,10 @@ export async function validateLocalChecklistSchedule(
     const windowStartPad = padTime(schedule.window_start);
     const windowEndPad = padTime(schedule.window_end);
 
-    if (localTimeString < windowStartPad || localTimeString > windowEndPad) {
+    if (
+      !options?.calendarPreview &&
+      (localTimeString < windowStartPad || localTimeString > windowEndPad)
+    ) {
       return {
         has_schedule: true,
         allowed: false,
