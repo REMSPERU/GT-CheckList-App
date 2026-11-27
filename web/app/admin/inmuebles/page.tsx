@@ -6,6 +6,7 @@ import { PropertiesGrid } from '@/components/admin/properties-grid';
 import { PropertyDrawer } from '@/components/admin/property-drawer';
 import { Alert } from '@/components/ui/alert';
 import { SearchInput } from '@/components/ui/search-input';
+import { SelectField } from '@/components/ui/select-field';
 import { useAdminProperties } from '@/hooks/admin/use-admin-properties';
 
 import { Plus } from 'lucide-react';
@@ -36,6 +37,16 @@ function AdminPropertiesContent() {
             <span className={`h-2 w-2 rounded-full ${properties.status === 'inactive' ? 'bg-slate-400' : 'bg-emerald-500'}`} />
             {properties.status === 'inactive' ? 'Ver Activos' : 'Ver Inactivos'}
           </button>
+          <SelectField
+            value={properties.operabilityOrder}
+            onChange={properties.setOperabilityOrder}
+            ariaLabel="Ordenar por operatividad HVAC"
+            options={[
+              { value: '', label: 'Orden por nombre' },
+              { value: 'asc', label: 'Operatividad de menor a mayor' },
+              { value: 'desc', label: 'Operatividad de mayor a menor' },
+            ]}
+          />
         </div>
         <button
           type="button"
@@ -46,9 +57,13 @@ function AdminPropertiesContent() {
         </button>
       </section>
       <Alert>{properties.errorMessage}</Alert>
+      {properties.operabilityUnavailable ? (
+        <Alert>No se pudo consultar la operatividad HVAC.</Alert>
+      ) : null}
       <PropertiesGrid
         items={properties.filteredItems}
         isLoading={properties.isLoading}
+        operability={properties.operability}
       />
 
       <PropertyDrawer
