@@ -1,4 +1,5 @@
 import { dbPromise, ensureInitialized, withLock } from './connection';
+import { getChecklistLocalDate } from '@/utils/checklist-local-date';
 
 // --- READ METHODS FOR UI ---
 
@@ -121,6 +122,7 @@ export async function getChecklistSystemsByProperty(
 ) {
   await ensureInitialized();
   const db = await dbPromise;
+  const today = getChecklistLocalDate();
   const rows = (await db.getAllAsync(
     `
         SELECT
@@ -143,6 +145,8 @@ export async function getChecklistSystemsByProperty(
             WHERE cs.property_id = eq.id_property
               AND cs.equipamento_id = eq.id_equipamento
               AND cs.is_active = 1
+              AND cs.start_date <= ?
+              AND (cs.end_date IS NULL OR cs.end_date >= ?)
           ))
         GROUP BY
           sistema_id,
@@ -155,7 +159,7 @@ export async function getChecklistSystemsByProperty(
           e.id_sistema
         ORDER BY sistema_nombre ASC, e.nombre ASC
       `,
-    [propertyId, 'INACTIVO', Number(scheduledOnly)],
+    [propertyId, 'INACTIVO', Number(scheduledOnly), today, today],
   )) as any[];
 
   const groups = new Map<

@@ -3,6 +3,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { GemaPropertyAccess } from '@/components/gema-property-access';
 import { useUserRole } from '@/hooks/use-user-role';
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { DatabaseService } from '@/services/database';
+import { getChecklistLocalDate } from '@/utils/checklist-local-date';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -31,7 +34,7 @@ export default function QREquipmentOptionsScreen() {
 }
 
 function QREquipmentOptionsScreenContent() {
-  const { canUseChecklists } = useUserRole();
+  const { canUseChecklists, isTechnician } = useUserRole();
   const router = useRouter();
   const params = useLocalSearchParams<QREquipmentRouteParams>();
 
@@ -60,6 +63,28 @@ function QREquipmentOptionsScreenContent() {
     ],
   );
 
+  const schedule = useQuery({
+    networkMode: 'always',
+    queryKey: [
+      'qr-checklist-schedule',
+      routeParams.buildingId,
+      routeParams.equipamentoId,
+    ],
+    enabled:
+      isTechnician && !!routeParams.buildingId && !!routeParams.equipamentoId,
+    queryFn: () =>
+      DatabaseService.getLocalChecklistScheduleByScope(
+        routeParams.buildingId,
+        routeParams.equipamentoId,
+      ),
+  });
+  const today = getChecklistLocalDate(new Date(), schedule.data?.timezone);
+  const scheduled =
+    !!schedule.data &&
+    schedule.data.start_date <= today &&
+    (!schedule.data.end_date || schedule.data.end_date >= today);
+  const showChecklist = canUseChecklists && (!isTechnician || scheduled);
+
   const actions = useMemo<QREquipmentAction[]>(
     () =>
       (
@@ -86,8 +111,8 @@ function QREquipmentOptionsScreenContent() {
             },
           },
         ] satisfies QREquipmentAction[]
-      ).filter(action => canUseChecklists || action.key !== 'checklist'),
-    [canUseChecklists, routeParams, router],
+      ).filter(action => showChecklist || action.key !== 'checklist'),
+    [showChecklist, routeParams, router],
   );
 
   return (
@@ -118,6 +143,9 @@ function QREquipmentOptionsScreenContent() {
           <Text style={styles.sectionTitle}>Opciones</Text>
         </View>
 
+        {isTechnician && schedule.fetchStatus === 'idle' && !scheduled ? (
+          <Text>No hay un checklist vigente para este equipo.</Text>
+        ) : null}
         <QREquipmentActions actions={actions} />
       </ScrollView>
     </SafeAreaView>

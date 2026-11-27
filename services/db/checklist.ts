@@ -64,46 +64,47 @@ function parseWorkDays(
   return fallback;
 }
 
+// Callers that already hold the database lock can reuse the same calendar read.
+async function readChecklistWorkingDay(
+  db: Awaited<typeof dbPromise>,
+  dateString: string,
+  scheduledWorkDays?: string | null,
+): Promise<ChecklistWorkingDayValidation> {
+  const exception = await db.getFirstAsync<{ is_working_day: number }>(
+    `SELECT is_working_day
+     FROM local_checklist_workday_exceptions
+     WHERE exception_date = ?
+     LIMIT 1`,
+    [dateString],
+  );
+  const scheduleDays = parseWorkDays(scheduledWorkDays, null);
+  const noWorkingDay =
+    'Hoy es un día no laborable según el calendario de checklists.';
+
+  if (exception && (exception.is_working_day === 0 || !scheduleDays)) {
+    return {
+      allowed: exception.is_working_day === 1,
+      reason: exception.is_working_day === 1 ? null : noWorkingDay,
+    };
+  }
+
+  const config = scheduleDays
+    ? null
+    : await db.getFirstAsync<{ work_days: string }>(
+        'SELECT work_days FROM local_checklist_workday_config LIMIT 1',
+      );
+  const workDays = scheduleDays ?? parseWorkDays(config?.work_days) ?? [];
+  const allowed = workDays.includes(getIsoDayOfWeek(dateString));
+  return { allowed, reason: allowed ? null : noWorkingDay };
+}
+
 export async function validateLocalChecklistWorkingDay(
   dateString: string,
 ): Promise<ChecklistWorkingDayValidation> {
   await ensureInitialized();
-
-  return withLock(async () => {
-    const db = await dbPromise;
-    const exception = (await db.getFirstAsync(
-      `SELECT is_working_day
-       FROM local_checklist_workday_exceptions
-       WHERE exception_date = ?
-       LIMIT 1`,
-      [dateString],
-    )) as { is_working_day: number } | null;
-
-    if (exception) {
-      return {
-        allowed: exception.is_working_day === 1,
-        reason:
-          exception.is_working_day === 1
-            ? null
-            : 'Hoy es un dia no laborable segun el calendario de checklist.',
-      };
-    }
-
-    const config = (await db.getFirstAsync(
-      `SELECT work_days
-       FROM local_checklist_workday_config
-       LIMIT 1`,
-    )) as { work_days: string } | null;
-    const workDays = parseWorkDays(config?.work_days);
-    const allowed = workDays.includes(getIsoDayOfWeek(dateString));
-
-    return {
-      allowed,
-      reason: allowed
-        ? null
-        : 'Hoy es un dia no laborable segun el calendario de checklist.',
-    };
-  });
+  return withLock(async () =>
+    readChecklistWorkingDay(await dbPromise, dateString),
+  );
 }
 
 export async function saveOfflineChecklistResponse(
@@ -392,54 +393,17 @@ export async function validateLocalChecklistSchedule(
     const localTimeString = `${hour}:${minute}:${second}`;
     const anchorDateString = schedule.start_date;
 
-    // 1. Working day calendar validation
-    let isWorkingDayAllowed = true;
-    let workingDayReason: string | null = null;
+    const workingDay = await readChecklistWorkingDay(
+      db,
+      localDateString,
+      schedule.work_days,
+    );
 
-    // First check global exception dates
-    const exception = (await db.getFirstAsync(
-      `SELECT is_working_day
-       FROM local_checklist_workday_exceptions
-       WHERE exception_date = ?
-       LIMIT 1`,
-      [localDateString],
-    )) as { is_working_day: number } | null;
-
-    if (exception && exception.is_working_day === 0) {
-      isWorkingDayAllowed = false;
-      workingDayReason =
-        'Hoy es un dia no laborable segun el calendario de checklist.';
-    } else if (schedule.work_days) {
-      // Use schedule-specific work_days if defined and non-empty
-      const scheduleWorkDays = parseWorkDays(schedule.work_days, null);
-      if (scheduleWorkDays && scheduleWorkDays.length > 0) {
-        const isoDay = getIsoDayOfWeek(localDateString);
-        if (!scheduleWorkDays.includes(isoDay)) {
-          isWorkingDayAllowed = false;
-          workingDayReason =
-            'Hoy es un dia no laborable segun el calendario de checklist.';
-        }
-      } else {
-        const workdayVal =
-          await validateLocalChecklistWorkingDay(localDateString);
-        isWorkingDayAllowed = workdayVal.allowed;
-        workingDayReason = workdayVal.reason;
-      }
-    } else {
-      // Fallback to global workday config
-      const workdayVal =
-        await validateLocalChecklistWorkingDay(localDateString);
-      isWorkingDayAllowed = workdayVal.allowed;
-      workingDayReason = workdayVal.reason;
-    }
-
-    if (!isWorkingDayAllowed) {
+    if (!workingDay.allowed) {
       return {
         has_schedule: true,
         allowed: false,
-        reason:
-          workingDayReason ||
-          'Hoy es un dia no laborable segun el calendario de checklist.',
+        reason: workingDay.reason,
         schedule_id: schedule.id,
         frequency: schedule.frequency,
         occurrences_per_day: schedule.occurrences_per_day,
@@ -581,6 +545,11 @@ export async function validateLocalChecklistSchedule(
         period_start: null,
         period_end: null,
       };
+    }
+
+    // The last repetition can end sooner than its configured execution range.
+    if (schedule.end_date && effectiveEndDate > schedule.end_date) {
+      effectiveEndDate = schedule.end_date;
     }
 
     // 5. Query occurrences count in SQLite

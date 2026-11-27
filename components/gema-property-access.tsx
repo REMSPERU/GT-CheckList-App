@@ -24,6 +24,7 @@ export function GemaPropertyAccess({
   const needsAssignment = enabled && hasAssignedPropertyScope;
 
   const assignment = useQuery({
+    networkMode: 'always',
     queryKey: ['gema-property-access', userId, propertyId, equipmentId],
     enabled: needsAssignment && !!userId && !!propertyId,
     queryFn: async () => {
