@@ -495,6 +495,11 @@ function AdminChecklistContent({ routeTab }: AdminChecklistContentProps) {
         </section>
       ) : activeTab === 'schedule' ? (
         <section className="grid gap-4">
+          {user?.role === 'SUPERADMIN' ? (
+            <Link className="w-fit font-bold text-cyan-800 underline" href="/admin/checklist/extraordinarios">
+              Checklists extraordinarios
+            </Link>
+          ) : null}
           <section className="rounded-[26px] border border-slate-900/10 bg-white/85 p-5 shadow-[0_22px_54px_rgba(15,23,42,0.08)]">
             <div className="mb-4 flex items-start justify-between gap-3 max-[640px]:grid">
               <div>

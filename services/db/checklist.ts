@@ -559,6 +559,7 @@ export async function validateLocalChecklistSchedule(
         `SELECT COUNT(*) as count
          FROM offline_checklist_responses
          WHERE status IN ('pending', 'syncing', 'synced', 'error')
+           AND frequency <> 'EXTRAORDINARIA'
            AND equipo_id = ?
            AND period_start = ?`,
         [equipoId, effectiveStartDate],
@@ -569,6 +570,7 @@ export async function validateLocalChecklistSchedule(
         `SELECT COUNT(*) as count
          FROM offline_checklist_responses
          WHERE status IN ('pending', 'syncing', 'synced', 'error')
+           AND frequency <> 'EXTRAORDINARIA'
            AND building_id = ?
            AND equipamento_id = ?
            AND period_start = ?`,

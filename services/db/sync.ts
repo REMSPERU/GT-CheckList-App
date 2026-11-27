@@ -43,6 +43,7 @@ export async function clearMirrorTables() {
     DELETE FROM local_checklist_schedules;
     DELETE FROM local_checklist_property_templates;
     DELETE FROM local_provider_equipment_findings;
+    DELETE FROM local_extraordinary_checklists;
     DELETE FROM local_audit_questions;
     DELETE FROM local_equipamentos_property;
     DELETE FROM offline_panel_configurations;

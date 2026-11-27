@@ -10,6 +10,10 @@ import type { ChecklistPropertyTemplate } from '@/types/checklist';
 import { syncQueue } from './sync-queue';
 import { replaceProviderFindings } from './db/provider-findings';
 import type { ProviderFinding } from '@/types/provider-finding';
+import {
+  replaceExtraordinaryChecklists,
+  type ExtraordinaryChecklist,
+} from './db/extraordinary-checklists';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface NetworkState {
@@ -2147,6 +2151,23 @@ class SyncService {
           });
           if (result.data !== null) {
             await replaceProviderFindings(currentUserId, result.data);
+          }
+
+          const assignments = await safeFetch(async () => {
+            const rows: ExtraordinaryChecklist[] = [];
+            const pageSize = 500;
+            for (let offset = 0; ; offset += pageSize) {
+              const { data, error } = await supabase
+                .rpc('list_open_extraordinary_checklists')
+                .order('id')
+                .range(offset, offset + pageSize - 1);
+              if (error) return { data: null, error };
+              rows.push(...data);
+              if (data.length < pageSize) return { data: rows, error: null };
+            }
+          });
+          if (assignments.data !== null) {
+            await replaceExtraordinaryChecklists(currentUserId, assignments.data);
           }
         }
 

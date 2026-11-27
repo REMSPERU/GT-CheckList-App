@@ -216,6 +216,15 @@ export async function initDatabase() {
           updated_at TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS local_extraordinary_checklists (
+          id TEXT PRIMARY KEY,
+          asset_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          start_date TEXT NOT NULL,
+          end_date TEXT NOT NULL,
+          reason TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS local_provider_equipment_findings (
           id TEXT PRIMARY KEY,
           asset_id TEXT NOT NULL,
@@ -485,6 +494,11 @@ export async function initDatabase() {
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           synced_at TEXT
         );
+        CREATE UNIQUE INDEX IF NOT EXISTS offline_extraordinary_assignment_uq
+          ON offline_checklist_responses (
+            json_extract(payload_json, '$.extraordinary_assignment_id')
+          )
+          WHERE frequency = 'EXTRAORDINARIA' AND json_valid(payload_json);
 
         CREATE TABLE IF NOT EXISTS offline_checklist_photos (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
