@@ -241,7 +241,16 @@ export default function EquipoDetailScreen() {
                 ubicacion={equipo?.ubicacion}
                 detalleUbicacion={equipo?.detalle_ubicacion}
               />
-              <EquipmentAccessBadge difficult={equipmentDetailData.dificil_acceso} />
+              <EquipmentAccessBadge
+                difficult={equipmentDetailData.dificil_acceso}
+              />
+              {typeof equipmentDetailData.ambiente_tecnico === 'string' &&
+              equipmentDetailData.ambiente_tecnico.trim() ? (
+                <Text style={styles.sistemaNombre}>
+                  Ambiente técnico ·{' '}
+                  {equipmentDetailData.ambiente_tecnico.trim()}
+                </Text>
+              ) : null}
               {equipo?.sistema_nombre ? (
                 <Text style={styles.sistemaNombre}>
                   {equipo.sistema_nombre}
@@ -324,6 +333,25 @@ export default function EquipoDetailScreen() {
                           accessibilityLabel="Equipo de difícil acceso"
                           value={value === true}
                           onValueChange={onChange}
+                        />
+                      )}
+                    />
+                  </View>
+
+                  <View style={styles.fieldWrap}>
+                    <Text style={styles.label}>Ambiente o cuarto técnico</Text>
+                    <Controller
+                      control={control}
+                      name="equipment_detail.ambiente_tecnico"
+                      render={({ field: { value, onChange, onBlur } }) => (
+                        <TextInput
+                          style={styles.input}
+                          value={typeof value === 'string' ? value : ''}
+                          onChangeText={onChange}
+                          onBlur={onBlur}
+                          accessibilityLabel="Ambiente o cuarto técnico"
+                          placeholder="Ej. Cuarto de chillers"
+                          maxLength={80}
                         />
                       )}
                     />
