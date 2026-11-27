@@ -1,6 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { GemaPropertyAccess } from '@/components/gema-property-access';
+import { EquipmentAccessBadge } from '@/components/inventory/equipment-access-badge';
 import { useUserRole } from '@/hooks/use-user-role';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -259,6 +260,7 @@ function QREquipmentDescriptionScreenContent() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
         <EquipmentSummaryCard {...routeParams} />
+        <EquipmentAccessBadge difficult={equipmentDetail?.dificil_acceso} />
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Detalle tecnico</Text>

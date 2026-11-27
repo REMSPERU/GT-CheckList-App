@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { getChecklistLocalDate } from '@/utils/checklist-local-date';
 import { GemaPropertyAccess } from '@/components/gema-property-access';
+import { EquipmentAccessBadge } from '@/components/inventory/equipment-access-badge';
 import { useUserRole } from '@/hooks/use-user-role';
 import {
   View,
@@ -325,6 +326,7 @@ const EquipmentListItem = React.memo(function EquipmentListItem({
         <Text style={styles.itemSubtitle}>
           {locationText || 'Sin ubicacion'}
         </Text>
+        <EquipmentAccessBadge difficult={item.equipment_detail?.dificil_acceso} />
       </View>
       <View style={styles.itemActions}>
         <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
