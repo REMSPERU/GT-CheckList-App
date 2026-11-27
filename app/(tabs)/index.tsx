@@ -40,7 +40,6 @@ function HomeScreen() {
     isTechnician,
     canViewInventory,
     canUseChecklists,
-    isTechnician,
     canScheduleMaintenance,
     canExecuteMaintenance,
     canGenerateMaintenanceReports,
