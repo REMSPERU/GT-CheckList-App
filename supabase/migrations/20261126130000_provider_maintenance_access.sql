@@ -84,7 +84,17 @@ alter policy gema_equipos_read on public.equipos using (
 create policy gema_provider_read_maintenance on public.mantenimientos as restrictive
 for select to authenticated using (
   public.get_user_role() <> 'PROVEEDOR'
-  or exists (select 1 from public.equipos e where e.id = mantenimientos.id_equipo)
+  or exists (
+    select 1 from public.equipos e
+    where e.id = mantenimientos.id_equipo
+      and (
+        mantenimientos.id_sesion is null
+        or exists (
+          select 1 from public.sesion_mantenimiento sm
+          where sm.id = mantenimientos.id_sesion and sm.id_property = e.id_property
+        )
+      )
+  )
 );
 alter policy gema_maintenance_schedule_insert on public.mantenimientos with check (
   public.get_user_role() in ('SUPERVISOR', 'SUPERADMIN')
@@ -104,7 +114,18 @@ alter policy gema_maintenance_schedule_update on public.mantenimientos using (
 ) with check (
   public.get_user_role() in ('SUPERVISOR', 'SUPERADMIN')
   or (public.get_user_role() = 'PROVEEDOR'
-    and exists (select 1 from public.equipos e where e.id = mantenimientos.id_equipo))
+    and exists (
+      select 1 from public.equipos e
+      where e.id = mantenimientos.id_equipo
+        and (
+          mantenimientos.id_sesion is null
+          or exists (
+            select 1 from public.sesion_mantenimiento sm
+            where sm.id = mantenimientos.id_sesion and sm.id_property = e.id_property
+          )
+        )
+    )
+  )
 );
 
 create policy gema_provider_read_maintenance_response on public.maintenance_response as restrictive
@@ -133,15 +154,34 @@ for select to authenticated using (
 );
 create policy gema_provider_session_insert on public.sesion_mantenimiento as restrictive
 for insert to authenticated with check (
-  public.get_user_role() <> 'PROVEEDOR'
-  or (public.can_read_property(id_property) and created_by = (select auth.uid()))
+  public.get_user_role() in ('SUPERVISOR', 'SUPERADMIN')
+  or (public.get_user_role() = 'PROVEEDOR'
+    and public.can_read_property(id_property) and created_by = (select auth.uid()))
 );
 create policy gema_provider_session_update on public.sesion_mantenimiento as restrictive
 for update to authenticated using (
-  public.get_user_role() <> 'PROVEEDOR' or public.can_read_property(id_property)
+  public.get_user_role() in ('SUPERVISOR', 'SUPERADMIN')
+  or (public.get_user_role() = 'PROVEEDOR' and public.can_read_property(id_property))
 ) with check (
-  public.get_user_role() <> 'PROVEEDOR' or public.can_read_property(id_property)
+  public.get_user_role() in ('SUPERVISOR', 'SUPERADMIN')
+  or (public.get_user_role() = 'PROVEEDOR' and public.can_read_property(id_property))
 );
+
+create function public.guard_provider_maintenance_session_property()
+returns trigger language plpgsql set search_path = ''
+as $$
+begin
+  if public.get_user_role() = 'PROVEEDOR' and new.id_property is distinct from old.id_property then
+    raise exception 'El proveedor no puede trasladar una sesión de mantenimiento'
+      using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trg_guard_provider_maintenance_session_property
+before update of id_property on public.sesion_mantenimiento
+for each row execute function public.guard_provider_maintenance_session_property();
 
 create policy gema_provider_session_photos on public.sesion_mantenimiento_fotos as restrictive
 for all to authenticated using (
@@ -150,6 +190,13 @@ for all to authenticated using (
 ) with check (
   public.get_user_role() <> 'PROVEEDOR'
   or exists (select 1 from public.sesion_mantenimiento sm where sm.id = sesion_mantenimiento_fotos.id_sesion)
+);
+
+create policy gema_maintenance_session_photo_insert on public.sesion_mantenimiento_fotos as restrictive
+for insert to authenticated with check (
+  public.get_user_role() in ('SUPERVISOR', 'SUPERADMIN')
+  or (public.get_user_role() = 'PROVEEDOR' and created_by = (select auth.uid())
+    and exists (select 1 from public.sesion_mantenimiento sm where sm.id = sesion_mantenimiento_fotos.id_sesion))
 );
 
 create policy gema_provider_session_assignment on public.user_sesion_mantenimiento as restrictive

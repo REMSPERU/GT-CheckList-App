@@ -18,6 +18,7 @@ import { SearchInput } from '@/components/ui/search-input';
 import { SearchableSelectField } from '@/components/ui/searchable-select-field';
 import { useAdminUsers } from '@/hooks/admin/use-admin-users';
 import { ADMIN_ROLE_OPTIONS } from '@/services/admin/users.service';
+import { PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT } from '../../../../types/gema-role';
 import type { AdminUserPropertyAccessRow, AdminUserRow } from '@/types/admin';
 import type { AdminRole } from '@/types/auth';
 
@@ -573,7 +574,8 @@ export default function AdminUsersPage() {
                         ))}
                       </select>
                     </label>
-                    {users.selectedUser.role === 'PROVEEDOR' || editingProvider ? (
+                    {PROVIDER_ROLE_AVAILABLE_FOR_ASSIGNMENT &&
+                    (users.selectedUser.role === 'PROVEEDOR' || editingProvider) ? (
                       <div className="grid gap-2">
                         <label className="grid gap-1 text-xs font-bold text-slate-600">
                           Empresa del proveedor
