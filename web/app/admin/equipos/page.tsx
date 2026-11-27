@@ -15,9 +15,6 @@ import { mapTipoLabel } from '@/lib/equipment-labels';
 import { useAdminSession } from '@/hooks/auth/use-admin-session';
 import { getGemaPermissions } from '../../../../types/gema-role';
 
-// Mantiene el contrato usado por exportaciones y vistas históricas.
-export { mapTipoLabel };
-
 const STATUS_OPTIONS = [
   { value: 'TODOS', label: 'Todos los estados' },
   { value: 'ACTIVO', label: 'Activo' },

@@ -7,7 +7,7 @@ import { EquipmentDetailView } from '@/components/admin/equipment-detail-view';
 import { EquipmentExcelTable } from '@/components/admin/equipment-excel-table';
 import { ViewModeToggle } from '@/components/admin/view-mode-toggle';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { mapTipoLabel } from '@/app/admin/equipos/page';
+import { mapTipoLabel } from '@/lib/equipment-labels';
 import {
   ArrowLeft,
   Camera,
