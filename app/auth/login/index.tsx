@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { GemaBrand } from '@/components/gema-brand';
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useRef, useState } from 'react';
@@ -86,12 +86,7 @@ export default function LoginScreen() {
           <View style={styles.content}>
             <View style={styles.brandBlock}>
               <View style={styles.logoShell}>
-                <Image
-                  source={require('../../../assets/logo/image.png')}
-                  style={styles.logo}
-                  contentFit="contain"
-                  transition={1000}
-                />
+                <GemaBrand />
               </View>
               <Text style={styles.title}>Bienvenido</Text>
               <Text style={styles.subtitle}>
@@ -301,10 +296,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.9)',
     boxShadow: '0 14px 34px rgba(17, 24, 39, 0.08)',
-  },
-  logo: {
-    width: 148,
-    height: 62,
   },
   title: {
     marginTop: 6,

@@ -1,7 +1,7 @@
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { GemaBrand } from '@/components/gema-brand';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
@@ -173,12 +173,9 @@ export default function RegisterScreen() {
           style={styles.flex}
           contentContainerStyle={styles.scrollContent}>
           <View style={styles.content}>
-            <Image
-              source={require('../../../assets/logo/image.png')}
-              style={styles.logo}
-              contentFit="contain"
-              transition={1000}
-            />
+            <View style={styles.logo}>
+              <GemaBrand />
+            </View>
 
             <View style={styles.form}>
               <View style={styles.inputWrapper}>
@@ -364,8 +361,6 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   logo: {
-    width: 260,
-    height: 120,
     marginBottom: 32,
   },
   form: {

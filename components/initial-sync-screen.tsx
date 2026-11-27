@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
+import { GemaBrand } from '@/components/gema-brand';
 import * as Haptics from 'expo-haptics';
 import Feather from '@expo/vector-icons/Feather';
 import { syncService } from '@/services/sync';
@@ -49,7 +49,9 @@ export function InitialSyncScreen({ onComplete }: InitialSyncScreenProps) {
       if (hasMirror) {
         setStatus('success');
         try {
-          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          await Haptics.notificationAsync(
+            Haptics.NotificationFeedbackType.Success,
+          );
         } catch (e) {}
 
         // Esperar 1.5 segundos para que el usuario aprecie el estado de éxito y luego redirigir
@@ -57,7 +59,9 @@ export function InitialSyncScreen({ onComplete }: InitialSyncScreenProps) {
           onComplete();
         }, 1500);
       } else {
-        throw new Error('La sincronización se completó pero el espejo local sigue vacío.');
+        throw new Error(
+          'La sincronización se completó pero el espejo local sigue vacío.',
+        );
       }
     } catch (error) {
       console.error('[InitialSyncScreen] Sync failed:', error);
@@ -65,7 +69,7 @@ export function InitialSyncScreen({ onComplete }: InitialSyncScreenProps) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : 'Error al conectar con el servidor. Revisa tu conexión a internet.'
+          : 'Error al conectar con el servidor. Revisa tu conexión a internet.',
       );
       try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -78,11 +82,7 @@ export function InitialSyncScreen({ onComplete }: InitialSyncScreenProps) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.logoContainer}>
-        <Image
-          style={styles.logo}
-          source={require('../assets/logo/image.png')}
-          contentFit="contain"
-        />
+        <GemaBrand />
       </View>
 
       <View style={styles.card}>
@@ -110,8 +110,8 @@ export function InitialSyncScreen({ onComplete }: InitialSyncScreenProps) {
             </View>
             <Text style={styles.title}>Sincronizando...</Text>
             <Text style={styles.description}>
-              Descargando inmuebles, equipos, sistemas y configuraciones.
-              Esto puede tardar unos momentos, por favor no cierres la app.
+              Descargando inmuebles, equipos, sistemas y configuraciones. Esto
+              puede tardar unos momentos, por favor no cierres la app.
             </Text>
             <Text style={styles.counterText}>
               Tiempo transcurrido: {elapsedSeconds}s
@@ -126,8 +126,8 @@ export function InitialSyncScreen({ onComplete }: InitialSyncScreenProps) {
             </View>
             <Text style={styles.title}>¡Actualizado Correctamente!</Text>
             <Text style={styles.description}>
-              Se han descargado todos los datos asignados. La aplicación está lista
-              para usarse de forma offline.
+              Se han descargado todos los datos asignados. La aplicación está
+              lista para usarse de forma offline.
             </Text>
           </>
         )}
@@ -164,10 +164,6 @@ const styles = StyleSheet.create({
   logoContainer: {
     marginBottom: 40,
     alignItems: 'center',
-  },
-  logo: {
-    width: 260,
-    height: 90,
   },
   card: {
     backgroundColor: '#FFFFFF',
