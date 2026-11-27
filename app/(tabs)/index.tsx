@@ -18,6 +18,7 @@ import { AppAlertModal } from '@/components/app-alert-modal';
 import { BuildingHeroCard } from '@/components/home/building-hero-card';
 import { BuildingSelectorModal } from '@/components/home/building-selector-modal';
 import { ChecklistTodayCard } from '@/components/home/checklist-today-card';
+import { ExtraordinaryChecklistCards } from '@/components/home/extraordinary-checklist-cards';
 import { HomeHeader } from '@/components/home/home-header';
 import { LogoutConfirmModal } from '@/components/home/logout-confirm-modal';
 import { useHomeScreen } from '@/hooks/use-home-screen';
@@ -39,6 +40,7 @@ function HomeScreen() {
     isTechnician,
     canViewInventory,
     canUseChecklists,
+    isTechnician,
     canScheduleMaintenance,
     canExecuteMaintenance,
     canGenerateMaintenanceReports,
@@ -210,6 +212,10 @@ function HomeScreen() {
             lastSync={lastSyncTimestamp}
             onOpen={handleChecklistPress}
           />
+        ) : null}
+
+        {isTechnician && selectedBuilding ? (
+          <ExtraordinaryChecklistCards propertyId={selectedBuilding.id} />
         ) : null}
 
         <View style={[styles.sectionTitleWrapper, styles.actionsTitle]}>
